@@ -3,7 +3,7 @@ import { Suspense } from 'react'
 import { CompanyProvider } from '@/core/ui/company-provider'
 import { Layout } from '@/core/ui/layout'
 import { KPIDashboard } from '@/modules/insights/routes'
-import { EmployeeList } from '@/modules/talent/routes'
+import { EmployeeList, EmployeeForm, EmployeeProfile } from '@/modules/talent/routes'
 import { SupplierList } from '@/modules/suppliers/routes'
 import { TransactionList } from '@/modules/finance/routes'
 
@@ -24,6 +24,8 @@ export default function App() {
             <Route path="/" element={<Navigate to="/insights" replace />} />
             <Route path="/insights" element={<Suspense fallback={<Loading />}><KPIDashboard /></Suspense>} />
             <Route path="/talent" element={<Suspense fallback={<Loading />}><EmployeeList /></Suspense>} />
+            <Route path="/talent/new" element={<Suspense fallback={<Loading />}><EmployeeForm /></Suspense>} />
+            <Route path="/talent/:id" element={<Suspense fallback={<Loading />}><EmployeeProfile /></Suspense>} />
             <Route path="/suppliers" element={<Suspense fallback={<Loading />}><SupplierList /></Suspense>} />
             <Route path="/finance" element={<Suspense fallback={<Loading />}><TransactionList /></Suspense>} />
           </Route>

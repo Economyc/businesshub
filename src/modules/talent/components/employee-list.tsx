@@ -1,11 +1,139 @@
+import { useState, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Plus, Users } from 'lucide-react'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
+import { SearchInput } from '@/core/ui/search-input'
+import { DataTable } from '@/core/ui/data-table'
+import { StatusBadge } from '@/core/ui/status-badge'
+import { EmptyState } from '@/core/ui/empty-state'
+import { useEmployees } from '../hooks'
+import type { Employee } from '../types'
 
 export function EmployeeList() {
+  const navigate = useNavigate()
+  const { data: employees, loading } = useEmployees()
+  const [search, setSearch] = useState('')
+  const [departmentFilter, setDepartmentFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+
+  const departments = useMemo(() => {
+    const set = new Set(employees.map((e) => e.department).filter(Boolean))
+    return Array.from(set).sort()
+  }, [employees])
+
+  const filtered = useMemo(() => {
+    return employees.filter((e) => {
+      const matchesSearch =
+        search === '' ||
+        e.name.toLowerCase().includes(search.toLowerCase()) ||
+        e.role.toLowerCase().includes(search.toLowerCase()) ||
+        e.email.toLowerCase().includes(search.toLowerCase())
+      const matchesDept = departmentFilter === '' || e.department === departmentFilter
+      const matchesStatus = statusFilter === '' || e.status === statusFilter
+      return matchesSearch && matchesDept && matchesStatus
+    })
+  }, [employees, search, departmentFilter, statusFilter])
+
+  const totalPayroll = useMemo(() => {
+    return filtered.reduce((sum, e) => sum + (e.salary ?? 0), 0)
+  }, [filtered])
+
+  const columns = [
+    {
+      key: 'name',
+      header: 'Nombre',
+      width: '2fr',
+      render: (e: Employee) => <span className="font-medium text-dark-graphite">{e.name}</span>,
+    },
+    {
+      key: 'role',
+      header: 'Cargo',
+      width: '1.5fr',
+      render: (e: Employee) => e.role,
+    },
+    {
+      key: 'department',
+      header: 'Departamento',
+      width: '1fr',
+      render: (e: Employee) => e.department,
+    },
+    {
+      key: 'salary',
+      header: 'Salario',
+      width: '1fr',
+      render: (e: Employee) =>
+        `$${(e.salary ?? 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`,
+    },
+    {
+      key: 'status',
+      header: 'Estado',
+      width: '0.8fr',
+      render: (e: Employee) => <StatusBadge variant={e.status} />,
+    },
+  ]
+
   return (
     <PageTransition>
-      <PageHeader title="Directorio de Talento" />
-      <p className="text-mid-gray">Módulo en construcción...</p>
+      <PageHeader title="Directorio de Talento">
+        <button
+          onClick={() => navigate('/talent/new')}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] bg-graphite text-white text-[13px] font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md"
+        >
+          <Plus size={15} strokeWidth={2} />
+          Nuevo
+        </button>
+      </PageHeader>
+
+      <div className="mb-4 text-caption text-mid-gray">
+        Nómina total:{' '}
+        <span className="font-medium text-graphite">
+          ${totalPayroll.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+        </span>
+      </div>
+
+      <div className="flex gap-3 mb-5">
+        <div className="flex-1">
+          <SearchInput value={search} onChange={setSearch} placeholder="Buscar empleado..." />
+        </div>
+        <select
+          value={departmentFilter}
+          onChange={(e) => setDepartmentFilter(e.target.value)}
+          className="px-3 py-2.5 rounded-[10px] border border-input-border bg-card-bg text-body text-graphite focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200"
+        >
+          <option value="">Todos los departamentos</option>
+          {departments.map((d) => (
+            <option key={d} value={d}>
+              {d}
+            </option>
+          ))}
+        </select>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="px-3 py-2.5 rounded-[10px] border border-input-border bg-card-bg text-body text-graphite focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200"
+        >
+          <option value="">Todos los estados</option>
+          <option value="active">Activo</option>
+          <option value="inactive">Inactivo</option>
+        </select>
+      </div>
+
+      {loading ? (
+        <div className="text-body text-mid-gray py-8 text-center">Cargando...</div>
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          icon={Users}
+          title="No hay empleados"
+          description="Agrega tu primer empleado usando el botón + Nuevo"
+        />
+      ) : (
+        <DataTable
+          columns={columns}
+          data={filtered}
+          onRowClick={(e) => navigate(`/talent/${e.id}`)}
+        />
+      )}
     </PageTransition>
   )
 }
