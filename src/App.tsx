@@ -1,12 +1,34 @@
-function App() {
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { Suspense } from 'react'
+import { CompanyProvider } from '@/core/ui/company-provider'
+import { Layout } from '@/core/ui/layout'
+import { KPIDashboard } from '@/modules/insights/routes'
+import { EmployeeList } from '@/modules/talent/routes'
+import { SupplierList } from '@/modules/suppliers/routes'
+import { TransactionList } from '@/modules/finance/routes'
+
+function Loading() {
   return (
-    <div className="min-h-screen bg-bone flex items-center justify-center">
-      <div className="text-center">
-        <h1 className="text-2xl font-semibold text-graphite">BusinessHub</h1>
-        <p className="text-mid-gray mt-2">Unified command center</p>
-      </div>
+    <div className="flex items-center justify-center h-40">
+      <div className="text-mid-gray text-body">Cargando...</div>
     </div>
   )
 }
 
-export default App
+export default function App() {
+  return (
+    <BrowserRouter>
+      <CompanyProvider>
+        <Routes>
+          <Route element={<Layout />}>
+            <Route path="/" element={<Navigate to="/insights" replace />} />
+            <Route path="/insights" element={<Suspense fallback={<Loading />}><KPIDashboard /></Suspense>} />
+            <Route path="/talent" element={<Suspense fallback={<Loading />}><EmployeeList /></Suspense>} />
+            <Route path="/suppliers" element={<Suspense fallback={<Loading />}><SupplierList /></Suspense>} />
+            <Route path="/finance" element={<Suspense fallback={<Loading />}><TransactionList /></Suspense>} />
+          </Route>
+        </Routes>
+      </CompanyProvider>
+    </BrowserRouter>
+  )
+}
