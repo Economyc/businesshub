@@ -4,7 +4,7 @@ import { CompanyProvider } from '@/core/ui/company-provider'
 import { Layout } from '@/core/ui/layout'
 import { KPIDashboard } from '@/modules/insights/routes'
 import { EmployeeList, EmployeeForm, EmployeeProfile } from '@/modules/talent/routes'
-import { SupplierList } from '@/modules/suppliers/routes'
+import { SupplierList, SupplierForm, SupplierDetail } from '@/modules/suppliers/routes'
 import { TransactionList } from '@/modules/finance/routes'
 
 function Loading() {
@@ -27,6 +27,8 @@ export default function App() {
             <Route path="/talent/new" element={<Suspense fallback={<Loading />}><EmployeeForm /></Suspense>} />
             <Route path="/talent/:id" element={<Suspense fallback={<Loading />}><EmployeeProfile /></Suspense>} />
             <Route path="/suppliers" element={<Suspense fallback={<Loading />}><SupplierList /></Suspense>} />
+            <Route path="/suppliers/new" element={<Suspense fallback={<Loading />}><SupplierForm /></Suspense>} />
+            <Route path="/suppliers/:id" element={<Suspense fallback={<Loading />}><SupplierDetail /></Suspense>} />
             <Route path="/finance" element={<Suspense fallback={<Loading />}><TransactionList /></Suspense>} />
           </Route>
         </Routes>
