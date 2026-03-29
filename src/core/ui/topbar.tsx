@@ -1,10 +1,14 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { CircleUser, LogOut } from 'lucide-react'
+import { CircleUser, LogOut, Menu } from 'lucide-react'
 import { ThemeToggle } from '@/core/ui/theme-toggle'
 import { useAuth } from '@/core/hooks/use-auth'
 
-export function Topbar() {
+interface TopbarProps {
+  onMenuToggle?: () => void
+}
+
+export function Topbar({ onMenuToggle }: TopbarProps) {
   const { user, logout } = useAuth()
   const [open, setOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -30,10 +34,18 @@ export function Topbar() {
   }, [open])
 
   return (
-    <header className="flex items-center justify-between px-6 py-3.5 bg-card-bg border-b border-border">
-      <Link to="/home" className="text-heading font-bold text-dark-graphite tracking-tight hover:opacity-70 transition-opacity">
-        Business<span className="font-light text-mid-gray">Hub</span>
-      </Link>
+    <header className="flex items-center justify-between px-4 md:px-6 py-3.5 bg-card-bg border-b border-border">
+      <div className="flex items-center gap-3">
+        <button
+          onClick={onMenuToggle}
+          className="md:hidden p-1.5 rounded-lg text-graphite hover:bg-bone transition-colors"
+        >
+          <Menu size={20} strokeWidth={1.5} />
+        </button>
+        <Link to="/home" className="text-heading font-bold text-dark-graphite tracking-tight hover:opacity-70 transition-opacity">
+          Business<span className="font-light text-mid-gray">Hub</span>
+        </Link>
+      </div>
 
       <div className="flex items-center gap-2.5">
       <div className="relative" ref={menuRef}>

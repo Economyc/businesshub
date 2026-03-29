@@ -48,7 +48,11 @@ const SEARCHABLE_ITEMS = [
   { to: '/settings/departments', label: 'Departamentos', keywords: 'ajustes configuración departamentos áreas settings' },
 ]
 
-export function Sidebar() {
+interface SidebarProps {
+  onNavClick?: () => void
+}
+
+export function Sidebar({ onNavClick }: SidebarProps) {
   const { companies, selectedCompany, selectCompany } = useCompany()
   const [collapsed, setCollapsed] = useState(false)
   const [open, setOpen] = useState(false)
@@ -269,6 +273,7 @@ export function Sidebar() {
             <NavLink
               key={to}
               to={to}
+              onClick={onNavClick}
               title={collapsed ? label : undefined}
               className={({ isActive }) =>
                 cn(
@@ -331,6 +336,7 @@ export function Sidebar() {
             <NavLink
               key={to}
               to={to}
+              onClick={onNavClick}
               className={({ isActive }) =>
                 cn(
                   'flex items-center gap-2.5 px-4 py-2.5 text-body transition-all duration-150 whitespace-nowrap',

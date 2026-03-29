@@ -120,7 +120,7 @@ export function ClosingForm({ onSaved, editing, onCancelEdit }: ClosingFormProps
       <h2 className="text-subheading font-semibold text-dark-graphite mb-5">{editing ? 'Editar Cierre' : 'Registrar Cierre'}</h2>
 
       <form onSubmit={handleSubmit}>
-        <div className="grid grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div>
             <label className={labelClass}>Fecha</label>
             <DateInput

@@ -53,15 +53,14 @@ interface ButtonTabsProps {
 export function UnderlineButtonTabs({ tabs, active, onChange, className }: ButtonTabsProps) {
   return (
     <div
-      className={cn('inline-grid mb-5 border-b border-border', className)}
-      style={{ gridTemplateColumns: `repeat(${tabs.length}, 1fr)` }}
+      className={cn('flex overflow-x-auto mb-5 border-b border-border scrollbar-hide', className)}
     >
       {tabs.map(({ value, label, icon: Icon }) => (
         <button
           key={value}
           onClick={() => onChange(value)}
           className={cn(
-            'flex items-center justify-center gap-2 px-4 py-2.5 text-body font-medium transition-all duration-200 border-b-2 -mb-px whitespace-nowrap',
+            'flex items-center justify-center gap-2 px-4 py-2.5 text-body font-medium transition-all duration-200 border-b-2 -mb-px whitespace-nowrap flex-shrink-0',
             active === value
               ? 'text-graphite border-graphite'
               : 'text-mid-gray border-transparent hover:text-graphite'
