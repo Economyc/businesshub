@@ -1,14 +1,13 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
 import { Timestamp } from 'firebase/firestore'
-import { Trash2 } from 'lucide-react'
-import { PageTransition } from '@/core/ui/page-transition'
-import { PageHeader } from '@/core/ui/page-header'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Trash2, X } from 'lucide-react'
 import { DateInput } from '@/core/ui/date-input'
 import { CategorySelect } from '@/core/ui/category-select'
 import { SelectInput } from '@/core/ui/select-input'
 import { CurrencyInput } from '@/core/ui/currency-input'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
+import { modalVariants } from '@/core/animations/variants'
 import { useCompany } from '@/core/hooks/use-company'
 import { financeService } from '../services'
 import type { Transaction } from '../types'
@@ -23,12 +22,17 @@ function toDateString(ts: Timestamp | undefined): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-export function TransactionForm() {
-  const navigate = useNavigate()
-  const { id } = useParams<{ id: string }>()
+interface TransactionFormProps {
+  open: boolean
+  transactionId?: string | null
+  onClose: () => void
+  onSaved: () => void
+}
+
+export function TransactionForm({ open, transactionId, onClose, onSaved }: TransactionFormProps) {
   const { selectedCompany } = useCompany()
   const [submitting, setSubmitting] = useState(false)
-  const [loading, setLoading] = useState(!!id)
+  const [loading, setLoading] = useState(false)
   const [showDelete, setShowDelete] = useState(false)
   const [isLinked, setIsLinked] = useState(false)
 
@@ -43,16 +47,21 @@ export function TransactionForm() {
   })
 
   useEffect(() => {
-    if (!id || !selectedCompany) return
+    if (!open) {
+      // Reset on close
+      setForm({ concept: '', category: '', amount: '', type: 'income', date: '', status: 'pending', notes: '' })
+      setIsLinked(false)
+      setShowDelete(false)
+      return
+    }
+    if (!transactionId || !selectedCompany) {
+      setLoading(false)
+      return
+    }
     setLoading(true)
-    financeService.getById(selectedCompany.id, id).then((tx: Transaction | null) => {
-      if (!tx) {
-        navigate('/finance')
-        return
-      }
-      if (tx.sourceType) {
-        setIsLinked(true)
-      }
+    financeService.getById(selectedCompany.id, transactionId).then((tx: Transaction | null) => {
+      if (!tx) { onClose(); return }
+      if (tx.sourceType) setIsLinked(true)
       setForm({
         concept: tx.concept,
         category: tx.category,
@@ -64,7 +73,16 @@ export function TransactionForm() {
       })
       setLoading(false)
     })
-  }, [id, selectedCompany?.id])
+  }, [open, transactionId, selectedCompany?.id])
+
+  useEffect(() => {
+    if (!open) return
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === 'Escape' && !showDelete) onClose()
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [open, onClose, showDelete])
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) {
     const { name, value } = e.target
@@ -85,159 +103,179 @@ export function TransactionForm() {
         status: form.status,
         ...(form.notes ? { notes: form.notes } : {}),
       }
-      if (id) {
-        await financeService.update(selectedCompany.id, id, data)
+      if (transactionId) {
+        await financeService.update(selectedCompany.id, transactionId, data)
       } else {
         await financeService.create(selectedCompany.id, data as any)
       }
-      navigate('/finance')
+      onSaved()
     } finally {
       setSubmitting(false)
     }
   }
 
   async function handleDelete() {
-    if (!selectedCompany || !id) return
-    await financeService.remove(selectedCompany.id, id)
-    navigate('/finance')
-  }
-
-  if (loading) {
-    return (
-      <PageTransition>
-        <div className="text-body text-mid-gray py-8 text-center">Cargando...</div>
-      </PageTransition>
-    )
-  }
-
-  if (isLinked) {
-    return (
-      <PageTransition>
-        <PageHeader title="Transacción Vinculada" />
-        <div className="bg-surface rounded-xl card-elevated p-6 text-center">
-          <p className="text-body text-graphite mb-4">
-            Esta transacción fue generada automáticamente desde un cierre o compra y no se puede editar directamente.
-          </p>
-          <button
-            onClick={() => navigate('/finance')}
-            className="px-5 py-2.5 rounded-[10px] btn-primary text-body font-medium"
-          >
-            Volver
-          </button>
-        </div>
-      </PageTransition>
-    )
+    if (!selectedCompany || !transactionId) return
+    await financeService.remove(selectedCompany.id, transactionId)
+    onSaved()
   }
 
   return (
-    <PageTransition>
-      <PageHeader title={id ? 'Editar Transacción' : 'Nueva Transacción'}>
-        {id && (
-          <button
-            onClick={() => setShowDelete(true)}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] border border-red-200 text-red-600 text-body font-medium transition-all duration-200 hover:bg-red-50"
-          >
-            <Trash2 size={15} strokeWidth={1.5} />
-            Eliminar
-          </button>
-        )}
-      </PageHeader>
+    <>
+      <AnimatePresence>
+        {open && (
+          <div className="fixed inset-0 z-50 flex items-start justify-center pt-[5vh] md:pt-[8vh] p-4">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/25"
+              onClick={onClose}
+            />
 
-      <form onSubmit={handleSubmit}>
-        <div className="bg-surface rounded-xl card-elevated p-6">
-          <div className="grid grid-cols-2 gap-5">
-            <div>
-              <label className={labelClass}>Concepto</label>
-              <input
-                name="concept"
-                value={form.concept}
-                onChange={handleChange}
-                required
-                placeholder="Descripción del movimiento"
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Categoría</label>
-              <CategorySelect
-                value={form.category}
-                onChange={(v) => setForm((prev) => ({ ...prev, category: v }))}
-                placeholder="Seleccionar categoría"
-                allowCustom
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Monto</label>
-              <CurrencyInput
-                name="amount"
-                value={form.amount}
-                onChange={(raw) => setForm((prev) => ({ ...prev, amount: raw }))}
-                required
-                placeholder="0"
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Tipo</label>
-              <SelectInput
-                value={form.type}
-                onChange={(v) => setForm((prev) => ({ ...prev, type: v as 'income' | 'expense' }))}
-                options={[
-                  { value: 'income', label: 'Ingreso' },
-                  { value: 'expense', label: 'Gasto' },
-                ]}
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Fecha</label>
-              <DateInput
-                value={form.date}
-                onChange={(v) => setForm((prev) => ({ ...prev, date: v }))}
-                required
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Estado</label>
-              <SelectInput
-                value={form.status}
-                onChange={(v) => setForm((prev) => ({ ...prev, status: v as 'paid' | 'pending' | 'overdue' }))}
-                options={[
-                  { value: 'paid', label: 'Pagado' },
-                  { value: 'pending', label: 'Pendiente' },
-                  { value: 'overdue', label: 'Vencido' },
-                ]}
-              />
-            </div>
-            <div className="col-span-2">
-              <label className={labelClass}>Notas (opcional)</label>
-              <textarea
-                name="notes"
-                value={form.notes}
-                onChange={handleChange}
-                placeholder="Observaciones adicionales..."
-                className={`${inputClass} min-h-[80px] resize-none`}
-              />
-            </div>
+            {/* Modal */}
+            <motion.div
+              variants={modalVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              className="relative bg-surface-elevated rounded-xl shadow-xl border border-border w-full max-w-lg max-h-[85vh] overflow-y-auto z-10"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 pt-5 pb-3">
+                <h2 className="text-subheading font-semibold text-dark-graphite">
+                  {loading ? 'Cargando...' : isLinked ? 'Transacción Vinculada' : transactionId ? 'Editar Transacción' : 'Nueva Transacción'}
+                </h2>
+                <div className="flex items-center gap-1">
+                  {transactionId && !isLinked && !loading && (
+                    <button
+                      onClick={() => setShowDelete(true)}
+                      className="p-1.5 rounded-lg text-mid-gray hover:text-red-500 hover:bg-red-50 transition-all duration-150"
+                      title="Eliminar"
+                    >
+                      <Trash2 size={16} strokeWidth={1.5} />
+                    </button>
+                  )}
+                  <button
+                    onClick={onClose}
+                    className="p-1.5 rounded-lg text-mid-gray hover:text-graphite hover:bg-bone transition-colors"
+                  >
+                    <X size={16} strokeWidth={2} />
+                  </button>
+                </div>
+              </div>
+
+              {loading ? (
+                <div className="text-body text-mid-gray py-8 text-center">Cargando...</div>
+              ) : isLinked ? (
+                <div className="px-6 pb-6 text-center">
+                  <p className="text-body text-graphite mb-4">
+                    Esta transacción fue generada automáticamente desde un cierre o compra y no se puede editar directamente.
+                  </p>
+                  <button onClick={onClose} className="px-5 py-2.5 rounded-[10px] btn-primary text-body font-medium">
+                    Cerrar
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handleSubmit} className="px-6 pb-5">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className={labelClass}>Concepto</label>
+                      <input
+                        name="concept"
+                        value={form.concept}
+                        onChange={handleChange}
+                        required
+                        placeholder="Descripción del movimiento"
+                        className={inputClass}
+                      />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Categoría</label>
+                      <CategorySelect
+                        value={form.category}
+                        onChange={(v) => setForm((prev) => ({ ...prev, category: v }))}
+                        placeholder="Seleccionar categoría"
+                        allowCustom
+                      />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Monto</label>
+                      <CurrencyInput
+                        name="amount"
+                        value={form.amount}
+                        onChange={(raw) => setForm((prev) => ({ ...prev, amount: raw }))}
+                        required
+                        placeholder="0"
+                        className={inputClass}
+                      />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Tipo</label>
+                      <SelectInput
+                        value={form.type}
+                        onChange={(v) => setForm((prev) => ({ ...prev, type: v as 'income' | 'expense' }))}
+                        options={[
+                          { value: 'income', label: 'Ingreso' },
+                          { value: 'expense', label: 'Gasto' },
+                        ]}
+                      />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Fecha</label>
+                      <DateInput
+                        value={form.date}
+                        onChange={(v) => setForm((prev) => ({ ...prev, date: v }))}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Estado</label>
+                      <SelectInput
+                        value={form.status}
+                        onChange={(v) => setForm((prev) => ({ ...prev, status: v as 'paid' | 'pending' | 'overdue' }))}
+                        options={[
+                          { value: 'paid', label: 'Pagado' },
+                          { value: 'pending', label: 'Pendiente' },
+                          { value: 'overdue', label: 'Vencido' },
+                        ]}
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className={labelClass}>Notas (opcional)</label>
+                      <textarea
+                        name="notes"
+                        value={form.notes}
+                        onChange={handleChange}
+                        placeholder="Observaciones adicionales..."
+                        className={`${inputClass} min-h-[70px] resize-none`}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 mt-5 pt-4 border-t border-border">
+                    <button
+                      type="submit"
+                      disabled={submitting}
+                      className="px-5 py-2.5 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {submitting ? 'Guardando...' : transactionId ? 'Guardar Cambios' : 'Guardar Transacción'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      className="px-5 py-2.5 rounded-[10px] border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </form>
+              )}
+            </motion.div>
           </div>
-        </div>
-
-        <div className="flex gap-3 mt-5">
-          <button
-            type="submit"
-            disabled={submitting}
-            className="px-5 py-2.5 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {submitting ? 'Guardando...' : id ? 'Guardar Cambios' : 'Guardar Transacción'}
-          </button>
-          <button
-            type="button"
-            onClick={() => navigate('/finance')}
-            className="px-5 py-2.5 rounded-[10px] border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
-          >
-            Cancelar
-          </button>
-        </div>
-      </form>
+        )}
+      </AnimatePresence>
 
       <ConfirmDialog
         open={showDelete}
@@ -246,6 +284,6 @@ export function TransactionForm() {
         title="Eliminar transacción"
         description="¿Estás seguro de que deseas eliminar esta transacción? Esta acción no se puede deshacer."
       />
-    </PageTransition>
+    </>
   )
 }

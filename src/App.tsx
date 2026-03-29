@@ -7,7 +7,7 @@ import { LoginPage } from '@/core/ui/login-page'
 import { KPIDashboard } from '@/modules/insights/routes'
 import { EmployeeList, EmployeeProfile } from '@/modules/talent/routes'
 import { SupplierList, SupplierDetail } from '@/modules/suppliers/routes'
-import { TransactionList, TransactionForm, ImportView, CashFlowView, IncomeStatementView, BudgetView } from '@/modules/finance/routes'
+import { TransactionList, ImportView, CashFlowView, IncomeStatementView, BudgetView } from '@/modules/finance/routes'
 import { SettingsCompanies } from '@/core/ui/settings-companies'
 import { SettingsCategories } from '@/core/ui/settings-categories'
 import { SettingsRoles } from '@/core/ui/settings-roles'
@@ -50,8 +50,8 @@ export default function App() {
               <Route path="/suppliers/:id" element={<Suspense fallback={<Loading />}><SupplierDetail /></Suspense>} />
               <Route element={<DateRangeProvider><Outlet /></DateRangeProvider>}>
                 <Route path="/finance" element={<Suspense fallback={<Loading />}><TransactionList /></Suspense>} />
-                <Route path="/finance/new" element={<Suspense fallback={<Loading />}><TransactionForm /></Suspense>} />
-                <Route path="/finance/edit/:id" element={<Suspense fallback={<Loading />}><TransactionForm /></Suspense>} />
+                <Route path="/finance/new" element={<Navigate to="/finance" replace />} />
+                <Route path="/finance/edit/:id" element={<Navigate to="/finance" replace />} />
                 <Route path="/finance/import" element={<Suspense fallback={<Loading />}><ImportView /></Suspense>} />
                 <Route path="/finance/cash-flow" element={<Suspense fallback={<Loading />}><CashFlowView /></Suspense>} />
                 <Route path="/finance/income-statement" element={<Suspense fallback={<Loading />}><IncomeStatementView /></Suspense>} />

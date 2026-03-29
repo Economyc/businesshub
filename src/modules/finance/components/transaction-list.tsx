@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Upload, DollarSign, ChevronRight } from 'lucide-react'
+import { TransactionForm } from './transaction-form'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
 import { SearchInput } from '@/core/ui/search-input'
@@ -18,24 +19,31 @@ import { FinanceTabs } from './finance-tabs'
 import type { Transaction } from '../types'
 import type { CategoryItem } from '@/core/types/categories'
 
+function getTypePill(t: Transaction): { label: string; bg: string; text: string } {
+  if (t.type === 'income') return { label: 'Ingreso', bg: 'bg-positive-bg', text: 'text-positive-text' }
+  return { label: 'Gasto', bg: 'bg-negative-bg', text: 'text-negative-text' }
+}
+
 function getCategoryPill(t: Transaction, categoryItems: CategoryItem[]): { label: string; color: string } {
   const parsed = parseCategory(t.category || '')
   const catName = parsed.category
   const catItem = categoryItems.find((c) => c.name === catName)
   const color = catItem?.color ?? '#95A5A6'
-  return { label: catName || (t.type === 'income' ? 'Ingreso' : 'Gasto'), color }
+  return { label: catName || 'Otro', color }
 }
 
 
 export function TransactionList() {
   const navigate = useNavigate()
-  const { data: transactions, loading } = useTransactions()
+  const { data: transactions, loading, refetch } = useTransactions()
   const { startDate, endDate } = useDateRange()
   const { categories: categoryItems } = useCompany()
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [formOpen, setFormOpen] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
 
   const categories = useMemo(() => {
     const set = new Set(transactions.map((t) => t.category).filter(Boolean))
@@ -100,7 +108,7 @@ export function TransactionList() {
     <PageTransition>
       <PageHeader title="Monitor Financiero">
         <button
-          onClick={() => navigate('/finance/new')}
+          onClick={() => { setEditingId(null); setFormOpen(true) }}
           className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md"
         >
           <Plus size={15} strokeWidth={2} />
@@ -222,11 +230,12 @@ export function TransactionList() {
                       <div className="px-3">Estado</div>
                     </div>
                     {group.transactions.map((t, ti) => {
-                      const pill = getCategoryPill(t, categoryItems)
+                      const typePill = getTypePill(t)
+                      const catPill = getCategoryPill(t, categoryItems)
                       return (
                         <div
                           key={t.id}
-                          onClick={() => navigate(`/finance/edit/${t.id}`)}
+                          onClick={() => { setEditingId(t.id); setFormOpen(true) }}
                           className="grid px-5 pl-12 py-0 text-body text-graphite hover:bg-bone/50 transition-colors duration-150 cursor-pointer"
                           style={{
                             gridTemplateColumns: '2fr 0.8fr 1fr 1fr 0.8fr',
@@ -243,18 +252,18 @@ export function TransactionList() {
                               <span className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-orange-100 text-orange-700">Compra</span>
                             )}
                           </div>
-                          <div className="px-3 py-3.5 flex items-center">
-                            <span
-                              className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium text-white"
-                              style={{ backgroundColor: pill.color }}
-                            >
-                              {pill.label}
+                          <div className="px-3 py-3.5 flex items-center gap-1.5">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium ${typePill.bg} ${typePill.text}`}>
+                              {typePill.label}
                             </span>
                           </div>
-                          <div className="px-3 py-3.5 flex items-center">{t.category}</div>
+                          <div className="px-3 py-3.5 flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: catPill.color }} />
+                            <span className="truncate">{t.category}</span>
+                          </div>
                           <div className="px-3 py-3.5 flex items-center">
-                            <span className={t.type === 'income' ? 'text-positive-text' : ''}>
-                              {formatCurrency(t.amount, 2)}
+                            <span className={t.type === 'income' ? 'text-positive-text font-medium' : 'text-graphite'}>
+                              {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount, 2)}
                             </span>
                           </div>
                           <div className="px-3 py-3.5 flex items-center">
@@ -270,6 +279,13 @@ export function TransactionList() {
           })}
         </div>
       )}
+
+      <TransactionForm
+        open={formOpen}
+        transactionId={editingId}
+        onClose={() => setFormOpen(false)}
+        onSaved={() => { setFormOpen(false); refetch() }}
+      />
     </PageTransition>
   )
 }
