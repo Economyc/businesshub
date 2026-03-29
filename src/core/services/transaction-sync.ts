@@ -70,26 +70,27 @@ export async function syncClosingTransactions(
   const label = `Cierre ${formatClosingDate(closing.date)}`
   const now = Timestamp.now()
 
-  const channels: { field: keyof typeof closing; concept: string; category: string; type: 'income' | 'expense' }[] = [
-    { field: 'efectivo', concept: `Ventas Efectivo - ${formatClosingDate(closing.date)}`, category: 'Ventas', type: 'income' },
-    { field: 'datafono', concept: `Ventas Datáfono - ${formatClosingDate(closing.date)}`, category: 'Ventas', type: 'income' },
-    { field: 'qr', concept: `Ventas QR - ${formatClosingDate(closing.date)}`, category: 'Ventas', type: 'income' },
-    { field: 'rappiVentas', concept: `Ventas Rappi - ${formatClosingDate(closing.date)}`, category: 'Ventas', type: 'income' },
-    { field: 'propinas', concept: `Propinas - ${formatClosingDate(closing.date)}`, category: 'Propinas', type: 'income' },
-    { field: 'gastos', concept: `Gastos cierre - ${formatClosingDate(closing.date)}`, category: 'Gastos Operacionales', type: 'expense' },
+  const efectivoNeto = Math.max((closing.efectivo ?? 0) - (closing.ap ?? 0), 0)
+
+  const channels: { amount: number; concept: string; category: string; type: 'income' | 'expense'; status: TransactionData['status'] }[] = [
+    { amount: efectivoNeto, concept: `Ventas Efectivo - ${formatClosingDate(closing.date)}`, category: 'Ventas', type: 'income', status: 'paid' },
+    { amount: closing.datafono ?? 0, concept: `Ventas Datáfono - ${formatClosingDate(closing.date)}`, category: 'Ventas', type: 'income', status: 'paid' },
+    { amount: closing.qr ?? 0, concept: `Ventas QR - ${formatClosingDate(closing.date)}`, category: 'Ventas', type: 'income', status: 'paid' },
+    { amount: closing.rappiVentas ?? 0, concept: `Ventas Rappi - ${formatClosingDate(closing.date)}`, category: 'Ventas', type: 'income', status: 'pending' },
+    { amount: closing.propinas ?? 0, concept: `Propinas - ${formatClosingDate(closing.date)}`, category: 'Propinas', type: 'income', status: 'paid' },
+    { amount: closing.gastos ?? 0, concept: `Gastos cierre - ${formatClosingDate(closing.date)}`, category: 'Gastos Operacionales', type: 'expense', status: 'paid' },
   ]
 
   const txsToCreate: TransactionData[] = []
   for (const ch of channels) {
-    const amount = closing[ch.field] as number
-    if (amount > 0) {
+    if (ch.amount > 0) {
       txsToCreate.push({
         concept: ch.concept,
         category: ch.category,
-        amount,
+        amount: ch.amount,
         type: ch.type,
         date,
-        status: 'paid',
+        status: ch.status,
         sourceType: 'closing',
         sourceId: closingId,
         sourceLabel: label,

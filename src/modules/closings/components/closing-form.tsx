@@ -65,8 +65,7 @@ export function ClosingForm({ onSaved, editing, onCancelEdit }: ClosingFormProps
   const ventaTotal =
     Number(form.qr || 0) +
     Number(form.datafono || 0) +
-    Number(form.rappiVentas || 0) +
-    Number(form.efectivo || 0)
+    Math.max(Number(form.efectivo || 0) - Number(form.ap || 0), 0)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
