@@ -9,17 +9,29 @@ import { SelectInput } from '@/core/ui/select-input'
 import { StatusBadge } from '@/core/ui/status-badge'
 import { EmptyState } from '@/core/ui/empty-state'
 import { formatCurrency } from '@/core/utils/format'
+import { parseCategory } from '@/core/utils/categories'
+import { useCompany } from '@/core/hooks/use-company'
 import { useTransactions } from '../hooks'
 import { useDateRange } from '../context/date-range-context'
 import { FinanceSummary } from './finance-summary'
 import { FinanceTabs } from './finance-tabs'
 import type { Transaction } from '../types'
+import type { CategoryItem } from '@/core/types/categories'
+
+function getCategoryPill(t: Transaction, categoryItems: CategoryItem[]): { label: string; color: string } {
+  const parsed = parseCategory(t.category || '')
+  const catName = parsed.category
+  const catItem = categoryItems.find((c) => c.name === catName)
+  const color = catItem?.color ?? '#95A5A6'
+  return { label: catName || (t.type === 'income' ? 'Ingreso' : 'Gasto'), color }
+}
 
 
 export function TransactionList() {
   const navigate = useNavigate()
   const { data: transactions, loading } = useTransactions()
   const { startDate, endDate } = useDateRange()
+  const { categories: categoryItems } = useCompany()
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
@@ -201,44 +213,56 @@ export function TransactionList() {
                     {/* Column headers */}
                     <div
                       className="grid px-5 pl-12 py-2 text-caption uppercase tracking-wider text-mid-gray bg-bone/40"
-                      style={{ gridTemplateColumns: '2fr 1fr 1fr 0.8fr', borderTop: '1px solid #e5e4e0' }}
+                      style={{ gridTemplateColumns: '2fr 0.8fr 1fr 1fr 0.8fr', borderTop: '1px solid #e5e4e0' }}
                     >
                       <div className="px-3">Concepto</div>
+                      <div className="px-3">Tipo</div>
                       <div className="px-3">Categoría</div>
                       <div className="px-3">Monto</div>
                       <div className="px-3">Estado</div>
                     </div>
-                    {group.transactions.map((t, ti) => (
-                      <div
-                        key={t.id}
-                        onClick={() => navigate(`/finance/edit/${t.id}`)}
-                        className="grid px-5 pl-12 py-0 text-body text-graphite hover:bg-bone/50 transition-colors duration-150 cursor-pointer"
-                        style={{
-                          gridTemplateColumns: '2fr 1fr 1fr 0.8fr',
-                          borderTop: '1px solid #e5e4e0',
-                          borderBottom: ti === group.transactions.length - 1 ? 'none' : undefined,
-                        }}
-                      >
-                        <div className="px-3 py-3.5 flex items-center gap-2">
-                          <span className="font-medium text-dark-graphite">{t.concept}</span>
-                          {t.sourceType === 'closing' && (
-                            <span className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-700">Cierre</span>
-                          )}
-                          {t.sourceType === 'purchase' && (
-                            <span className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-orange-100 text-orange-700">Compra</span>
-                          )}
+                    {group.transactions.map((t, ti) => {
+                      const pill = getCategoryPill(t, categoryItems)
+                      return (
+                        <div
+                          key={t.id}
+                          onClick={() => navigate(`/finance/edit/${t.id}`)}
+                          className="grid px-5 pl-12 py-0 text-body text-graphite hover:bg-bone/50 transition-colors duration-150 cursor-pointer"
+                          style={{
+                            gridTemplateColumns: '2fr 0.8fr 1fr 1fr 0.8fr',
+                            borderTop: '1px solid #e5e4e0',
+                            borderBottom: ti === group.transactions.length - 1 ? 'none' : undefined,
+                          }}
+                        >
+                          <div className="px-3 py-3.5 flex items-center gap-2">
+                            <span className="font-medium text-dark-graphite">{t.concept}</span>
+                            {t.sourceType === 'closing' && (
+                              <span className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-700">Cierre</span>
+                            )}
+                            {t.sourceType === 'purchase' && (
+                              <span className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-orange-100 text-orange-700">Compra</span>
+                            )}
+                          </div>
+                          <div className="px-3 py-3.5 flex items-center">
+                            <span
+                              className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium text-white"
+                              style={{ backgroundColor: pill.color }}
+                            >
+                              {pill.label}
+                            </span>
+                          </div>
+                          <div className="px-3 py-3.5 flex items-center">{t.category}</div>
+                          <div className="px-3 py-3.5 flex items-center">
+                            <span className={t.type === 'income' ? 'text-positive-text' : ''}>
+                              {formatCurrency(t.amount, 2)}
+                            </span>
+                          </div>
+                          <div className="px-3 py-3.5 flex items-center">
+                            <StatusBadge variant={t.status} />
+                          </div>
                         </div>
-                        <div className="px-3 py-3.5 flex items-center">{t.category}</div>
-                        <div className="px-3 py-3.5 flex items-center">
-                          <span className={t.type === 'income' ? 'text-positive-text' : ''}>
-                            {formatCurrency(t.amount, 2)}
-                          </span>
-                        </div>
-                        <div className="px-3 py-3.5 flex items-center">
-                          <StatusBadge variant={t.status} />
-                        </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 )}
               </div>
