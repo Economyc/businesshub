@@ -19,6 +19,8 @@
     @apply bg-surface text-graphite font-sans antialiased;
     font-size: var(--text-body);
     line-height: 1.6;
+    touch-action: pan-x pan-y;
+    -webkit-text-size-adjust: 100%;
   }
   * {
     @apply border-border outline-ring/50;

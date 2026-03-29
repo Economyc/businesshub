@@ -47,16 +47,16 @@ export function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-bone px-4">
-      <div className="w-full max-w-sm scale-110 origin-center">
+    <div className="min-h-screen flex items-center justify-center bg-bone px-5">
+      <div className="w-full max-w-sm md:scale-110 md:origin-center">
         <div className="text-center mb-8">
-          <h1 className="text-[28px] font-bold text-dark-graphite tracking-tight">
+          <h1 className="text-[26px] md:text-[28px] font-bold text-dark-graphite tracking-tight">
             Business<span className="font-light text-mid-gray">Hub</span>
           </h1>
           <p className="text-caption text-mid-gray mt-1">Inicia sesión para continuar</p>
         </div>
 
-        <div className="bg-surface rounded-xl card-elevated p-6">
+        <div className="bg-surface rounded-xl card-elevated p-5 md:p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-caption uppercase tracking-wider text-mid-gray mb-1">

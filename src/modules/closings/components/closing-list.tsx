@@ -76,6 +76,7 @@ export function ClosingList() {
       key: 'ventaTotal',
       header: 'Venta Total',
       width: '1fr',
+      primary: true,
       render: (c: Closing) => <span className="font-semibold text-dark-graphite">{formatCurrency(c.ventaTotal ?? 0)}</span>,
     },
     {

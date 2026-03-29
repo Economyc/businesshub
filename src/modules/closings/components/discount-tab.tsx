@@ -158,6 +158,7 @@ export function DiscountTab() {
       key: 'amount',
       header: 'Monto',
       width: '0.8fr',
+      primary: true,
       render: (d: Discount) => <span className="font-semibold text-dark-graphite">{formatCurrency(d.amount ?? 0)}</span>,
     },
     {
