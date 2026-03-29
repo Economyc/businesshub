@@ -26,3 +26,14 @@ pnpm-debug.log*
 
 # Build
 *.tsbuildinfo
+
+# Archives
+*.tar.gz
+
+# Deploy (contains server IP and SSH key paths)
+deploy.ps1
+cors.json
+
+# Claude local settings
+.claude/settings.local.json
+.claude/skills/
