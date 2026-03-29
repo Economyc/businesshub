@@ -17,24 +17,37 @@ export function DataTable<T extends { id: string }>({ columns, data, onRowClick 
   const gridCols = columns.map((c) => c.width ?? '1fr').join(' ')
 
   return (
-    <div className="bg-white rounded-xl border border-border overflow-hidden">
+    <div className="bg-surface rounded-xl card-elevated overflow-hidden">
       <div
-        className="grid px-[18px] py-3 text-caption uppercase tracking-wider text-mid-gray border-b border-border bg-card-bg"
-        style={{ gridTemplateColumns: gridCols }}
+        className="grid px-5 py-3 text-caption uppercase tracking-wider text-mid-gray bg-bone/60"
+        style={{ gridTemplateColumns: gridCols, borderBottom: '1px solid #d4d3cf' }}
       >
         {columns.map((col) => (
-          <div key={col.key}>{col.header}</div>
+          <div
+            key={col.key}
+            className="font-medium px-3 first:pl-0 last:pr-0 flex items-center"
+          >
+            {col.header}
+          </div>
         ))}
       </div>
-      {data.map((item) => (
+      {data.map((item, index) => (
         <div
           key={item.id}
           onClick={() => onRowClick?.(item)}
-          className="grid px-[18px] py-3.5 text-body text-graphite border-b border-bone last:border-b-0 hover:bg-card-bg transition-colors duration-150 cursor-pointer items-center"
-          style={{ gridTemplateColumns: gridCols }}
+          className={`grid px-5 py-0 text-body text-graphite hover:bg-bone/50 transition-colors duration-150 ${onRowClick ? 'cursor-pointer' : ''}`}
+          style={{
+            gridTemplateColumns: gridCols,
+            borderBottom: index < data.length - 1 ? '1px solid #e5e4e0' : 'none',
+          }}
         >
           {columns.map((col) => (
-            <div key={col.key}>{col.render(item)}</div>
+            <div
+              key={col.key}
+              className="px-3 py-4 first:pl-0 last:pr-0 flex items-center"
+            >
+              {col.render(item)}
+            </div>
           ))}
         </div>
       ))}

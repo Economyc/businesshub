@@ -1,17 +1,20 @@
 import { useMemo } from 'react'
 import { useCollection } from '@/core/hooks/use-firestore'
+import { useCompany } from '@/core/hooks/use-company'
 import { MONTH_LABELS } from './services'
-import type { KPIData, TrendPoint, CategoryData } from './types'
+import type { KPIData, TrendPoint, CategoryData, SupplierBreakdownData } from './types'
 import type { Employee } from '@/modules/talent/types'
 import type { Supplier } from '@/modules/suppliers/types'
 import type { Transaction } from '@/modules/finance/types'
+import type { Purchase } from '@/modules/purchases/types'
 
 export function useKPIs(): { kpis: KPIData; loading: boolean } {
   const { data: employees, loading: empLoading } = useCollection<Employee>('employees')
   const { data: suppliers, loading: supLoading } = useCollection<Supplier>('suppliers')
   const { data: transactions, loading: txLoading } = useCollection<Transaction>('transactions')
+  const { data: purchases, loading: purLoading } = useCollection<Purchase>('purchases')
 
-  const loading = empLoading || supLoading || txLoading
+  const loading = empLoading || supLoading || txLoading || purLoading
 
   const kpis = useMemo<KPIData>(() => {
     const now = new Date()
@@ -44,10 +47,28 @@ export function useKPIs(): { kpis: KPIData; loading: boolean } {
     const lastMonthExpenses = expenseTransactions.filter(isLastMonth).reduce((s, t) => s + t.amount, 0)
     const thisMonthBalance = transactions.filter(isThisMonth).reduce((s, t) => t.type === 'income' ? s + t.amount : s - t.amount, 0)
 
+    // Purchase monthly comparisons
+    const isPurchaseThisMonth = (p: Purchase) => {
+      const d = p.date?.toDate?.() ?? new Date(0)
+      return d.getMonth() === currentMonth && d.getFullYear() === currentYear
+    }
+    const isPurchaseLastMonth = (p: Purchase) => {
+      const d = p.date?.toDate?.() ?? new Date(0)
+      return d.getMonth() === lastMonth && d.getFullYear() === lastMonthYear
+    }
+
+    const thisMonthPurchases = purchases.filter(isPurchaseThisMonth).reduce((s, p) => s + p.total, 0)
+    const lastMonthPurchases = purchases.filter(isPurchaseLastMonth).reduce((s, p) => s + p.total, 0)
+
     const expenseDiff = thisMonthExpenses - lastMonthExpenses
     const expenseChangeStr = expenseDiff >= 0
       ? `+$${expenseDiff.toLocaleString('en-US')} este mes`
       : `-$${Math.abs(expenseDiff).toLocaleString('en-US')} este mes`
+
+    const purchaseDiff = thisMonthPurchases - lastMonthPurchases
+    const purchaseChangeStr = purchaseDiff >= 0
+      ? `+$${purchaseDiff.toLocaleString('en-US')} este mes`
+      : `-$${Math.abs(purchaseDiff).toLocaleString('en-US')} este mes`
 
     const balanceChangeStr = thisMonthBalance >= 0
       ? `+$${thisMonthBalance.toLocaleString('en-US')} este mes`
@@ -58,19 +79,24 @@ export function useKPIs(): { kpis: KPIData; loading: boolean } {
       totalSuppliers: activeSuppliers.length,
       totalIncome,
       totalExpenses,
+      totalPurchases: thisMonthPurchases,
       balance,
       employeeChange: `${activeEmployees.length} activos`,
       supplierChange: `${activeSuppliers.length} activos`,
       expenseChange: expenseChangeStr,
+      purchaseChange: purchaseChangeStr,
       balanceChange: balanceChangeStr,
     }
-  }, [employees, suppliers, transactions])
+  }, [employees, suppliers, transactions, purchases])
 
   return { kpis, loading }
 }
 
 export function useTrends(): { trends: TrendPoint[]; loading: boolean } {
-  const { data: transactions, loading } = useCollection<Transaction>('transactions')
+  const { data: transactions, loading: txLoading } = useCollection<Transaction>('transactions')
+  const { data: purchases, loading: purLoading } = useCollection<Purchase>('purchases')
+
+  const loading = txLoading || purLoading
 
   const trends = useMemo<TrendPoint[]>(() => {
     const now = new Date()
@@ -84,6 +110,7 @@ export function useTrends(): { trends: TrendPoint[]; loading: boolean } {
         month: MONTH_LABELS[d.getMonth()],
         income: 0,
         expenses: 0,
+        purchases: 0,
         // store key temporarily — we'll remove after grouping
         ...({ _key: monthKey } as any),
       })
@@ -106,15 +133,24 @@ export function useTrends(): { trends: TrendPoint[]; loading: boolean } {
       }
     })
 
+    purchases.forEach((p) => {
+      const d = p.date?.toDate?.() ?? new Date(0)
+      const key = `${d.getFullYear()}-${d.getMonth()}`
+      if (monthMap[key]) {
+        monthMap[key].purchases += p.total
+      }
+    })
+
     // Strip internal _key before returning
     return months.map(({ _key: _k, ...rest }: any) => rest as TrendPoint)
-  }, [transactions])
+  }, [transactions, purchases])
 
   return { trends, loading }
 }
 
 export function useCategoryBreakdown(): { categories: CategoryData[]; loading: boolean } {
   const { data: transactions, loading } = useCollection<Transaction>('transactions')
+  const { categories: categoryItems } = useCompany()
 
   const categories = useMemo<CategoryData[]>(() => {
     const expensesByCategory: Record<string, number> = {}
@@ -122,13 +158,37 @@ export function useCategoryBreakdown(): { categories: CategoryData[]; loading: b
     transactions
       .filter((t) => t.type === 'expense')
       .forEach((t) => {
-        expensesByCategory[t.category] = (expensesByCategory[t.category] ?? 0) + t.amount
+        const parentCategory = t.category.split(' > ')[0]
+        expensesByCategory[parentCategory] = (expensesByCategory[parentCategory] ?? 0) + t.amount
       })
 
     return Object.entries(expensesByCategory)
-      .map(([category, amount]) => ({ category, amount }))
+      .map(([category, amount]) => ({
+        category,
+        amount,
+        color: categoryItems.find((c) => c.name === category)?.color,
+      }))
       .sort((a, b) => b.amount - a.amount)
-  }, [transactions])
+  }, [transactions, categoryItems])
 
   return { categories, loading }
+}
+
+export function useSupplierBreakdown(): { suppliers: SupplierBreakdownData[]; loading: boolean } {
+  const { data: purchases, loading } = useCollection<Purchase>('purchases')
+
+  const suppliers = useMemo<SupplierBreakdownData[]>(() => {
+    const supplierMap = new Map<string, { name: string; total: number; count: number }>()
+
+    for (const p of purchases) {
+      const existing = supplierMap.get(p.supplierId) ?? { name: p.supplierName, total: 0, count: 0 }
+      existing.total += p.total
+      existing.count += 1
+      supplierMap.set(p.supplierId, existing)
+    }
+
+    return Array.from(supplierMap.values()).sort((a, b) => b.total - a.total)
+  }, [purchases])
+
+  return { suppliers, loading }
 }

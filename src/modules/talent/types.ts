@@ -3,6 +3,7 @@ import type { BaseEntity } from '@/core/types'
 
 export interface Employee extends BaseEntity {
   name: string
+  identification: string
   role: string
   department: string
   email: string

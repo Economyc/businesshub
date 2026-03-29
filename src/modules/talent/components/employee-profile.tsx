@@ -4,15 +4,19 @@ import { ArrowLeft, Edit, Trash2 } from 'lucide-react'
 import { Timestamp } from 'firebase/firestore'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
+import { DateInput } from '@/core/ui/date-input'
+import { SelectInput } from '@/core/ui/select-input'
 import { StatusBadge } from '@/core/ui/status-badge'
+import { CurrencyInput } from '@/core/ui/currency-input'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 import { useCompany } from '@/core/hooks/use-company'
+import { formatCurrency } from '@/core/utils/format'
 import { useEmployee } from '../hooks'
 import { talentService } from '../services'
 import type { EmployeeFormData } from '../types'
 
 const inputClass =
-  'w-full px-3 py-2.5 rounded-[10px] border border-input-border bg-card-bg text-body text-graphite placeholder:text-smoke focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200'
+  'w-full px-3 py-2.5 rounded-[10px] border border-input-border bg-input-bg text-body text-graphite placeholder:text-mid-gray/60 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200'
 const labelClass = 'block text-caption uppercase tracking-wider text-mid-gray mb-1'
 
 function formatDate(ts: Timestamp | undefined): string {
@@ -43,6 +47,7 @@ export function EmployeeProfile() {
 
   const [editForm, setEditForm] = useState<{
     name: string
+    identification: string
     role: string
     department: string
     email: string
@@ -52,6 +57,7 @@ export function EmployeeProfile() {
     status: 'active' | 'inactive'
   }>({
     name: '',
+    identification: '',
     role: '',
     department: '',
     email: '',
@@ -65,6 +71,7 @@ export function EmployeeProfile() {
     if (!displayed) return
     setEditForm({
       name: displayed.name,
+      identification: displayed.identification ?? '',
       role: displayed.role,
       department: displayed.department,
       email: displayed.email,
@@ -87,6 +94,7 @@ export function EmployeeProfile() {
     try {
       const updates: Partial<EmployeeFormData> = {
         name: editForm.name,
+        identification: editForm.identification,
         role: editForm.role,
         department: editForm.department,
         email: editForm.email,
@@ -146,14 +154,14 @@ export function EmployeeProfile() {
           <>
             <button
               onClick={startEditing}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-[10px] border border-input-border text-graphite text-[13px] font-medium transition-all duration-200 hover:bg-bone"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-[10px] border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
             >
               <Edit size={14} strokeWidth={1.5} />
               Editar
             </button>
             <button
               onClick={() => setDeleteOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-[10px] border border-negative-text text-negative-text text-[13px] font-medium transition-all duration-200 hover:bg-negative-bg"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-[10px] border border-negative-text text-negative-text text-body font-medium transition-all duration-200 hover:bg-negative-bg"
             >
               <Trash2 size={14} strokeWidth={1.5} />
               Eliminar
@@ -162,12 +170,16 @@ export function EmployeeProfile() {
         )}
       </PageHeader>
 
-      <div className="bg-white rounded-xl border border-border p-6">
+      <div className="bg-surface rounded-xl card-elevated p-6">
         {editing ? (
           <div className="grid grid-cols-2 gap-5">
             <div>
               <label className={labelClass}>Nombre</label>
               <input name="name" value={editForm.name} onChange={handleChange} className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass}>Identificación</label>
+              <input name="identification" value={editForm.identification} onChange={handleChange} placeholder="Cédula o NIT" className={inputClass} />
             </div>
             <div>
               <label className={labelClass}>Cargo</label>
@@ -187,22 +199,33 @@ export function EmployeeProfile() {
             </div>
             <div>
               <label className={labelClass}>Salario</label>
-              <input name="salary" type="number" min="0" value={editForm.salary} onChange={handleChange} className={inputClass} />
+              <CurrencyInput name="salary" value={editForm.salary} onChange={(raw) => setEditForm((prev) => ({ ...prev, salary: raw }))} className={inputClass} />
             </div>
             <div>
               <label className={labelClass}>Fecha de Inicio</label>
-              <input name="startDate" type="date" value={editForm.startDate} onChange={handleChange} className={inputClass} />
+              <DateInput
+                value={editForm.startDate}
+                onChange={(v) => setEditForm((prev) => ({ ...prev, startDate: v }))}
+              />
             </div>
             <div>
               <label className={labelClass}>Estado</label>
-              <select name="status" value={editForm.status} onChange={handleChange} className={inputClass}>
-                <option value="active">Activo</option>
-                <option value="inactive">Inactivo</option>
-              </select>
+              <SelectInput
+                value={editForm.status}
+                onChange={(v) => setEditForm((prev) => ({ ...prev, status: v as 'active' | 'inactive' }))}
+                options={[
+                  { value: 'active', label: 'Activo' },
+                  { value: 'inactive', label: 'Inactivo' },
+                ]}
+              />
             </div>
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-5">
+            <div>
+              <p className={labelClass}>Identificación</p>
+              <p className="text-body text-graphite">{displayed.identification || '—'}</p>
+            </div>
             <div>
               <p className={labelClass}>Cargo</p>
               <p className="text-body text-graphite">{displayed.role}</p>
@@ -222,7 +245,7 @@ export function EmployeeProfile() {
             <div>
               <p className={labelClass}>Salario</p>
               <p className="text-body text-graphite">
-                ${(displayed.salary ?? 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                {formatCurrency(displayed.salary ?? 0)}
               </p>
             </div>
             <div>
@@ -242,13 +265,13 @@ export function EmployeeProfile() {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-5 py-2.5 rounded-[10px] bg-graphite text-white text-[13px] font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
+            className="px-5 py-2.5 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {saving ? 'Guardando...' : 'Guardar Cambios'}
           </button>
           <button
             onClick={() => setEditing(false)}
-            className="px-5 py-2.5 rounded-[10px] border border-input-border text-graphite text-[13px] font-medium transition-all duration-200 hover:bg-bone"
+            className="px-5 py-2.5 rounded-[10px] border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
           >
             Cancelar
           </button>

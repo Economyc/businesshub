@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { ChevronUp, ChevronDown } from 'lucide-react'
 import { staggerItem } from '@/core/animations/variants'
+import { formatCurrency } from '@/core/utils/format'
 import type { LucideIcon } from 'lucide-react'
 
 interface KPICardProps {
@@ -38,13 +39,13 @@ export function KPICard({ label, value, format = 'number', change, trend, icon: 
   const animatedValue = useCountUp(value)
 
   const formattedValue = format === 'currency'
-    ? `$${animatedValue.toLocaleString('en-US')}`
-    : animatedValue.toLocaleString('en-US')
+    ? formatCurrency(animatedValue)
+    : animatedValue.toLocaleString('es-CO')
 
   return (
     <motion.div
       variants={staggerItem}
-      className="bg-white rounded-xl p-[18px] border border-border"
+      className="bg-surface rounded-xl p-[18px] card-elevated"
     >
       <div className="flex justify-between items-center mb-2.5">
         <span className="text-caption uppercase tracking-wider text-mid-gray">{label}</span>

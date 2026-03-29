@@ -1,28 +1,29 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Upload, DollarSign } from 'lucide-react'
+import { Plus, Upload, DollarSign, ChevronRight } from 'lucide-react'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
 import { SearchInput } from '@/core/ui/search-input'
-import { DataTable } from '@/core/ui/data-table'
+import { FilterPopover } from '@/core/ui/filter-popover'
+import { SelectInput } from '@/core/ui/select-input'
 import { StatusBadge } from '@/core/ui/status-badge'
 import { EmptyState } from '@/core/ui/empty-state'
+import { formatCurrency } from '@/core/utils/format'
 import { useTransactions } from '../hooks'
+import { useDateRange } from '../context/date-range-context'
 import { FinanceSummary } from './finance-summary'
+import { FinanceTabs } from './finance-tabs'
 import type { Transaction } from '../types'
 
-const selectClass =
-  'px-3 py-2.5 rounded-[10px] border border-input-border bg-card-bg text-body text-graphite focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200'
 
 export function TransactionList() {
   const navigate = useNavigate()
   const { data: transactions, loading } = useTransactions()
+  const { startDate, endDate } = useDateRange()
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
 
   const categories = useMemo(() => {
     const set = new Set(transactions.map((t) => t.category).filter(Boolean))
@@ -33,125 +34,130 @@ export function TransactionList() {
     return transactions.filter((t) => {
       const matchesSearch =
         search === '' || t.concept.toLowerCase().includes(search.toLowerCase()) || t.category.toLowerCase().includes(search.toLowerCase())
-      const matchesCategory = categoryFilter === '' || t.category === categoryFilter
+      const matchesCategory = categoryFilter === '' || t.category === categoryFilter || t.category.startsWith(categoryFilter + ' > ')
       const matchesType = typeFilter === '' || t.type === typeFilter
       const matchesStatus = statusFilter === '' || t.status === statusFilter
 
-      let matchesDate = true
-      if (dateFrom || dateTo) {
-        const txDate = t.date?.toDate?.() ?? new Date(0)
-        if (dateFrom) matchesDate = matchesDate && txDate >= new Date(dateFrom)
-        if (dateTo) {
-          const toDate = new Date(dateTo)
-          toDate.setHours(23, 59, 59, 999)
-          matchesDate = matchesDate && txDate <= toDate
-        }
-      }
+      const txDate = t.date?.toDate?.()
+      const matchesDate = txDate ? (txDate >= startDate && txDate <= endDate) : true
 
       return matchesSearch && matchesCategory && matchesType && matchesStatus && matchesDate
     })
-  }, [transactions, search, categoryFilter, typeFilter, statusFilter, dateFrom, dateTo])
+  }, [transactions, search, categoryFilter, typeFilter, statusFilter, startDate.getTime(), endDate.getTime()])
 
-  const columns = [
-    {
-      key: 'concept',
-      header: 'Concepto',
-      width: '2fr',
-      render: (t: Transaction) => <span className="font-medium text-dark-graphite">{t.concept}</span>,
-    },
-    {
-      key: 'category',
-      header: 'Categoría',
-      width: '1fr',
-      render: (t: Transaction) => t.category,
-    },
-    {
-      key: 'amount',
-      header: 'Monto',
-      width: '1fr',
-      render: (t: Transaction) => (
-        <span className={t.type === 'income' ? 'text-positive-text' : ''}>
-          ${t.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-        </span>
-      ),
-    },
-    {
-      key: 'date',
-      header: 'Fecha',
-      width: '1fr',
-      render: (t: Transaction) => {
-        const d = t.date?.toDate?.()
-        return d ? d.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'
-      },
-    },
-    {
-      key: 'status',
-      header: 'Estado',
-      width: '0.8fr',
-      render: (t: Transaction) => <StatusBadge variant={t.status} />,
-    },
-  ]
+  // Group transactions by date (descending)
+  const groupedByDate = useMemo(() => {
+    const groups: { dateKey: string; dateLabel: string; total: number; transactions: Transaction[] }[] = []
+    const map = new Map<string, Transaction[]>()
+
+    for (const t of filtered) {
+      const d = t.date?.toDate?.()
+      const key = d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : '0000-00-00'
+      if (!map.has(key)) map.set(key, [])
+      map.get(key)!.push(t)
+    }
+
+    // Sort dates descending
+    const sortedKeys = Array.from(map.keys()).sort((a, b) => b.localeCompare(a))
+
+    for (const key of sortedKeys) {
+      const txs = map.get(key)!
+      const d = txs[0].date?.toDate?.()
+      const dateLabel = d
+        ? d.toLocaleDateString('es-MX', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })
+        : 'Sin fecha'
+      const total = txs.reduce((sum, t) => sum + (t.type === 'income' ? t.amount : -t.amount), 0)
+      groups.push({ dateKey: key, dateLabel, total, transactions: txs })
+    }
+
+    return groups
+  }, [filtered])
+
+  const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set())
+
+  const toggleDate = (dateKey: string) => {
+    setExpandedDates((prev) => {
+      const next = new Set(prev)
+      if (next.has(dateKey)) next.delete(dateKey)
+      else next.add(dateKey)
+      return next
+    })
+  }
 
   return (
     <PageTransition>
       <PageHeader title="Monitor Financiero">
         <button
           onClick={() => navigate('/finance/new')}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] bg-graphite text-white text-[13px] font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md"
+          className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md"
         >
           <Plus size={15} strokeWidth={2} />
           Nueva
         </button>
         <button
           onClick={() => navigate('/finance/import')}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] border border-input-border text-graphite text-[13px] font-medium transition-all duration-200 hover:bg-bone"
+          className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
         >
           <Upload size={15} strokeWidth={1.5} />
           Importar
         </button>
       </PageHeader>
 
+      <FinanceTabs />
       <FinanceSummary />
 
-      <div className="flex gap-3 mb-5 flex-wrap">
+      <div className="flex gap-3 mb-5">
         <div className="flex-1 min-w-[180px]">
           <SearchInput value={search} onChange={setSearch} placeholder="Buscar transacción..." />
         </div>
-        <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className={selectClass}>
-          <option value="">Todas las categorías</option>
-          {categories.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
-        <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className={selectClass}>
-          <option value="">Todos</option>
-          <option value="income">Ingreso</option>
-          <option value="expense">Gasto</option>
-        </select>
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className={selectClass}>
-          <option value="">Todos los estados</option>
-          <option value="paid">Pagado</option>
-          <option value="pending">Pendiente</option>
-          <option value="overdue">Vencido</option>
-        </select>
-        <input
-          type="date"
-          value={dateFrom}
-          onChange={(e) => setDateFrom(e.target.value)}
-          placeholder="Desde"
-          className={selectClass}
-          title="Desde"
-        />
-        <input
-          type="date"
-          value={dateTo}
-          onChange={(e) => setDateTo(e.target.value)}
-          placeholder="Hasta"
-          className={selectClass}
-          title="Hasta"
-        />
+        <FilterPopover
+          activeCount={[categoryFilter, typeFilter, statusFilter].filter(Boolean).length}
+          onClear={() => {
+            setCategoryFilter('')
+            setTypeFilter('')
+            setStatusFilter('')
+          }}
+        >
+          <div>
+            <label className="block text-caption text-mid-gray mb-1">Categoría</label>
+            <SelectInput
+              value={categoryFilter}
+              onChange={setCategoryFilter}
+              placeholder="Todas las categorías"
+              options={[
+                { value: '', label: 'Todas las categorías' },
+                ...categories.map((c) => ({ value: c, label: c })),
+              ]}
+            />
+          </div>
+          <div>
+            <label className="block text-caption text-mid-gray mb-1">Tipo</label>
+            <SelectInput
+              value={typeFilter}
+              onChange={setTypeFilter}
+              placeholder="Todos"
+              options={[
+                { value: '', label: 'Todos' },
+                { value: 'income', label: 'Ingreso' },
+                { value: 'expense', label: 'Gasto' },
+              ]}
+            />
+          </div>
+          <div>
+            <label className="block text-caption text-mid-gray mb-1">Estado</label>
+            <SelectInput
+              value={statusFilter}
+              onChange={setStatusFilter}
+              placeholder="Todos los estados"
+              options={[
+                { value: '', label: 'Todos los estados' },
+                { value: 'paid', label: 'Pagado' },
+                { value: 'pending', label: 'Pendiente' },
+                { value: 'overdue', label: 'Vencido' },
+              ]}
+            />
+          </div>
+        </FilterPopover>
       </div>
 
       {loading ? (
@@ -163,7 +169,82 @@ export function TransactionList() {
           description="Registra tu primera transacción usando el botón + Nueva"
         />
       ) : (
-        <DataTable columns={columns} data={filtered} />
+        <div className="bg-surface rounded-xl card-elevated overflow-hidden">
+          {groupedByDate.map((group, gi) => {
+            const isExpanded = expandedDates.has(group.dateKey)
+            return (
+              <div key={group.dateKey} style={{ borderBottom: gi < groupedByDate.length - 1 ? '1px solid #d4d3cf' : 'none' }}>
+                {/* Date header row */}
+                <button
+                  onClick={() => toggleDate(group.dateKey)}
+                  className="w-full flex items-center gap-3 px-5 py-3.5 hover:bg-bone/50 transition-colors duration-150 text-left"
+                >
+                  <ChevronRight
+                    size={16}
+                    strokeWidth={2}
+                    className={`text-mid-gray shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}
+                  />
+                  <span className="font-medium text-dark-graphite text-body capitalize flex-1">
+                    {group.dateLabel}
+                  </span>
+                  <span className="text-caption text-mid-gray mr-3">
+                    {group.transactions.length} {group.transactions.length === 1 ? 'transacción' : 'transacciones'}
+                  </span>
+                  <span className={`font-semibold text-body tabular-nums ${group.total >= 0 ? 'text-positive-text' : 'text-graphite'}`}>
+                    {group.total >= 0 ? '+' : ''}{formatCurrency(group.total, 2)}
+                  </span>
+                </button>
+
+                {/* Expanded transactions */}
+                {isExpanded && (
+                  <div>
+                    {/* Column headers */}
+                    <div
+                      className="grid px-5 pl-12 py-2 text-caption uppercase tracking-wider text-mid-gray bg-bone/40"
+                      style={{ gridTemplateColumns: '2fr 1fr 1fr 0.8fr', borderTop: '1px solid #e5e4e0' }}
+                    >
+                      <div className="px-3">Concepto</div>
+                      <div className="px-3">Categoría</div>
+                      <div className="px-3">Monto</div>
+                      <div className="px-3">Estado</div>
+                    </div>
+                    {group.transactions.map((t, ti) => (
+                      <div
+                        key={t.id}
+                        onClick={() => navigate(`/finance/edit/${t.id}`)}
+                        className="grid px-5 pl-12 py-0 text-body text-graphite hover:bg-bone/50 transition-colors duration-150 cursor-pointer"
+                        style={{
+                          gridTemplateColumns: '2fr 1fr 1fr 0.8fr',
+                          borderTop: '1px solid #e5e4e0',
+                          borderBottom: ti === group.transactions.length - 1 ? 'none' : undefined,
+                        }}
+                      >
+                        <div className="px-3 py-3.5 flex items-center gap-2">
+                          <span className="font-medium text-dark-graphite">{t.concept}</span>
+                          {t.sourceType === 'closing' && (
+                            <span className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-700">Cierre</span>
+                          )}
+                          {t.sourceType === 'purchase' && (
+                            <span className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-orange-100 text-orange-700">Compra</span>
+                          )}
+                        </div>
+                        <div className="px-3 py-3.5 flex items-center">{t.category}</div>
+                        <div className="px-3 py-3.5 flex items-center">
+                          <span className={t.type === 'income' ? 'text-positive-text' : ''}>
+                            {formatCurrency(t.amount, 2)}
+                          </span>
+                        </div>
+                        <div className="px-3 py-3.5 flex items-center">
+                          <StatusBadge variant={t.status} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
       )}
     </PageTransition>
   )

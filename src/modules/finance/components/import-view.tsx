@@ -7,6 +7,7 @@ import * as XLSX from 'xlsx'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
 import { useCompany } from '@/core/hooks/use-company'
+import { formatCurrency } from '@/core/utils/format'
 import { financeService } from '../services'
 import type { TransactionFormData } from '../types'
 
@@ -148,7 +149,7 @@ export function ImportView() {
       <PageHeader title="Importar Transacciones">
         <button
           onClick={() => navigate('/finance')}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] border border-input-border text-graphite text-[13px] font-medium transition-all duration-200 hover:bg-bone"
+          className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
         >
           <ArrowLeft size={15} strokeWidth={1.5} />
           Volver
@@ -196,7 +197,7 @@ export function ImportView() {
         <div className="mb-5 bg-negative-bg border border-negative-text/20 rounded-xl overflow-hidden">
           <button
             onClick={() => setErrorsExpanded((v) => !v)}
-            className="w-full flex justify-between items-center px-4 py-3 text-negative-text text-[13px] font-medium"
+            className="w-full flex justify-between items-center px-4 py-3 text-negative-text text-body font-medium"
           >
             <span>{errors.length} errores de validación</span>
             {errorsExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
@@ -218,7 +219,7 @@ export function ImportView() {
       {parsedRows.length > 0 && (
         <div className="mb-5">
           <h2 className="text-subheading font-medium text-dark-graphite mb-3">Vista previa</h2>
-          <div className="bg-white rounded-xl border border-border overflow-hidden">
+          <div className="bg-surface rounded-xl card-elevated overflow-hidden">
             <div
               className="grid px-[18px] py-3 text-caption uppercase tracking-wider text-mid-gray border-b border-border bg-card-bg"
               style={{ gridTemplateColumns: '2fr 1fr 1fr 1fr 0.8fr' }}
@@ -238,12 +239,12 @@ export function ImportView() {
                 <div className="font-medium text-dark-graphite">{row.concept}</div>
                 <div>{row.category}</div>
                 <div className={row.type === 'income' ? 'text-positive-text' : ''}>
-                  ${row.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {formatCurrency(row.amount, 2)}
                 </div>
                 <div>{new Date(row.date).toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' })}</div>
                 <div>
                   <span
-                    className={`inline-block px-2.5 py-0.5 rounded-md text-[11px] font-medium ${
+                    className={`inline-block px-2.5 py-0.5 rounded-md text-caption font-medium ${
                       row.status === 'paid'
                         ? 'bg-positive-bg text-positive-text'
                         : row.status === 'overdue'
@@ -271,7 +272,7 @@ export function ImportView() {
           <button
             onClick={handleImport}
             disabled={importing}
-            className="px-5 py-2.5 rounded-[10px] bg-graphite text-white text-[13px] font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
+            className="px-5 py-2.5 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {importing ? 'Importando...' : `Importar ${parsedRows.length} registros`}
           </button>
@@ -280,7 +281,7 @@ export function ImportView() {
 
       {/* Result Summary */}
       {result && (
-        <div className="bg-white rounded-xl border border-border p-6 flex flex-col gap-2">
+        <div className="bg-surface rounded-xl card-elevated p-6 flex flex-col gap-2">
           <h2 className="text-subheading font-medium text-dark-graphite mb-1">Importación completada</h2>
           <p className="text-body text-graphite">
             <span className="font-medium text-positive-text">{result.imported} registros importados</span>
@@ -293,7 +294,7 @@ export function ImportView() {
           </p>
           <button
             onClick={() => navigate('/finance')}
-            className="mt-3 self-start px-5 py-2.5 rounded-[10px] bg-graphite text-white text-[13px] font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md"
+            className="mt-3 self-start px-5 py-2.5 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md"
           >
             Ver transacciones
           </button>

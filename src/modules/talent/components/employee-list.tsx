@@ -1,21 +1,24 @@
 import { useState, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { Plus, Users } from 'lucide-react'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
 import { SearchInput } from '@/core/ui/search-input'
+import { FilterPopover } from '@/core/ui/filter-popover'
 import { DataTable } from '@/core/ui/data-table'
 import { StatusBadge } from '@/core/ui/status-badge'
 import { EmptyState } from '@/core/ui/empty-state'
+import { formatCurrency } from '@/core/utils/format'
 import { useEmployees } from '../hooks'
+import { EmployeeForm } from './employee-form'
 import type { Employee } from '../types'
 
 export function EmployeeList() {
-  const navigate = useNavigate()
-  const { data: employees, loading } = useEmployees()
+  const { data: employees, loading, refetch } = useEmployees()
   const [search, setSearch] = useState('')
   const [departmentFilter, setDepartmentFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [showForm, setShowForm] = useState(false)
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null)
 
   const departments = useMemo(() => {
     const set = new Set(employees.map((e) => e.department).filter(Boolean))
@@ -27,6 +30,7 @@ export function EmployeeList() {
       const matchesSearch =
         search === '' ||
         e.name.toLowerCase().includes(search.toLowerCase()) ||
+        (e.identification ?? '').toLowerCase().includes(search.toLowerCase()) ||
         e.role.toLowerCase().includes(search.toLowerCase()) ||
         e.email.toLowerCase().includes(search.toLowerCase())
       const matchesDept = departmentFilter === '' || e.department === departmentFilter
@@ -47,6 +51,12 @@ export function EmployeeList() {
       render: (e: Employee) => <span className="font-medium text-dark-graphite">{e.name}</span>,
     },
     {
+      key: 'identification',
+      header: 'Identificación',
+      width: '1fr',
+      render: (e: Employee) => e.identification || '—',
+    },
+    {
       key: 'role',
       header: 'Cargo',
       width: '1.5fr',
@@ -63,7 +73,7 @@ export function EmployeeList() {
       header: 'Salario',
       width: '1fr',
       render: (e: Employee) =>
-        `$${(e.salary ?? 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`,
+        formatCurrency(e.salary ?? 0),
     },
     {
       key: 'status',
@@ -77,18 +87,24 @@ export function EmployeeList() {
     <PageTransition>
       <PageHeader title="Directorio de Talento">
         <button
-          onClick={() => navigate('/talent/new')}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] bg-graphite text-white text-[13px] font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md"
+          onClick={() => setShowForm(true)}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md"
         >
           <Plus size={15} strokeWidth={2} />
           Nuevo
         </button>
       </PageHeader>
 
+      <EmployeeForm
+        open={showForm || !!editingEmployee}
+        employee={editingEmployee}
+        onClose={() => { setShowForm(false); setEditingEmployee(null); refetch() }}
+      />
+
       <div className="mb-4 text-caption text-mid-gray">
         Nómina total:{' '}
         <span className="font-medium text-graphite">
-          ${totalPayroll.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+          {formatCurrency(totalPayroll)}
         </span>
       </div>
 
@@ -96,27 +112,41 @@ export function EmployeeList() {
         <div className="flex-1">
           <SearchInput value={search} onChange={setSearch} placeholder="Buscar empleado..." />
         </div>
-        <select
-          value={departmentFilter}
-          onChange={(e) => setDepartmentFilter(e.target.value)}
-          className="px-3 py-2.5 rounded-[10px] border border-input-border bg-card-bg text-body text-graphite focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200"
+        <FilterPopover
+          activeCount={[departmentFilter, statusFilter].filter(Boolean).length}
+          onClear={() => {
+            setDepartmentFilter('')
+            setStatusFilter('')
+          }}
         >
-          <option value="">Todos los departamentos</option>
-          {departments.map((d) => (
-            <option key={d} value={d}>
-              {d}
-            </option>
-          ))}
-        </select>
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-3 py-2.5 rounded-[10px] border border-input-border bg-card-bg text-body text-graphite focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200"
-        >
-          <option value="">Todos los estados</option>
-          <option value="active">Activo</option>
-          <option value="inactive">Inactivo</option>
-        </select>
+          <div>
+            <label className="block text-caption text-mid-gray mb-1">Departamento</label>
+            <select
+              value={departmentFilter}
+              onChange={(e) => setDepartmentFilter(e.target.value)}
+              className="w-full px-3 py-2.5 rounded-[10px] border border-input-border bg-input-bg text-body text-graphite focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200"
+            >
+              <option value="">Todos los departamentos</option>
+              {departments.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-caption text-mid-gray mb-1">Estado</label>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="w-full px-3 py-2.5 rounded-[10px] border border-input-border bg-input-bg text-body text-graphite focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200"
+            >
+              <option value="">Todos los estados</option>
+              <option value="active">Activo</option>
+              <option value="inactive">Inactivo</option>
+            </select>
+          </div>
+        </FilterPopover>
       </div>
 
       {loading ? (
@@ -131,7 +161,7 @@ export function EmployeeList() {
         <DataTable
           columns={columns}
           data={filtered}
-          onRowClick={(e) => navigate(`/talent/${e.id}`)}
+          onRowClick={(e) => setEditingEmployee(e)}
         />
       )}
     </PageTransition>

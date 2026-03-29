@@ -5,51 +5,85 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-  --color-bone: #f5f3f0;
-  --color-smoke: #edebe8;
-  --color-mid-gray: #8a8a8a;
-  --color-graphite: #3d3d3d;
-  --color-dark-graphite: #2d2d2d;
-  --color-card-bg: #faf9f7;
-  --color-border: #eeece9;
-  --color-border-hover: #d5d3d0;
-  --color-input-border: #e2e0dc;
-  --color-input-focus: #b0ada8;
-  --color-positive-bg: #e8f0e8;
-  --color-positive-text: #5a7a5a;
-  --color-warning-bg: #f0ece4;
-  --color-warning-text: #8a7a5a;
-  --color-negative-bg: #f0e8e8;
-  --color-negative-text: #9a6a6a;
-  --color-info-bg: #e8ecf0;
-  --color-info-text: #5a6a8a;
+  --font-sans: 'Nunito Sans', ui-sans-serif, system-ui, sans-serif;
 
-  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
-
-  --text-heading: 18px;
-  --text-subheading: 14px;
-  --text-body: 13px;
-  --text-caption: 11px;
-  --text-kpi: 22px;
+  --text-heading: 20px;
+  --text-subheading: 16px;
+  --text-body: 14px;
+  --text-caption: 12px;
+  --text-kpi: 26px;
 }
 
 @layer base {
   body {
-    @apply bg-bone text-graphite font-sans antialiased;
+    @apply bg-surface text-graphite font-sans antialiased;
     font-size: var(--text-body);
     line-height: 1.6;
   }
   * {
     @apply border-border outline-ring/50;
   }
+  /* Hide number input spinners */
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
   html {
     @apply font-sans;
+  }
+  button, [role="button"] {
+    cursor: pointer;
+  }
+  .btn-primary {
+    @apply bg-[#2d2d2d] text-white;
+  }
+  .dark .btn-primary {
+    @apply bg-white text-[#111111];
+  }
+  @media print {
+    body { background: white !important; }
+    .print\:hidden, nav, header, .sidebar, [class*="sidebar"] { display: none !important; }
+    .contract-preview { border: none !important; box-shadow: none !important; padding: 0 !important; max-width: none !important; }
+    main { padding: 0 !important; margin: 0 !important; }
+  }
+  .card-elevated {
+    border: 1px solid var(--color-border);
+    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.06), 0 0 0 1px var(--color-border);
+  }
+  .dark .card-elevated {
+    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.3), 0 0 0 1px var(--color-border);
   }
 }
 
 @theme inline {
   --font-heading: var(--font-sans);
-  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Nunito Sans', ui-sans-serif, system-ui, sans-serif;
+  --color-bone: var(--app-bone);
+  --color-smoke: var(--app-smoke);
+  --color-selector-bg: var(--app-selector-bg);
+  --color-mid-gray: var(--app-mid-gray);
+  --color-graphite: var(--app-graphite);
+  --color-dark-graphite: var(--app-dark-graphite);
+  --color-card-bg: var(--app-card-bg);
+  --color-border: var(--app-border);
+  --color-border-hover: var(--app-border-hover);
+  --color-input-bg: var(--app-input-bg);
+  --color-input-border: var(--app-input-border);
+  --color-input-focus: var(--app-input-focus);
+  --color-positive-bg: var(--app-positive-bg);
+  --color-positive-text: var(--app-positive-text);
+  --color-warning-bg: var(--app-warning-bg);
+  --color-warning-text: var(--app-warning-text);
+  --color-negative-bg: var(--app-negative-bg);
+  --color-negative-text: var(--app-negative-text);
+  --color-info-bg: var(--app-info-bg);
+  --color-info-text: var(--app-info-text);
+  --color-surface: var(--app-surface);
+  --color-surface-elevated: var(--app-surface-elevated);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -65,7 +99,6 @@
   --color-chart-1: var(--chart-1);
   --color-ring: var(--ring);
   --color-input: var(--input);
-  --color-border: var(--border);
   --color-destructive: var(--destructive);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
@@ -91,6 +124,30 @@
 }
 
 :root {
+  /* App custom tokens */
+  --app-bone: #F3F2F0;
+  --app-smoke: #eae9e7;
+  --app-selector-bg: #E8E7E3;
+  --app-mid-gray: #7d7d7d;
+  --app-graphite: #3d3d3d;
+  --app-dark-graphite: #2d2d2d;
+  --app-card-bg: #faf9f7;
+  --app-border: #eeece9;
+  --app-border-hover: #d5d3d0;
+  --app-input-bg: #f7f6f4;
+  --app-input-border: #e2dfd9;
+  --app-input-focus: #c5c2bc;
+  --app-positive-bg: #e8f0e8;
+  --app-positive-text: #5a7a5a;
+  --app-warning-bg: #f0ece4;
+  --app-warning-text: #8a7a5a;
+  --app-negative-bg: #f0e8e8;
+  --app-negative-text: #9a6a6a;
+  --app-info-bg: #e8ecf0;
+  --app-info-text: #5a6a8a;
+  --app-surface: #ffffff;
+  --app-surface-elevated: #ffffff;
+
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -126,6 +183,30 @@
 }
 
 .dark {
+  /* App custom tokens — Focus palette */
+  --app-bone: #1a1a1a;
+  --app-smoke: #1e1e1e;
+  --app-selector-bg: #252525;
+  --app-mid-gray: #888888;
+  --app-graphite: #e0e0e0;
+  --app-dark-graphite: #f0f0f0;
+  --app-card-bg: #141414;
+  --app-border: #2a2a2a;
+  --app-border-hover: #3a3a3a;
+  --app-input-bg: #1e1e1e;
+  --app-input-border: #2a2a2a;
+  --app-input-focus: #4a4a4a;
+  --app-positive-bg: #1a2e1a;
+  --app-positive-text: #7ab87a;
+  --app-warning-bg: #2e2a1a;
+  --app-warning-text: #c4a85a;
+  --app-negative-bg: #2e1a1a;
+  --app-negative-text: #c47a7a;
+  --app-info-bg: #1a1e2e;
+  --app-info-text: #7a8ec4;
+  --app-surface: #111111;
+  --app-surface-elevated: #1a1a1a;
+
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
@@ -157,4 +238,12 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+}
+
+@utility scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }

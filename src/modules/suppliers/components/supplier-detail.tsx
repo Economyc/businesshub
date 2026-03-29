@@ -4,6 +4,9 @@ import { ArrowLeft, Edit, Trash2, AlertTriangle } from 'lucide-react'
 import { Timestamp } from 'firebase/firestore'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
+import { DateInput } from '@/core/ui/date-input'
+import { SelectInput } from '@/core/ui/select-input'
+import { CategorySelect } from '@/core/ui/category-select'
 import { StatusBadge } from '@/core/ui/status-badge'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 import { useCompany } from '@/core/hooks/use-company'
@@ -12,7 +15,7 @@ import { supplierService } from '../services'
 import type { SupplierFormData } from '../types'
 
 const inputClass =
-  'w-full px-3 py-2.5 rounded-[10px] border border-input-border bg-card-bg text-body text-graphite placeholder:text-smoke focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200'
+  'w-full px-3 py-2.5 rounded-[10px] border border-input-border bg-input-bg text-body text-graphite placeholder:text-mid-gray/60 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200'
 const labelClass = 'block text-caption uppercase tracking-wider text-mid-gray mb-1'
 
 function formatDate(ts: Timestamp | undefined): string {
@@ -48,6 +51,7 @@ export function SupplierDetail() {
 
   const [editForm, setEditForm] = useState<{
     name: string
+    identification: string
     category: string
     contactName: string
     email: string
@@ -57,6 +61,7 @@ export function SupplierDetail() {
     status: 'active' | 'expired' | 'pending'
   }>({
     name: '',
+    identification: '',
     category: '',
     contactName: '',
     email: '',
@@ -70,6 +75,7 @@ export function SupplierDetail() {
     if (!displayed) return
     setEditForm({
       name: displayed.name,
+      identification: displayed.identification || '',
       category: displayed.category,
       contactName: displayed.contactName,
       email: displayed.email,
@@ -92,6 +98,7 @@ export function SupplierDetail() {
     try {
       const updates: Partial<SupplierFormData> = {
         name: editForm.name,
+        identification: editForm.identification,
         category: editForm.category,
         contactName: editForm.contactName,
         email: editForm.email,
@@ -150,7 +157,7 @@ export function SupplierDetail() {
       </div>
 
       {isExpiringSoon && (
-        <div className="flex items-center gap-2 mb-4 px-4 py-3 rounded-[10px] bg-warning-bg text-warning-text text-[13px] font-medium border border-warning-text/20">
+        <div className="flex items-center gap-2 mb-4 px-4 py-3 rounded-[10px] bg-warning-bg text-warning-text text-body font-medium border border-warning-text/20">
           <AlertTriangle size={15} strokeWidth={2} />
           {daysUntilExpiry! <= 0
             ? 'El contrato de este proveedor ha vencido o vence hoy.'
@@ -163,14 +170,14 @@ export function SupplierDetail() {
           <>
             <button
               onClick={startEditing}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-[10px] border border-input-border text-graphite text-[13px] font-medium transition-all duration-200 hover:bg-bone"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-[10px] border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
             >
               <Edit size={14} strokeWidth={1.5} />
               Editar
             </button>
             <button
               onClick={() => setDeleteOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-[10px] border border-negative-text text-negative-text text-[13px] font-medium transition-all duration-200 hover:bg-negative-bg"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-[10px] border border-negative-text text-negative-text text-body font-medium transition-all duration-200 hover:bg-negative-bg"
             >
               <Trash2 size={14} strokeWidth={1.5} />
               Eliminar
@@ -179,7 +186,7 @@ export function SupplierDetail() {
         )}
       </PageHeader>
 
-      <div className="bg-white rounded-xl border border-border p-6">
+      <div className="bg-surface rounded-xl card-elevated p-6">
         {editing ? (
           <div className="grid grid-cols-2 gap-5">
             <div>
@@ -187,8 +194,16 @@ export function SupplierDetail() {
               <input name="name" value={editForm.name} onChange={handleChange} className={inputClass} />
             </div>
             <div>
+              <label className={labelClass}>Identificación</label>
+              <input name="identification" value={editForm.identification} onChange={handleChange} className={inputClass} />
+            </div>
+            <div>
               <label className={labelClass}>Categoría</label>
-              <input name="category" value={editForm.category} onChange={handleChange} className={inputClass} />
+              <CategorySelect
+                value={editForm.category}
+                onChange={(v) => setEditForm((prev) => ({ ...prev, category: v }))}
+                allowCustom
+              />
             </div>
             <div>
               <label className={labelClass}>Nombre de Contacto</label>
@@ -204,23 +219,37 @@ export function SupplierDetail() {
             </div>
             <div>
               <label className={labelClass}>Estado</label>
-              <select name="status" value={editForm.status} onChange={handleChange} className={inputClass}>
-                <option value="active">Activo</option>
-                <option value="expired">Vencido</option>
-                <option value="pending">Pendiente</option>
-              </select>
+              <SelectInput
+                value={editForm.status}
+                onChange={(v) => setEditForm((prev) => ({ ...prev, status: v as 'active' | 'expired' | 'pending' }))}
+                options={[
+                  { value: 'active', label: 'Activo' },
+                  { value: 'expired', label: 'Vencido' },
+                  { value: 'pending', label: 'Pendiente' },
+                ]}
+              />
             </div>
             <div>
               <label className={labelClass}>Inicio de Contrato</label>
-              <input name="contractStart" type="date" value={editForm.contractStart} onChange={handleChange} className={inputClass} />
+              <DateInput
+                value={editForm.contractStart}
+                onChange={(v) => setEditForm((prev) => ({ ...prev, contractStart: v }))}
+              />
             </div>
             <div>
               <label className={labelClass}>Fin de Contrato</label>
-              <input name="contractEnd" type="date" value={editForm.contractEnd} onChange={handleChange} className={inputClass} />
+              <DateInput
+                value={editForm.contractEnd}
+                onChange={(v) => setEditForm((prev) => ({ ...prev, contractEnd: v }))}
+              />
             </div>
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-5">
+            <div>
+              <p className={labelClass}>Identificación</p>
+              <p className="text-body text-graphite">{displayed.identification || '—'}</p>
+            </div>
             <div>
               <p className={labelClass}>Categoría</p>
               <p className="text-body text-graphite">{displayed.category}</p>
@@ -258,13 +287,13 @@ export function SupplierDetail() {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-5 py-2.5 rounded-[10px] bg-graphite text-white text-[13px] font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
+            className="px-5 py-2.5 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {saving ? 'Guardando...' : 'Guardar Cambios'}
           </button>
           <button
             onClick={() => setEditing(false)}
-            className="px-5 py-2.5 rounded-[10px] border border-input-border text-graphite text-[13px] font-medium transition-all duration-200 hover:bg-bone"
+            className="px-5 py-2.5 rounded-[10px] border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
           >
             Cancelar
           </button>

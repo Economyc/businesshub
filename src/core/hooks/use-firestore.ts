@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fetchCollection, fetchDocument } from '@/core/firebase/helpers'
 import { useCompany } from './use-company'
+import { cacheGet, cacheSet } from '@/core/utils/cache'
 import type { QueryConstraint } from 'firebase/firestore'
 
 export function useCollection<T>(
@@ -8,17 +9,21 @@ export function useCollection<T>(
   ...constraints: QueryConstraint[]
 ) {
   const { selectedCompany } = useCompany()
-  const [data, setData] = useState<T[]>([])
-  const [loading, setLoading] = useState(true)
+  const cacheKey = selectedCompany ? `col:${selectedCompany.id}:${collectionName}` : ''
+  const cached = cacheKey ? cacheGet<T[]>(cacheKey) : null
+
+  const [data, setData] = useState<T[]>(cached ?? [])
+  const [loading, setLoading] = useState(!cached)
   const [error, setError] = useState<Error | null>(null)
 
   const refetch = useCallback(async () => {
     if (!selectedCompany) return
-    setLoading(true)
+    if (!cached) setLoading(true)
     setError(null)
     try {
       const result = await fetchCollection<T>(selectedCompany.id, collectionName, ...constraints)
       setData(result)
+      cacheSet(`col:${selectedCompany.id}:${collectionName}`, result)
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Unknown error'))
     } finally {
@@ -28,8 +33,19 @@ export function useCollection<T>(
   }, [selectedCompany?.id, collectionName])
 
   useEffect(() => {
+    // When company changes, load cache for new company immediately
+    if (selectedCompany) {
+      const newCache = cacheGet<T[]>(`col:${selectedCompany.id}:${collectionName}`)
+      if (newCache) {
+        setData(newCache)
+        setLoading(false)
+      } else {
+        setData([])
+        setLoading(true)
+      }
+    }
     refetch()
-  }, [refetch])
+  }, [refetch, selectedCompany?.id, collectionName])
 
   return { data, loading, error, refetch }
 }

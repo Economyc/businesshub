@@ -9,6 +9,19 @@ export interface Transaction extends BaseEntity {
   date: Timestamp
   status: TransactionStatus
   notes?: string
+  sourceType?: 'closing' | 'purchase'
+  sourceId?: string
+  sourceLabel?: string
 }
 
 export type TransactionFormData = Omit<Transaction, 'id' | 'createdAt' | 'updatedAt'>
+
+export interface BudgetItem {
+  category: string
+  type: TransactionType
+  amount: number
+}
+
+export interface BudgetConfig {
+  items: BudgetItem[]
+}

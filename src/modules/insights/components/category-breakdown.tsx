@@ -7,6 +7,8 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts'
+import { Cell } from 'recharts'
+import { formatCurrency } from '@/core/utils/format'
 import type { CategoryData } from '../types'
 
 interface CategoryBreakdownProps {
@@ -16,10 +18,10 @@ interface CategoryBreakdownProps {
 function CustomTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null
   return (
-    <div className="bg-white border border-border rounded-lg shadow-sm px-3 py-2 text-caption">
+    <div className="bg-surface border border-border rounded-lg shadow-sm px-3 py-2 text-caption">
       <p className="font-medium text-dark-graphite mb-1">{label}</p>
       <p className="text-dark-graphite">
-        ${payload[0].value.toLocaleString('en-US')}
+        {formatCurrency(payload[0].value)}
       </p>
     </div>
   )
@@ -29,7 +31,7 @@ export function CategoryBreakdown({ data }: CategoryBreakdownProps) {
   const chartHeight = Math.max(200, data.length * 48)
 
   return (
-    <div className="bg-white rounded-xl border border-border p-6">
+    <div className="bg-surface rounded-xl card-elevated p-6">
       <h2 className="text-subheading font-medium text-dark-graphite mb-4">Gastos por Categoría</h2>
       <ResponsiveContainer width="100%" height={chartHeight}>
         <BarChart
@@ -40,7 +42,7 @@ export function CategoryBreakdown({ data }: CategoryBreakdownProps) {
           <CartesianGrid horizontal={true} vertical={false} strokeDasharray="3 3" stroke="#eeece9" />
           <XAxis
             type="number"
-            tickFormatter={(v) => `$${v.toLocaleString('en-US')}`}
+            tickFormatter={(v) => formatCurrency(v)}
             tick={{ fontSize: 11, fill: '#8a8a8a' }}
             axisLine={false}
             tickLine={false}
@@ -59,7 +61,11 @@ export function CategoryBreakdown({ data }: CategoryBreakdownProps) {
             fill="#3d3d3d"
             barSize={20}
             radius={[0, 6, 6, 0]}
-          />
+          >
+            {data.map((entry, index) => (
+              <Cell key={index} fill={entry.color || '#3d3d3d'} />
+            ))}
+          </Bar>
         </BarChart>
       </ResponsiveContainer>
     </div>

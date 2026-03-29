@@ -8,6 +8,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts'
+import { formatCurrency } from '@/core/utils/format'
 import type { TrendPoint } from '../types'
 
 interface TrendChartProps {
@@ -17,11 +18,11 @@ interface TrendChartProps {
 function CustomTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null
   return (
-    <div className="bg-white border border-border rounded-lg shadow-sm px-3 py-2 text-caption">
+    <div className="bg-surface border border-border rounded-lg shadow-sm px-3 py-2 text-caption">
       <p className="font-medium text-dark-graphite mb-1">{label}</p>
       {payload.map((entry: any) => (
         <p key={entry.dataKey} style={{ color: entry.stroke }}>
-          {entry.name}: ${entry.value.toLocaleString('en-US')}
+          {entry.name}: {formatCurrency(entry.value)}
         </p>
       ))}
     </div>
@@ -47,7 +48,7 @@ function CustomLegend({ payload }: any) {
 
 export function TrendChart({ data }: TrendChartProps) {
   return (
-    <div className="bg-white rounded-xl border border-border p-6">
+    <div className="bg-surface rounded-xl card-elevated p-6">
       <h2 className="text-subheading font-medium text-dark-graphite mb-4">Tendencia Mensual</h2>
       <ResponsiveContainer width="100%" height={300}>
         <LineChart data={data} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
@@ -59,7 +60,7 @@ export function TrendChart({ data }: TrendChartProps) {
             tickLine={false}
           />
           <YAxis
-            tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
+            tickFormatter={(v) => formatCurrency(v)}
             tick={{ fontSize: 11, fill: '#8a8a8a' }}
             axisLine={false}
             tickLine={false}
@@ -81,6 +82,15 @@ export function TrendChart({ data }: TrendChartProps) {
             dataKey="expenses"
             name="Gastos"
             stroke="#9a6a6a"
+            strokeWidth={2}
+            dot={false}
+            activeDot={{ r: 4, strokeWidth: 0 }}
+          />
+          <Line
+            type="monotone"
+            dataKey="purchases"
+            name="Compras"
+            stroke="#6a7a9a"
             strokeWidth={2}
             dot={false}
             activeDot={{ r: 4, strokeWidth: 0 }}

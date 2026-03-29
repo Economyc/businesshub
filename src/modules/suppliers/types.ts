@@ -3,6 +3,7 @@ import type { BaseEntity, SupplierStatus } from '@/core/types'
 
 export interface Supplier extends BaseEntity {
   name: string
+  identification: string
   category: string
   contactName: string
   email: string

@@ -29,7 +29,7 @@ interface StatusBadgeProps {
 
 export function StatusBadge({ variant, label }: StatusBadgeProps) {
   return (
-    <span className={cn('inline-block px-2.5 py-0.5 rounded-md text-[11px] font-medium', VARIANT_STYLES[variant])}>
+    <span className={cn('inline-block px-2.5 py-0.5 rounded-md text-caption font-medium', VARIANT_STYLES[variant])}>
       {label ?? LABELS[variant]}
     </span>
   )

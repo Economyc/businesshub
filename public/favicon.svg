@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Circle border -->
+  <circle cx="32" cy="32" r="29" fill="#2d2d2d" stroke="#fff" stroke-width="2.5"/>
+  <!-- Top bar (browser bar) -->
+  <rect x="14" y="13" width="36" height="4" rx="1.5" fill="none" stroke="#fff" stroke-width="1.2"/>
+  <rect x="15.5" y="14.2" width="8" height="1.6" rx="0.8" fill="#fff" opacity="0.6"/>
+  <!-- Divider line -->
+  <line x1="14" y1="20" x2="50" y2="20" stroke="#fff" stroke-width="0.8" opacity="0.5"/>
+  <!-- Vertical divider -->
+  <line x1="32" y1="20" x2="32" y2="40" stroke="#fff" stroke-width="0.6" opacity="0.4"/>
+  <!-- Horizontal divider -->
+  <line x1="14" y1="33" x2="50" y2="33" stroke="#fff" stroke-width="0.6" opacity="0.4"/>
+  <!-- Bar chart (top-left) -->
+  <rect x="17" y="29" width="3" height="3" fill="#fff"/>
+  <rect x="21" y="26" width="3" height="6" fill="#fff"/>
+  <rect x="25" y="23" width="3" height="9" fill="#fff"/>
+  <!-- Line chart (top-right) -->
+  <polyline points="35,29 38,25 42,27 46,22" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="35" cy="29" r="1.2" fill="#fff"/>
+  <circle cx="38" cy="25" r="1.2" fill="#fff"/>
+  <circle cx="42" cy="27" r="1.2" fill="#fff"/>
+  <circle cx="46" cy="22" r="1.2" fill="#fff"/>
+  <!-- Trend arrow (bottom-left) -->
+  <polyline points="17,42 22,37 27,39 29,36" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="26,36 29,36 29,39" fill="none" stroke="#fff" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- 24% text (bottom-right) -->
+  <text x="41" y="40" fill="#fff" font-family="sans-serif" font-size="6" font-weight="bold" text-anchor="middle">24%</text>
+  <polyline points="46,39 47.5,36.5" fill="none" stroke="#fff" stroke-width="1.2" stroke-linecap="round"/>
+  <polyline points="46.5,36.5 47.5,36.5 47.5,37.5" fill="none" stroke="#fff" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

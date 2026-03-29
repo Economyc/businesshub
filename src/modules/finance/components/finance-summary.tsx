@@ -3,9 +3,11 @@ import { DollarSign, BarChart3 } from 'lucide-react'
 import { KPICard } from '@/core/ui/kpi-card'
 import { staggerContainer } from '@/core/animations/variants'
 import { useFinanceSummary } from '../hooks'
+import { useDateRange } from '../context/date-range-context'
 
 export function FinanceSummary() {
-  const { summary, loading } = useFinanceSummary()
+  const { startDate, endDate } = useDateRange()
+  const { summary, loading } = useFinanceSummary(startDate, endDate)
 
   if (loading) return null
 

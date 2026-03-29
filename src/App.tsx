@@ -1,11 +1,23 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { Suspense } from 'react'
+import { AuthProvider, useAuth } from '@/core/hooks/use-auth'
 import { CompanyProvider } from '@/core/ui/company-provider'
 import { Layout } from '@/core/ui/layout'
+import { LoginPage } from '@/core/ui/login-page'
 import { KPIDashboard } from '@/modules/insights/routes'
-import { EmployeeList, EmployeeForm, EmployeeProfile } from '@/modules/talent/routes'
-import { SupplierList, SupplierForm, SupplierDetail } from '@/modules/suppliers/routes'
-import { TransactionList, TransactionForm, ImportView } from '@/modules/finance/routes'
+import { EmployeeList, EmployeeProfile } from '@/modules/talent/routes'
+import { SupplierList, SupplierDetail } from '@/modules/suppliers/routes'
+import { TransactionList, TransactionForm, ImportView, CashFlowView, IncomeStatementView, BudgetView } from '@/modules/finance/routes'
+import { SettingsCompanies } from '@/core/ui/settings-companies'
+import { SettingsCategories } from '@/core/ui/settings-categories'
+import { SettingsRoles } from '@/core/ui/settings-roles'
+import { SettingsDepartments } from '@/core/ui/settings-departments'
+import { PartnerList } from '@/modules/partners/routes'
+import { ClosingList } from '@/modules/closings/routes'
+import { ContractList, TemplateList, ContractGenerate, ContractDetail } from '@/modules/contracts/routes'
+import { PurchaseList, PurchaseForm, PurchaseDetail, ProductList, ProductDetail } from '@/modules/purchases/routes'
+import { HomePage } from '@/modules/home/routes'
+import { DateRangeProvider } from '@/modules/finance/context/date-range-context'
 
 function Loading() {
   return (
@@ -15,26 +27,56 @@ function Loading() {
   )
 }
 
+function ProtectedRoute() {
+  const { user } = useAuth()
+  if (!user) return <Navigate to="/login" replace />
+  return <Layout />
+}
+
 export default function App() {
   return (
     <BrowserRouter>
-      <CompanyProvider>
-        <Routes>
-          <Route element={<Layout />}>
-            <Route path="/" element={<Navigate to="/insights" replace />} />
-            <Route path="/insights" element={<Suspense fallback={<Loading />}><KPIDashboard /></Suspense>} />
-            <Route path="/talent" element={<Suspense fallback={<Loading />}><EmployeeList /></Suspense>} />
-            <Route path="/talent/new" element={<Suspense fallback={<Loading />}><EmployeeForm /></Suspense>} />
-            <Route path="/talent/:id" element={<Suspense fallback={<Loading />}><EmployeeProfile /></Suspense>} />
-            <Route path="/suppliers" element={<Suspense fallback={<Loading />}><SupplierList /></Suspense>} />
-            <Route path="/suppliers/new" element={<Suspense fallback={<Loading />}><SupplierForm /></Suspense>} />
-            <Route path="/suppliers/:id" element={<Suspense fallback={<Loading />}><SupplierDetail /></Suspense>} />
-            <Route path="/finance" element={<Suspense fallback={<Loading />}><TransactionList /></Suspense>} />
-            <Route path="/finance/new" element={<Suspense fallback={<Loading />}><TransactionForm /></Suspense>} />
-            <Route path="/finance/import" element={<Suspense fallback={<Loading />}><ImportView /></Suspense>} />
-          </Route>
-        </Routes>
-      </CompanyProvider>
+      <AuthProvider>
+        <CompanyProvider>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route element={<ProtectedRoute />}>
+              <Route path="/" element={<Navigate to="/home" replace />} />
+              <Route path="/home" element={<Suspense fallback={<Loading />}><HomePage /></Suspense>} />
+              <Route path="/insights" element={<Suspense fallback={<Loading />}><KPIDashboard /></Suspense>} />
+              <Route path="/talent" element={<Suspense fallback={<Loading />}><EmployeeList /></Suspense>} />
+              <Route path="/talent/:id" element={<Suspense fallback={<Loading />}><EmployeeProfile /></Suspense>} />
+              <Route path="/suppliers" element={<Suspense fallback={<Loading />}><SupplierList /></Suspense>} />
+              <Route path="/suppliers/:id" element={<Suspense fallback={<Loading />}><SupplierDetail /></Suspense>} />
+              <Route element={<DateRangeProvider><Outlet /></DateRangeProvider>}>
+                <Route path="/finance" element={<Suspense fallback={<Loading />}><TransactionList /></Suspense>} />
+                <Route path="/finance/new" element={<Suspense fallback={<Loading />}><TransactionForm /></Suspense>} />
+                <Route path="/finance/edit/:id" element={<Suspense fallback={<Loading />}><TransactionForm /></Suspense>} />
+                <Route path="/finance/import" element={<Suspense fallback={<Loading />}><ImportView /></Suspense>} />
+                <Route path="/finance/cash-flow" element={<Suspense fallback={<Loading />}><CashFlowView /></Suspense>} />
+                <Route path="/finance/income-statement" element={<Suspense fallback={<Loading />}><IncomeStatementView /></Suspense>} />
+                <Route path="/finance/budget" element={<Suspense fallback={<Loading />}><BudgetView /></Suspense>} />
+                <Route path="/finance/purchases" element={<Suspense fallback={<Loading />}><PurchaseList /></Suspense>} />
+                <Route path="/finance/purchases/new" element={<Suspense fallback={<Loading />}><PurchaseForm /></Suspense>} />
+                <Route path="/finance/purchases/products" element={<Suspense fallback={<Loading />}><ProductList /></Suspense>} />
+                <Route path="/finance/purchases/products/:id" element={<Suspense fallback={<Loading />}><ProductDetail /></Suspense>} />
+                <Route path="/finance/purchases/:id" element={<Suspense fallback={<Loading />}><PurchaseDetail /></Suspense>} />
+              </Route>
+              <Route path="/partners" element={<Suspense fallback={<Loading />}><PartnerList /></Suspense>} />
+              <Route path="/closings" element={<Suspense fallback={<Loading />}><ClosingList /></Suspense>} />
+              <Route path="/contracts" element={<Suspense fallback={<Loading />}><ContractList /></Suspense>} />
+              <Route path="/contracts/templates" element={<Suspense fallback={<Loading />}><TemplateList /></Suspense>} />
+              <Route path="/contracts/new" element={<Suspense fallback={<Loading />}><ContractGenerate /></Suspense>} />
+              <Route path="/contracts/:id" element={<Suspense fallback={<Loading />}><ContractDetail /></Suspense>} />
+              <Route path="/settings" element={<Navigate to="/settings/companies" replace />} />
+              <Route path="/settings/companies" element={<Suspense fallback={<Loading />}><SettingsCompanies /></Suspense>} />
+              <Route path="/settings/categories" element={<Suspense fallback={<Loading />}><SettingsCategories /></Suspense>} />
+              <Route path="/settings/roles" element={<Suspense fallback={<Loading />}><SettingsRoles /></Suspense>} />
+              <Route path="/settings/departments" element={<Suspense fallback={<Loading />}><SettingsDepartments /></Suspense>} />
+            </Route>
+          </Routes>
+        </CompanyProvider>
+      </AuthProvider>
     </BrowserRouter>
   )
 }

@@ -1,13 +1,14 @@
 import { useRef } from 'react'
 import { motion } from 'framer-motion'
-import { Users, Briefcase, DollarSign, BarChart3 } from 'lucide-react'
+import { Users, Briefcase, DollarSign, BarChart3, ShoppingCart } from 'lucide-react'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
 import { KPICard } from '@/core/ui/kpi-card'
 import { staggerContainer } from '@/core/animations/variants'
-import { useKPIs, useTrends, useCategoryBreakdown } from '../hooks'
+import { useKPIs, useTrends, useCategoryBreakdown, useSupplierBreakdown } from '../hooks'
 import { TrendChart } from './trend-chart'
 import { CategoryBreakdown } from './category-breakdown'
+import { SupplierBreakdown } from './supplier-breakdown'
 import { ExportPDF } from './export-pdf'
 
 export function KPIDashboard() {
@@ -15,8 +16,9 @@ export function KPIDashboard() {
   const { kpis, loading: kpiLoading } = useKPIs()
   const { trends, loading: trendsLoading } = useTrends()
   const { categories, loading: catLoading } = useCategoryBreakdown()
+  const { suppliers, loading: supBkLoading } = useSupplierBreakdown()
 
-  const loading = kpiLoading || trendsLoading || catLoading
+  const loading = kpiLoading || trendsLoading || catLoading || supBkLoading
 
   return (
     <PageTransition>
@@ -35,7 +37,7 @@ export function KPIDashboard() {
             variants={staggerContainer}
             initial="initial"
             animate="animate"
-            className="grid grid-cols-4 gap-4"
+            className="grid grid-cols-5 gap-4"
           >
             <KPICard
               label="Empleados"
@@ -62,6 +64,14 @@ export function KPIDashboard() {
               icon={DollarSign}
             />
             <KPICard
+              label="Compras del Mes"
+              value={kpis.totalPurchases}
+              format="currency"
+              change={kpis.purchaseChange}
+              trend={kpis.purchaseChange.startsWith('+') ? 'up' : 'down'}
+              icon={ShoppingCart}
+            />
+            <KPICard
               label="Balance"
               value={kpis.balance}
               format="currency"
@@ -75,6 +85,11 @@ export function KPIDashboard() {
           <div className="grid grid-cols-2 gap-6">
             <TrendChart data={trends} />
             <CategoryBreakdown data={categories} />
+          </div>
+
+          {/* Purchases by Supplier */}
+          <div className="grid grid-cols-1 gap-6">
+            <SupplierBreakdown data={suppliers} />
           </div>
         </div>
       )}
