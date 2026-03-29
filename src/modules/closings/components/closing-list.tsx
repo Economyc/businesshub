@@ -12,6 +12,7 @@ import { useCompany } from '@/core/hooks/use-company'
 import { useClosings } from '../hooks'
 import { closingService } from '../services'
 import { ClosingForm } from './closing-form'
+import { ClosingReceipt } from './closing-receipt'
 import type { Closing } from '../types'
 
 function formatDate(dateStr: string): string {
@@ -34,6 +35,7 @@ export function ClosingList() {
   const [search, setSearch] = useState('')
   const [deleteTarget, setDeleteTarget] = useState<Closing | null>(null)
   const [editingClosing, setEditingClosing] = useState<Closing | null>(null)
+  const [receiptClosing, setReceiptClosing] = useState<Closing | null>(null)
 
   const sorted = useMemo(() => {
     return [...closings].sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''))
@@ -170,6 +172,7 @@ export function ClosingList() {
             <DataTable
               columns={columns}
               data={filtered}
+              onRowClick={(c) => setReceiptClosing(c)}
             />
           )}
         </>
@@ -181,6 +184,12 @@ export function ClosingList() {
         description={`¿Estás seguro de que deseas eliminar el cierre del ${deleteTarget ? formatDate(deleteTarget.date) : ''}? Esta acción no se puede deshacer.`}
         onConfirm={handleDelete}
         onCancel={() => setDeleteTarget(null)}
+      />
+
+      <ClosingReceipt
+        closing={receiptClosing}
+        companyName={selectedCompany?.name ?? ''}
+        onClose={() => setReceiptClosing(null)}
       />
     </PageTransition>
   )
