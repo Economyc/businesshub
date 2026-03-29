@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { useCollection } from '@/core/hooks/use-firestore'
 import { useCompany } from '@/core/hooks/use-company'
 import { useDateRange } from '@/modules/finance/context/date-range-context'
-import { MONTH_LABELS, isFixedCost, calcChange, getMonthsBetween } from './services'
+import { MONTH_LABELS, getCostGroup, COST_GROUP_LABELS, calcChange, getMonthsBetween } from './services'
 import type { Transaction } from '@/modules/finance/types'
 import type { Purchase } from '@/modules/purchases/types'
 import type { Employee } from '@/modules/talent/types'
@@ -141,12 +141,17 @@ export function useCategoryBreakdown(): { categories: CategoryCost[]; loading: b
       })
 
     return Object.entries(byCategory)
-      .map(([category, amount]) => ({
-        category,
-        amount,
-        percentage: total > 0 ? (amount / total) * 100 : 0,
-        color: categoryItems.find((c) => c.name === category)?.color,
-      }))
+      .map(([category, amount]) => {
+        const group = getCostGroup(category)
+        return {
+          category,
+          amount,
+          percentage: total > 0 ? (amount / total) * 100 : 0,
+          color: categoryItems.find((c) => c.name === category)?.color,
+          group,
+          groupLabel: COST_GROUP_LABELS[group],
+        }
+      })
       .sort((a, b) => b.amount - a.amount)
   }, [transactions, categoryItems, startDate, endDate])
 
@@ -165,32 +170,41 @@ export function useCostStructure(): { kpis: CostStructureKPIs; categories: Categ
     const inRangeTx = transactions.filter((t) => t.type === 'expense' && inRange(toDate(t.date), startDate, endDate))
     const prevTx = transactions.filter((t) => t.type === 'expense' && inRange(toDate(t.date), prevStart, prevEnd))
 
-    let totalCost = 0, fixedCost = 0, variableCost = 0
-    let prevTotal = 0, prevFixed = 0, prevVariable = 0
+    let totalCost = 0, operativeCost = 0, obligationsCost = 0, otherCost = 0
+    let prevTotal = 0, prevOperative = 0, prevObligations = 0, prevOther = 0
     const byCategory: Record<string, number> = {}
 
     inRangeTx.forEach((t) => {
       const parent = t.category.split(' > ')[0]
       totalCost += t.amount
       byCategory[parent] = (byCategory[parent] ?? 0) + t.amount
-      if (isFixedCost(parent)) fixedCost += t.amount
-      else variableCost += t.amount
+      const group = getCostGroup(parent)
+      if (group === 'operativo') operativeCost += t.amount
+      else if (group === 'obligaciones') obligationsCost += t.amount
+      else otherCost += t.amount
     })
 
     prevTx.forEach((t) => {
       const parent = t.category.split(' > ')[0]
       prevTotal += t.amount
-      if (isFixedCost(parent)) prevFixed += t.amount
-      else prevVariable += t.amount
+      const group = getCostGroup(parent)
+      if (group === 'operativo') prevOperative += t.amount
+      else if (group === 'obligaciones') prevObligations += t.amount
+      else prevOther += t.amount
     })
 
     const categories: CategoryCost[] = Object.entries(byCategory)
-      .map(([category, amount]) => ({
-        category,
-        amount,
-        percentage: totalCost > 0 ? (amount / totalCost) * 100 : 0,
-        color: categoryItems.find((c) => c.name === category)?.color,
-      }))
+      .map(([category, amount]) => {
+        const group = getCostGroup(category)
+        return {
+          category,
+          amount,
+          percentage: totalCost > 0 ? (amount / totalCost) * 100 : 0,
+          color: categoryItems.find((c) => c.name === category)?.color,
+          group,
+          groupLabel: COST_GROUP_LABELS[group],
+        }
+      })
       .sort((a, b) => b.amount - a.amount)
 
     // Monthly cost evolution
@@ -213,13 +227,16 @@ export function useCostStructure(): { kpis: CostStructureKPIs; categories: Categ
 
     const kpis: CostStructureKPIs = {
       totalCost,
-      fixedCost,
-      variableCost,
-      fixedRatio: totalCost > 0 ? (fixedCost / totalCost) * 100 : 0,
-      variableRatio: totalCost > 0 ? (variableCost / totalCost) * 100 : 0,
+      operativeCost,
+      obligationsCost,
+      otherCost,
+      operativeRatio: totalCost > 0 ? (operativeCost / totalCost) * 100 : 0,
+      obligationsRatio: totalCost > 0 ? (obligationsCost / totalCost) * 100 : 0,
+      otherRatio: totalCost > 0 ? (otherCost / totalCost) * 100 : 0,
       totalChange: calcChange(totalCost, prevTotal),
-      fixedChange: calcChange(fixedCost, prevFixed),
-      variableChange: calcChange(variableCost, prevVariable),
+      operativeChange: calcChange(operativeCost, prevOperative),
+      obligationsChange: calcChange(obligationsCost, prevObligations),
+      otherChange: calcChange(otherCost, prevOther),
     }
 
     return { kpis, categories, monthlyCosts }

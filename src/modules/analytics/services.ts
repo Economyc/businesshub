@@ -13,15 +13,30 @@ export const MONTH_LABELS: Record<number, string> = {
   11: 'Dic',
 }
 
-const FIXED_CATEGORIES = ['Nómina', 'Alquiler', 'Seguros']
-const VARIABLE_CATEGORIES = ['Suministros', 'Transporte', 'Marketing']
+import type { CostGroup } from './types'
 
-export function isFixedCost(category: string): boolean {
-  return FIXED_CATEGORIES.some((c) => category.startsWith(c))
+/** Costos Operativos: gastos recurrentes del día a día del negocio */
+const OPERATIVE_CATEGORIES = ['Nómina', 'Alquiler', 'Servicios', 'Suministros', 'Transporte', 'Marketing']
+
+/** Obligaciones: gastos obligatorios legales/regulatorios */
+const OBLIGATION_CATEGORIES = ['Impuestos', 'Seguros']
+
+/**
+ * Clasifica una categoría de gasto en uno de 3 grupos:
+ * - operativo: costos recurrentes del negocio (nómina, alquiler, servicios, suministros, etc.)
+ * - obligaciones: impuestos, seguros y similares
+ * - otros: gastos puntuales o extraordinarios (tecnología, equipos, etc.)
+ */
+export function getCostGroup(category: string): CostGroup {
+  if (OPERATIVE_CATEGORIES.some((c) => category.startsWith(c))) return 'operativo'
+  if (OBLIGATION_CATEGORIES.some((c) => category.startsWith(c))) return 'obligaciones'
+  return 'otros'
 }
 
-export function isVariableCost(category: string): boolean {
-  return VARIABLE_CATEGORIES.some((c) => category.startsWith(c))
+export const COST_GROUP_LABELS: Record<CostGroup, string> = {
+  operativo: 'Operativo',
+  obligaciones: 'Obligaciones',
+  otros: 'Otros Gastos',
 }
 
 export function formatPercentage(value: number): string {

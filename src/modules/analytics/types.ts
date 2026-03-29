@@ -11,15 +11,20 @@ export interface AnalyticsKPIs {
   purchaseChange: string
 }
 
+export type CostGroup = 'operativo' | 'obligaciones' | 'otros'
+
 export interface CostStructureKPIs {
   totalCost: number
-  fixedCost: number
-  variableCost: number
-  fixedRatio: number
-  variableRatio: number
+  operativeCost: number
+  obligationsCost: number
+  otherCost: number
+  operativeRatio: number
+  obligationsRatio: number
+  otherRatio: number
   totalChange: string
-  fixedChange: string
-  variableChange: string
+  operativeChange: string
+  obligationsChange: string
+  otherChange: string
 }
 
 export interface PurchaseAnalyticsKPIs {
@@ -49,6 +54,8 @@ export interface CategoryCost {
   amount: number
   percentage: number
   color?: string
+  group: CostGroup
+  groupLabel: string
 }
 
 export interface MonthlyDataPoint {
