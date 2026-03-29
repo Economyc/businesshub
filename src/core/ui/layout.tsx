@@ -12,7 +12,7 @@ export function Layout() {
       <Topbar onMenuToggle={() => setMobileMenuOpen(true)} />
       <div className="flex flex-1 overflow-hidden">
         {/* Desktop sidebar */}
-        <div className="hidden md:block">
+        <div className="hidden md:flex h-full">
           <Sidebar />
         </div>
 
