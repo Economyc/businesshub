@@ -1,6 +1,6 @@
 import { fetchCollection, fetchDocument, createDocument, updateDocument, removeDocument } from '@/core/firebase/helpers'
 import { syncClosingTransactions, deleteLinkedTransactions } from '@/core/services/transaction-sync'
-import type { Closing, ClosingFormData } from './types'
+import type { Closing, ClosingFormData, DiscountFormData } from './types'
 
 const COLLECTION = 'closings'
 
@@ -35,4 +35,17 @@ export const closingService = {
     }
     await removeDocument(companyId, COLLECTION, id)
   },
+}
+
+const DISCOUNTS_COLLECTION = 'discounts'
+
+export const discountService = {
+  create: (companyId: string, data: DiscountFormData) =>
+    createDocument(companyId, DISCOUNTS_COLLECTION, data),
+
+  update: (companyId: string, id: string, data: Partial<DiscountFormData>) =>
+    updateDocument(companyId, DISCOUNTS_COLLECTION, id, data),
+
+  remove: (companyId: string, id: string) =>
+    removeDocument(companyId, DISCOUNTS_COLLECTION, id),
 }

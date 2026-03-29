@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { ClipboardList, List, FilePlus, Trash2, SquarePen } from 'lucide-react'
+import { ClipboardList, List, FilePlus, Percent, Trash2, SquarePen } from 'lucide-react'
 import { PageTransition } from '@/core/ui/page-transition'
 import { UnderlineButtonTabs } from '@/core/ui/underline-tabs'
 import { PageHeader } from '@/core/ui/page-header'
@@ -13,6 +13,7 @@ import { useClosings } from '../hooks'
 import { closingService } from '../services'
 import { ClosingForm } from './closing-form'
 import { ClosingReceipt } from './closing-receipt'
+import { DiscountTab } from './discount-tab'
 import type { Closing } from '../types'
 
 function formatDate(dateStr: string): string {
@@ -21,11 +22,12 @@ function formatDate(dateStr: string): string {
   return d.toLocaleDateString('es-CO', { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
-type Tab = 'form' | 'history'
+type Tab = 'form' | 'history' | 'discounts'
 
 const CLOSING_TABS = [
   { value: 'form', label: 'Nuevo Cierre', icon: FilePlus },
   { value: 'history', label: 'Historial', icon: List },
+  { value: 'discounts', label: 'Descuentos', icon: Percent },
 ]
 
 export function ClosingList() {
@@ -177,6 +179,8 @@ export function ClosingList() {
           )}
         </>
       )}
+
+      {tab === 'discounts' && <DiscountTab />}
 
       <ConfirmDialog
         open={!!deleteTarget}
