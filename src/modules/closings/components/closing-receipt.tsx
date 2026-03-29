@@ -63,7 +63,7 @@ export function ClosingReceipt({ closing, companyName, onClose }: ClosingReceipt
             initial="initial"
             animate="animate"
             exit="exit"
-            className="relative max-w-[320px] w-full max-h-[90vh] overflow-y-auto scrollbar-hide"
+            className="relative max-w-[320px] w-full max-h-[90vh] overflow-visible"
           >
             {/* Close button */}
             <button
@@ -73,7 +73,7 @@ export function ClosingReceipt({ closing, companyName, onClose }: ClosingReceipt
               <X size={14} strokeWidth={2} />
             </button>
 
-            <div className="bg-surface-elevated rounded-lg shadow-xl border border-border font-mono text-[13px] leading-relaxed text-graphite px-6 py-5 relative overflow-hidden">
+            <div className="bg-surface-elevated rounded-lg shadow-xl border border-border font-mono text-[13px] leading-relaxed text-graphite px-6 py-5 relative overflow-hidden max-h-[90vh] overflow-y-auto scrollbar-hide">
 
               {/* Header */}
               <div className="text-center mb-1">
