@@ -145,7 +145,7 @@ export function HomePage() {
 
   function handleCardClick(summary: CompanySummary) {
     selectCompany(summary.company)
-    navigate('/insights')
+    navigate('/analytics')
   }
 
   return (

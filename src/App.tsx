@@ -4,7 +4,7 @@ import { AuthProvider, useAuth } from '@/core/hooks/use-auth'
 import { CompanyProvider } from '@/core/ui/company-provider'
 import { Layout } from '@/core/ui/layout'
 import { LoginPage } from '@/core/ui/login-page'
-import { KPIDashboard } from '@/modules/insights/routes'
+import { GeneralDashboard, CostsDashboard, PurchasesDashboard, PayrollDashboard } from '@/modules/analytics/routes'
 import { EmployeeList, EmployeeProfile } from '@/modules/talent/routes'
 import { SupplierList, SupplierDetail } from '@/modules/suppliers/routes'
 import { TransactionList, ImportView, CashFlowView, IncomeStatementView, BudgetView } from '@/modules/finance/routes'
@@ -43,7 +43,12 @@ export default function App() {
             <Route element={<ProtectedRoute />}>
               <Route path="/" element={<Navigate to="/home" replace />} />
               <Route path="/home" element={<Suspense fallback={<Loading />}><HomePage /></Suspense>} />
-              <Route path="/insights" element={<Suspense fallback={<Loading />}><KPIDashboard /></Suspense>} />
+              <Route element={<DateRangeProvider><Outlet /></DateRangeProvider>}>
+                <Route path="/analytics" element={<Suspense fallback={<Loading />}><GeneralDashboard /></Suspense>} />
+                <Route path="/analytics/costs" element={<Suspense fallback={<Loading />}><CostsDashboard /></Suspense>} />
+                <Route path="/analytics/purchases" element={<Suspense fallback={<Loading />}><PurchasesDashboard /></Suspense>} />
+                <Route path="/analytics/payroll" element={<Suspense fallback={<Loading />}><PayrollDashboard /></Suspense>} />
+              </Route>
               <Route path="/talent" element={<Suspense fallback={<Loading />}><EmployeeList /></Suspense>} />
               <Route path="/talent/:id" element={<Suspense fallback={<Loading />}><EmployeeProfile /></Suspense>} />
               <Route path="/suppliers" element={<Suspense fallback={<Loading />}><SupplierList /></Suspense>} />

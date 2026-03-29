@@ -7,7 +7,7 @@ import { CompanyLogo } from '@/core/ui/company-logo'
 
 const NAV_ITEMS = [
   { to: '/home', label: 'Home', icon: Home },
-  { to: '/insights', label: 'Insights', icon: BarChart3 },
+  { to: '/analytics', label: 'Análisis', icon: BarChart3 },
   { to: '/talent', label: 'Talento', icon: Users },
   { to: '/suppliers', label: 'Proveedores', icon: Briefcase },
   { to: '/finance', label: 'Finanzas', icon: DollarSign },
@@ -25,7 +25,10 @@ const SETTINGS_ITEMS = [
 
 const SEARCHABLE_ITEMS = [
   { to: '/home', label: 'Home', keywords: 'inicio home dashboard' },
-  { to: '/insights', label: 'Insights', keywords: 'reportes estadísticas gráficos kpi métricas analytics' },
+  { to: '/analytics', label: 'Análisis', keywords: 'reportes estadísticas gráficos kpi métricas analytics análisis dashboard costos nómina compras' },
+  { to: '/analytics/costs', label: 'Estructura de Costos', keywords: 'costos estructura fijos variables rubros gastos análisis' },
+  { to: '/analytics/purchases', label: 'Análisis de Compras', keywords: 'compras insumos proveedores análisis tendencia productos' },
+  { to: '/analytics/payroll', label: 'Análisis de Nómina', keywords: 'nómina salarios empleados departamentos cargos análisis' },
   { to: '/talent', label: 'Talento', keywords: 'empleados personas equipo recurso humano nómina' },
   { to: '/suppliers', label: 'Proveedores', keywords: 'proveedores compras suministros vendors' },
   { to: '/finance/purchases', label: 'Compras', keywords: 'compras insumos pedidos órdenes proveedores' },

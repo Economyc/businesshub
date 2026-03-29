@@ -8,7 +8,7 @@ import { CompanyLogo } from '@/core/ui/company-logo'
 
 const NAV_ITEMS = [
   { to: '/home', label: 'Home', icon: Home },
-  { to: '/insights', label: 'Insights', icon: BarChart3 },
+  { to: '/analytics', label: 'Análisis', icon: BarChart3 },
   { to: '/talent', label: 'Talento', icon: Users },
   { to: '/suppliers', label: 'Proveedores', icon: Briefcase },
   { to: '/finance', label: 'Finanzas', icon: DollarSign },

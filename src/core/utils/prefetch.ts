@@ -1,6 +1,6 @@
 const moduleImports = [
   () => import('@/modules/home/components/home-page'),
-  () => import('@/modules/insights/components/kpi-dashboard'),
+  () => import('@/modules/analytics/components/general-dashboard'),
   () => import('@/modules/talent/components/employee-list'),
   () => import('@/modules/talent/components/employee-profile'),
   () => import('@/modules/suppliers/components/supplier-list'),
