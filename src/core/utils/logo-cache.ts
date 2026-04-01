@@ -4,7 +4,7 @@ import { cacheGet, cacheSet } from '@/core/utils/cache'
 
 interface CachedLogo {
   url: string
-  thumb: string // base64 WebP thumbnail
+  thumb: string // base64 thumbnail OR original url as fallback
 }
 
 const CACHE_KEY = 'logos'
@@ -26,12 +26,17 @@ function urlToThumb(url: string): Promise<string> {
     const img = new Image()
     img.crossOrigin = 'anonymous'
     img.onload = () => {
-      const canvas = document.createElement('canvas')
-      canvas.width = THUMB_SIZE
-      canvas.height = THUMB_SIZE
-      const ctx = canvas.getContext('2d')!
-      ctx.drawImage(img, 0, 0, THUMB_SIZE, THUMB_SIZE)
-      resolve(canvas.toDataURL('image/webp', 0.7))
+      try {
+        const canvas = document.createElement('canvas')
+        canvas.width = THUMB_SIZE
+        canvas.height = THUMB_SIZE
+        const ctx = canvas.getContext('2d')!
+        ctx.drawImage(img, 0, 0, THUMB_SIZE, THUMB_SIZE)
+        resolve(canvas.toDataURL('image/webp', 0.7))
+      } catch {
+        // Canvas tainted by CORS — fall back to URL
+        resolve(url)
+      }
     }
     img.onerror = reject
     img.src = url
@@ -68,20 +73,18 @@ async function _preload() {
     const newUrls = deduped.filter((url) => !existingThumbs.has(url))
     const newThumbs = await Promise.all(
       newUrls.map((url) =>
-        urlToThumb(url).catch(() => '') // skip failures silently
+        urlToThumb(url).catch(() => url) // CORS fail → use original URL
       )
     )
 
     // Merge: keep existing thumbs + add new ones
-    const merged: CachedLogo[] = deduped
-      .map((url, i) => {
-        const existingThumb = existingThumbs.get(url)
-        if (existingThumb) return { url, thumb: existingThumb }
-        const newIdx = newUrls.indexOf(url)
-        const thumb = newIdx >= 0 ? newThumbs[newIdx] : ''
-        return { url, thumb }
-      })
-      .filter((l) => l.thumb) // drop any that failed
+    const merged: CachedLogo[] = deduped.map((url) => {
+      const existingThumb = existingThumbs.get(url)
+      if (existingThumb) return { url, thumb: existingThumb }
+      const newIdx = newUrls.indexOf(url)
+      const thumb = newIdx >= 0 ? newThumbs[newIdx] : url
+      return { url, thumb }
+    })
 
     memoryCache = merged
     cacheSet(CACHE_KEY, merged)
