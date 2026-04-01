@@ -110,9 +110,10 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
           }
         }
 
-        // Migrate logos to base64 thumbnails for instant loading
+        // Regenerate logo thumbnails (aspect-ratio preserving)
+        const thumbVersion = cacheGet<number>('thumbVer') ?? 0
         for (const c of loaded) {
-          if (c.logo && !c.logoThumb) {
+          if (c.logo && (!c.logoThumb || thumbVersion < 2)) {
             imageUrlToBase64(c.logo)
               .then((thumb) => {
                 updateDoc(doc(db, 'companies', c.id), { logoThumb: thumb })
@@ -127,6 +128,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
               .catch(() => {})
           }
         }
+        cacheSet('thumbVer', 2)
 
         cacheSet('companies', loaded)
         setCompanies(loaded)

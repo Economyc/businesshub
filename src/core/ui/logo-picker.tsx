@@ -4,7 +4,7 @@ import { Upload, ImageIcon, X, Loader2, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { storage } from '@/core/firebase/config'
 import { fileToBase64Thumb } from '@/core/utils/image'
-import { getCachedLogos, addLogoToCache, preloadLogos } from '@/core/utils/logo-cache'
+import { getCachedLogoUrls, addLogoToCache, preloadLogos } from '@/core/utils/logo-cache'
 
 interface LogoPickerProps {
   value: string
@@ -14,7 +14,7 @@ interface LogoPickerProps {
 
 export function LogoPicker({ value, onChange, companyId }: LogoPickerProps) {
   const [open, setOpen] = useState(false)
-  const [logos, setLogos] = useState(getCachedLogos)
+  const [logos, setLogos] = useState(getCachedLogoUrls)
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -47,10 +47,8 @@ export function LogoPicker({ value, onChange, companyId }: LogoPickerProps) {
   // When opened, show cached logos instantly + refresh in background
   useEffect(() => {
     if (!open) return
-    // Show whatever is cached right now (instant)
-    setLogos(getCachedLogos())
-    // Refresh cache in background for any new logos
-    preloadLogos().then(() => setLogos(getCachedLogos()))
+    setLogos(getCachedLogoUrls())
+    preloadLogos().then(() => setLogos(getCachedLogoUrls()))
   }, [open])
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -59,15 +57,13 @@ export function LogoPicker({ value, onChange, companyId }: LogoPickerProps) {
     setUploading(true)
     try {
       const fileRef = storageRef(storage, `logos/${companyId}/${file.name}`)
-      // Generate thumbnail in parallel with upload
       const [thumb] = await Promise.all([
         fileToBase64Thumb(file),
         uploadBytes(fileRef, file),
       ])
       const url = await getDownloadURL(fileRef)
-      // Add to persistent cache immediately
-      addLogoToCache(url, thumb)
-      setLogos(getCachedLogos())
+      addLogoToCache(url)
+      setLogos(getCachedLogoUrls())
       onChange(url, thumb)
       setOpen(false)
     } catch (err) {
@@ -78,8 +74,8 @@ export function LogoPicker({ value, onChange, companyId }: LogoPickerProps) {
     }
   }
 
-  function selectLogo(url: string, thumb: string) {
-    onChange(url, thumb)
+  function selectLogo(url: string) {
+    onChange(url)
     setOpen(false)
   }
 
@@ -93,7 +89,7 @@ export function LogoPicker({ value, onChange, companyId }: LogoPickerProps) {
           className="w-10 h-10 rounded-[10px] border border-input-border bg-bone/30 flex items-center justify-center overflow-hidden shrink-0 hover:border-graphite/30 transition-colors cursor-pointer"
         >
           {value ? (
-            <img src={value} alt="Logo" className="w-full h-full object-cover" />
+            <img src={value} alt="Logo" className="w-full h-full object-contain" />
           ) : (
             <ImageIcon size={18} strokeWidth={1.5} className="text-mid-gray/40" />
           )}
@@ -147,7 +143,7 @@ export function LogoPicker({ value, onChange, companyId }: LogoPickerProps) {
             </button>
           </div>
 
-          {/* Existing logos grid — always instant from cache */}
+          {/* Existing logos grid */}
           <div className="px-4 pb-3">
             {logos.length === 0 ? (
               <p className="text-center text-caption text-mid-gray py-3">No hay logos guardados</p>
@@ -155,21 +151,21 @@ export function LogoPicker({ value, onChange, companyId }: LogoPickerProps) {
               <>
                 <p className="text-caption uppercase tracking-wider text-mid-gray mb-2">Logos existentes</p>
                 <div className="grid grid-cols-5 gap-2 max-h-40 overflow-y-auto">
-                  {logos.map(({ url, thumb }) => {
+                  {logos.map((url) => {
                     const isSelected = url === value
                     return (
                       <button
                         key={url}
                         type="button"
-                        onClick={() => selectLogo(url, thumb)}
+                        onClick={() => selectLogo(url)}
                         className={cn(
-                          'relative w-full aspect-square rounded-lg border overflow-hidden transition-all hover:shadow-md',
+                          'relative w-full aspect-square rounded-lg border overflow-hidden transition-all hover:shadow-md bg-white flex items-center justify-center',
                           isSelected
                             ? 'border-graphite ring-2 ring-graphite/20'
                             : 'border-border hover:border-graphite/30'
                         )}
                       >
-                        <img src={thumb} alt="" className="w-full h-full object-cover" />
+                        <img src={url} alt="" className="w-full h-full object-contain p-0.5" />
                         {isSelected && (
                           <div className="absolute inset-0 bg-graphite/20 flex items-center justify-center">
                             <Check size={14} strokeWidth={2.5} className="text-white drop-shadow" />
