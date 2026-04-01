@@ -11,9 +11,12 @@ interface LogoPickerProps {
   companyId: string
 }
 
+// Module-level cache so logos persist across open/close and re-renders
+let logosCache: string[] | null = null
+
 export function LogoPicker({ value, onChange, companyId }: LogoPickerProps) {
   const [open, setOpen] = useState(false)
-  const [logos, setLogos] = useState<string[]>([])
+  const [logos, setLogos] = useState<string[]>(logosCache ?? [])
   const [loadingLogos, setLoadingLogos] = useState(false)
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -47,28 +50,30 @@ export function LogoPicker({ value, onChange, companyId }: LogoPickerProps) {
   // Load existing logos from Storage when opened
   useEffect(() => {
     if (!open) return
+    // If we already have cached logos, show them instantly and refresh in background
+    if (logosCache) {
+      setLogos(logosCache)
+    }
     let cancelled = false
     async function load() {
-      setLoadingLogos(true)
+      // Only show spinner on first load (no cache)
+      if (!logosCache) setLoadingLogos(true)
       try {
         const logosRoot = storageRef(storage, 'logos')
         const rootResult = await listAll(logosRoot)
-        // List all subdirectories (logos/{companyId}/) and get files
-        const urlPromises: Promise<string>[] = []
-        for (const folder of rootResult.prefixes) {
-          const folderResult = await listAll(folder)
-          for (const item of folderResult.items) {
-            urlPromises.push(getDownloadURL(item))
-          }
-        }
-        // Also check root-level files
-        for (const item of rootResult.items) {
-          urlPromises.push(getDownloadURL(item))
-        }
-        const urls = await Promise.all(urlPromises)
+        // List all subdirectories in parallel
+        const folderPromises = rootResult.prefixes.map((folder) => listAll(folder))
+        const folderResults = await Promise.all(folderPromises)
+        // Collect all items and get URLs in parallel
+        const allItems = [
+          ...rootResult.items,
+          ...folderResults.flatMap((r) => r.items),
+        ]
+        const urls = await Promise.all(allItems.map((item) => getDownloadURL(item)))
         if (!cancelled) {
-          // Deduplicate
-          setLogos([...new Set(urls)])
+          const deduped = [...new Set(urls)]
+          logosCache = deduped
+          setLogos(deduped)
         }
       } catch (err) {
         console.error('Error loading logos:', err)
@@ -85,14 +90,16 @@ export function LogoPicker({ value, onChange, companyId }: LogoPickerProps) {
     if (!file) return
     setUploading(true)
     try {
-      const [thumb, _] = await Promise.all([
-        fileToBase64Thumb(file),
-        Promise.resolve(),
-      ])
       const fileRef = storageRef(storage, `logos/${companyId}/${file.name}`)
-      await uploadBytes(fileRef, file)
+      // Generate thumbnail in parallel with upload
+      const [thumb] = await Promise.all([
+        fileToBase64Thumb(file),
+        uploadBytes(fileRef, file),
+      ])
       const url = await getDownloadURL(fileRef)
-      setLogos((prev) => [url, ...prev.filter((u) => u !== url)])
+      const updated = [url, ...logos.filter((u) => u !== url)]
+      logosCache = updated
+      setLogos(updated)
       onChange(url, thumb)
       setOpen(false)
     } catch (err) {

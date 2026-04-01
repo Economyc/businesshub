@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { ChevronUp, ChevronDown, Trash2, Lock } from 'lucide-react'
+import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 import type { ClauseDefinition } from '../types'
 
 const inputClass =
@@ -36,6 +38,8 @@ export function ClauseEditor({
   isFirst,
   isLast,
 }: ClauseEditorProps) {
+  const [confirmOpen, setConfirmOpen] = useState(false)
+
   return (
     <div className="border border-border rounded-xl p-4 bg-surface-elevated">
       <div className="flex items-start gap-3 mb-3">
@@ -94,7 +98,7 @@ export function ClauseEditor({
 
         <button
           type="button"
-          onClick={onDelete}
+          onClick={() => setConfirmOpen(true)}
           disabled={clause.isRequired}
           className="p-1.5 rounded-lg text-mid-gray hover:text-red-500 hover:bg-red-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-150"
           title={clause.isRequired ? 'No se puede eliminar una cláusula obligatoria' : 'Eliminar cláusula'}
@@ -102,6 +106,14 @@ export function ClauseEditor({
           <Trash2 size={14} strokeWidth={1.5} />
         </button>
       </div>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Eliminar cláusula"
+        description={`¿Estás seguro de que deseas eliminar "${clause.title || 'esta cláusula'}"? Esta acción no se puede deshacer.`}
+        onConfirm={() => { setConfirmOpen(false); onDelete() }}
+        onCancel={() => setConfirmOpen(false)}
+      />
     </div>
   )
 }

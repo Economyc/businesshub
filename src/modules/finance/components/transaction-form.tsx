@@ -282,7 +282,7 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
         onCancel={() => setShowDelete(false)}
         onConfirm={handleDelete}
         title="Eliminar transacción"
-        description="¿Estás seguro de que deseas eliminar esta transacción? Esta acción no se puede deshacer."
+        description={`¿Estás seguro de que deseas eliminar "${form.concept || 'esta transacción'}"? Esta acción no se puede deshacer.`}
       />
     </>
   )

@@ -277,10 +277,9 @@ export function Sidebar({ onNavClick }: SidebarProps) {
               key={to}
               to={to}
               onClick={onNavClick}
-              title={collapsed ? label : undefined}
               className={({ isActive }) =>
                 cn(
-                  'flex items-center gap-2.5 py-2.5 text-body transition-all duration-150',
+                  'group/nav relative flex items-center gap-2.5 py-2.5 text-body transition-all duration-150',
                   collapsed ? 'justify-center px-0' : 'px-5',
                   isActive
                     ? 'text-dark-graphite font-medium bg-bone border-r-2 border-graphite'
@@ -290,13 +289,28 @@ export function Sidebar({ onNavClick }: SidebarProps) {
             >
               <Icon size={18} strokeWidth={1.5} />
               {!collapsed && label}
+              {collapsed && (
+                <span className="pointer-events-none absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 whitespace-nowrap rounded-lg bg-dark-graphite px-3 py-1.5 text-caption font-medium text-white shadow-lg opacity-0 scale-95 transition-all duration-150 group-hover/nav:opacity-100 group-hover/nav:scale-100">
+                  {label}
+                </span>
+              )}
             </NavLink>
           ))}
         </div>
 
         {/* Bottom — Settings + Collapse toggle */}
-        <div className={cn('flex items-center border-t border-border', collapsed ? 'mx-3 pt-1' : 'mx-4 pt-1')}>
-          {!collapsed && (
+        <div className={cn('flex items-center border-t border-border', collapsed ? 'mx-3 pt-1 flex-col gap-1' : 'mx-4 pt-1')}>
+          {collapsed ? (
+            <button
+              onClick={handleSettingsClick}
+              className="group/settings relative flex items-center justify-center p-1.5 rounded-md text-mid-gray/50 hover:text-graphite transition-colors duration-200"
+            >
+              <Settings size={16} strokeWidth={1.5} />
+              <span className="pointer-events-none absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 whitespace-nowrap rounded-lg bg-dark-graphite px-3 py-1.5 text-caption font-medium text-white shadow-lg opacity-0 scale-95 transition-all duration-150 group-hover/settings:opacity-100 group-hover/settings:scale-100">
+                Configuración
+              </span>
+            </button>
+          ) : (
             <button
               onClick={handleSettingsClick}
               className={cn(
@@ -312,14 +326,18 @@ export function Sidebar({ onNavClick }: SidebarProps) {
           )}
           <button
             onClick={() => { if (!collapsed) setSettingsOpen(false); setCollapsed(!collapsed) }}
-            className="flex items-center justify-center p-1.5 rounded-md text-mid-gray/50 hover:text-graphite transition-colors duration-200 shrink-0"
-            title={collapsed ? 'Expandir' : 'Recoger'}
+            className="group/toggle relative flex items-center justify-center p-1.5 rounded-md text-mid-gray/50 hover:text-graphite transition-colors duration-200 shrink-0"
           >
             <ChevronsLeft
               size={15}
               strokeWidth={1.5}
               className={cn('transition-transform duration-300', collapsed && 'rotate-180')}
             />
+            {collapsed && (
+              <span className="pointer-events-none absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 whitespace-nowrap rounded-lg bg-dark-graphite px-3 py-1.5 text-caption font-medium text-white shadow-lg opacity-0 scale-95 transition-all duration-150 group-hover/toggle:opacity-100 group-hover/toggle:scale-100">
+                Expandir
+              </span>
+            )}
           </button>
         </div>
       </nav>
@@ -357,8 +375,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
         <div className="mx-4 pt-1 border-t border-border flex justify-end">
           <button
             onClick={() => setSettingsOpen(false)}
-            className="flex items-center justify-center p-1.5 rounded-md text-mid-gray/50 hover:text-graphite transition-colors duration-200"
-            title="Cerrar panel"
+            className="group/close relative flex items-center justify-center p-1.5 rounded-md text-mid-gray/50 hover:text-graphite transition-colors duration-200"
           >
             <ChevronsLeft size={15} strokeWidth={1.5} />
           </button>

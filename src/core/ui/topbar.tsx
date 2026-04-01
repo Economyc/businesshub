@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { CircleUser, LogOut, Menu } from 'lucide-react'
+import { CircleUser, LogOut, Menu, Search } from 'lucide-react'
 import { ThemeToggle } from '@/core/ui/theme-toggle'
 import { useAuth } from '@/core/hooks/use-auth'
 
@@ -48,6 +48,17 @@ export function Topbar({ onMenuToggle }: TopbarProps) {
       </div>
 
       <div className="flex items-center gap-2.5">
+      {/* Search shortcut hint */}
+      <button
+        onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))}
+        className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-bone/50 hover:bg-bone text-caption text-mid-gray hover:text-graphite transition-all duration-150 cursor-pointer"
+      >
+        <Search size={14} strokeWidth={1.5} />
+        <span>Buscar...</span>
+        <kbd className="ml-1 flex items-center gap-0.5 rounded border border-border bg-surface-elevated px-1 py-0.5 text-[10px] font-medium">
+          Ctrl K
+        </kbd>
+      </button>
       <div className="relative" ref={menuRef}>
         <button
           onClick={() => setOpen(!open)}
