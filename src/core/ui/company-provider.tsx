@@ -17,6 +17,7 @@ import type { CategoryItem } from '@/core/types/categories'
 import { slugify, DEFAULT_CATEGORIES, migrateOldCategories } from '@/core/utils/categories'
 import { imageUrlToBase64 } from '@/core/utils/image'
 import { cacheGet, cacheSet } from '@/core/utils/cache'
+import { preloadLogos } from '@/core/utils/logo-cache'
 
 interface CompanyContextValue {
   companies: Company[]
@@ -137,6 +138,9 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
           }
           return loaded[0] ?? null
         })
+
+        // Preload logo thumbnails in background (for instant picker)
+        preloadLogos()
 
         // Fetch categories
         const catSnap = await getDoc(categoriesDocRef)

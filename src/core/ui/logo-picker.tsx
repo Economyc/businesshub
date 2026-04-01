@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
-import { ref as storageRef, uploadBytes, getDownloadURL, listAll } from 'firebase/storage'
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { Upload, ImageIcon, X, Loader2, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { storage } from '@/core/firebase/config'
 import { fileToBase64Thumb } from '@/core/utils/image'
+import { getCachedLogos, addLogoToCache, preloadLogos } from '@/core/utils/logo-cache'
 
 interface LogoPickerProps {
   value: string
@@ -11,13 +12,9 @@ interface LogoPickerProps {
   companyId: string
 }
 
-// Module-level cache so logos persist across open/close and re-renders
-let logosCache: string[] | null = null
-
 export function LogoPicker({ value, onChange, companyId }: LogoPickerProps) {
   const [open, setOpen] = useState(false)
-  const [logos, setLogos] = useState<string[]>(logosCache ?? [])
-  const [loadingLogos, setLoadingLogos] = useState(false)
+  const [logos, setLogos] = useState(getCachedLogos)
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -47,42 +44,13 @@ export function LogoPicker({ value, onChange, companyId }: LogoPickerProps) {
     return () => document.removeEventListener('keydown', handleKey, true)
   }, [open])
 
-  // Load existing logos from Storage when opened
+  // When opened, show cached logos instantly + refresh in background
   useEffect(() => {
     if (!open) return
-    // If we already have cached logos, show them instantly and refresh in background
-    if (logosCache) {
-      setLogos(logosCache)
-    }
-    let cancelled = false
-    async function load() {
-      // Only show spinner on first load (no cache)
-      if (!logosCache) setLoadingLogos(true)
-      try {
-        const logosRoot = storageRef(storage, 'logos')
-        const rootResult = await listAll(logosRoot)
-        // List all subdirectories in parallel
-        const folderPromises = rootResult.prefixes.map((folder) => listAll(folder))
-        const folderResults = await Promise.all(folderPromises)
-        // Collect all items and get URLs in parallel
-        const allItems = [
-          ...rootResult.items,
-          ...folderResults.flatMap((r) => r.items),
-        ]
-        const urls = await Promise.all(allItems.map((item) => getDownloadURL(item)))
-        if (!cancelled) {
-          const deduped = [...new Set(urls)]
-          logosCache = deduped
-          setLogos(deduped)
-        }
-      } catch (err) {
-        console.error('Error loading logos:', err)
-      } finally {
-        if (!cancelled) setLoadingLogos(false)
-      }
-    }
-    load()
-    return () => { cancelled = true }
+    // Show whatever is cached right now (instant)
+    setLogos(getCachedLogos())
+    // Refresh cache in background for any new logos
+    preloadLogos().then(() => setLogos(getCachedLogos()))
   }, [open])
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -97,9 +65,9 @@ export function LogoPicker({ value, onChange, companyId }: LogoPickerProps) {
         uploadBytes(fileRef, file),
       ])
       const url = await getDownloadURL(fileRef)
-      const updated = [url, ...logos.filter((u) => u !== url)]
-      logosCache = updated
-      setLogos(updated)
+      // Add to persistent cache immediately
+      addLogoToCache(url, thumb)
+      setLogos(getCachedLogos())
       onChange(url, thumb)
       setOpen(false)
     } catch (err) {
@@ -110,8 +78,8 @@ export function LogoPicker({ value, onChange, companyId }: LogoPickerProps) {
     }
   }
 
-  function selectLogo(url: string) {
-    onChange(url)
+  function selectLogo(url: string, thumb: string) {
+    onChange(url, thumb)
     setOpen(false)
   }
 
@@ -179,25 +147,21 @@ export function LogoPicker({ value, onChange, companyId }: LogoPickerProps) {
             </button>
           </div>
 
-          {/* Existing logos grid */}
+          {/* Existing logos grid — always instant from cache */}
           <div className="px-4 pb-3">
-            {loadingLogos ? (
-              <div className="flex items-center justify-center py-4 text-mid-gray">
-                <Loader2 size={16} strokeWidth={1.5} className="animate-spin" />
-              </div>
-            ) : logos.length === 0 ? (
+            {logos.length === 0 ? (
               <p className="text-center text-caption text-mid-gray py-3">No hay logos guardados</p>
             ) : (
               <>
                 <p className="text-caption uppercase tracking-wider text-mid-gray mb-2">Logos existentes</p>
                 <div className="grid grid-cols-5 gap-2 max-h-40 overflow-y-auto">
-                  {logos.map((url) => {
+                  {logos.map(({ url, thumb }) => {
                     const isSelected = url === value
                     return (
                       <button
                         key={url}
                         type="button"
-                        onClick={() => selectLogo(url)}
+                        onClick={() => selectLogo(url, thumb)}
                         className={cn(
                           'relative w-full aspect-square rounded-lg border overflow-hidden transition-all hover:shadow-md',
                           isSelected
@@ -205,7 +169,7 @@ export function LogoPicker({ value, onChange, companyId }: LogoPickerProps) {
                             : 'border-border hover:border-graphite/30'
                         )}
                       >
-                        <img src={url} alt="" className="w-full h-full object-cover" />
+                        <img src={thumb} alt="" className="w-full h-full object-cover" />
                         {isSelected && (
                           <div className="absolute inset-0 bg-graphite/20 flex items-center justify-center">
                             <Check size={14} strokeWidth={2.5} className="text-white drop-shadow" />
