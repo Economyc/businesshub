@@ -111,26 +111,21 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
         }
 
         // Generate missing logo thumbnails via fetch→blob (CORS-safe)
+        // Await all before caching so thumbs are never overwritten
         const thumbVersion = cacheGet<number>('thumbVer') ?? 0
-        for (const c of loaded) {
-          if (c.logo && (!c.logoThumb || thumbVersion < 4)) {
-            fetch(c.logo)
-              .then((res) => res.blob())
-              .then((blob) => fileToBase64Thumb(new File([blob], 'logo', { type: blob.type })))
-              .then((thumb) => {
-                updateDoc(doc(db, 'companies', c.id), { logoThumb: thumb })
-                c.logoThumb = thumb
-                setCompanies((prev) => {
-                  const updated = prev.map((p) => p.id === c.id ? { ...p, logoThumb: thumb } : p)
-                  cacheSet('companies', updated)
-                  return updated
-                })
-                setSelectedCompany((prev) => prev?.id === c.id ? { ...prev, logoThumb: thumb } : prev)
-              })
-              .catch(() => {})
-          }
-        }
-        cacheSet('thumbVer', 4)
+        const thumbJobs = loaded
+          .filter((c) => c.logo && (!c.logoThumb || thumbVersion < 5))
+          .map(async (c) => {
+            try {
+              const res = await fetch(c.logo!)
+              const blob = await res.blob()
+              const thumb = await fileToBase64Thumb(new File([blob], 'logo', { type: blob.type }))
+              await updateDoc(doc(db, 'companies', c.id), { logoThumb: thumb })
+              c.logoThumb = thumb
+            } catch { /* skip — will retry next load */ }
+          })
+        if (thumbJobs.length) await Promise.all(thumbJobs)
+        cacheSet('thumbVer', 5)
 
         cacheSet('companies', loaded)
         setCompanies(loaded)
