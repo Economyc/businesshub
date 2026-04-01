@@ -89,7 +89,7 @@ export function LogoPicker({ value, onChange, companyId }: LogoPickerProps) {
           className="w-10 h-10 rounded-[10px] border border-input-border bg-bone/30 flex items-center justify-center overflow-hidden shrink-0 hover:border-graphite/30 transition-colors cursor-pointer"
         >
           {value ? (
-            <img src={value} alt="Logo" className="w-full h-full object-contain" />
+            <img src={value} alt="Logo" className="w-full h-full object-cover" />
           ) : (
             <ImageIcon size={18} strokeWidth={1.5} className="text-mid-gray/40" />
           )}
@@ -165,7 +165,7 @@ export function LogoPicker({ value, onChange, companyId }: LogoPickerProps) {
                             : 'border-border hover:border-graphite/30'
                         )}
                       >
-                        <img src={url} alt="" className="w-full h-full object-contain p-0.5" />
+                        <img src={url} alt="" className="w-full h-full object-cover" />
                         {isSelected && (
                           <div className="absolute inset-0 bg-graphite/20 flex items-center justify-center">
                             <Check size={14} strokeWidth={2.5} className="text-white drop-shadow" />

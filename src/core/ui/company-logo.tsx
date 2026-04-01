@@ -32,16 +32,11 @@ export function CompanyLogo({ company, size = 'sm', className }: CompanyLogoProp
   // Use base64 thumbnail if available — instant, no network request
   if (company?.logoThumb) {
     return (
-      <div
-        className={cn(sizeClass, 'shrink-0 bg-white flex items-center justify-center overflow-hidden', className)}
-        style={company?.color ? { backgroundColor: company.color + '10' } : undefined}
-      >
-        <img
-          src={company.logoThumb}
-          alt={company.name}
-          className="w-full h-full object-contain"
-        />
-      </div>
+      <img
+        src={company.logoThumb}
+        alt={company.name}
+        className={cn(sizeClass, 'object-cover shrink-0', className)}
+      />
     )
   }
 
@@ -67,7 +62,7 @@ export function CompanyLogo({ company, size = 'sm', className }: CompanyLogoProp
       <img
         src={logoUrl}
         alt={company.name}
-        className={cn('w-full h-full object-contain', loaded ? 'opacity-100' : 'opacity-0')}
+        className={cn('w-full h-full object-cover', loaded ? 'opacity-100' : 'opacity-0')}
         onLoad={() => { loadedUrls.add(logoUrl); setLoaded(true) }}
       />
     </div>

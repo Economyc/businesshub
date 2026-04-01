@@ -113,7 +113,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
         // Regenerate logo thumbnails (aspect-ratio preserving)
         const thumbVersion = cacheGet<number>('thumbVer') ?? 0
         for (const c of loaded) {
-          if (c.logo && (!c.logoThumb || thumbVersion < 2)) {
+          if (c.logo && (!c.logoThumb || thumbVersion < 3)) {
             imageUrlToBase64(c.logo)
               .then((thumb) => {
                 updateDoc(doc(db, 'companies', c.id), { logoThumb: thumb })
@@ -128,7 +128,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
               .catch(() => {})
           }
         }
-        cacheSet('thumbVer', 2)
+        cacheSet('thumbVer', 3)
 
         cacheSet('companies', loaded)
         setCompanies(loaded)
