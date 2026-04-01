@@ -114,7 +114,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
         // Await all before caching so thumbs are never overwritten
         const thumbVersion = cacheGet<number>('thumbVer') ?? 0
         const thumbJobs = loaded
-          .filter((c) => c.logo && (!c.logoThumb || thumbVersion < 5))
+          .filter((c) => c.logo && (!c.logoThumb || thumbVersion < 6))
           .map(async (c) => {
             try {
               const res = await fetch(c.logo!)
@@ -125,7 +125,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
             } catch { /* skip — will retry next load */ }
           })
         if (thumbJobs.length) await Promise.all(thumbJobs)
-        cacheSet('thumbVer', 5)
+        cacheSet('thumbVer', 6)
 
         cacheSet('companies', loaded)
         setCompanies(loaded)
