@@ -134,7 +134,7 @@ export function SettingsCompanies() {
                     </td>
                     <td className="px-4 py-3 border-r border-border">
                       <div className="flex items-center gap-2.5">
-                        <CompanyLogo company={company} />
+                        <CompanyLogo company={company} size="md" />
                         <span className="text-body font-medium text-dark-graphite truncate">{company.name}</span>
                       </div>
                     </td>
