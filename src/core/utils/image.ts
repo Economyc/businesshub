@@ -8,27 +8,6 @@ function drawCover(ctx: CanvasRenderingContext2D, img: HTMLImageElement, size: n
   ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h)
 }
 
-export function imageUrlToBase64(url: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    img.crossOrigin = 'anonymous'
-    img.onload = () => {
-      try {
-        const canvas = document.createElement('canvas')
-        canvas.width = THUMB_SIZE
-        canvas.height = THUMB_SIZE
-        const ctx = canvas.getContext('2d')!
-        drawCover(ctx, img, THUMB_SIZE)
-        resolve(canvas.toDataURL('image/webp', 0.8))
-      } catch {
-        reject(new Error('Canvas tainted'))
-      }
-    }
-    img.onerror = reject
-    img.src = url
-  })
-}
-
 export function fileToBase64Thumb(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()

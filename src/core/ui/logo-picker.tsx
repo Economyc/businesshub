@@ -74,9 +74,17 @@ export function LogoPicker({ value, onChange, companyId }: LogoPickerProps) {
     }
   }
 
-  function selectLogo(url: string) {
-    onChange(url)
+  async function selectLogo(url: string) {
     setOpen(false)
+    // Generate thumb via fetch→blob (avoids CORS canvas taint)
+    // Image is already in browser cache from preload, so fetch is instant
+    let thumb: string | undefined
+    try {
+      const res = await fetch(url)
+      const blob = await res.blob()
+      thumb = await fileToBase64Thumb(new File([blob], 'logo', { type: blob.type }))
+    } catch { /* fallback: no thumb, loads from URL */ }
+    onChange(url, thumb)
   }
 
   return (

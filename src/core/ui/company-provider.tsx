@@ -15,7 +15,7 @@ import { db } from '@/core/firebase/config'
 import type { Company } from '@/core/types'
 import type { CategoryItem } from '@/core/types/categories'
 import { slugify, DEFAULT_CATEGORIES, migrateOldCategories } from '@/core/utils/categories'
-import { imageUrlToBase64 } from '@/core/utils/image'
+import { fileToBase64Thumb } from '@/core/utils/image'
 import { cacheGet, cacheSet } from '@/core/utils/cache'
 import { preloadLogos } from '@/core/utils/logo-cache'
 
@@ -110,11 +110,13 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
           }
         }
 
-        // Regenerate logo thumbnails (aspect-ratio preserving)
+        // Generate missing logo thumbnails via fetch→blob (CORS-safe)
         const thumbVersion = cacheGet<number>('thumbVer') ?? 0
         for (const c of loaded) {
-          if (c.logo && (!c.logoThumb || thumbVersion < 3)) {
-            imageUrlToBase64(c.logo)
+          if (c.logo && (!c.logoThumb || thumbVersion < 4)) {
+            fetch(c.logo)
+              .then((res) => res.blob())
+              .then((blob) => fileToBase64Thumb(new File([blob], 'logo', { type: blob.type })))
               .then((thumb) => {
                 updateDoc(doc(db, 'companies', c.id), { logoThumb: thumb })
                 c.logoThumb = thumb
@@ -128,7 +130,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
               .catch(() => {})
           }
         }
-        cacheSet('thumbVer', 3)
+        cacheSet('thumbVer', 4)
 
         cacheSet('companies', loaded)
         setCompanies(loaded)
