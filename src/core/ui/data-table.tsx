@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react'
+import { useRef, type ReactNode } from 'react'
+import { useVirtualizer } from '@tanstack/react-virtual'
 
 export interface Column<T> {
   key: string
@@ -17,11 +18,33 @@ interface DataTableProps<T> {
   onRowClick?: (item: T) => void
 }
 
+const ROW_HEIGHT = 57
+const CARD_HEIGHT = 88
+const OVERSCAN = 5
+
 export function DataTable<T extends { id: string }>({ columns, data, onRowClick }: DataTableProps<T>) {
   const gridCols = columns.map((c) => c.width ?? '1fr').join(' ')
   const visibleMobileCols = columns.filter((c) => c.key !== 'actions' && !c.hideOnMobile)
   const primaryCol = visibleMobileCols.find((c) => c.primary)
   const detailCols = visibleMobileCols.filter((c) => c !== primaryCol)
+
+  const desktopScrollRef = useRef<HTMLDivElement>(null)
+  const mobileScrollRef = useRef<HTMLDivElement>(null)
+
+  const desktopVirtualizer = useVirtualizer({
+    count: data.length,
+    getScrollElement: () => desktopScrollRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: OVERSCAN,
+  })
+
+  const mobileVirtualizer = useVirtualizer({
+    count: data.length,
+    getScrollElement: () => mobileScrollRef.current,
+    estimateSize: () => CARD_HEIGHT,
+    overscan: OVERSCAN,
+    gap: 8,
+  })
 
   return (
     <>
@@ -40,54 +63,99 @@ export function DataTable<T extends { id: string }>({ columns, data, onRowClick 
             </div>
           ))}
         </div>
-        {data.map((item, index) => (
+        <div
+          ref={desktopScrollRef}
+          style={{ maxHeight: '600px', overflow: 'auto' }}
+        >
           <div
-            key={item.id}
-            onClick={() => onRowClick?.(item)}
-            className={`grid px-5 py-0 text-body text-graphite hover:bg-bone/50 transition-colors duration-150 ${onRowClick ? 'cursor-pointer' : ''}`}
             style={{
-              gridTemplateColumns: gridCols,
-              borderBottom: index < data.length - 1 ? '1px solid #e5e4e0' : 'none',
+              height: desktopVirtualizer.getTotalSize(),
+              width: '100%',
+              position: 'relative',
             }}
           >
-            {columns.map((col) => (
-              <div
-                key={col.key}
-                className="px-3 py-4 first:pl-0 last:pr-0 flex items-center"
-              >
-                {col.render(item)}
-              </div>
-            ))}
+            {desktopVirtualizer.getVirtualItems().map((virtualRow) => {
+              const item = data[virtualRow.index]
+              return (
+                <div
+                  key={item.id}
+                  onClick={() => onRowClick?.(item)}
+                  className={`grid px-5 py-0 text-body text-graphite hover:bg-bone/50 transition-colors duration-150 ${onRowClick ? 'cursor-pointer' : ''}`}
+                  style={{
+                    gridTemplateColumns: gridCols,
+                    borderBottom: virtualRow.index < data.length - 1 ? '1px solid #e5e4e0' : 'none',
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: `${virtualRow.size}px`,
+                    transform: `translateY(${virtualRow.start}px)`,
+                  }}
+                >
+                  {columns.map((col) => (
+                    <div
+                      key={col.key}
+                      className="px-3 py-4 first:pl-0 last:pr-0 flex items-center"
+                    >
+                      {col.render(item)}
+                    </div>
+                  ))}
+                </div>
+              )
+            })}
           </div>
-        ))}
+        </div>
       </div>
 
       {/* Mobile cards */}
-      <div className="md:hidden space-y-2">
-        {data.map((item) => (
-          <div
-            key={item.id}
-            onClick={() => onRowClick?.(item)}
-            className={`bg-surface rounded-xl card-elevated p-4 text-body text-graphite active:bg-bone/50 transition-colors ${onRowClick ? 'cursor-pointer' : ''}`}
-          >
-            {/* Primary row: first column + primary value */}
-            {primaryCol && detailCols.length > 0 && (
-              <div className="flex items-center justify-between mb-2">
-                <div className="font-medium text-dark-graphite">{detailCols[0].render(item)}</div>
-                <div className="font-semibold text-dark-graphite">{primaryCol.render(item)}</div>
-              </div>
-            )}
-            {/* Detail rows */}
-            <div className="space-y-1">
-              {(primaryCol ? detailCols.slice(1) : detailCols).map((col) => (
-                <div key={col.key} className="flex items-center justify-between text-caption">
-                  <span className="text-mid-gray">{col.header}</span>
-                  <span className="text-graphite">{col.render(item)}</span>
+      <div
+        ref={mobileScrollRef}
+        className="md:hidden"
+        style={{ maxHeight: '80vh', overflow: 'auto' }}
+      >
+        <div
+          style={{
+            height: mobileVirtualizer.getTotalSize(),
+            width: '100%',
+            position: 'relative',
+          }}
+        >
+          {mobileVirtualizer.getVirtualItems().map((virtualRow) => {
+            const item = data[virtualRow.index]
+            return (
+              <div
+                key={item.id}
+                onClick={() => onRowClick?.(item)}
+                className={`bg-surface rounded-xl card-elevated p-4 text-body text-graphite active:bg-bone/50 transition-colors ${onRowClick ? 'cursor-pointer' : ''}`}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: `${virtualRow.size}px`,
+                  transform: `translateY(${virtualRow.start}px)`,
+                }}
+              >
+                {/* Primary row: first column + primary value */}
+                {primaryCol && detailCols.length > 0 && (
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="font-medium text-dark-graphite">{detailCols[0].render(item)}</div>
+                    <div className="font-semibold text-dark-graphite">{primaryCol.render(item)}</div>
+                  </div>
+                )}
+                {/* Detail rows */}
+                <div className="space-y-1">
+                  {(primaryCol ? detailCols.slice(1) : detailCols).map((col) => (
+                    <div key={col.key} className="flex items-center justify-between text-caption">
+                      <span className="text-mid-gray">{col.header}</span>
+                      <span className="text-graphite">{col.render(item)}</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </div>
-        ))}
+              </div>
+            )
+          })}
+        </div>
       </div>
     </>
   )

@@ -35,11 +35,10 @@ export function EmployeeForm({ open, onClose, employee }: EmployeeFormProps) {
 
   const saveMutation = useFirestoreMutation(
     'employees',
-    (companyId: string, data: { id?: string; [key: string]: unknown }) => {
+    async (companyId: string, data: any) => {
       const { id, ...rest } = data
-      return id
-        ? talentService.update(companyId, id, rest)
-        : talentService.create(companyId, rest)
+      if (id) await talentService.update(companyId, id, rest)
+      else await talentService.create(companyId, rest)
     },
   )
 

@@ -38,7 +38,7 @@ export function ContractGenerate() {
 
   const createMutation = useFirestoreMutation(
     'contracts',
-    (companyId: string, data: Record<string, unknown>) => contractService.create(companyId, data),
+    (companyId: string, data: any) => contractService.create(companyId, data),
   )
 
   const [metadata, setMetadata] = useState<ContractMetadata>({

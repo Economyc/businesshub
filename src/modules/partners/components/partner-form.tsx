@@ -27,11 +27,10 @@ export function PartnerForm({ open, onClose, partner }: PartnerFormProps) {
 
   const saveMutation = useFirestoreMutation(
     'partners',
-    (companyId: string, data: { id?: string; [key: string]: unknown }) => {
+    async (companyId: string, data: any) => {
       const { id, ...rest } = data
-      return id
-        ? partnerService.update(companyId, id, rest)
-        : partnerService.create(companyId, rest)
+      if (id) await partnerService.update(companyId, id, rest)
+      else await partnerService.create(companyId, rest)
     },
   )
 

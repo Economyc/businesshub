@@ -37,11 +37,10 @@ export function TemplateForm({ open, onClose, template }: TemplateFormProps) {
 
   const saveMutation = useFirestoreMutation(
     'contract_templates',
-    (companyId: string, data: { id?: string; [key: string]: unknown }) => {
+    async (companyId: string, data: any) => {
       const { id, ...rest } = data
-      return id
-        ? templateService.update(companyId, id, rest)
-        : templateService.create(companyId, rest)
+      if (id) await templateService.update(companyId, id, rest)
+      else await templateService.create(companyId, rest)
     },
   )
 

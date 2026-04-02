@@ -10,6 +10,7 @@ import { TableSkeleton } from '@/core/ui/skeleton'
 import { LoadMoreButton } from '@/core/ui/load-more-button'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 import { formatCurrency } from '@/core/utils/format'
+import { useCompany } from '@/core/hooks/use-company'
 import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { usePaginatedClosings } from '../hooks'
 import { closingService } from '../services'
@@ -33,6 +34,7 @@ const CLOSING_TABS = [
 ]
 
 export function ClosingList() {
+  const { selectedCompany } = useCompany()
   const { data: closings, loading, loadingMore, hasMore, totalCount, loadMore } = usePaginatedClosings()
 
   const deleteMutation = useFirestoreMutation(

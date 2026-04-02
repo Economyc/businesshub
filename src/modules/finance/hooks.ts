@@ -7,7 +7,7 @@ import { useCompany } from '@/core/hooks/use-company'
 import { queryClient } from '@/core/query/query-client'
 import { budgetService } from './services'
 import { generatePendingTransactions } from './recurring-generator'
-import type { Transaction, RecurringTransaction, BudgetItem, BudgetConfig } from './types'
+import type { Transaction, RecurringTransaction, BudgetItem } from './types'
 
 export function useTransactions() {
   return useCollection<Transaction>('transactions')

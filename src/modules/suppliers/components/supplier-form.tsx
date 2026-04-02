@@ -24,7 +24,7 @@ export function SupplierForm({ open, onClose }: SupplierFormProps) {
 
   const createMutation = useFirestoreMutation(
     'suppliers',
-    (companyId: string, data: Record<string, unknown>) => supplierService.create(companyId, data),
+    (companyId: string, data: any) => supplierService.create(companyId, data),
   )
 
   const [form, setForm] = useState({

@@ -31,12 +31,12 @@ vi.mock('@/core/firebase/helpers', () => ({
   companyCollection: vi.fn(() => 'mock-collection-ref'),
 }))
 
-vi.mock('@/core/utils/cache', () => ({
-  cacheDel: vi.fn(),
+vi.mock('@/core/query/invalidation', () => ({
+  invalidateCollection: vi.fn(),
 }))
 
 import { getDocs } from 'firebase/firestore'
-import { cacheDel } from '@/core/utils/cache'
+import { invalidateCollection } from '@/core/query/invalidation'
 import { deleteLinkedTransactions, syncClosingTransactions, syncPurchaseTransaction } from './transaction-sync'
 
 beforeEach(() => {
@@ -151,7 +151,7 @@ describe('syncClosingTransactions', () => {
 
   it('invalidates cache after sync', async () => {
     await syncClosingTransactions('company1', 'closing1', baseClosing)
-    expect(cacheDel).toHaveBeenCalledWith('col:company1:transactions')
+    expect(invalidateCollection).toHaveBeenCalledWith('company1', 'transactions')
   })
 })
 
@@ -198,6 +198,6 @@ describe('syncPurchaseTransaction', () => {
 
   it('invalidates cache after sync', async () => {
     await syncPurchaseTransaction('company1', 'p1', basePurchase)
-    expect(cacheDel).toHaveBeenCalledWith('col:company1:transactions')
+    expect(invalidateCollection).toHaveBeenCalledWith('company1', 'transactions')
   })
 })

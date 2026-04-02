@@ -58,8 +58,8 @@ export function PaymentForm({ item, onClose, onSaved }: PaymentFormProps) {
   }
 
   function handlePayFull() {
+    if (!item) return
     if (isRappi) {
-      // Can't auto-fill both, just fill amount with balance
       setAmount(item.balance.toString())
       setCommission('0')
     } else {
