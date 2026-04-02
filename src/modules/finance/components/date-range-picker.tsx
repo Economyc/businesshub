@@ -58,7 +58,7 @@ export function DateRangePicker() {
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 min-w-[180px] px-3.5 py-2 rounded-[10px] border border-input-border bg-input-bg text-body text-graphite hover:bg-bone transition-all duration-200 cursor-pointer whitespace-nowrap"
+        className="flex items-center gap-2 px-3.5 py-2 rounded-[10px] border border-input-border bg-input-bg text-body text-graphite hover:bg-bone transition-all duration-200 cursor-pointer whitespace-nowrap"
       >
         <Calendar size={15} strokeWidth={1.5} className="text-mid-gray shrink-0" />
         <span className="font-medium text-dark-graphite">{presetLabel}</span>

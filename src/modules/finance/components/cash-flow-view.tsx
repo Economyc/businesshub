@@ -9,6 +9,7 @@ import { formatCurrency } from '@/core/utils/format'
 import { useCashFlow } from '../hooks'
 import { useDateRange } from '../context/date-range-context'
 import { FinanceTabs } from './finance-tabs'
+import { DateRangePicker } from './date-range-picker'
 import type { CategoryBreakdown } from '../hooks'
 
 function CategoryRow({ item, type }: { item: CategoryBreakdown; type: 'income' | 'expense' }) {
@@ -203,7 +204,9 @@ export function CashFlowView() {
 
   return (
     <PageTransition>
-      <PageHeader title="Monitor Financiero" />
+      <PageHeader title="Monitor Financiero">
+        <DateRangePicker />
+      </PageHeader>
       <FinanceTabs />
 
       {loading ? (

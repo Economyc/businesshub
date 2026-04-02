@@ -11,6 +11,7 @@ import { staggerContainer, staggerItem } from '@/core/animations/variants'
 import { formatCurrency } from '@/core/utils/format'
 import { usePurchaseSummary, usePurchaseTrends, usePurchaseAlerts } from '../hooks'
 import { FinanceTabs } from '@/modules/finance/components/finance-tabs'
+import { DateRangePicker } from '@/modules/finance/components/date-range-picker'
 
 const COLORS = ['#3d3d3d', '#5a7a5a', '#9a6a6a', '#6a6a9a', '#9a8a5a', '#5a8a8a', '#8a5a7a', '#7a7a5a']
 
@@ -69,7 +70,9 @@ export function PurchaseDashboard() {
 
   return (
     <PageTransition>
-      <PageHeader title="Monitor Financiero" />
+      <PageHeader title="Monitor Financiero">
+        <DateRangePicker />
+      </PageHeader>
       <FinanceTabs />
 
       <div className="flex items-center gap-3 mb-6">

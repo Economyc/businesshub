@@ -16,6 +16,7 @@ import { useTransactions } from '../hooks'
 import { useDateRange } from '../context/date-range-context'
 import { FinanceSummary } from './finance-summary'
 import { FinanceTabs } from './finance-tabs'
+import { DateRangePicker } from './date-range-picker'
 import type { Transaction } from '../types'
 import type { CategoryItem } from '@/core/types/categories'
 
@@ -107,6 +108,7 @@ export function TransactionList() {
   return (
     <PageTransition>
       <PageHeader title="Monitor Financiero">
+        <DateRangePicker />
         <button
           onClick={() => { setEditingId(null); setFormOpen(true) }}
           className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md"

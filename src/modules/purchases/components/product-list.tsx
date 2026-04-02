@@ -13,6 +13,7 @@ import { useCompany } from '@/core/hooks/use-company'
 import { useProducts } from '../hooks'
 import { productService } from '../services'
 import { FinanceTabs } from '@/modules/finance/components/finance-tabs'
+import { DateRangePicker } from '@/modules/finance/components/date-range-picker'
 import { ProductForm } from './product-form'
 import type { Product } from '../types'
 
@@ -132,6 +133,7 @@ export function ProductList() {
   return (
     <PageTransition>
       <PageHeader title="Monitor Financiero">
+        <DateRangePicker />
         <button
           onClick={() => { setEditingProduct(null); setShowForm(true) }}
           className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md"

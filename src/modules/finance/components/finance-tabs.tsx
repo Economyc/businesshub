@@ -1,6 +1,5 @@
 import { UnderlineTabs } from '@/core/ui/underline-tabs'
 import { List, ShoppingCart, Package, Wallet, FileText, Target } from 'lucide-react'
-import { DateRangePicker } from './date-range-picker'
 
 const TABS = [
   { to: '/finance', label: 'Transacciones', icon: List, end: true },
@@ -13,9 +12,8 @@ const TABS = [
 
 export function FinanceTabs() {
   return (
-    <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3 mb-5">
+    <div className="mb-5">
       <UnderlineTabs tabs={TABS} className="mb-0" />
-      <DateRangePicker />
     </div>
   )
 }

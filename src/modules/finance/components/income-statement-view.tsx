@@ -16,6 +16,7 @@ import { formatCurrency } from '@/core/utils/format'
 import { useIncomeStatement } from '../hooks'
 import { useDateRange } from '../context/date-range-context'
 import { FinanceTabs } from './finance-tabs'
+import { DateRangePicker } from './date-range-picker'
 import type { IncomeStatementSection, CategoryBreakdown } from '../hooks'
 
 function DetailRow({ item }: { item: CategoryBreakdown }) {
@@ -250,7 +251,9 @@ export function IncomeStatementView() {
 
   return (
     <PageTransition>
-      <PageHeader title="Monitor Financiero" />
+      <PageHeader title="Monitor Financiero">
+        <DateRangePicker />
+      </PageHeader>
       <FinanceTabs />
 
       {loading ? (

@@ -11,6 +11,7 @@ import { EmptyState } from '@/core/ui/empty-state'
 import { formatCurrency } from '@/core/utils/format'
 import { usePurchases } from '../hooks'
 import { FinanceTabs } from '@/modules/finance/components/finance-tabs'
+import { DateRangePicker } from '@/modules/finance/components/date-range-picker'
 import type { Purchase, PurchaseStatus, PaymentStatus } from '../types'
 
 const STATUS_MAP: Record<PurchaseStatus, string> = {
@@ -121,6 +122,7 @@ export function PurchaseList() {
   return (
     <PageTransition>
       <PageHeader title="Monitor Financiero">
+        <DateRangePicker />
         <button
           onClick={() => navigate('/finance/purchases/new')}
           className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md"

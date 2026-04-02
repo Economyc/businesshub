@@ -21,6 +21,7 @@ import { formatCurrency } from '@/core/utils/format'
 import { useBudgetComparison } from '../hooks'
 import { useDateRange } from '../context/date-range-context'
 import { FinanceTabs } from './finance-tabs'
+import { DateRangePicker } from './date-range-picker'
 import type { BudgetItem } from '../types'
 import type { BudgetComparisonRow } from '../hooks'
 
@@ -236,6 +237,7 @@ export function BudgetView() {
   return (
     <PageTransition>
       <PageHeader title="Monitor Financiero">
+        <DateRangePicker />
         <button
           onClick={() => setEditing(!editing)}
           className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md"
