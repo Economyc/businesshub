@@ -43,7 +43,7 @@ export function Topbar({ onMenuToggle }: TopbarProps) {
   }, [open, companyOpen])
 
   return (
-    <header className="flex items-center justify-between px-4 md:px-6 py-3.5 bg-card-bg border-b border-border">
+    <header className="flex items-center justify-between py-3.5 bg-card-bg border-b border-border px-4 md:px-0">
       <div className="flex items-center gap-3">
         <button
           onClick={onMenuToggle}
@@ -57,8 +57,8 @@ export function Topbar({ onMenuToggle }: TopbarProps) {
           Business<span className="font-light text-mid-gray">Hub</span>
         </Link>
 
-        {/* Desktop: Company selector — centered over sidebar width (200px - topbar px-6 = 176px) */}
-        <div className="hidden md:flex md:justify-center md:w-[176px] relative" ref={companyRef}>
+        {/* Desktop: Company selector — centered over sidebar (200px from left edge) */}
+        <div className="hidden md:flex md:justify-center md:w-[200px] relative" ref={companyRef}>
           <button
             onClick={() => setCompanyOpen(!companyOpen)}
             className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg bg-[#f4f3f1] dark:bg-[#171717] hover:bg-[#eeedeb] dark:hover:bg-[#1c1c1c] transition-all duration-150"
@@ -108,7 +108,7 @@ export function Topbar({ onMenuToggle }: TopbarProps) {
         </div>
       </div>
 
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-2.5 md:pr-6">
       <div className="relative" ref={menuRef}>
         <button
           onClick={() => setOpen(!open)}
