@@ -61,7 +61,7 @@ export function Topbar({ onMenuToggle }: TopbarProps) {
         <div className="hidden md:block relative" ref={companyRef}>
           <button
             onClick={() => setCompanyOpen(!companyOpen)}
-            className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg bg-white/30 dark:bg-white/[0.03] hover:bg-white/50 dark:hover:bg-white/[0.06] transition-all duration-150"
+            className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg bg-white/15 dark:bg-white/[0.04] hover:bg-white/25 dark:hover:bg-white/[0.07] transition-all duration-150"
           >
             <CompanyLogo company={selectedCompany} />
             <div className="min-w-0 text-left">
@@ -115,7 +115,7 @@ export function Topbar({ onMenuToggle }: TopbarProps) {
       <div className="relative" ref={menuRef}>
         <button
           onClick={() => setOpen(!open)}
-          className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white/30 dark:bg-white/[0.03] hover:bg-white/50 dark:hover:bg-white/[0.06] transition-all duration-150 cursor-pointer"
+          className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white/15 dark:bg-white/[0.04] hover:bg-white/25 dark:hover:bg-white/[0.07] transition-all duration-150 cursor-pointer"
         >
           <div className="w-6 h-6 rounded-full bg-graphite/10 flex items-center justify-center">
             <CircleUser size={14} strokeWidth={1.5} className="text-graphite" />
