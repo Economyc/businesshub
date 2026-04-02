@@ -8,6 +8,7 @@ import { TableSkeleton } from '@/core/ui/skeleton'
 import { SearchInput } from '@/core/ui/search-input'
 import { formatCurrency } from '@/core/utils/format'
 import { useCompany } from '@/core/hooks/use-company'
+import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { useRecurringTransactions } from '../hooks'
 import { recurringService } from '../recurring-service'
 import { FinanceTabs } from './finance-tabs'
@@ -35,7 +36,8 @@ function formatDate(ts: { toDate?: () => Date } | undefined): string {
 
 export function RecurringList() {
   const { selectedCompany } = useCompany()
-  const { data: recurring, loading, refetch } = useRecurringTransactions()
+  const { data: recurring, loading } = useRecurringTransactions()
+  const toggleMutation = useFirestoreMutation<{ id: string; isActive: boolean }>('recurring-transactions', (companyId, data) => recurringService.update(companyId, data.id, { isActive: data.isActive }))
   const [search, setSearch] = useState('')
   const [formOpen, setFormOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -59,8 +61,7 @@ export function RecurringList() {
 
   async function toggleActive(rec: RecurringTransaction) {
     if (!selectedCompany) return
-    await recurringService.update(selectedCompany.id, rec.id, { isActive: !rec.isActive })
-    refetch()
+    await toggleMutation.mutateAsync({ id: rec.id, isActive: !rec.isActive })
   }
 
   return (
@@ -162,7 +163,7 @@ export function RecurringList() {
         open={formOpen}
         recurringId={editingId}
         onClose={() => setFormOpen(false)}
-        onSaved={() => { setFormOpen(false); refetch() }}
+        onSaved={() => { setFormOpen(false) }}
       />
     </PageTransition>
   )

@@ -4,7 +4,7 @@ import { Loader2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { modalVariants } from '@/core/animations/variants'
 import { formatCurrency } from '@/core/utils/format'
-import { useCompany } from '@/core/hooks/use-company'
+import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { paymentService } from '../services'
 import { PAYMENT_METHODS } from '../types'
 import type { CarteraItem } from '../types'
@@ -20,14 +20,18 @@ interface PaymentFormProps {
 }
 
 export function PaymentForm({ item, onClose, onSaved }: PaymentFormProps) {
-  const { selectedCompany } = useCompany()
   const [amount, setAmount] = useState('')
   const [commission, setCommission] = useState('')
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [method, setMethod] = useState('transferencia')
   const [reference, setReference] = useState('')
   const [notes, setNotes] = useState('')
-  const [saving, setSaving] = useState(false)
+
+  const mutation = useFirestoreMutation(
+    'payments',
+    (companyId, data: any) => paymentService.create(companyId, data),
+    { invalidate: ['transactions', 'purchases'] },
+  )
 
   if (!item) return null
 
@@ -38,24 +42,19 @@ export function PaymentForm({ item, onClose, onSaved }: PaymentFormProps) {
   const isValid = amountNum > 0 && totalApplied <= item.balance + 0.01
 
   async function handleSubmit() {
-    if (!selectedCompany || !item || !isValid) return
-    setSaving(true)
-    try {
-      await paymentService.create(selectedCompany.id, {
-        targetType: item.sourceType,
-        targetId: item.id,
-        amount: amountNum,
-        commission: commissionNum > 0 ? commissionNum : undefined,
-        date: Timestamp.fromDate(new Date(date + 'T12:00:00')),
-        method,
-        reference: reference.trim() || undefined,
-        notes: notes.trim() || undefined,
-      })
-      onSaved()
-      onClose()
-    } finally {
-      setSaving(false)
-    }
+    if (!item || !isValid) return
+    await mutation.mutateAsync({
+      targetType: item.sourceType,
+      targetId: item.id,
+      amount: amountNum,
+      commission: commissionNum > 0 ? commissionNum : undefined,
+      date: Timestamp.fromDate(new Date(date + 'T12:00:00')),
+      method,
+      reference: reference.trim() || undefined,
+      notes: notes.trim() || undefined,
+    })
+    onSaved()
+    onClose()
   }
 
   function handlePayFull() {
@@ -76,7 +75,7 @@ export function PaymentForm({ item, onClose, onSaved }: PaymentFormProps) {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="fixed inset-0 bg-black/20"
-          onClick={saving ? undefined : onClose}
+          onClick={mutation.isPending ? undefined : onClose}
         />
         <motion.div
           variants={modalVariants}
@@ -198,18 +197,18 @@ export function PaymentForm({ item, onClose, onSaved }: PaymentFormProps) {
             <div className="flex items-center gap-2">
               <button
                 onClick={onClose}
-                disabled={saving}
+                disabled={mutation.isPending}
                 className="px-4 py-2 rounded-[10px] text-body font-medium border border-input-border text-graphite hover:bg-bone transition-all duration-200 disabled:opacity-50"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleSubmit}
-                disabled={saving || !isValid}
+                disabled={mutation.isPending || !isValid}
                 className="px-4 py-2 rounded-[10px] text-body font-medium btn-primary hover:-translate-y-px hover:shadow-md transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
               >
-                {saving && <Loader2 size={14} className="animate-spin" />}
-                {saving ? 'Guardando...' : 'Registrar'}
+                {mutation.isPending && <Loader2 size={14} className="animate-spin" />}
+                {mutation.isPending ? 'Guardando...' : 'Registrar'}
               </button>
             </div>
           </div>

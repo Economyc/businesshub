@@ -8,7 +8,7 @@ import { StatusBadge } from '@/core/ui/status-badge'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 import { formatCurrency } from '@/core/utils/format'
 import { Skeleton } from '@/core/ui/skeleton'
-import { useCompany } from '@/core/hooks/use-company'
+import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { usePurchase } from '../hooks'
 import { purchaseService } from '../services'
 import type { PurchaseStatus, PaymentStatus } from '../types'
@@ -42,12 +42,21 @@ function formatDate(ts: any): string {
 export function PurchaseDetail() {
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
-  const { selectedCompany } = useCompany()
   const { data: purchase, loading, error } = usePurchase(id)
 
   const [editing, setEditing] = useState(false)
-  const [saving, setSaving] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+
+  const updateMutation = useFirestoreMutation(
+    'purchases',
+    (companyId, data: { id: string; updates: any }) => purchaseService.update(companyId, data.id, data.updates),
+    { invalidate: ['transactions'] },
+  )
+  const deleteMutation = useFirestoreMutation(
+    'purchases',
+    (companyId, purchaseId: string) => purchaseService.remove(companyId, purchaseId),
+    { optimisticDelete: true, invalidate: ['transactions'] },
+  )
 
   const [localData, setLocalData] = useState<typeof purchase>(null)
   const displayed = localData ?? purchase
@@ -63,21 +72,16 @@ export function PurchaseDetail() {
   }
 
   async function handleSave() {
-    if (!selectedCompany || !id || !displayed) return
-    setSaving(true)
-    try {
-      const updates = { status: editStatus, paymentStatus: editPayment }
-      await purchaseService.update(selectedCompany.id, id, updates)
-      setLocalData({ ...displayed, ...updates })
-      setEditing(false)
-    } finally {
-      setSaving(false)
-    }
+    if (!id || !displayed) return
+    const updates = { status: editStatus, paymentStatus: editPayment }
+    await updateMutation.mutateAsync({ id, updates })
+    setLocalData({ ...displayed, ...updates })
+    setEditing(false)
   }
 
   async function handleDelete() {
-    if (!selectedCompany || !id) return
-    await purchaseService.remove(selectedCompany.id, id)
+    if (!id) return
+    await deleteMutation.mutateAsync(id)
     navigate('/finance/purchases')
   }
 
@@ -204,10 +208,10 @@ export function PurchaseDetail() {
         <div className="flex gap-3 mb-5">
           <button
             onClick={handleSave}
-            disabled={saving}
+            disabled={updateMutation.isPending}
             className="px-5 py-2.5 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {saving ? 'Guardando...' : 'Guardar Cambios'}
+            {updateMutation.isPending ? 'Guardando...' : 'Guardar Cambios'}
           </button>
           <button
             onClick={() => setEditing(false)}

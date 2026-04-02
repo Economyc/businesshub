@@ -7,6 +7,7 @@ import { SelectInput } from '@/core/ui/select-input'
 import { CurrencyInput } from '@/core/ui/currency-input'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 import { useCompany } from '@/core/hooks/use-company'
+import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { modalVariants } from '@/core/animations/variants'
 import { talentService } from '../services'
 import type { Employee } from '../types'
@@ -29,9 +30,24 @@ interface EmployeeFormProps {
 
 export function EmployeeForm({ open, onClose, employee }: EmployeeFormProps) {
   const { selectedCompany, roles, departments } = useCompany()
-  const [submitting, setSubmitting] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const isEditing = !!employee
+
+  const saveMutation = useFirestoreMutation(
+    'employees',
+    (companyId: string, data: { id?: string; [key: string]: unknown }) => {
+      const { id, ...rest } = data
+      return id
+        ? talentService.update(companyId, id, rest)
+        : talentService.create(companyId, rest)
+    },
+  )
+
+  const deleteMutation = useFirestoreMutation(
+    'employees',
+    (companyId: string, id: string) => talentService.remove(companyId, id),
+    { optimisticDelete: true },
+  )
 
   const [form, setForm] = useState({
     name: '',
@@ -85,34 +101,25 @@ export function EmployeeForm({ open, onClose, employee }: EmployeeFormProps) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!selectedCompany) return
-    setSubmitting(true)
-    try {
-      const data = {
-        name: form.name,
-        identification: form.identification,
-        role: form.role,
-        department: form.department,
-        email: form.email,
-        phone: form.phone,
-        salary: Number(form.salary),
-        startDate: Timestamp.fromDate(new Date(form.startDate)),
-        status: form.status,
-      }
-      if (isEditing) {
-        await talentService.update(selectedCompany.id, employee.id, data)
-      } else {
-        await talentService.create(selectedCompany.id, data)
-      }
-      resetForm()
-      onClose()
-    } finally {
-      setSubmitting(false)
+    const data = {
+      name: form.name,
+      identification: form.identification,
+      role: form.role,
+      department: form.department,
+      email: form.email,
+      phone: form.phone,
+      salary: Number(form.salary),
+      startDate: Timestamp.fromDate(new Date(form.startDate)),
+      status: form.status,
     }
+    await saveMutation.mutateAsync(isEditing ? { id: employee.id, ...data } : data)
+    resetForm()
+    onClose()
   }
 
   async function handleDelete() {
     if (!selectedCompany || !employee) return
-    await talentService.remove(selectedCompany.id, employee.id)
+    await deleteMutation.mutateAsync(employee.id)
     setDeleteOpen(false)
     resetForm()
     onClose()
@@ -302,10 +309,10 @@ export function EmployeeForm({ open, onClose, employee }: EmployeeFormProps) {
                   </button>
                   <button
                     type="submit"
-                    disabled={submitting}
+                    disabled={saveMutation.isPending}
                     className="px-5 py-2.5 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    {submitting ? 'Guardando...' : isEditing ? 'Guardar Cambios' : 'Guardar Empleado'}
+                    {saveMutation.isPending ? 'Guardando...' : isEditing ? 'Guardar Cambios' : 'Guardar Empleado'}
                   </button>
                 </div>
               </div>

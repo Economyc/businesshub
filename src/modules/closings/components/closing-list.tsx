@@ -10,7 +10,7 @@ import { TableSkeleton } from '@/core/ui/skeleton'
 import { LoadMoreButton } from '@/core/ui/load-more-button'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 import { formatCurrency } from '@/core/utils/format'
-import { useCompany } from '@/core/hooks/use-company'
+import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { usePaginatedClosings } from '../hooks'
 import { closingService } from '../services'
 import { ClosingForm } from './closing-form'
@@ -33,8 +33,13 @@ const CLOSING_TABS = [
 ]
 
 export function ClosingList() {
-  const { selectedCompany } = useCompany()
-  const { data: closings, loading, loadingMore, hasMore, totalCount, loadMore, refetch } = usePaginatedClosings()
+  const { data: closings, loading, loadingMore, hasMore, totalCount, loadMore } = usePaginatedClosings()
+
+  const deleteMutation = useFirestoreMutation(
+    'closings',
+    (companyId, id: string) => closingService.remove(companyId, id),
+    { optimisticDelete: true, invalidate: ['transactions'] },
+  )
   const [tab, setTab] = useState<Tab>('form')
   const [search, setSearch] = useState('')
   const [deleteTarget, setDeleteTarget] = useState<Closing | null>(null)
@@ -61,10 +66,9 @@ export function ClosingList() {
   }, [filtered])
 
   async function handleDelete() {
-    if (!selectedCompany || !deleteTarget) return
-    await closingService.remove(selectedCompany.id, deleteTarget.id)
+    if (!deleteTarget) return
+    await deleteMutation.mutateAsync(deleteTarget.id)
     setDeleteTarget(null)
-    refetch()
   }
 
   const columns = [
@@ -144,7 +148,7 @@ export function ClosingList() {
       {/* Tab content */}
       {tab === 'form' && (
         <ClosingForm
-          onSaved={() => { refetch(); setEditingClosing(null) }}
+          onSaved={() => { setEditingClosing(null) }}
           editing={editingClosing}
           onCancelEdit={() => setEditingClosing(null)}
         />

@@ -7,6 +7,7 @@ import * as XLSX from 'xlsx'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
 import { useCompany } from '@/core/hooks/use-company'
+import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { formatCurrency } from '@/core/utils/format'
 import { financeService } from '../services'
 import type { TransactionFormData } from '../types'
@@ -77,10 +78,24 @@ export function ImportView() {
   const { selectedCompany } = useCompany()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  const importMutation = useFirestoreMutation<ParsedRow[]>('transactions', async (companyId, rows) => {
+    for (const row of rows) {
+      const data: TransactionFormData = {
+        concept: row.concept,
+        category: row.category,
+        amount: row.amount,
+        type: row.type,
+        date: Timestamp.fromDate(new Date(row.date)),
+        status: row.status,
+        notes: row.notes,
+      }
+      await financeService.create(companyId, data)
+    }
+  })
+
   const [file, setFile] = useState<File | null>(null)
   const [parsedRows, setParsedRows] = useState<ParsedRow[]>([])
   const [errors, setErrors] = useState<RowError[]>([])
-  const [importing, setImporting] = useState(false)
   const [result, setResult] = useState<{ imported: number; errors: number } | null>(null)
   const [errorsExpanded, setErrorsExpanded] = useState(false)
 
@@ -118,30 +133,12 @@ export function ImportView() {
 
   async function handleImport() {
     if (!selectedCompany || parsedRows.length === 0) return
-    setImporting(true)
-    let imported = 0
-    let failed = 0
-
-    for (const row of parsedRows) {
-      try {
-        const data: TransactionFormData = {
-          concept: row.concept,
-          category: row.category,
-          amount: row.amount,
-          type: row.type,
-          date: Timestamp.fromDate(new Date(row.date)),
-          status: row.status,
-          notes: row.notes,
-        }
-        await financeService.create(selectedCompany.id, data)
-        imported++
-      } catch {
-        failed++
-      }
+    try {
+      await importMutation.mutateAsync(parsedRows)
+      setResult({ imported: parsedRows.length, errors: 0 })
+    } catch {
+      setResult({ imported: 0, errors: parsedRows.length })
     }
-
-    setResult({ imported, errors: failed })
-    setImporting(false)
   }
 
   return (
@@ -271,10 +268,10 @@ export function ImportView() {
         <div className="flex gap-3">
           <button
             onClick={handleImport}
-            disabled={importing}
+            disabled={importMutation.isPending}
             className="px-5 py-2.5 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {importing ? 'Importando...' : `Importar ${parsedRows.length} registros`}
+            {importMutation.isPending ? 'Importando...' : `Importar ${parsedRows.length} registros`}
           </button>
         </div>
       )}

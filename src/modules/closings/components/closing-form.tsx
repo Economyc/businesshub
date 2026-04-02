@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { CurrencyInput } from '@/core/ui/currency-input'
 import { DateInput } from '@/core/ui/date-input'
-import { useCompany } from '@/core/hooks/use-company'
+import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { closingService } from '../services'
 import type { Closing } from '../types'
 
@@ -46,9 +46,19 @@ function closingToForm(c: Closing) {
 }
 
 export function ClosingForm({ onSaved, editing, onCancelEdit }: ClosingFormProps) {
-  const { selectedCompany } = useCompany()
-  const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
+
+  const createMutation = useFirestoreMutation(
+    'closings',
+    (companyId, data: any) => closingService.create(companyId, data),
+    { invalidate: ['transactions'] },
+  )
+  const updateMutation = useFirestoreMutation(
+    'closings',
+    (companyId, data: { id: string; payload: any }) => closingService.update(companyId, data.id, data.payload),
+    { invalidate: ['transactions'] },
+  )
+  const submitting = createMutation.isPending || updateMutation.isPending
 
   const [form, setForm] = useState(editing ? closingToForm(editing) : emptyForm)
 
@@ -69,35 +79,29 @@ export function ClosingForm({ onSaved, editing, onCancelEdit }: ClosingFormProps
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!selectedCompany) return
-    setSubmitting(true)
-    try {
-      const payload = {
-        date: form.date,
-        ap: Number(form.ap || 0),
-        qr: Number(form.qr || 0),
-        datafono: Number(form.datafono || 0),
-        rappiVentas: Number(form.rappiVentas || 0),
-        efectivo: Number(form.efectivo || 0),
-        ventaTotal,
-        propinas: Number(form.propinas || 0),
-        gastos: Number(form.gastos || 0),
-        cajaMenor: Number(form.cajaMenor || 0),
-        entregaEfectivo: Number(form.entregaEfectivo || 0),
-        responsable: form.responsable,
-      }
-      if (editing) {
-        await closingService.update(selectedCompany.id, editing.id, payload)
-      } else {
-        await closingService.create(selectedCompany.id, payload)
-      }
-      resetForm()
-      setSuccess(true)
-      setTimeout(() => setSuccess(false), 3000)
-      onSaved()
-    } finally {
-      setSubmitting(false)
+    const payload = {
+      date: form.date,
+      ap: Number(form.ap || 0),
+      qr: Number(form.qr || 0),
+      datafono: Number(form.datafono || 0),
+      rappiVentas: Number(form.rappiVentas || 0),
+      efectivo: Number(form.efectivo || 0),
+      ventaTotal,
+      propinas: Number(form.propinas || 0),
+      gastos: Number(form.gastos || 0),
+      cajaMenor: Number(form.cajaMenor || 0),
+      entregaEfectivo: Number(form.entregaEfectivo || 0),
+      responsable: form.responsable,
     }
+    if (editing) {
+      await updateMutation.mutateAsync({ id: editing.id, payload })
+    } else {
+      await createMutation.mutateAsync(payload)
+    }
+    resetForm()
+    setSuccess(true)
+    setTimeout(() => setSuccess(false), 3000)
+    onSaved()
   }
 
   function currencyField(label: string, name: string) {

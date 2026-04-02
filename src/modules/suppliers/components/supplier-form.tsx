@@ -6,6 +6,7 @@ import { DateInput } from '@/core/ui/date-input'
 import { SelectInput } from '@/core/ui/select-input'
 import { CategorySelect } from '@/core/ui/category-select'
 import { useCompany } from '@/core/hooks/use-company'
+import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { modalVariants } from '@/core/animations/variants'
 import { supplierService } from '../services'
 
@@ -20,7 +21,11 @@ interface SupplierFormProps {
 
 export function SupplierForm({ open, onClose }: SupplierFormProps) {
   const { selectedCompany } = useCompany()
-  const [submitting, setSubmitting] = useState(false)
+
+  const createMutation = useFirestoreMutation(
+    'suppliers',
+    (companyId: string, data: Record<string, unknown>) => supplierService.create(companyId, data),
+  )
 
   const [form, setForm] = useState({
     name: '',
@@ -56,24 +61,19 @@ export function SupplierForm({ open, onClose }: SupplierFormProps) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!selectedCompany) return
-    setSubmitting(true)
-    try {
-      await supplierService.create(selectedCompany.id, {
-        name: form.name,
-        identification: form.identification,
-        category: form.category,
-        contactName: form.contactName,
-        email: form.email,
-        phone: form.phone,
-        contractStart: Timestamp.fromDate(new Date(form.contractStart)),
-        contractEnd: Timestamp.fromDate(new Date(form.contractEnd)),
-        status: form.status,
-      })
-      resetForm()
-      onClose()
-    } finally {
-      setSubmitting(false)
-    }
+    await createMutation.mutateAsync({
+      name: form.name,
+      identification: form.identification,
+      category: form.category,
+      contactName: form.contactName,
+      email: form.email,
+      phone: form.phone,
+      contractStart: Timestamp.fromDate(new Date(form.contractStart)),
+      contractEnd: Timestamp.fromDate(new Date(form.contractEnd)),
+      status: form.status,
+    })
+    resetForm()
+    onClose()
   }
 
   useEffect(() => {
@@ -216,10 +216,10 @@ export function SupplierForm({ open, onClose }: SupplierFormProps) {
                 </button>
                 <button
                   type="submit"
-                  disabled={submitting}
+                  disabled={createMutation.isPending}
                   className="px-5 py-2.5 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  {submitting ? 'Guardando...' : 'Guardar Proveedor'}
+                  {createMutation.isPending ? 'Guardando...' : 'Guardar Proveedor'}
                 </button>
               </div>
             </form>

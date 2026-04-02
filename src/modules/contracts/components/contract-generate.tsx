@@ -8,6 +8,7 @@ import { SelectInput } from '@/core/ui/select-input'
 import { DateInput } from '@/core/ui/date-input'
 import { CurrencyInput } from '@/core/ui/currency-input'
 import { useCompany } from '@/core/hooks/use-company'
+import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { useTemplates } from '../hooks'
 import { useCollection } from '@/core/hooks/use-firestore'
 import { contractService } from '../services'
@@ -34,7 +35,11 @@ export function ContractGenerate() {
   const [step, setStep] = useState(0)
   const [selectedTemplateId, setSelectedTemplateId] = useState('')
   const [selectedEmployeeId, setSelectedEmployeeId] = useState('')
-  const [submitting, setSubmitting] = useState(false)
+
+  const createMutation = useFirestoreMutation(
+    'contracts',
+    (companyId: string, data: Record<string, unknown>) => contractService.create(companyId, data),
+  )
 
   const [metadata, setMetadata] = useState<ContractMetadata>({
     companyName: '', companyNit: '', companyAddress: '', companyLegalRep: '',
@@ -98,31 +103,26 @@ export function ContractGenerate() {
 
   async function handleSave(status: ContractStatus) {
     if (!selectedCompany || !selectedTemplate) return
-    setSubmitting(true)
-    try {
-      const clauses = resolvedClauses()
-      const data: ContractFormData = {
-        templateId: selectedTemplate.id,
-        templateName: selectedTemplate.name,
-        contractType: selectedTemplate.contractType,
-        employeeName: metadata.employeeName,
-        employeeIdentification: metadata.employeeIdentification,
-        position: metadata.position,
-        salary: metadata.salary,
-        startDate: metadata.startDate
-          ? Timestamp.fromDate(new Date(metadata.startDate))
-          : Timestamp.now(),
-        status,
-        clauses,
-        metadata,
-      }
-      if (selectedEmployeeId) data.employeeId = selectedEmployeeId
-      if (metadata.endDate) data.endDate = Timestamp.fromDate(new Date(metadata.endDate))
-      await contractService.create(selectedCompany.id, data)
-      navigate('/contracts')
-    } finally {
-      setSubmitting(false)
+    const clauses = resolvedClauses()
+    const data: ContractFormData = {
+      templateId: selectedTemplate.id,
+      templateName: selectedTemplate.name,
+      contractType: selectedTemplate.contractType,
+      employeeName: metadata.employeeName,
+      employeeIdentification: metadata.employeeIdentification,
+      position: metadata.position,
+      salary: metadata.salary,
+      startDate: metadata.startDate
+        ? Timestamp.fromDate(new Date(metadata.startDate))
+        : Timestamp.now(),
+      status,
+      clauses,
+      metadata,
     }
+    if (selectedEmployeeId) data.employeeId = selectedEmployeeId
+    if (metadata.endDate) data.endDate = Timestamp.fromDate(new Date(metadata.endDate))
+    await createMutation.mutateAsync(data as unknown as Record<string, unknown>)
+    navigate('/contracts')
   }
 
   const canNext = step === 0
@@ -361,7 +361,7 @@ export function ContractGenerate() {
               <button
                 type="button"
                 onClick={() => handleSave('draft')}
-                disabled={submitting}
+                disabled={createMutation.isPending}
                 className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone disabled:opacity-60"
               >
                 Guardar borrador
@@ -369,11 +369,11 @@ export function ContractGenerate() {
               <button
                 type="button"
                 onClick={() => handleSave('active')}
-                disabled={submitting}
+                disabled={createMutation.isPending}
                 className="flex items-center gap-1.5 px-5 py-2.5 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-60"
               >
                 <FileSignature size={15} strokeWidth={1.5} />
-                {submitting ? 'Guardando...' : 'Crear Contrato'}
+                {createMutation.isPending ? 'Guardando...' : 'Crear Contrato'}
               </button>
             </>
           )}

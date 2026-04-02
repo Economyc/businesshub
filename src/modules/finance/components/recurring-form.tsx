@@ -9,6 +9,7 @@ import { CurrencyInput } from '@/core/ui/currency-input'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 import { modalVariants } from '@/core/animations/variants'
 import { useCompany } from '@/core/hooks/use-company'
+import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { recurringService } from '../recurring-service'
 import type { RecurringTransaction, RecurrenceFrequency } from '../types'
 
@@ -31,7 +32,14 @@ interface RecurringFormProps {
 
 export function RecurringForm({ open, recurringId, onClose, onSaved }: RecurringFormProps) {
   const { selectedCompany } = useCompany()
-  const [submitting, setSubmitting] = useState(false)
+  const saveMutation = useFirestoreMutation<any>('recurring-transactions', async (companyId, data: any) => {
+    if (data._id) {
+      await recurringService.update(companyId, data._id, data.payload)
+    } else {
+      await recurringService.create(companyId, data.payload)
+    }
+  })
+  const deleteMutation = useFirestoreMutation<string>('recurring-transactions', (companyId, id) => recurringService.remove(companyId, id), { optimisticDelete: true })
   const [loading, setLoading] = useState(false)
   const [showDelete, setShowDelete] = useState(false)
 
@@ -94,36 +102,31 @@ export function RecurringForm({ open, recurringId, onClose, onSaved }: Recurring
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!selectedCompany) return
-    setSubmitting(true)
-    try {
-      const startDate = Timestamp.fromDate(new Date(form.startDate + 'T12:00:00'))
-      const data = {
-        concept: form.concept,
-        category: form.category,
-        amount: Number(form.amount),
-        type: form.type,
-        status: form.status,
-        frequency: form.frequency,
-        startDate,
-        nextDueDate: startDate,
-        isActive: form.isActive,
-        ...(form.notes ? { notes: form.notes } : {}),
-        ...(form.endDate ? { endDate: Timestamp.fromDate(new Date(form.endDate + 'T12:00:00')) } : {}),
-      }
-      if (recurringId) {
-        await recurringService.update(selectedCompany.id, recurringId, data)
-      } else {
-        await recurringService.create(selectedCompany.id, data as any)
-      }
-      onSaved()
-    } finally {
-      setSubmitting(false)
+    const startDate = Timestamp.fromDate(new Date(form.startDate + 'T12:00:00'))
+    const payload = {
+      concept: form.concept,
+      category: form.category,
+      amount: Number(form.amount),
+      type: form.type,
+      status: form.status,
+      frequency: form.frequency,
+      startDate,
+      nextDueDate: startDate,
+      isActive: form.isActive,
+      ...(form.notes ? { notes: form.notes } : {}),
+      ...(form.endDate ? { endDate: Timestamp.fromDate(new Date(form.endDate + 'T12:00:00')) } : {}),
     }
+    if (recurringId) {
+      await saveMutation.mutateAsync({ _id: recurringId, payload })
+    } else {
+      await saveMutation.mutateAsync({ payload })
+    }
+    onSaved()
   }
 
   async function handleDelete() {
     if (!selectedCompany || !recurringId) return
-    await recurringService.remove(selectedCompany.id, recurringId)
+    await deleteMutation.mutateAsync(recurringId)
     onSaved()
   }
 
@@ -293,10 +296,10 @@ export function RecurringForm({ open, recurringId, onClose, onSaved }: Recurring
                   <div className="flex gap-3 mt-5 pt-4 border-t border-border">
                     <button
                       type="submit"
-                      disabled={submitting}
+                      disabled={saveMutation.isPending}
                       className="px-5 py-2.5 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      {submitting ? 'Guardando...' : recurringId ? 'Guardar Cambios' : 'Crear Recurrente'}
+                      {saveMutation.isPending ? 'Guardando...' : recurringId ? 'Guardar Cambios' : 'Crear Recurrente'}
                     </button>
                     <button
                       type="button"

@@ -5,6 +5,7 @@ import { CurrencyInput } from '@/core/ui/currency-input'
 import { SelectInput } from '@/core/ui/select-input'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 import { useCompany } from '@/core/hooks/use-company'
+import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { modalVariants } from '@/core/animations/variants'
 import { partnerService } from '../services'
 import type { Partner } from '../types'
@@ -21,9 +22,24 @@ interface PartnerFormProps {
 
 export function PartnerForm({ open, onClose, partner }: PartnerFormProps) {
   const { selectedCompany } = useCompany()
-  const [submitting, setSubmitting] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const isEditing = !!partner
+
+  const saveMutation = useFirestoreMutation(
+    'partners',
+    (companyId: string, data: { id?: string; [key: string]: unknown }) => {
+      const { id, ...rest } = data
+      return id
+        ? partnerService.update(companyId, id, rest)
+        : partnerService.create(companyId, rest)
+    },
+  )
+
+  const deleteMutation = useFirestoreMutation(
+    'partners',
+    (companyId: string, id: string) => partnerService.remove(companyId, id),
+    { optimisticDelete: true },
+  )
 
   const [form, setForm] = useState({
     name: '',
@@ -63,32 +79,23 @@ export function PartnerForm({ open, onClose, partner }: PartnerFormProps) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!selectedCompany) return
-    setSubmitting(true)
-    try {
-      const data = {
-        name: form.name,
-        identification: form.identification,
-        email: form.email,
-        phone: form.phone,
-        ownership: Number(form.ownership),
-        investment: Number(form.investment),
-        status: form.status,
-      }
-      if (isEditing) {
-        await partnerService.update(selectedCompany.id, partner.id, data)
-      } else {
-        await partnerService.create(selectedCompany.id, data)
-      }
-      resetForm()
-      onClose()
-    } finally {
-      setSubmitting(false)
+    const data = {
+      name: form.name,
+      identification: form.identification,
+      email: form.email,
+      phone: form.phone,
+      ownership: Number(form.ownership),
+      investment: Number(form.investment),
+      status: form.status,
     }
+    await saveMutation.mutateAsync(isEditing ? { id: partner.id, ...data } : data)
+    resetForm()
+    onClose()
   }
 
   async function handleDelete() {
     if (!selectedCompany || !partner) return
-    await partnerService.remove(selectedCompany.id, partner.id)
+    await deleteMutation.mutateAsync(partner.id)
     setDeleteOpen(false)
     resetForm()
     onClose()
@@ -249,10 +256,10 @@ export function PartnerForm({ open, onClose, partner }: PartnerFormProps) {
                   </button>
                   <button
                     type="submit"
-                    disabled={submitting}
+                    disabled={saveMutation.isPending}
                     className="px-5 py-2.5 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    {submitting ? 'Guardando...' : isEditing ? 'Guardar Cambios' : 'Guardar Socio'}
+                    {saveMutation.isPending ? 'Guardando...' : isEditing ? 'Guardar Cambios' : 'Guardar Socio'}
                   </button>
                 </div>
               </div>

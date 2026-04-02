@@ -10,6 +10,7 @@ import { CategorySelect } from '@/core/ui/category-select'
 import { StatusBadge } from '@/core/ui/status-badge'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 import { useCompany } from '@/core/hooks/use-company'
+import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { Skeleton } from '@/core/ui/skeleton'
 import { useSupplier } from '../hooks'
 import { supplierService } from '../services'
@@ -42,8 +43,19 @@ export function SupplierDetail() {
   const { data: supplier, loading, error } = useSupplier(id)
 
   const [editing, setEditing] = useState(false)
-  const [saving, setSaving] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+
+  const updateMutation = useFirestoreMutation(
+    'suppliers',
+    (companyId: string, data: { id: string; updates: Partial<SupplierFormData> }) =>
+      supplierService.update(companyId, data.id, data.updates),
+  )
+
+  const deleteMutation = useFirestoreMutation(
+    'suppliers',
+    (companyId: string, id: string) => supplierService.remove(companyId, id),
+    { optimisticDelete: true },
+  )
 
   // Local override after save so we don't need window.location.reload
   const [localData, setLocalData] = useState<typeof supplier>(null)
@@ -95,34 +107,29 @@ export function SupplierDetail() {
 
   async function handleSave() {
     if (!selectedCompany || !id || !displayed) return
-    setSaving(true)
-    try {
-      const updates: Partial<SupplierFormData> = {
-        name: editForm.name,
-        identification: editForm.identification,
-        category: editForm.category,
-        contactName: editForm.contactName,
-        email: editForm.email,
-        phone: editForm.phone,
-        contractStart: Timestamp.fromDate(new Date(editForm.contractStart)),
-        contractEnd: Timestamp.fromDate(new Date(editForm.contractEnd)),
-        status: editForm.status,
-      }
-      await supplierService.update(selectedCompany.id, id, updates)
-      // Update local display data without reloading
-      setLocalData({
-        ...displayed,
-        ...updates,
-      })
-      setEditing(false)
-    } finally {
-      setSaving(false)
+    const updates: Partial<SupplierFormData> = {
+      name: editForm.name,
+      identification: editForm.identification,
+      category: editForm.category,
+      contactName: editForm.contactName,
+      email: editForm.email,
+      phone: editForm.phone,
+      contractStart: Timestamp.fromDate(new Date(editForm.contractStart)),
+      contractEnd: Timestamp.fromDate(new Date(editForm.contractEnd)),
+      status: editForm.status,
     }
+    await updateMutation.mutateAsync({ id, updates })
+    // Update local display data without reloading
+    setLocalData({
+      ...displayed,
+      ...updates,
+    })
+    setEditing(false)
   }
 
   async function handleDelete() {
     if (!selectedCompany || !id) return
-    await supplierService.remove(selectedCompany.id, id)
+    await deleteMutation.mutateAsync(id)
     navigate('/suppliers')
   }
 
@@ -291,10 +298,10 @@ export function SupplierDetail() {
         <div className="flex gap-3 mt-5">
           <button
             onClick={handleSave}
-            disabled={saving}
+            disabled={updateMutation.isPending}
             className="px-5 py-2.5 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {saving ? 'Guardando...' : 'Guardar Cambios'}
+            {updateMutation.isPending ? 'Guardando...' : 'Guardar Cambios'}
           </button>
           <button
             onClick={() => setEditing(false)}

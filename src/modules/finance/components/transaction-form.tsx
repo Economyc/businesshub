@@ -9,6 +9,7 @@ import { CurrencyInput } from '@/core/ui/currency-input'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 import { modalVariants } from '@/core/animations/variants'
 import { useCompany } from '@/core/hooks/use-company'
+import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { financeService } from '../services'
 import type { Transaction } from '../types'
 
@@ -31,7 +32,14 @@ interface TransactionFormProps {
 
 export function TransactionForm({ open, transactionId, onClose, onSaved }: TransactionFormProps) {
   const { selectedCompany } = useCompany()
-  const [submitting, setSubmitting] = useState(false)
+  const saveMutation = useFirestoreMutation<any>('transactions', async (companyId, data: any) => {
+    if (data._id) {
+      await financeService.update(companyId, data._id, data.payload)
+    } else {
+      await financeService.create(companyId, data.payload)
+    }
+  })
+  const deleteMutation = useFirestoreMutation<string>('transactions', (companyId, id) => financeService.remove(companyId, id), { optimisticDelete: true })
   const [loading, setLoading] = useState(false)
   const [showDelete, setShowDelete] = useState(false)
   const [isLinked, setIsLinked] = useState(false)
@@ -95,31 +103,26 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!selectedCompany) return
-    setSubmitting(true)
-    try {
-      const data = {
-        concept: form.concept,
-        category: form.category,
-        amount: Number(form.amount),
-        type: form.type,
-        date: Timestamp.fromDate(new Date(form.date + 'T12:00:00')),
-        status: form.status,
-        ...(form.notes ? { notes: form.notes } : {}),
-      }
-      if (transactionId) {
-        await financeService.update(selectedCompany.id, transactionId, data)
-      } else {
-        await financeService.create(selectedCompany.id, data as any)
-      }
-      onSaved()
-    } finally {
-      setSubmitting(false)
+    const payload = {
+      concept: form.concept,
+      category: form.category,
+      amount: Number(form.amount),
+      type: form.type,
+      date: Timestamp.fromDate(new Date(form.date + 'T12:00:00')),
+      status: form.status,
+      ...(form.notes ? { notes: form.notes } : {}),
     }
+    if (transactionId) {
+      await saveMutation.mutateAsync({ _id: transactionId, payload })
+    } else {
+      await saveMutation.mutateAsync({ payload })
+    }
+    onSaved()
   }
 
   async function handleDelete() {
     if (!selectedCompany || !transactionId) return
-    await financeService.remove(selectedCompany.id, transactionId)
+    await deleteMutation.mutateAsync(transactionId)
     onSaved()
   }
 
@@ -274,10 +277,10 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
                   <div className="flex gap-3 mt-5 pt-4 border-t border-border">
                     <button
                       type="submit"
-                      disabled={submitting}
+                      disabled={saveMutation.isPending}
                       className="px-5 py-2.5 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      {submitting ? 'Guardando...' : transactionId ? 'Guardar Cambios' : 'Guardar Transacción'}
+                      {saveMutation.isPending ? 'Guardando...' : transactionId ? 'Guardar Cambios' : 'Guardar Transacción'}
                     </button>
                     <button
                       type="button"

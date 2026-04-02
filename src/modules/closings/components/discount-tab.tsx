@@ -9,7 +9,7 @@ import { EmptyState } from '@/core/ui/empty-state'
 import { TableSkeleton } from '@/core/ui/skeleton'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 import { formatCurrency } from '@/core/utils/format'
-import { useCompany } from '@/core/hooks/use-company'
+import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { useDiscounts } from '../hooks'
 import { discountService } from '../services'
 import type { Discount, DiscountType, DiscountReason } from '../types'
@@ -58,14 +58,27 @@ function discountToForm(d: Discount) {
 }
 
 export function DiscountTab() {
-  const { selectedCompany } = useCompany()
-  const { data: discounts, loading, refetch } = useDiscounts()
+  const { data: discounts, loading } = useDiscounts()
   const [form, setForm] = useState(emptyForm)
   const [editing, setEditing] = useState<Discount | null>(null)
-  const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Discount | null>(null)
   const [search, setSearch] = useState('')
+
+  const createMutation = useFirestoreMutation(
+    'discounts',
+    (companyId, data: any) => discountService.create(companyId, data),
+  )
+  const updateMutation = useFirestoreMutation(
+    'discounts',
+    (companyId, data: { id: string; payload: any }) => discountService.update(companyId, data.id, data.payload),
+  )
+  const deleteMutation = useFirestoreMutation(
+    'discounts',
+    (companyId, id: string) => discountService.remove(companyId, id),
+    { optimisticDelete: true },
+  )
+  const submitting = createMutation.isPending || updateMutation.isPending
 
   const sorted = useMemo(() => {
     return [...discounts].sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''))
@@ -101,36 +114,28 @@ export function DiscountTab() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!selectedCompany) return
-    setSubmitting(true)
-    try {
-      const payload = {
-        date: form.date,
-        type: form.type as DiscountType,
-        amount: Number(form.amount || 0),
-        reason: form.reason as DiscountReason,
-        description: form.description,
-        authorizedBy: form.authorizedBy,
-      }
-      if (editing) {
-        await discountService.update(selectedCompany.id, editing.id, payload)
-      } else {
-        await discountService.create(selectedCompany.id, payload)
-      }
-      resetForm()
-      setSuccess(true)
-      setTimeout(() => setSuccess(false), 3000)
-      refetch()
-    } finally {
-      setSubmitting(false)
+    const payload = {
+      date: form.date,
+      type: form.type as DiscountType,
+      amount: Number(form.amount || 0),
+      reason: form.reason as DiscountReason,
+      description: form.description,
+      authorizedBy: form.authorizedBy,
     }
+    if (editing) {
+      await updateMutation.mutateAsync({ id: editing.id, payload })
+    } else {
+      await createMutation.mutateAsync(payload)
+    }
+    resetForm()
+    setSuccess(true)
+    setTimeout(() => setSuccess(false), 3000)
   }
 
   async function handleDelete() {
-    if (!selectedCompany || !deleteTarget) return
-    await discountService.remove(selectedCompany.id, deleteTarget.id)
+    if (!deleteTarget) return
+    await deleteMutation.mutateAsync(deleteTarget.id)
     setDeleteTarget(null)
-    refetch()
   }
 
   const columns = [

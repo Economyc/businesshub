@@ -8,6 +8,7 @@ import { StatusBadge } from '@/core/ui/status-badge'
 import { SelectInput } from '@/core/ui/select-input'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 import { useCompany } from '@/core/hooks/use-company'
+import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { useContract } from '../hooks'
 import { contractService } from '../services'
 import { ContractPreview } from './contract-preview'
@@ -55,8 +56,19 @@ export function ContractDetail() {
 
   const [editing, setEditing] = useState(false)
   const [editedClauses, setEditedClauses] = useState<ContractClause[]>([])
-  const [saving, setSaving] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+
+  const updateMutation = useFirestoreMutation(
+    'contracts',
+    (companyId: string, data: { id: string; updates: Record<string, unknown> }) =>
+      contractService.update(companyId, data.id, data.updates),
+  )
+
+  const deleteMutation = useFirestoreMutation(
+    'contracts',
+    (companyId: string, id: string) => contractService.remove(companyId, id),
+    { optimisticDelete: true },
+  )
 
   function startEditing() {
     if (contract) {
@@ -73,23 +85,18 @@ export function ContractDetail() {
 
   async function handleSaveClauses() {
     if (!selectedCompany || !contract) return
-    setSaving(true)
-    try {
-      await contractService.update(selectedCompany.id, contract.id, { clauses: editedClauses })
-      setEditing(false)
-    } finally {
-      setSaving(false)
-    }
+    await updateMutation.mutateAsync({ id: contract.id, updates: { clauses: editedClauses } })
+    setEditing(false)
   }
 
   async function handleStatusChange(newStatus: string) {
     if (!selectedCompany || !contract) return
-    await contractService.update(selectedCompany.id, contract.id, { status: newStatus as ContractStatus })
+    await updateMutation.mutateAsync({ id: contract.id, updates: { status: newStatus as ContractStatus } })
   }
 
   async function handleDelete() {
     if (!selectedCompany || !contract) return
-    await contractService.remove(selectedCompany.id, contract.id)
+    await deleteMutation.mutateAsync(contract.id)
     navigate('/contracts')
   }
 
@@ -190,11 +197,11 @@ export function ContractDetail() {
             <>
               <button
                 onClick={handleSaveClauses}
-                disabled={saving}
+                disabled={updateMutation.isPending}
                 className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-60"
               >
                 <Save size={14} strokeWidth={1.5} />
-                {saving ? 'Guardando...' : 'Guardar'}
+                {updateMutation.isPending ? 'Guardando...' : 'Guardar'}
               </button>
               <button
                 onClick={() => setEditing(false)}

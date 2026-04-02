@@ -10,6 +10,7 @@ import { StatusBadge } from '@/core/ui/status-badge'
 import { CurrencyInput } from '@/core/ui/currency-input'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 import { useCompany } from '@/core/hooks/use-company'
+import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { formatCurrency } from '@/core/utils/format'
 import { Skeleton } from '@/core/ui/skeleton'
 import { useEmployee } from '../hooks'
@@ -38,8 +39,19 @@ export function EmployeeProfile() {
   const { data: employee, loading, error } = useEmployee(id)
 
   const [editing, setEditing] = useState(false)
-  const [saving, setSaving] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+
+  const updateMutation = useFirestoreMutation(
+    'employees',
+    (companyId: string, data: { id: string; updates: Partial<EmployeeFormData> }) =>
+      talentService.update(companyId, data.id, data.updates),
+  )
+
+  const deleteMutation = useFirestoreMutation(
+    'employees',
+    (companyId: string, id: string) => talentService.remove(companyId, id),
+    { optimisticDelete: true },
+  )
 
   // Local override after save so we don't need window.location.reload
   const [localData, setLocalData] = useState<typeof employee>(null)
@@ -91,34 +103,29 @@ export function EmployeeProfile() {
 
   async function handleSave() {
     if (!selectedCompany || !id || !displayed) return
-    setSaving(true)
-    try {
-      const updates: Partial<EmployeeFormData> = {
-        name: editForm.name,
-        identification: editForm.identification,
-        role: editForm.role,
-        department: editForm.department,
-        email: editForm.email,
-        phone: editForm.phone,
-        salary: Number(editForm.salary),
-        startDate: Timestamp.fromDate(new Date(editForm.startDate)),
-        status: editForm.status,
-      }
-      await talentService.update(selectedCompany.id, id, updates)
-      // Update local display data without reloading
-      setLocalData({
-        ...displayed,
-        ...updates,
-      })
-      setEditing(false)
-    } finally {
-      setSaving(false)
+    const updates: Partial<EmployeeFormData> = {
+      name: editForm.name,
+      identification: editForm.identification,
+      role: editForm.role,
+      department: editForm.department,
+      email: editForm.email,
+      phone: editForm.phone,
+      salary: Number(editForm.salary),
+      startDate: Timestamp.fromDate(new Date(editForm.startDate)),
+      status: editForm.status,
     }
+    await updateMutation.mutateAsync({ id, updates })
+    // Update local display data without reloading
+    setLocalData({
+      ...displayed,
+      ...updates,
+    })
+    setEditing(false)
   }
 
   async function handleDelete() {
     if (!selectedCompany || !id) return
-    await talentService.remove(selectedCompany.id, id)
+    await deleteMutation.mutateAsync(id)
     navigate('/talent')
   }
 
@@ -269,10 +276,10 @@ export function EmployeeProfile() {
         <div className="flex gap-3 mt-5">
           <button
             onClick={handleSave}
-            disabled={saving}
+            disabled={updateMutation.isPending}
             className="px-5 py-2.5 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {saving ? 'Guardando...' : 'Guardar Cambios'}
+            {updateMutation.isPending ? 'Guardando...' : 'Guardar Cambios'}
           </button>
           <button
             onClick={() => setEditing(false)}

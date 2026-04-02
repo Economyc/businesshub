@@ -4,6 +4,7 @@ import { X, Trash2, Plus } from 'lucide-react'
 import { SelectInput } from '@/core/ui/select-input'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 import { useCompany } from '@/core/hooks/use-company'
+import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { modalVariants } from '@/core/animations/variants'
 import { templateService } from '../services'
 import { ClauseEditor } from './clause-editor'
@@ -31,9 +32,24 @@ interface TemplateFormProps {
 
 export function TemplateForm({ open, onClose, template }: TemplateFormProps) {
   const { selectedCompany } = useCompany()
-  const [submitting, setSubmitting] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const isEditing = !!template
+
+  const saveMutation = useFirestoreMutation(
+    'contract_templates',
+    (companyId: string, data: { id?: string; [key: string]: unknown }) => {
+      const { id, ...rest } = data
+      return id
+        ? templateService.update(companyId, id, rest)
+        : templateService.create(companyId, rest)
+    },
+  )
+
+  const deleteMutation = useFirestoreMutation(
+    'contract_templates',
+    (companyId: string, id: string) => templateService.remove(companyId, id),
+    { optimisticDelete: true },
+  )
 
   const [form, setForm] = useState({
     name: '',
@@ -113,28 +129,19 @@ export function TemplateForm({ open, onClose, template }: TemplateFormProps) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!selectedCompany) return
-    setSubmitting(true)
-    try {
-      const data = {
-        ...form,
-        clauses: clauses.map((c, i) => ({ ...c, order: i + 1 })),
-        isDefault: template?.isDefault ?? false,
-      }
-      if (isEditing) {
-        await templateService.update(selectedCompany.id, template.id, data)
-      } else {
-        await templateService.create(selectedCompany.id, data)
-      }
-      resetForm()
-      onClose()
-    } finally {
-      setSubmitting(false)
+    const data = {
+      ...form,
+      clauses: clauses.map((c, i) => ({ ...c, order: i + 1 })),
+      isDefault: template?.isDefault ?? false,
     }
+    await saveMutation.mutateAsync(isEditing ? { id: template.id, ...data } : data)
+    resetForm()
+    onClose()
   }
 
   async function handleDelete() {
     if (!selectedCompany || !template) return
-    await templateService.remove(selectedCompany.id, template.id)
+    await deleteMutation.mutateAsync(template.id)
     setDeleteOpen(false)
     resetForm()
     onClose()
@@ -313,10 +320,10 @@ export function TemplateForm({ open, onClose, template }: TemplateFormProps) {
                     </button>
                     <button
                       type="submit"
-                      disabled={submitting || clauses.length === 0}
+                      disabled={saveMutation.isPending || clauses.length === 0}
                       className="px-5 py-2.5 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      {submitting ? 'Guardando...' : isEditing ? 'Guardar Cambios' : 'Crear Plantilla'}
+                      {saveMutation.isPending ? 'Guardando...' : isEditing ? 'Guardar Cambios' : 'Crear Plantilla'}
                     </button>
                   </div>
                 </div>

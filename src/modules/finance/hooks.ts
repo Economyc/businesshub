@@ -331,30 +331,22 @@ export interface BudgetComparisonData {
 
 export function useBudget() {
   const { selectedCompany } = useCompany()
-  const [config, setConfig] = useState<BudgetConfig>({ items: [] })
-  const [loading, setLoading] = useState(true)
+  const companyId = selectedCompany?.id
 
-  const load = useCallback(async () => {
-    if (!selectedCompany) return
-    setLoading(true)
-    try {
-      const data = await budgetService.get(selectedCompany.id)
-      setConfig(data)
-    } finally {
-      setLoading(false)
-    }
-  }, [selectedCompany?.id])
-
-  useEffect(() => { load() }, [load])
+  const { data: config, isLoading: loading, refetch } = useQuery({
+    queryKey: ['firestore', companyId, 'settings', 'budget'],
+    queryFn: () => budgetService.get(companyId!),
+    enabled: !!companyId,
+  })
 
   const save = useCallback(async (items: BudgetItem[]) => {
-    if (!selectedCompany) return
+    if (!companyId) return
     const newConfig = { items }
-    setConfig(newConfig)
-    await budgetService.save(selectedCompany.id, newConfig)
-  }, [selectedCompany?.id])
+    await budgetService.save(companyId, newConfig)
+    queryClient.invalidateQueries({ queryKey: ['firestore', companyId, 'settings', 'budget'] })
+  }, [companyId])
 
-  return { config, loading, save, refetch: load }
+  return { config: config ?? { items: [] }, loading, save, refetch }
 }
 
 export function useBudgetComparison(startDate: Date, endDate: Date) {

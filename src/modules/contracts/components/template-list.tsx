@@ -9,6 +9,7 @@ import { StatusBadge } from '@/core/ui/status-badge'
 import { EmptyState } from '@/core/ui/empty-state'
 import { TableSkeleton } from '@/core/ui/skeleton'
 import { useCompany } from '@/core/hooks/use-company'
+import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { useTemplates } from '../hooks'
 import { templateService } from '../services'
 import { getDefaultTemplates } from '../defaults/templates'
@@ -26,12 +27,21 @@ const CONTRACT_TYPE_LABELS: Record<string, string> = {
 
 export function TemplateList() {
   const { selectedCompany } = useCompany()
-  const { data: templates, loading, refetch } = useTemplates()
+  const { data: templates, loading } = useTemplates()
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [editingTemplate, setEditingTemplate] = useState<ContractTemplate | null>(null)
-  const [seeding, setSeeding] = useState(false)
+
+  const seedMutation = useFirestoreMutation(
+    'contract_templates',
+    async (companyId: string, _data: void) => {
+      const defaults = getDefaultTemplates()
+      for (const d of defaults) {
+        await templateService.create(companyId, d)
+      }
+    },
+  )
 
   const filtered = useMemo(() => {
     return templates.filter((t) => {
@@ -45,17 +55,8 @@ export function TemplateList() {
   }, [templates, search, typeFilter])
 
   async function seedDefaults() {
-    if (!selectedCompany || seeding) return
-    setSeeding(true)
-    try {
-      const defaults = getDefaultTemplates()
-      for (const d of defaults) {
-        await templateService.create(selectedCompany.id, d)
-      }
-      await refetch()
-    } finally {
-      setSeeding(false)
-    }
+    if (!selectedCompany || seedMutation.isPending) return
+    await seedMutation.mutateAsync(undefined as void)
   }
 
   const columns = [
@@ -112,7 +113,7 @@ export function TemplateList() {
       <TemplateForm
         open={showForm || !!editingTemplate}
         template={editingTemplate}
-        onClose={() => { setShowForm(false); setEditingTemplate(null); refetch() }}
+        onClose={() => { setShowForm(false); setEditingTemplate(null) }}
       />
 
       <div className="flex gap-3 mb-5">
@@ -150,11 +151,11 @@ export function TemplateList() {
           />
           <button
             onClick={seedDefaults}
-            disabled={seeding}
+            disabled={seedMutation.isPending}
             className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-60"
           >
             <Upload size={15} strokeWidth={2} />
-            {seeding ? 'Cargando...' : 'Cargar plantillas predeterminadas'}
+            {seedMutation.isPending ? 'Cargando...' : 'Cargar plantillas predeterminadas'}
           </button>
         </div>
       ) : filtered.length === 0 ? (

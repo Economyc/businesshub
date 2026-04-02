@@ -11,6 +11,7 @@ import { EmptyState } from '@/core/ui/empty-state'
 import { TableSkeleton } from '@/core/ui/skeleton'
 import { formatCurrency } from '@/core/utils/format'
 import { useCompany } from '@/core/hooks/use-company'
+import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { useProducts } from '../hooks'
 import { productService } from '../services'
 import { FinanceTabs } from '@/modules/finance/components/finance-tabs'
@@ -20,7 +21,13 @@ import type { Product } from '../types'
 
 export function ProductList() {
   const { selectedCompany } = useCompany()
-  const { data: products, loading, refetch } = useProducts()
+  const { data: products, loading } = useProducts()
+
+  const deleteMutation = useFirestoreMutation(
+    'products',
+    (companyId, id: string) => productService.remove(companyId, id),
+    { optimisticDelete: true },
+  )
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
@@ -121,14 +128,12 @@ export function ProductList() {
   function handleCloseForm() {
     setShowForm(false)
     setEditingProduct(null)
-    refetch()
   }
 
   async function handleDeleteConfirm() {
-    if (!selectedCompany || !deletingProduct) return
-    await productService.remove(selectedCompany.id, deletingProduct.id)
+    if (!deletingProduct) return
+    await deleteMutation.mutateAsync(deletingProduct.id)
     setDeletingProduct(null)
-    refetch()
   }
 
   return (

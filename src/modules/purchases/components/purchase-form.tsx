@@ -8,6 +8,7 @@ import { DateInput } from '@/core/ui/date-input'
 import { SelectInput } from '@/core/ui/select-input'
 import { CurrencyInput } from '@/core/ui/currency-input'
 import { useCompany } from '@/core/hooks/use-company'
+import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { useProducts } from '../hooks'
 import { useSuppliers } from '@/modules/suppliers/hooks'
 import { purchaseService } from '../services'
@@ -31,7 +32,12 @@ export function PurchaseForm() {
   const { selectedCompany } = useCompany()
   const { data: suppliers } = useSuppliers()
   const { data: products } = useProducts()
-  const [submitting, setSubmitting] = useState(false)
+
+  const mutation = useFirestoreMutation(
+    'purchases',
+    (companyId, data: any) => purchaseService.create(companyId, data),
+    { invalidate: ['transactions'] },
+  )
 
   const [form, setForm] = useState({
     supplierId: '',
@@ -103,38 +109,33 @@ export function PurchaseForm() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!selectedCompany || !form.supplierId) return
-    setSubmitting(true)
-    try {
-      const purchaseItems: PurchaseItem[] = items
-        .filter((item) => item.productName && Number(item.quantity) > 0)
-        .map((item) => ({
-          productId: item.productId,
-          productName: item.productName,
-          quantity: Number(item.quantity),
-          unit: item.unit,
-          unitPrice: Number(item.unitPrice),
-          subtotal: Number(item.quantity) * Number(item.unitPrice),
-        }))
+    if (!form.supplierId) return
+    const purchaseItems: PurchaseItem[] = items
+      .filter((item) => item.productName && Number(item.quantity) > 0)
+      .map((item) => ({
+        productId: item.productId,
+        productName: item.productName,
+        quantity: Number(item.quantity),
+        unit: item.unit,
+        unitPrice: Number(item.unitPrice),
+        subtotal: Number(item.quantity) * Number(item.unitPrice),
+      }))
 
-      await purchaseService.create(selectedCompany.id, {
-        supplierId: form.supplierId,
-        supplierName: selectedSupplierName,
-        date: Timestamp.fromDate(new Date(form.date)),
-        invoiceNumber: form.invoiceNumber || undefined,
-        items: purchaseItems,
-        subtotal,
-        tax: taxAmount,
-        total,
-        status: form.status,
-        paymentStatus: form.paymentStatus,
-        paymentDueDate: form.paymentDueDate ? Timestamp.fromDate(new Date(form.paymentDueDate)) : undefined,
-        notes: form.notes || undefined,
-      } as any)
-      navigate('/finance/purchases')
-    } finally {
-      setSubmitting(false)
-    }
+    await mutation.mutateAsync({
+      supplierId: form.supplierId,
+      supplierName: selectedSupplierName,
+      date: Timestamp.fromDate(new Date(form.date)),
+      invoiceNumber: form.invoiceNumber || undefined,
+      items: purchaseItems,
+      subtotal,
+      tax: taxAmount,
+      total,
+      status: form.status,
+      paymentStatus: form.paymentStatus,
+      paymentDueDate: form.paymentDueDate ? Timestamp.fromDate(new Date(form.paymentDueDate)) : undefined,
+      notes: form.notes || undefined,
+    } as any)
+    navigate('/finance/purchases')
   }
 
   return (
@@ -311,10 +312,10 @@ export function PurchaseForm() {
         <div className="flex gap-3">
           <button
             type="submit"
-            disabled={submitting}
+            disabled={mutation.isPending}
             className="px-5 py-2.5 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {submitting ? 'Guardando...' : 'Guardar Compra'}
+            {mutation.isPending ? 'Guardando...' : 'Guardar Compra'}
           </button>
           <button
             type="button"
