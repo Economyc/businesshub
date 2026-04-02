@@ -61,7 +61,7 @@ export function Topbar({ onMenuToggle }: TopbarProps) {
         <div className="hidden md:block relative" ref={companyRef}>
           <button
             onClick={() => setCompanyOpen(!companyOpen)}
-            className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg bg-[#f4f3f1] dark:bg-[#1c1c1c] hover:bg-[#eeedeb] dark:hover:bg-[#222] transition-all duration-150"
+            className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg bg-[#f4f3f1] dark:bg-[#171717] hover:bg-[#eeedeb] dark:hover:bg-[#1c1c1c] transition-all duration-150"
           >
             <CompanyLogo company={selectedCompany} />
             <div className="min-w-0 text-left">
@@ -115,7 +115,7 @@ export function Topbar({ onMenuToggle }: TopbarProps) {
       <div className="relative" ref={menuRef}>
         <button
           onClick={() => setOpen(!open)}
-          className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-[#f4f3f1] dark:bg-[#1c1c1c] hover:bg-[#eeedeb] dark:hover:bg-[#222] transition-all duration-150 cursor-pointer"
+          className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-[#f4f3f1] dark:bg-[#171717] hover:bg-[#eeedeb] dark:hover:bg-[#1c1c1c] transition-all duration-150 cursor-pointer"
         >
           <div className="w-6 h-6 rounded-full bg-graphite/10 flex items-center justify-center">
             <CircleUser size={14} strokeWidth={1.5} className="text-graphite" />
