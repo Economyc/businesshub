@@ -65,7 +65,7 @@ export function Topbar({ onMenuToggle }: TopbarProps) {
           >
             <CompanyLogo company={selectedCompany} />
             <div className="min-w-0 text-left">
-              <div className="text-body font-medium text-dark-graphite truncate max-w-[180px]">
+              <div className="text-body font-medium text-dark-graphite truncate max-w-[120px]">
                 {selectedCompany?.name ?? 'BusinessHub'}
               </div>
               {selectedCompany?.location && (
