@@ -1,7 +1,7 @@
 import { Timestamp } from 'firebase/firestore'
 import { recurringService } from './recurring-service'
 import { financeService } from './services'
-import { cacheDel } from '@/core/utils/cache'
+import { invalidateCollection } from '@/core/query/invalidation'
 import type { RecurringTransaction, RecurrenceFrequency } from './types'
 
 function startOfDay(date: Date): Date {
@@ -78,8 +78,8 @@ export async function generatePendingTransactions(companyId: string): Promise<nu
   }
 
   if (generated > 0) {
-    cacheDel(`col:${companyId}:transactions`)
-    cacheDel(`col:${companyId}:recurring-transactions`)
+    invalidateCollection(companyId, 'transactions')
+    invalidateCollection(companyId, 'recurring-transactions')
   }
 
   return generated

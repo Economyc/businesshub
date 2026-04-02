@@ -5,6 +5,7 @@ import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
 import { DateRangePicker } from '@/modules/finance/components/date-range-picker'
 import { staggerContainer, staggerItem } from '@/core/animations/variants'
+import { HomeCardSkeleton } from '@/core/ui/skeleton'
 import { useCompany } from '@/core/hooks/use-company'
 import { CompanyLogo } from '@/core/ui/company-logo'
 import { formatCurrency, formatPercentChange } from '@/core/utils/format'
@@ -156,9 +157,7 @@ export function HomePage() {
       </PageHeader>
 
       {loading ? (
-        <div className="flex items-center justify-center h-64">
-          <span className="text-mid-gray text-caption animate-pulse">Cargando resumen...</span>
-        </div>
+        <HomeCardSkeleton count={4} />
       ) : (
         <motion.div
           variants={staggerContainer}

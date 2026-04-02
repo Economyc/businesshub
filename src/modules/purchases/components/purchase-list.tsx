@@ -8,8 +8,10 @@ import { FilterPopover } from '@/core/ui/filter-popover'
 import { DataTable } from '@/core/ui/data-table'
 import { StatusBadge } from '@/core/ui/status-badge'
 import { EmptyState } from '@/core/ui/empty-state'
+import { TableSkeleton } from '@/core/ui/skeleton'
+import { LoadMoreButton } from '@/core/ui/load-more-button'
 import { formatCurrency } from '@/core/utils/format'
-import { usePurchases } from '../hooks'
+import { usePaginatedPurchases } from '../hooks'
 import { FinanceTabs } from '@/modules/finance/components/finance-tabs'
 import { DateRangePicker } from '@/modules/finance/components/date-range-picker'
 import type { Purchase, PurchaseStatus, PaymentStatus } from '../types'
@@ -40,7 +42,7 @@ const STATUS_LABELS: Record<PurchaseStatus, string> = {
 
 export function PurchaseList() {
   const navigate = useNavigate()
-  const { data: purchases, loading } = usePurchases()
+  const { data: purchases, loading, loadingMore, hasMore, totalCount, loadMore } = usePaginatedPurchases()
   const [search, setSearch] = useState('')
   const [supplierFilter, setSupplierFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
@@ -184,7 +186,7 @@ export function PurchaseList() {
       </div>
 
       {loading ? (
-        <div className="text-body text-mid-gray py-8 text-center">Cargando...</div>
+        <TableSkeleton rows={5} columns={7} />
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={ShoppingCart}
@@ -192,11 +194,20 @@ export function PurchaseList() {
           description="Registra tu primera compra usando el botón + Nueva Compra"
         />
       ) : (
-        <DataTable
-          columns={columns}
-          data={filtered}
-          onRowClick={(p) => navigate(`/finance/purchases/${p.id}`)}
-        />
+        <>
+          <DataTable
+            columns={columns}
+            data={filtered}
+            onRowClick={(p) => navigate(`/finance/purchases/${p.id}`)}
+          />
+          <LoadMoreButton
+            onClick={loadMore}
+            loading={loadingMore}
+            hasMore={hasMore}
+            loadedCount={purchases.length}
+            totalCount={totalCount}
+          />
+        </>
       )}
     </PageTransition>
   )

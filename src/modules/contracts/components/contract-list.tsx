@@ -8,8 +8,10 @@ import { FilterPopover } from '@/core/ui/filter-popover'
 import { DataTable } from '@/core/ui/data-table'
 import { StatusBadge } from '@/core/ui/status-badge'
 import { EmptyState } from '@/core/ui/empty-state'
+import { TableSkeleton } from '@/core/ui/skeleton'
+import { LoadMoreButton } from '@/core/ui/load-more-button'
 import { formatCurrency } from '@/core/utils/format'
-import { useContracts } from '../hooks'
+import { usePaginatedContracts } from '../hooks'
 import { ContractsTabs } from './contracts-tabs'
 import type { Contract } from '../types'
 import type { Timestamp } from 'firebase/firestore'
@@ -47,7 +49,7 @@ function formatDate(ts: Timestamp | string | undefined): string {
 
 export function ContractList() {
   const navigate = useNavigate()
-  const { data: contracts, loading } = useContracts()
+  const { data: contracts, loading, loadingMore, hasMore, totalCount, loadMore } = usePaginatedContracts()
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
@@ -163,7 +165,7 @@ export function ContractList() {
       </div>
 
       {loading ? (
-        <div className="text-body text-mid-gray py-8 text-center">Cargando...</div>
+        <TableSkeleton rows={5} columns={6} />
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={FileSignature}
@@ -171,11 +173,20 @@ export function ContractList() {
           description="Genera tu primer contrato usando el botón + Generar Contrato"
         />
       ) : (
-        <DataTable
-          columns={columns}
-          data={filtered}
-          onRowClick={(c) => navigate(`/contracts/${c.id}`)}
-        />
+        <>
+          <DataTable
+            columns={columns}
+            data={filtered}
+            onRowClick={(c) => navigate(`/contracts/${c.id}`)}
+          />
+          <LoadMoreButton
+            onClick={loadMore}
+            loading={loadingMore}
+            hasMore={hasMore}
+            loadedCount={contracts.length}
+            totalCount={totalCount}
+          />
+        </>
       )}
     </PageTransition>
   )

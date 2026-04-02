@@ -8,6 +8,7 @@ import { DataTable } from '@/core/ui/data-table'
 import { StatusBadge } from '@/core/ui/status-badge'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 import { EmptyState } from '@/core/ui/empty-state'
+import { TableSkeleton } from '@/core/ui/skeleton'
 import { formatCurrency } from '@/core/utils/format'
 import { useCompany } from '@/core/hooks/use-company'
 import { useProducts } from '../hooks'
@@ -191,7 +192,7 @@ export function ProductList() {
       </div>
 
       {loading ? (
-        <div className="text-body text-mid-gray py-8 text-center">Cargando...</div>
+        <TableSkeleton rows={5} columns={6} />
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={Package}

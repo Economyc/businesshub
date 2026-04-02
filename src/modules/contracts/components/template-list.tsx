@@ -7,6 +7,7 @@ import { FilterPopover } from '@/core/ui/filter-popover'
 import { DataTable } from '@/core/ui/data-table'
 import { StatusBadge } from '@/core/ui/status-badge'
 import { EmptyState } from '@/core/ui/empty-state'
+import { TableSkeleton } from '@/core/ui/skeleton'
 import { useCompany } from '@/core/hooks/use-company'
 import { useTemplates } from '../hooks'
 import { templateService } from '../services'
@@ -139,7 +140,7 @@ export function TemplateList() {
       </div>
 
       {loading ? (
-        <div className="text-body text-mid-gray py-8 text-center">Cargando...</div>
+        <TableSkeleton rows={5} columns={5} />
       ) : templates.length === 0 ? (
         <div className="text-center py-12">
           <EmptyState

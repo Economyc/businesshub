@@ -1,5 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { Suspense } from 'react'
+import { QueryClientProvider } from '@tanstack/react-query'
+import { queryClient } from '@/core/query/query-client'
+import { Skeleton } from '@/core/ui/skeleton'
 import { AuthProvider, useAuth } from '@/core/hooks/use-auth'
 import { CompanyProvider } from '@/core/ui/company-provider'
 import { Layout } from '@/core/ui/layout'
@@ -22,8 +25,14 @@ import { DateRangeProvider } from '@/modules/finance/context/date-range-context'
 
 function Loading() {
   return (
-    <div className="flex items-center justify-center h-40">
-      <div className="text-mid-gray text-body">Cargando...</div>
+    <div className="space-y-4 p-6">
+      <Skeleton className="h-6 w-48 rounded" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-24 rounded-xl" />
+        ))}
+      </div>
+      <Skeleton className="h-64 rounded-xl" />
     </div>
   )
 }
@@ -37,6 +46,7 @@ function ProtectedRoute() {
 export default function App() {
   return (
     <BrowserRouter>
+      <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <CompanyProvider>
           <Routes>
@@ -87,6 +97,7 @@ export default function App() {
           </Routes>
         </CompanyProvider>
       </AuthProvider>
+      </QueryClientProvider>
     </BrowserRouter>
   )
 }

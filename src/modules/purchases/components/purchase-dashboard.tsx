@@ -9,6 +9,7 @@ import { PageHeader } from '@/core/ui/page-header'
 import { KPICard } from '@/core/ui/kpi-card'
 import { staggerContainer, staggerItem } from '@/core/animations/variants'
 import { formatCurrency } from '@/core/utils/format'
+import { DashboardSkeleton } from '@/core/ui/skeleton'
 import { usePurchaseSummary, usePurchaseTrends, usePurchaseAlerts } from '../hooks'
 import { FinanceTabs } from '@/modules/finance/components/finance-tabs'
 import { DateRangePicker } from '@/modules/finance/components/date-range-picker'
@@ -94,7 +95,7 @@ export function PurchaseDashboard() {
       </div>
 
       {loading ? (
-        <div className="text-body text-mid-gray py-8 text-center">Cargando...</div>
+        <DashboardSkeleton kpiCount={4} charts={2} />
       ) : (
         <>
           {/* KPIs */}

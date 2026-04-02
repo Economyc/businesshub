@@ -18,6 +18,7 @@ import { SelectInput } from '@/core/ui/select-input'
 import { CurrencyInput } from '@/core/ui/currency-input'
 import { staggerContainer } from '@/core/animations/variants'
 import { formatCurrency } from '@/core/utils/format'
+import { DashboardSkeleton } from '@/core/ui/skeleton'
 import { useBudgetComparison } from '../hooks'
 import { useDateRange } from '../context/date-range-context'
 import { FinanceTabs } from './finance-tabs'
@@ -258,7 +259,7 @@ export function BudgetView() {
       )}
 
       {loading ? (
-        <div className="text-body text-mid-gray py-8 text-center">Cargando...</div>
+        <DashboardSkeleton kpiCount={4} charts={1} />
       ) : !hasBudget && comparison.rows.length === 0 ? (
         <div className="text-center py-12">
           <Target size={40} strokeWidth={1} className="mx-auto text-smoke mb-3" />

@@ -7,7 +7,7 @@ import {
   removeDocument,
 } from '@/core/firebase/helpers'
 import { financeService } from '@/modules/finance/services'
-import { cacheDel } from '@/core/utils/cache'
+import { invalidateCollection } from '@/core/query/invalidation'
 import type { Transaction, TransactionFormData } from '@/modules/finance/types'
 import type { Purchase } from '@/modules/purchases/types'
 import type { Payment, PaymentFormData, PaymentTargetType } from './types'
@@ -40,11 +40,11 @@ export const paymentService = {
         notes: `Comisión retenida en pago de cartera`,
       }
       await financeService.create(companyId, commissionTx)
-      cacheDel(`col:${companyId}:transactions`)
+      invalidateCollection(companyId, 'transactions')
     }
 
     await reconcileTarget(companyId, data.targetType, data.targetId)
-    cacheDel(`col:${companyId}:${COLLECTION}`)
+    invalidateCollection(companyId, COLLECTION)
     return id
   },
 
@@ -56,7 +56,7 @@ export const paymentService = {
   ) => {
     await removeDocument(companyId, COLLECTION, id)
     await reconcileTarget(companyId, targetType, targetId)
-    cacheDel(`col:${companyId}:${COLLECTION}`)
+    invalidateCollection(companyId, COLLECTION)
   },
 }
 
@@ -77,7 +77,7 @@ async function reconcileTarget(
     const newStatus = totalApplied >= tx.amount ? 'paid' : 'pending'
     if (tx.status !== newStatus) {
       await updateDocument(companyId, 'transactions', targetId, { status: newStatus })
-      cacheDel(`col:${companyId}:transactions`)
+      invalidateCollection(companyId, 'transactions')
     }
   } else {
     const purchase = await fetchDocument<Purchase>(companyId, 'purchases', targetId)
@@ -85,7 +85,7 @@ async function reconcileTarget(
     const newStatus = totalApplied >= purchase.total ? 'paid' : 'pending'
     if (purchase.paymentStatus !== newStatus) {
       await updateDocument(companyId, 'purchases', targetId, { paymentStatus: newStatus })
-      cacheDel(`col:${companyId}:purchases`)
+      invalidateCollection(companyId, 'purchases')
       // Also re-sync the mirrored transaction
       const { syncPurchaseTransaction } = await import('@/core/services/transaction-sync')
       await syncPurchaseTransaction(companyId, targetId, { ...purchase, paymentStatus: newStatus })

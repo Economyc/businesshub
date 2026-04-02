@@ -8,12 +8,14 @@ import { DataTable } from '@/core/ui/data-table'
 import { StatusBadge } from '@/core/ui/status-badge'
 import { EmptyState } from '@/core/ui/empty-state'
 import { formatCurrency } from '@/core/utils/format'
-import { useEmployees } from '../hooks'
+import { TableSkeleton } from '@/core/ui/skeleton'
+import { LoadMoreButton } from '@/core/ui/load-more-button'
+import { usePaginatedEmployees } from '../hooks'
 import { EmployeeForm } from './employee-form'
 import type { Employee } from '../types'
 
 export function EmployeeList() {
-  const { data: employees, loading, refetch } = useEmployees()
+  const { data: employees, loading, loadingMore, hasMore, totalCount, loadMore, refetch } = usePaginatedEmployees()
   const [search, setSearch] = useState('')
   const [departmentFilter, setDepartmentFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
@@ -150,7 +152,7 @@ export function EmployeeList() {
       </div>
 
       {loading ? (
-        <div className="text-body text-mid-gray py-8 text-center">Cargando...</div>
+        <TableSkeleton rows={5} columns={6} />
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={Users}
@@ -158,11 +160,20 @@ export function EmployeeList() {
           description="Agrega tu primer empleado usando el botón + Nuevo"
         />
       ) : (
-        <DataTable
-          columns={columns}
-          data={filtered}
-          onRowClick={(e) => setEditingEmployee(e)}
-        />
+        <>
+          <DataTable
+            columns={columns}
+            data={filtered}
+            onRowClick={(e) => setEditingEmployee(e)}
+          />
+          <LoadMoreButton
+            onClick={loadMore}
+            loading={loadingMore}
+            hasMore={hasMore}
+            loadedCount={employees.length}
+            totalCount={totalCount}
+          />
+        </>
       )}
     </PageTransition>
   )

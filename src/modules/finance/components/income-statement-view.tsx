@@ -13,6 +13,7 @@ import { PageHeader } from '@/core/ui/page-header'
 import { KPICard } from '@/core/ui/kpi-card'
 import { staggerContainer } from '@/core/animations/variants'
 import { formatCurrency } from '@/core/utils/format'
+import { DashboardSkeleton } from '@/core/ui/skeleton'
 import { useIncomeStatement } from '../hooks'
 import { useDateRange } from '../context/date-range-context'
 import { FinanceTabs } from './finance-tabs'
@@ -257,7 +258,7 @@ export function IncomeStatementView() {
       <FinanceTabs />
 
       {loading ? (
-        <div className="text-body text-mid-gray py-8 text-center">Cargando...</div>
+        <DashboardSkeleton kpiCount={4} charts={1} />
       ) : (
         <>
           {/* KPI Cards */}

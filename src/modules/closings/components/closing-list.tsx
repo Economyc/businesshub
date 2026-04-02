@@ -6,10 +6,12 @@ import { PageHeader } from '@/core/ui/page-header'
 import { SearchInput } from '@/core/ui/search-input'
 import { DataTable } from '@/core/ui/data-table'
 import { EmptyState } from '@/core/ui/empty-state'
+import { TableSkeleton } from '@/core/ui/skeleton'
+import { LoadMoreButton } from '@/core/ui/load-more-button'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 import { formatCurrency } from '@/core/utils/format'
 import { useCompany } from '@/core/hooks/use-company'
-import { useClosings } from '../hooks'
+import { usePaginatedClosings } from '../hooks'
 import { closingService } from '../services'
 import { ClosingForm } from './closing-form'
 import { ClosingReceipt } from './closing-receipt'
@@ -32,7 +34,7 @@ const CLOSING_TABS = [
 
 export function ClosingList() {
   const { selectedCompany } = useCompany()
-  const { data: closings, loading, refetch } = useClosings()
+  const { data: closings, loading, loadingMore, hasMore, totalCount, loadMore, refetch } = usePaginatedClosings()
   const [tab, setTab] = useState<Tab>('form')
   const [search, setSearch] = useState('')
   const [deleteTarget, setDeleteTarget] = useState<Closing | null>(null)
@@ -164,7 +166,7 @@ export function ClosingList() {
           </div>
 
           {loading ? (
-            <div className="text-body text-mid-gray py-8 text-center">Cargando...</div>
+            <TableSkeleton rows={5} columns={6} />
           ) : filtered.length === 0 ? (
             <EmptyState
               icon={ClipboardList}
@@ -172,11 +174,20 @@ export function ClosingList() {
               description="Registra tu primer cierre en la pestaña Nuevo Cierre"
             />
           ) : (
-            <DataTable
-              columns={columns}
-              data={filtered}
-              onRowClick={(c) => setReceiptClosing(c)}
-            />
+            <>
+              <DataTable
+                columns={columns}
+                data={filtered}
+                onRowClick={(c) => setReceiptClosing(c)}
+              />
+              <LoadMoreButton
+                onClick={loadMore}
+                loading={loadingMore}
+                hasMore={hasMore}
+                loadedCount={closings.length}
+                totalCount={totalCount}
+              />
+            </>
           )}
         </>
       )}

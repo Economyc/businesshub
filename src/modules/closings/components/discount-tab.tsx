@@ -6,6 +6,7 @@ import { SelectInput } from '@/core/ui/select-input'
 import { SearchInput } from '@/core/ui/search-input'
 import { DataTable } from '@/core/ui/data-table'
 import { EmptyState } from '@/core/ui/empty-state'
+import { TableSkeleton } from '@/core/ui/skeleton'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 import { formatCurrency } from '@/core/utils/format'
 import { useCompany } from '@/core/hooks/use-company'
@@ -316,7 +317,7 @@ export function DiscountTab() {
       </div>
 
       {loading ? (
-        <div className="text-body text-mid-gray py-8 text-center">Cargando...</div>
+        <TableSkeleton rows={5} columns={6} />
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={Percent}

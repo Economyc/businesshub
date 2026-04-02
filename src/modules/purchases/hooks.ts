@@ -1,5 +1,7 @@
 import { useMemo } from 'react'
 import { useCollection, useDocument } from '@/core/hooks/use-firestore'
+import { usePaginatedCollection } from '@/core/hooks/use-paginated-collection'
+import { orderBy } from 'firebase/firestore'
 import type { Product, Purchase } from './types'
 
 // --- Basic hooks ---
@@ -18,6 +20,10 @@ export function usePurchases() {
 
 export function usePurchase(id: string | undefined) {
   return useDocument<Purchase>('purchases', id)
+}
+
+export function usePaginatedPurchases() {
+  return usePaginatedCollection<Purchase>('purchases', 50, orderBy('createdAt', 'desc'))
 }
 
 // --- Calculation hooks ---

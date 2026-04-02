@@ -9,10 +9,12 @@ import { FilterPopover } from '@/core/ui/filter-popover'
 import { SelectInput } from '@/core/ui/select-input'
 import { StatusBadge } from '@/core/ui/status-badge'
 import { EmptyState } from '@/core/ui/empty-state'
+import { TableSkeleton } from '@/core/ui/skeleton'
+import { LoadMoreButton } from '@/core/ui/load-more-button'
 import { formatCurrency } from '@/core/utils/format'
 import { parseCategory } from '@/core/utils/categories'
 import { useCompany } from '@/core/hooks/use-company'
-import { useTransactions, useRecurringGenerator } from '../hooks'
+import { usePaginatedTransactions, useRecurringGenerator } from '../hooks'
 import { useDateRange } from '../context/date-range-context'
 import { FinanceSummary } from './finance-summary'
 import { FinanceTabs } from './finance-tabs'
@@ -36,7 +38,7 @@ function getCategoryPill(t: Transaction, categoryItems: CategoryItem[]): { label
 
 export function TransactionList() {
   const navigate = useNavigate()
-  const { data: transactions, loading, refetch } = useTransactions()
+  const { data: transactions, loading, loadingMore, hasMore, totalCount, loadMore, refetch } = usePaginatedTransactions()
   useRecurringGenerator()
   const { startDate, endDate } = useDateRange()
   const { categories: categoryItems } = useCompany()
@@ -184,7 +186,7 @@ export function TransactionList() {
       </div>
 
       {loading ? (
-        <div className="text-body text-mid-gray py-8 text-center">Cargando...</div>
+        <TableSkeleton rows={5} columns={5} />
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={DollarSign}
@@ -192,6 +194,7 @@ export function TransactionList() {
           description="Registra tu primera transacción usando el botón + Nueva"
         />
       ) : (
+        <>
         <div className="bg-surface rounded-xl card-elevated overflow-hidden">
           {groupedByDate.map((group, gi) => {
             const isExpanded = expandedDates.has(group.dateKey)
@@ -284,6 +287,14 @@ export function TransactionList() {
             )
           })}
         </div>
+        <LoadMoreButton
+          onClick={loadMore}
+          loading={loadingMore}
+          hasMore={hasMore}
+          loadedCount={transactions.length}
+          totalCount={totalCount}
+        />
+        </>
       )}
 
       <TransactionForm

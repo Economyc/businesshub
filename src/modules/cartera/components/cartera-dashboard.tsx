@@ -7,6 +7,7 @@ import { SearchInput } from '@/core/ui/search-input'
 import { DataTable } from '@/core/ui/data-table'
 import { EmptyState } from '@/core/ui/empty-state'
 import { formatCurrency } from '@/core/utils/format'
+import { CarteraSkeleton } from '@/core/ui/skeleton'
 import { useCarteraItems, useCarteraSummary } from '../hooks'
 import { PaymentForm } from './payment-form'
 import type { CarteraItem } from '../types'
@@ -191,9 +192,7 @@ export function CarteraDashboard() {
 
       {/* Content */}
       {loading ? (
-        <div className="flex items-center justify-center h-40">
-          <div className="text-mid-gray text-body">Cargando...</div>
-        </div>
+        <CarteraSkeleton />
       ) : sorted.length === 0 ? (
         <EmptyState
           icon={Clock}

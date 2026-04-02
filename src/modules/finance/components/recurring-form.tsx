@@ -171,7 +171,16 @@ export function RecurringForm({ open, recurringId, onClose, onSaved }: Recurring
               </div>
 
               {loading ? (
-                <div className="text-body text-mid-gray py-8 text-center">Cargando...</div>
+                <div className="space-y-4 px-6 py-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <div key={i} className="space-y-1.5">
+                        <div className="animate-pulse rounded-md bg-bone/80 h-3 w-16" />
+                        <div className="animate-pulse rounded-md bg-bone/80 h-10 w-full rounded-[10px]" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
               ) : (
                 <form onSubmit={handleSubmit} className="px-6 pb-5">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

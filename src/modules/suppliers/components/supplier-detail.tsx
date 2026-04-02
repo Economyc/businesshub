@@ -10,6 +10,7 @@ import { CategorySelect } from '@/core/ui/category-select'
 import { StatusBadge } from '@/core/ui/status-badge'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 import { useCompany } from '@/core/hooks/use-company'
+import { Skeleton } from '@/core/ui/skeleton'
 import { useSupplier } from '../hooks'
 import { supplierService } from '../services'
 import type { SupplierFormData } from '../types'
@@ -128,7 +129,11 @@ export function SupplierDetail() {
   if (loading) {
     return (
       <PageTransition>
-        <div className="text-body text-mid-gray py-8 text-center">Cargando...</div>
+        <div className="space-y-4">
+          <Skeleton className="h-6 w-48 rounded" />
+          <Skeleton className="h-40 w-full rounded-xl" />
+          <Skeleton className="h-64 w-full rounded-xl" />
+        </div>
       </PageTransition>
     )
   }

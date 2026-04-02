@@ -12,6 +12,7 @@ import { DateRangePicker } from '@/modules/finance/components/date-range-picker'
 import { KPICard } from '@/core/ui/kpi-card'
 import { staggerContainer } from '@/core/animations/variants'
 import { formatCurrency } from '@/core/utils/format'
+import { DashboardSkeleton } from '@/core/ui/skeleton'
 import { AnalyticsTabs } from './analytics-tabs'
 import { ExportPDF } from './export-pdf'
 import { usePurchaseAnalytics } from '../hooks'
@@ -55,9 +56,7 @@ export function PurchasesDashboard() {
       <AnalyticsTabs />
 
       {loading ? (
-        <div className="flex items-center justify-center h-64">
-          <span className="text-mid-gray text-caption animate-pulse">Cargando datos...</span>
-        </div>
+        <DashboardSkeleton kpiCount={4} charts={2} />
       ) : (
         <div ref={dashboardRef} className="space-y-6">
           {/* KPI Cards */}

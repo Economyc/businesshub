@@ -12,6 +12,7 @@ import { useContract } from '../hooks'
 import { contractService } from '../services'
 import { ContractPreview } from './contract-preview'
 import { formatCurrency } from '@/core/utils/format'
+import { Skeleton } from '@/core/ui/skeleton'
 import type { ContractClause } from '../types'
 import type { ContractStatus } from '@/core/types'
 import type { Timestamp } from 'firebase/firestore'
@@ -99,7 +100,20 @@ export function ContractDetail() {
   if (loading) {
     return (
       <PageTransition>
-        <div className="text-body text-mid-gray py-8 text-center">Cargando contrato...</div>
+        <div className="space-y-5">
+          <Skeleton className="h-6 w-48 rounded" />
+          <div className="bg-surface rounded-xl card-elevated p-5">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {Array.from({ length: 7 }).map((_, i) => (
+                <div key={i} className="space-y-1.5">
+                  <Skeleton className="h-3 w-16 rounded" />
+                  <Skeleton className="h-4 w-24 rounded" />
+                </div>
+              ))}
+            </div>
+          </div>
+          <Skeleton className="h-64 w-full rounded-xl" />
+        </div>
       </PageTransition>
     )
   }

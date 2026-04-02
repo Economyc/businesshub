@@ -8,7 +8,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '@/core/firebase/config'
 import { companyCollection } from '@/core/firebase/helpers'
-import { cacheDel } from '@/core/utils/cache'
+import { invalidateCollection } from '@/core/query/invalidation'
 import type { Closing } from '@/modules/closings/types'
 import type { Purchase } from '@/modules/purchases/types'
 
@@ -28,7 +28,7 @@ interface TransactionData {
 }
 
 function invalidateCache(companyId: string) {
-  cacheDel(`col:${companyId}:transactions`)
+  invalidateCollection(companyId, 'transactions')
 }
 
 function closingDateToTimestamp(dateStr: string): Timestamp {

@@ -1,12 +1,20 @@
-import { useMemo, useState, useEffect, useCallback, useRef } from 'react'
+import { useMemo, useEffect, useCallback, useRef } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useCollection } from '@/core/hooks/use-firestore'
+import { usePaginatedCollection } from '@/core/hooks/use-paginated-collection'
+import { orderBy } from 'firebase/firestore'
 import { useCompany } from '@/core/hooks/use-company'
+import { queryClient } from '@/core/query/query-client'
 import { budgetService } from './services'
 import { generatePendingTransactions } from './recurring-generator'
 import type { Transaction, RecurringTransaction, BudgetItem, BudgetConfig } from './types'
 
 export function useTransactions() {
   return useCollection<Transaction>('transactions')
+}
+
+export function usePaginatedTransactions() {
+  return usePaginatedCollection<Transaction>('transactions', 50, orderBy('date', 'desc'))
 }
 
 export function useRecurringTransactions() {

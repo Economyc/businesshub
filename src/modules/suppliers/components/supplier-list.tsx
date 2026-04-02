@@ -8,14 +8,16 @@ import { FilterPopover } from '@/core/ui/filter-popover'
 import { DataTable } from '@/core/ui/data-table'
 import { StatusBadge } from '@/core/ui/status-badge'
 import { EmptyState } from '@/core/ui/empty-state'
-import { useSuppliers } from '../hooks'
+import { TableSkeleton } from '@/core/ui/skeleton'
+import { LoadMoreButton } from '@/core/ui/load-more-button'
+import { usePaginatedSuppliers } from '../hooks'
 import { SupplierForm } from './supplier-form'
 import type { Supplier } from '../types'
 
 
 export function SupplierList() {
   const navigate = useNavigate()
-  const { data: suppliers, loading, refetch } = useSuppliers()
+  const { data: suppliers, loading, loadingMore, hasMore, totalCount, loadMore, refetch } = usePaginatedSuppliers()
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
@@ -133,7 +135,7 @@ export function SupplierList() {
       </div>
 
       {loading ? (
-        <div className="text-body text-mid-gray py-8 text-center">Cargando...</div>
+        <TableSkeleton rows={5} columns={5} />
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={Briefcase}
@@ -141,11 +143,20 @@ export function SupplierList() {
           description="Agrega tu primer proveedor usando el botón + Nuevo"
         />
       ) : (
-        <DataTable
-          columns={columns}
-          data={filtered}
-          onRowClick={(s) => navigate(`/suppliers/${s.id}`)}
-        />
+        <>
+          <DataTable
+            columns={columns}
+            data={filtered}
+            onRowClick={(s) => navigate(`/suppliers/${s.id}`)}
+          />
+          <LoadMoreButton
+            onClick={loadMore}
+            loading={loadingMore}
+            hasMore={hasMore}
+            loadedCount={suppliers.length}
+            totalCount={totalCount}
+          />
+        </>
       )}
     </PageTransition>
   )

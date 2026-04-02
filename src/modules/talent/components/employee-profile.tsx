@@ -11,6 +11,7 @@ import { CurrencyInput } from '@/core/ui/currency-input'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 import { useCompany } from '@/core/hooks/use-company'
 import { formatCurrency } from '@/core/utils/format'
+import { Skeleton } from '@/core/ui/skeleton'
 import { useEmployee } from '../hooks'
 import { talentService } from '../services'
 import type { EmployeeFormData } from '../types'
@@ -124,7 +125,11 @@ export function EmployeeProfile() {
   if (loading) {
     return (
       <PageTransition>
-        <div className="text-body text-mid-gray py-8 text-center">Cargando...</div>
+        <div className="space-y-4">
+          <Skeleton className="h-6 w-48 rounded" />
+          <Skeleton className="h-40 w-full rounded-xl" />
+          <Skeleton className="h-64 w-full rounded-xl" />
+        </div>
       </PageTransition>
     )
   }

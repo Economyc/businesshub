@@ -7,6 +7,7 @@ import {
 } from 'firebase/auth'
 import { auth } from '@/core/firebase/config'
 import { prefetchRoutes } from '@/core/utils/prefetch'
+import { Skeleton } from '@/core/ui/skeleton'
 
 interface AuthContextValue {
   user: User | null
@@ -41,7 +42,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   if (loading) {
     return (
       <div className="h-screen flex items-center justify-center bg-bone">
-        <span className="text-mid-gray text-body animate-pulse">Cargando...</span>
+        <div className="w-64 space-y-4">
+          <Skeleton className="h-10 w-10 rounded-full mx-auto" />
+          <Skeleton className="h-4 w-32 rounded mx-auto" />
+          <Skeleton className="h-3 w-20 rounded mx-auto" />
+        </div>
       </div>
     )
   }

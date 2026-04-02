@@ -8,12 +8,14 @@ import { DataTable } from '@/core/ui/data-table'
 import { StatusBadge } from '@/core/ui/status-badge'
 import { EmptyState } from '@/core/ui/empty-state'
 import { formatCurrency } from '@/core/utils/format'
-import { usePartners } from '../hooks'
+import { TableSkeleton } from '@/core/ui/skeleton'
+import { LoadMoreButton } from '@/core/ui/load-more-button'
+import { usePaginatedPartners } from '../hooks'
 import { PartnerForm } from './partner-form'
 import type { Partner } from '../types'
 
 export function PartnerList() {
-  const { data: partners, loading, refetch } = usePartners()
+  const { data: partners, loading, loadingMore, hasMore, totalCount, loadMore, refetch } = usePaginatedPartners()
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [showForm, setShowForm] = useState(false)
@@ -131,7 +133,7 @@ export function PartnerList() {
       </div>
 
       {loading ? (
-        <div className="text-body text-mid-gray py-8 text-center">Cargando...</div>
+        <TableSkeleton rows={5} columns={6} />
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={Handshake}
@@ -139,11 +141,20 @@ export function PartnerList() {
           description="Agrega tu primer socio usando el botón + Nuevo"
         />
       ) : (
-        <DataTable
-          columns={columns}
-          data={filtered}
-          onRowClick={(p) => setEditingPartner(p)}
-        />
+        <>
+          <DataTable
+            columns={columns}
+            data={filtered}
+            onRowClick={(p) => setEditingPartner(p)}
+          />
+          <LoadMoreButton
+            onClick={loadMore}
+            loading={loadingMore}
+            hasMore={hasMore}
+            loadedCount={partners.length}
+            totalCount={totalCount}
+          />
+        </>
       )}
     </PageTransition>
   )

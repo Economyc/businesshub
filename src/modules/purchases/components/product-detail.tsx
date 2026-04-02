@@ -6,6 +6,7 @@ import {
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
 import { formatCurrency } from '@/core/utils/format'
+import { Skeleton } from '@/core/ui/skeleton'
 import { useProduct, useProductPriceHistory } from '../hooks'
 
 const COLORS = ['#3d3d3d', '#5a7a5a', '#9a6a6a', '#6a6a9a', '#9a8a5a', '#5a8a8a', '#8a5a7a']
@@ -35,7 +36,11 @@ export function ProductDetail() {
   if (loading) {
     return (
       <PageTransition>
-        <div className="text-body text-mid-gray py-8 text-center">Cargando...</div>
+        <div className="space-y-4">
+          <Skeleton className="h-6 w-48 rounded" />
+          <Skeleton className="h-40 w-full rounded-xl" />
+          <Skeleton className="h-64 w-full rounded-xl" />
+        </div>
       </PageTransition>
     )
   }

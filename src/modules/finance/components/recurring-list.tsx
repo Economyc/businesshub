@@ -4,6 +4,7 @@ import { RecurringForm } from './recurring-form'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
 import { EmptyState } from '@/core/ui/empty-state'
+import { TableSkeleton } from '@/core/ui/skeleton'
 import { SearchInput } from '@/core/ui/search-input'
 import { formatCurrency } from '@/core/utils/format'
 import { useCompany } from '@/core/hooks/use-company'
@@ -84,7 +85,7 @@ export function RecurringList() {
       </div>
 
       {loading ? (
-        <div className="text-body text-mid-gray py-8 text-center">Cargando...</div>
+        <TableSkeleton rows={5} columns={6} />
       ) : sorted.length === 0 ? (
         <EmptyState
           icon={Repeat}

@@ -170,7 +170,16 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
               </div>
 
               {loading ? (
-                <div className="text-body text-mid-gray py-8 text-center">Cargando...</div>
+                <div className="space-y-4 px-6 py-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <div key={i} className="space-y-1.5">
+                        <div className="animate-pulse rounded-md bg-bone/80 h-3 w-16" />
+                        <div className="animate-pulse rounded-md bg-bone/80 h-10 w-full rounded-[10px]" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
               ) : isLinked ? (
                 <div className="px-6 pb-6 text-center">
                   <p className="text-body text-graphite mb-4">

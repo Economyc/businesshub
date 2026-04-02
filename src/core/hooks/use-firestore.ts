@@ -1,7 +1,6 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { fetchCollection, fetchDocument } from '@/core/firebase/helpers'
 import { useCompany } from './use-company'
-import { cacheGet, cacheSet } from '@/core/utils/cache'
 import type { QueryConstraint } from 'firebase/firestore'
 
 export function useCollection<T>(
@@ -9,62 +8,35 @@ export function useCollection<T>(
   ...constraints: QueryConstraint[]
 ) {
   const { selectedCompany } = useCompany()
-  const cacheKey = selectedCompany ? `col:${selectedCompany.id}:${collectionName}` : ''
-  const cached = cacheKey ? cacheGet<T[]>(cacheKey) : null
+  const companyId = selectedCompany?.id
 
-  const [data, setData] = useState<T[]>(cached ?? [])
-  const [loading, setLoading] = useState(!cached)
-  const [error, setError] = useState<Error | null>(null)
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ['firestore', companyId, collectionName],
+    queryFn: () => fetchCollection<T>(companyId!, collectionName, ...constraints),
+    enabled: !!companyId,
+  })
 
-  const refetch = useCallback(async () => {
-    if (!selectedCompany) return
-    if (!cached) setLoading(true)
-    setError(null)
-    try {
-      const result = await fetchCollection<T>(selectedCompany.id, collectionName, ...constraints)
-      setData(result)
-      cacheSet(`col:${selectedCompany.id}:${collectionName}`, result)
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error('Unknown error'))
-    } finally {
-      setLoading(false)
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCompany?.id, collectionName])
-
-  useEffect(() => {
-    // When company changes, load cache for new company immediately
-    if (selectedCompany) {
-      const newCache = cacheGet<T[]>(`col:${selectedCompany.id}:${collectionName}`)
-      if (newCache) {
-        setData(newCache)
-        setLoading(false)
-      } else {
-        setData([])
-        setLoading(true)
-      }
-    }
-    refetch()
-  }, [refetch, selectedCompany?.id, collectionName])
-
-  return { data, loading, error, refetch }
+  return {
+    data: data ?? [],
+    loading: isLoading,
+    error: error as Error | null,
+    refetch,
+  }
 }
 
 export function useDocument<T>(collectionName: string, docId: string | undefined) {
   const { selectedCompany } = useCompany()
-  const [data, setData] = useState<T | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<Error | null>(null)
+  const companyId = selectedCompany?.id
 
-  useEffect(() => {
-    if (!selectedCompany || !docId) return
-    setLoading(true)
-    setError(null)
-    fetchDocument<T>(selectedCompany.id, collectionName, docId)
-      .then(setData)
-      .catch((err) => setError(err instanceof Error ? err : new Error('Unknown error')))
-      .finally(() => setLoading(false))
-  }, [selectedCompany?.id, collectionName, docId])
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['firestore', companyId, collectionName, docId],
+    queryFn: () => fetchDocument<T>(companyId!, collectionName, docId!),
+    enabled: !!companyId && !!docId,
+  })
 
-  return { data, loading, error }
+  return {
+    data: data ?? null,
+    loading: isLoading,
+    error: error as Error | null,
+  }
 }
