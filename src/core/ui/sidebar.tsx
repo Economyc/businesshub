@@ -4,6 +4,7 @@ import { BarChart3, Users, Briefcase, DollarSign, Settings, ChevronsUpDown, Chec
 import { cn } from '@/lib/utils'
 import { useCompany } from '@/core/hooks/use-company'
 import { CompanyLogo } from '@/core/ui/company-logo'
+import { CommandPalette } from '@/core/ui/command-palette'
 
 const NAV_ITEMS = [
   { to: '/home', label: 'Home', icon: Home },
@@ -158,19 +159,10 @@ export function Sidebar({ onNavClick }: SidebarProps) {
           </div>
         )}
 
-        {/* Search — opens CommandPalette */}
+        {/* Search — inline CommandPalette dropdown */}
         {!collapsed ? (
           <div className="px-3 mb-3">
-            <button
-              onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))}
-              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-input-border bg-input-bg text-caption text-mid-gray hover:text-graphite hover:border-input-focus transition-all duration-150 cursor-pointer"
-            >
-              <Search size={14} strokeWidth={1.5} />
-              <span className="flex-1 text-left">Buscar...</span>
-              <kbd className="flex items-center gap-0.5 rounded border border-border bg-surface-elevated px-1 py-0.5 text-[10px] font-medium">
-                Ctrl K
-              </kbd>
-            </button>
+            <CommandPalette />
           </div>
         ) : (
           <div className="flex justify-center mb-3">

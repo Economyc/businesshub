@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import {
   Search, Home, BarChart3, Users, Briefcase, DollarSign, Handshake,
   ClipboardList, FileSignature, Building2, Tags, BadgeCheck, Network,
-  ArrowRight, Clock, Plus, Hash, CornerDownLeft,
+  ArrowRight, Clock, Plus, CornerDownLeft,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useEmployees } from '@/modules/talent/hooks'
@@ -27,7 +27,7 @@ interface SearchResult {
   keywords?: string
 }
 
-// --- Navigation items (reuse from sidebar) ---
+// --- Navigation items ---
 
 const ICON_SIZE = 16
 const STROKE = 1.5
@@ -104,6 +104,7 @@ export function CommandPalette() {
   const [activeIndex, setActiveIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
 
   // Entity data
@@ -132,9 +133,20 @@ export function CommandPalette() {
     if (open) {
       setQuery('')
       setActiveIndex(0)
-      // Small delay so the animation starts before focus
       requestAnimationFrame(() => inputRef.current?.focus())
     }
+  }, [open])
+
+  // Close on click outside
+  useEffect(() => {
+    if (!open) return
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [open])
 
   // Build entity results from data
@@ -144,7 +156,6 @@ export function CommandPalette() {
 
     const results: SearchResult[] = []
 
-    // Employees
     for (const emp of employees) {
       if (
         normalize(emp.name).includes(q) ||
@@ -163,7 +174,6 @@ export function CommandPalette() {
       }
     }
 
-    // Transactions
     for (const tx of transactions) {
       if (
         normalize(tx.concept).includes(q) ||
@@ -181,7 +191,6 @@ export function CommandPalette() {
       }
     }
 
-    // Suppliers
     for (const sup of suppliers) {
       if (
         normalize(sup.name).includes(q) ||
@@ -200,7 +209,6 @@ export function CommandPalette() {
       }
     }
 
-    // Partners
     for (const p of partners) {
       if (
         normalize(p.name).includes(q) ||
@@ -218,7 +226,6 @@ export function CommandPalette() {
       }
     }
 
-    // Purchases
     for (const pur of purchases) {
       if (
         normalize(pur.supplierName).includes(q) ||
@@ -239,7 +246,6 @@ export function CommandPalette() {
     return results.slice(0, 8)
   }, [query, employees, transactions, suppliers, partners, purchases])
 
-  // Filtered nav + actions
   const filteredNav = useMemo(() => {
     const q = normalize(query)
     if (!q) return []
@@ -261,7 +267,6 @@ export function CommandPalette() {
     )
   }, [query, actions])
 
-  // Recent searches
   const recentItems = useMemo<SearchResult[]>(() => {
     if (query) return []
     return getRecent().map((r, i) => ({
@@ -273,7 +278,6 @@ export function CommandPalette() {
     }))
   }, [query, open]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Combine all results into sections
   const sections = useMemo(() => {
     const s: { title: string; items: SearchResult[] }[] = []
 
@@ -286,15 +290,12 @@ export function CommandPalette() {
     return s
   }, [recentItems, actions, filteredActions, filteredNav, entityResults, query])
 
-  // Flat list for keyboard navigation
   const flatItems = useMemo(() => sections.flatMap((s) => s.items), [sections])
 
-  // Reset active index when results change
   useEffect(() => {
     setActiveIndex(0)
   }, [query])
 
-  // Scroll active item into view
   useEffect(() => {
     if (!listRef.current) return
     const activeEl = listRef.current.querySelector(`[data-index="${activeIndex}"]`)
@@ -329,7 +330,6 @@ export function CommandPalette() {
     }
   }
 
-  // Type labels for badges
   const TYPE_LABELS: Record<string, string> = {
     employee: 'Empleado',
     transaction: 'Transaccion',
@@ -341,31 +341,38 @@ export function CommandPalette() {
   let globalIndex = -1
 
   return (
-    <AnimatePresence>
-      {open && (
-        <>
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            className="fixed inset-0 z-50 bg-black/20 backdrop-blur-[2px]"
-            onClick={() => setOpen(false)}
-          />
+    <div ref={containerRef} className="relative">
+      {/* Search trigger — input-like button */}
+      <button
+        onClick={() => setOpen(true)}
+        className={cn(
+          'w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-caption transition-all duration-150 cursor-pointer',
+          open
+            ? 'border-input-focus ring-[3px] ring-graphite/5 bg-input-bg text-graphite'
+            : 'border-input-border bg-input-bg text-mid-gray hover:text-graphite hover:border-input-focus'
+        )}
+      >
+        <Search size={14} strokeWidth={1.5} />
+        <span className="flex-1 text-left">Buscar...</span>
+        <kbd className="flex items-center gap-0.5 rounded border border-border bg-surface-elevated px-1 py-0.5 text-[10px] font-medium">
+          Ctrl K
+        </kbd>
+      </button>
 
-          {/* Palette */}
+      {/* Dropdown */}
+      <AnimatePresence>
+        {open && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.96, y: -10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.96, y: -10 }}
-            transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
-            className="fixed left-1/2 top-[max(15vh,80px)] z-50 w-[calc(100%-2rem)] max-w-[560px] -translate-x-1/2"
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.12, ease: [0.16, 1, 0.3, 1] }}
+            className="absolute left-0 right-0 top-full mt-1.5 z-50"
           >
-            <div className="overflow-hidden rounded-xl border border-border bg-surface-elevated shadow-2xl">
+            <div className="overflow-hidden rounded-xl border border-border bg-surface-elevated shadow-lg">
               {/* Search input */}
-              <div className="flex items-center gap-3 border-b border-border px-4 py-3">
-                <Search size={18} strokeWidth={1.5} className="shrink-0 text-mid-gray" />
+              <div className="flex items-center gap-2 border-b border-border px-3 py-2.5">
+                <Search size={15} strokeWidth={1.5} className="shrink-0 text-mid-gray" />
                 <input
                   ref={inputRef}
                   type="text"
@@ -373,25 +380,24 @@ export function CommandPalette() {
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder="Buscar secciones, empleados, transacciones..."
-                  className="flex-1 bg-transparent text-body text-dark-graphite placeholder:text-mid-gray/50 outline-none"
+                  className="flex-1 bg-transparent text-caption text-dark-graphite placeholder:text-mid-gray/50 outline-none"
                 />
-                <kbd className="hidden sm:flex items-center gap-0.5 rounded-md border border-border bg-bone px-1.5 py-0.5 text-[10px] font-medium text-mid-gray">
+                <kbd className="hidden sm:flex items-center rounded-md border border-border bg-bone px-1 py-0.5 text-[9px] font-medium text-mid-gray">
                   ESC
                 </kbd>
               </div>
 
               {/* Results */}
-              <div ref={listRef} className="max-h-[min(60vh,400px)] overflow-y-auto overscroll-contain p-2">
+              <div ref={listRef} className="max-h-[min(50vh,360px)] overflow-y-auto overscroll-contain p-1.5">
                 {flatItems.length === 0 && query ? (
-                  <div className="flex flex-col items-center gap-2 py-8 text-center">
-                    <Search size={32} strokeWidth={1} className="text-mid-gray/30" />
-                    <p className="text-body text-mid-gray">Sin resultados para "{query}"</p>
-                    <p className="text-caption text-mid-gray/60">Intenta con otro termino</p>
+                  <div className="flex flex-col items-center gap-1.5 py-6 text-center">
+                    <Search size={24} strokeWidth={1} className="text-mid-gray/30" />
+                    <p className="text-caption text-mid-gray">Sin resultados para "{query}"</p>
                   </div>
                 ) : (
                   sections.map((section) => (
-                    <div key={section.title} className="mb-1 last:mb-0">
-                      <div className="px-2 py-1.5 text-[11px] font-medium uppercase tracking-wider text-mid-gray/70">
+                    <div key={section.title} className="mb-0.5 last:mb-0">
+                      <div className="px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-mid-gray/70">
                         {section.title}
                       </div>
                       {section.items.map((item) => {
@@ -407,7 +413,7 @@ export function CommandPalette() {
                             onClick={() => handleSelect(item)}
                             onMouseEnter={() => setActiveIndex(idx)}
                             className={cn(
-                              'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors duration-75',
+                              'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors duration-75',
                               isActive
                                 ? 'bg-bone text-dark-graphite'
                                 : 'text-graphite hover:bg-bone/50'
@@ -415,20 +421,20 @@ export function CommandPalette() {
                           >
                             <span className="shrink-0">{item.icon}</span>
                             <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-2">
-                                <span className="truncate text-body font-medium">{item.label}</span>
+                              <div className="flex items-center gap-1.5">
+                                <span className="truncate text-caption font-medium">{item.label}</span>
                                 {badge && (
-                                  <span className="shrink-0 rounded-full bg-graphite/8 px-1.5 py-0.5 text-[10px] font-medium text-mid-gray">
+                                  <span className="shrink-0 rounded-full bg-graphite/8 px-1.5 py-0.5 text-[9px] font-medium text-mid-gray">
                                     {badge}
                                   </span>
                                 )}
                               </div>
                               {item.description && (
-                                <div className="truncate text-caption text-mid-gray">{item.description}</div>
+                                <div className="truncate text-[11px] text-mid-gray">{item.description}</div>
                               )}
                             </div>
                             {isActive && (
-                              <ArrowRight size={14} strokeWidth={1.5} className="shrink-0 text-mid-gray" />
+                              <ArrowRight size={12} strokeWidth={1.5} className="shrink-0 text-mid-gray" />
                             )}
                           </button>
                         )
@@ -439,24 +445,24 @@ export function CommandPalette() {
               </div>
 
               {/* Footer hints */}
-              <div className="flex items-center gap-4 border-t border-border px-4 py-2">
-                <div className="flex items-center gap-1 text-[10px] text-mid-gray/60">
-                  <kbd className="rounded border border-border bg-bone px-1 py-0.5 font-mono text-[9px]"><CornerDownLeft size={9} /></kbd>
+              <div className="flex items-center gap-3 border-t border-border px-3 py-1.5">
+                <div className="flex items-center gap-1 text-[9px] text-mid-gray/60">
+                  <kbd className="rounded border border-border bg-bone px-1 py-0.5 font-mono text-[8px]"><CornerDownLeft size={8} /></kbd>
                   <span>Seleccionar</span>
                 </div>
-                <div className="flex items-center gap-1 text-[10px] text-mid-gray/60">
-                  <kbd className="rounded border border-border bg-bone px-1 py-0.5 font-mono text-[9px]">&uarr;&darr;</kbd>
+                <div className="flex items-center gap-1 text-[9px] text-mid-gray/60">
+                  <kbd className="rounded border border-border bg-bone px-1 py-0.5 font-mono text-[8px]">&uarr;&darr;</kbd>
                   <span>Navegar</span>
                 </div>
-                <div className="flex items-center gap-1 text-[10px] text-mid-gray/60">
-                  <kbd className="rounded border border-border bg-bone px-1 py-0.5 font-mono text-[9px]">ESC</kbd>
+                <div className="flex items-center gap-1 text-[9px] text-mid-gray/60">
+                  <kbd className="rounded border border-border bg-bone px-1 py-0.5 font-mono text-[8px]">ESC</kbd>
                   <span>Cerrar</span>
                 </div>
               </div>
             </div>
           </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+        )}
+      </AnimatePresence>
+    </div>
   )
 }

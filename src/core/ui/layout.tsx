@@ -3,7 +3,6 @@ import { Outlet } from 'react-router-dom'
 import { Topbar } from './topbar'
 import { Sidebar } from './sidebar'
 import { MobileNav } from './mobile-nav'
-import { CommandPalette } from './command-palette'
 
 export function Layout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -24,8 +23,6 @@ export function Layout() {
           <Outlet />
         </main>
       </div>
-
-      <CommandPalette />
     </div>
   )
 }
