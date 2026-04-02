@@ -1,20 +1,51 @@
 import { useState } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { BarChart3, Users, Briefcase, DollarSign, Settings, Home, Handshake, ClipboardList, FileSignature, X, ChevronRight, Building2, Tags, BadgeCheck, Network, ChevronsUpDown, Check, MapPin } from 'lucide-react'
+import { BarChart3, Users, Briefcase, DollarSign, Settings, Home, Handshake, ClipboardList, FileSignature, X, ChevronRight, Building2, Tags, BadgeCheck, Network, ChevronsUpDown, Check, MapPin, Wallet } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useCompany } from '@/core/hooks/use-company'
 import { CompanyLogo } from '@/core/ui/company-logo'
 
-const NAV_ITEMS = [
-  { to: '/home', label: 'Home', icon: Home },
-  { to: '/analytics', label: 'Análisis', icon: BarChart3 },
-  { to: '/talent', label: 'Talento', icon: Users },
-  { to: '/suppliers', label: 'Proveedores', icon: Briefcase },
-  { to: '/finance', label: 'Finanzas', icon: DollarSign },
-  { to: '/partners', label: 'Socios', icon: Handshake },
-  { to: '/closings', label: 'Cierres', icon: ClipboardList },
-  { to: '/contracts', label: 'Contratos', icon: FileSignature },
+interface NavItem {
+  to: string
+  label: string
+  icon: typeof Home
+}
+
+interface NavSection {
+  title?: string
+  items: NavItem[]
+}
+
+const NAV_SECTIONS: NavSection[] = [
+  {
+    items: [
+      { to: '/home', label: 'Home', icon: Home },
+      { to: '/analytics', label: 'Análisis', icon: BarChart3 },
+    ],
+  },
+  {
+    title: 'Finanzas',
+    items: [
+      { to: '/finance', label: 'Finanzas', icon: DollarSign },
+      { to: '/cartera', label: 'Cartera', icon: Wallet },
+      { to: '/closings', label: 'Cierres de Caja', icon: ClipboardList },
+    ],
+  },
+  {
+    title: 'Operaciones',
+    items: [
+      { to: '/contracts', label: 'Contratos', icon: FileSignature },
+      { to: '/partners', label: 'Socios', icon: Handshake },
+    ],
+  },
+  {
+    title: 'Personas',
+    items: [
+      { to: '/talent', label: 'Equipo', icon: Users },
+      { to: '/suppliers', label: 'Proveedores', icon: Briefcase },
+    ],
+  },
 ]
 
 const SETTINGS_ITEMS = [
@@ -133,23 +164,34 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
 
             {/* Navigation */}
             <div className="flex-1 overflow-y-auto py-2">
-              {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
-                <NavLink
-                  key={to}
-                  to={to}
-                  onClick={handleNav}
-                  className={({ isActive }) =>
-                    cn(
-                      'flex items-center gap-3 mx-3 px-3 py-3 rounded-xl text-[15px] transition-all duration-150',
-                      isActive
-                        ? 'text-dark-graphite font-medium bg-bone'
-                        : 'text-graphite/70 active:bg-bone/50'
-                    )
-                  }
-                >
-                  <Icon size={20} strokeWidth={1.5} />
-                  {label}
-                </NavLink>
+              {NAV_SECTIONS.map((section, sIdx) => (
+                <div key={section.title ?? sIdx}>
+                  {section.title && (
+                    <div className="px-6 pt-4 pb-1">
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-mid-gray/60">
+                        {section.title}
+                      </span>
+                    </div>
+                  )}
+                  {section.items.map(({ to, label, icon: Icon }) => (
+                    <NavLink
+                      key={to}
+                      to={to}
+                      onClick={handleNav}
+                      className={({ isActive }) =>
+                        cn(
+                          'flex items-center gap-3 mx-3 px-3 py-3 rounded-xl text-[15px] transition-all duration-150',
+                          isActive
+                            ? 'text-dark-graphite font-medium bg-bone'
+                            : 'text-graphite/70 active:bg-bone/50'
+                        )
+                      }
+                    >
+                      <Icon size={20} strokeWidth={1.5} />
+                      {label}
+                    </NavLink>
+                  ))}
+                </div>
               ))}
             </div>
 

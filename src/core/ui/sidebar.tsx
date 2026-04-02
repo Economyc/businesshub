@@ -6,16 +6,46 @@ import { useCompany } from '@/core/hooks/use-company'
 import { CompanyLogo } from '@/core/ui/company-logo'
 import { CommandPalette } from '@/core/ui/command-palette'
 
-const NAV_ITEMS = [
-  { to: '/home', label: 'Home', icon: Home },
-  { to: '/analytics', label: 'Análisis', icon: BarChart3 },
-  { to: '/talent', label: 'Talento', icon: Users },
-  { to: '/suppliers', label: 'Proveedores', icon: Briefcase },
-  { to: '/finance', label: 'Finanzas', icon: DollarSign },
-  { to: '/cartera', label: 'Cartera', icon: Wallet },
-  { to: '/partners', label: 'Socios', icon: Handshake },
-  { to: '/closings', label: 'Cierres', icon: ClipboardList },
-  { to: '/contracts', label: 'Contratos', icon: FileSignature },
+interface NavItem {
+  to: string
+  label: string
+  icon: typeof Home
+}
+
+interface NavSection {
+  title?: string
+  items: NavItem[]
+}
+
+const NAV_SECTIONS: NavSection[] = [
+  {
+    items: [
+      { to: '/home', label: 'Home', icon: Home },
+      { to: '/analytics', label: 'Análisis', icon: BarChart3 },
+    ],
+  },
+  {
+    title: 'Finanzas',
+    items: [
+      { to: '/finance', label: 'Finanzas', icon: DollarSign },
+      { to: '/cartera', label: 'Cartera', icon: Wallet },
+      { to: '/closings', label: 'Cierres de Caja', icon: ClipboardList },
+    ],
+  },
+  {
+    title: 'Operaciones',
+    items: [
+      { to: '/contracts', label: 'Contratos', icon: FileSignature },
+      { to: '/partners', label: 'Socios', icon: Handshake },
+    ],
+  },
+  {
+    title: 'Personas',
+    items: [
+      { to: '/talent', label: 'Equipo', icon: Users },
+      { to: '/suppliers', label: 'Proveedores', icon: Briefcase },
+    ],
+  },
 ]
 
 const SETTINGS_ITEMS = [
@@ -180,30 +210,42 @@ export function Sidebar({ onNavClick }: SidebarProps) {
         )}
 
         {/* Nav items */}
-        <div className="flex-1">
-          {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              onClick={onNavClick}
-              className={({ isActive }) =>
-                cn(
-                  'group/nav relative flex items-center gap-2.5 py-2.5 text-body transition-all duration-150',
-                  collapsed ? 'justify-center px-0' : 'px-5',
-                  isActive
-                    ? 'text-dark-graphite font-medium bg-bone border-r-2 border-graphite'
-                    : 'text-graphite/70 hover:bg-card-bg hover:text-graphite'
-                )
-              }
-            >
-              <Icon size={18} strokeWidth={1.5} />
-              {!collapsed && label}
-              {collapsed && (
-                <span className="pointer-events-none absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 whitespace-nowrap rounded-lg bg-dark-graphite dark:bg-[#2a2a2a] px-3 py-1.5 text-caption font-medium text-white dark:text-[#e0e0e0] shadow-lg opacity-0 scale-95 transition-all duration-150 group-hover/nav:opacity-100 group-hover/nav:scale-100">
-                  {label}
-                </span>
+        <div className="flex-1 overflow-y-auto">
+          {NAV_SECTIONS.map((section, sIdx) => (
+            <div key={section.title ?? sIdx}>
+              {section.title && !collapsed && (
+                <div className="px-5 pt-4 pb-1">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-mid-gray/60">
+                    {section.title}
+                  </span>
+                </div>
               )}
-            </NavLink>
+              {section.title && collapsed && <div className="mx-4 my-2 border-t border-border/60" />}
+              {section.items.map(({ to, label, icon: Icon }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  onClick={onNavClick}
+                  className={({ isActive }) =>
+                    cn(
+                      'group/nav relative flex items-center gap-2.5 py-2.5 text-body transition-all duration-150',
+                      collapsed ? 'justify-center px-0' : 'px-5',
+                      isActive
+                        ? 'text-dark-graphite font-medium bg-bone border-r-2 border-graphite'
+                        : 'text-graphite/70 hover:bg-card-bg hover:text-graphite'
+                    )
+                  }
+                >
+                  <Icon size={18} strokeWidth={1.5} />
+                  {!collapsed && label}
+                  {collapsed && (
+                    <span className="pointer-events-none absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 whitespace-nowrap rounded-lg bg-dark-graphite dark:bg-[#2a2a2a] px-3 py-1.5 text-caption font-medium text-white dark:text-[#e0e0e0] shadow-lg opacity-0 scale-95 transition-all duration-150 group-hover/nav:opacity-100 group-hover/nav:scale-100">
+                      {label}
+                    </span>
+                  )}
+                </NavLink>
+              ))}
+            </div>
           ))}
         </div>
 
