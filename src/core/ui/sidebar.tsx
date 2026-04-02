@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
-import { BarChart3, Users, Briefcase, DollarSign, Settings, ChevronsUpDown, Check, MapPin, Home, Search, ChevronsLeft, Building2, Tags, BadgeCheck, Network, Handshake, ClipboardList, FileSignature } from 'lucide-react'
+import { BarChart3, Users, Briefcase, DollarSign, Settings, ChevronsUpDown, Check, MapPin, Home, Search, ChevronsLeft, Building2, Tags, BadgeCheck, Network, Handshake, ClipboardList, FileSignature, Wallet } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useCompany } from '@/core/hooks/use-company'
 import { CompanyLogo } from '@/core/ui/company-logo'
@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { to: '/talent', label: 'Talento', icon: Users },
   { to: '/suppliers', label: 'Proveedores', icon: Briefcase },
   { to: '/finance', label: 'Finanzas', icon: DollarSign },
+  { to: '/cartera', label: 'Cartera', icon: Wallet },
   { to: '/partners', label: 'Socios', icon: Handshake },
   { to: '/closings', label: 'Cierres', icon: ClipboardList },
   { to: '/contracts', label: 'Contratos', icon: FileSignature },

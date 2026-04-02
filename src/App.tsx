@@ -17,6 +17,7 @@ import { ClosingList } from '@/modules/closings/routes'
 import { ContractList, TemplateList, ContractGenerate, ContractDetail } from '@/modules/contracts/routes'
 import { PurchaseList, PurchaseForm, PurchaseDetail, ProductList, ProductDetail } from '@/modules/purchases/routes'
 import { HomePage } from '@/modules/home/routes'
+import { CarteraDashboard } from '@/modules/cartera/routes'
 import { DateRangeProvider } from '@/modules/finance/context/date-range-context'
 
 function Loading() {
@@ -67,6 +68,7 @@ export default function App() {
                 <Route path="/finance/purchases/products/:id" element={<Suspense fallback={<Loading />}><ProductDetail /></Suspense>} />
                 <Route path="/finance/purchases/:id" element={<Suspense fallback={<Loading />}><PurchaseDetail /></Suspense>} />
               </Route>
+              <Route path="/cartera" element={<Suspense fallback={<Loading />}><CarteraDashboard /></Suspense>} />
               <Route path="/partners" element={<Suspense fallback={<Loading />}><PartnerList /></Suspense>} />
               <Route path="/closings" element={<Suspense fallback={<Loading />}><ClosingList /></Suspense>} />
               <Route path="/contracts" element={<Suspense fallback={<Loading />}><ContractList /></Suspense>} />
