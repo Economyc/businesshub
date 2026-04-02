@@ -57,8 +57,8 @@ export function Topbar({ onMenuToggle }: TopbarProps) {
           Business<span className="font-light text-mid-gray">Hub</span>
         </Link>
 
-        {/* Desktop: Company selector */}
-        <div className="hidden md:block relative" ref={companyRef}>
+        {/* Desktop: Company selector — centered over sidebar width (200px - topbar px-6 = 176px) */}
+        <div className="hidden md:flex md:justify-center md:w-[176px] relative" ref={companyRef}>
           <button
             onClick={() => setCompanyOpen(!companyOpen)}
             className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg bg-[#f4f3f1] dark:bg-[#171717] hover:bg-[#eeedeb] dark:hover:bg-[#1c1c1c] transition-all duration-150"
