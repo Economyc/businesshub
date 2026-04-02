@@ -12,6 +12,7 @@ export function SettingsDepartments() {
       onRemove={removeDepartment}
       onUpdate={updateDepartment}
       placeholder="Nuevo departamento..."
+      itemLabel="departamento"
     />
   )
 }

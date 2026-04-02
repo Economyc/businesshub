@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
 import { storage } from '@/core/firebase/config'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
+import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 import { useCompany } from '@/core/hooks/use-company'
 import { CompanyLogo } from '@/core/ui/company-logo'
 
@@ -28,7 +29,7 @@ export function SettingsPage() {
   const [selectedFormId, setSelectedFormId] = useState<string | null>(null)
   const [savedId, setSavedId] = useState<string | null>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
-  const [deleteStep, setDeleteStep] = useState<1 | 2 | null>(null)
+  const [confirmDeleteCompany, setConfirmDeleteCompany] = useState(false)
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -73,17 +74,17 @@ export function SettingsPage() {
     }
   }
 
-  function handleDeleteCompany() {
+  async function handleDeleteCompany() {
     if (!activeForm) return
-    deleteCompany(activeForm.id)
-    setDeleteStep(null)
+    await deleteCompany(activeForm.id)
+    setConfirmDeleteCompany(false)
   }
 
   function handleSelectCompany(id: string) {
     setSelectedFormId(id)
     setPickerOpen(false)
     setSavedId(null)
-    setDeleteStep(null)
+    setConfirmDeleteCompany(false)
   }
 
   async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -116,21 +117,19 @@ export function SettingsPage() {
 
   // --- Categories ---
   const [newCategory, setNewCategory] = useState('')
-  const [pendingDelete, setPendingDelete] = useState<string | null>(null)
+  const [deleteCatTarget, setDeleteCatTarget] = useState<{ id: string; name: string } | null>(null)
 
   useEffect(() => {
-    if (!pickerOpen && deleteStep === null && !pendingDelete) return
+    if (!pickerOpen) return
     function handleKey(e: KeyboardEvent) {
       if (e.key === 'Escape' && !e.defaultPrevented) {
         e.preventDefault()
         setPickerOpen(false)
-        setDeleteStep(null)
-        setPendingDelete(null)
       }
     }
     document.addEventListener('keydown', handleKey, true)
     return () => document.removeEventListener('keydown', handleKey, true)
-  }, [pickerOpen, deleteStep, pendingDelete])
+  }, [pickerOpen])
 
   function handleAddCategory() {
     const trimmed = newCategory.trim()
@@ -146,9 +145,10 @@ export function SettingsPage() {
     }
   }
 
-  function confirmDelete(categoryId: string) {
-    removeCategory(categoryId)
-    setPendingDelete(null)
+  function handleDeleteCategory() {
+    if (!deleteCatTarget) return
+    removeCategory(deleteCatTarget.id)
+    setDeleteCatTarget(null)
   }
 
   return (
@@ -301,7 +301,7 @@ export function SettingsPage() {
               <div className="flex items-center gap-3 mt-3 pt-3 border-t border-border">
                 <button
                   type="button"
-                  onClick={() => setDeleteStep(1)}
+                  onClick={() => setConfirmDeleteCompany(true)}
                   className="p-2 rounded-lg text-mid-gray hover:text-red-500 hover:bg-red-50 transition-all duration-150"
                   title="Eliminar compañía"
                 >
@@ -327,54 +327,6 @@ export function SettingsPage() {
                   </button>
                 </div>
               </div>
-
-              {/* Delete confirmation */}
-              {deleteStep !== null && (
-                <div className="mt-3 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
-                  {deleteStep === 1 && (
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-body text-red-600">
-                        Eliminar <strong>{activeForm.name || 'esta compañía'}</strong>?
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => setDeleteStep(null)}
-                          className="px-3 py-1.5 rounded-lg text-caption font-medium text-mid-gray hover:bg-surface-elevated transition-colors"
-                        >
-                          Cancelar
-                        </button>
-                        <button
-                          onClick={() => setDeleteStep(2)}
-                          className="px-3 py-1.5 rounded-lg text-caption font-medium bg-red-100 text-red-600 hover:bg-red-200 transition-colors"
-                        >
-                          Sí, eliminar
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                  {deleteStep === 2 && (
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-body text-red-700 font-medium">
-                        Esta acción es irreversible. Todos los datos se perderán.
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => setDeleteStep(null)}
-                          className="px-3 py-1.5 rounded-lg text-caption font-medium text-mid-gray hover:bg-surface-elevated transition-colors"
-                        >
-                          Cancelar
-                        </button>
-                        <button
-                          onClick={handleDeleteCompany}
-                          className="px-3 py-1.5 rounded-lg text-caption font-medium bg-red-500 text-white hover:bg-red-600 transition-colors"
-                        >
-                          Confirmar eliminación
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
             </>
           )}
 
@@ -383,7 +335,7 @@ export function SettingsPage() {
             onClick={async () => {
               const newId = await addCompany()
               setSelectedFormId(newId)
-              setDeleteStep(null)
+              setConfirmDeleteCompany(false)
               setSavedId(null)
             }}
             className="mt-3 w-full flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl border border-dashed border-border text-body font-medium text-mid-gray hover:text-graphite hover:border-graphite hover:bg-bone/50 transition-all duration-200"
@@ -405,33 +357,13 @@ export function SettingsPage() {
             <div className="flex flex-col gap-1 flex-1 overflow-y-auto">
               {categories.map((cat) => (
                 <div key={cat.id} className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-bone/50 transition-colors group">
-                  {pendingDelete === cat.id ? (
-                    <div className="flex items-center gap-2 w-full">
-                      <span className="text-body text-negative-text flex-1">Eliminar "{cat.name}"?</span>
-                      <button
-                        onClick={() => confirmDelete(cat.id)}
-                        className="text-[11px] font-medium text-negative-text hover:underline"
-                      >
-                        Sí
-                      </button>
-                      <button
-                        onClick={() => setPendingDelete(null)}
-                        className="text-[11px] font-medium text-mid-gray hover:underline"
-                      >
-                        No
-                      </button>
-                    </div>
-                  ) : (
-                    <>
-                      <span className="text-body text-graphite">{cat.name}</span>
-                      <button
-                        onClick={() => setPendingDelete(cat.id)}
-                        className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-mid-gray hover:text-negative-text transition-all"
-                      >
-                        <X size={14} strokeWidth={1.5} />
-                      </button>
-                    </>
-                  )}
+                  <span className="text-body text-graphite">{cat.name}</span>
+                  <button
+                    onClick={() => setDeleteCatTarget({ id: cat.id, name: cat.name })}
+                    className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-mid-gray hover:text-negative-text transition-all"
+                  >
+                    <X size={14} strokeWidth={1.5} />
+                  </button>
                 </div>
               ))}
             </div>
@@ -457,6 +389,22 @@ export function SettingsPage() {
         </div>
       </section>
       </div>
+
+      <ConfirmDialog
+        open={confirmDeleteCompany}
+        title="Eliminar compañía"
+        description={`¿Estás seguro de que deseas eliminar "${activeForm?.name || 'esta compañía'}"? Esta acción no se puede deshacer.`}
+        onConfirm={handleDeleteCompany}
+        onCancel={() => setConfirmDeleteCompany(false)}
+      />
+
+      <ConfirmDialog
+        open={deleteCatTarget !== null}
+        title="Eliminar categoría"
+        description={`¿Estás seguro de que deseas eliminar la categoría "${deleteCatTarget?.name}"? Esta acción no se puede deshacer.`}
+        onConfirm={handleDeleteCategory}
+        onCancel={() => setDeleteCatTarget(null)}
+      />
     </PageTransition>
   )
 }

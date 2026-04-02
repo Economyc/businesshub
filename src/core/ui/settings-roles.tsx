@@ -12,6 +12,7 @@ export function SettingsRoles() {
       onRemove={removeRole}
       onUpdate={updateRole}
       placeholder="Nuevo cargo..."
+      itemLabel="cargo"
     />
   )
 }

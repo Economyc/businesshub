@@ -3,6 +3,7 @@ import { X, Plus, ChevronRight, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
+import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 import { useCompany } from '@/core/hooks/use-company'
 
 const inputClass =
@@ -68,22 +69,19 @@ export function SettingsCategories() {
   const [newCatName, setNewCatName] = useState('')
   const [newCatColor, setNewCatColor] = useState('#95A5A6')
   const [newSubInputs, setNewSubInputs] = useState<Record<string, string>>({})
-  const [pendingDeleteCat, setPendingDeleteCat] = useState<string | null>(null)
-  const [pendingDeleteSub, setPendingDeleteSub] = useState<{ catId: string; sub: string } | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<{ type: 'cat' | 'sub'; catId: string; name: string } | null>(null)
 
   useEffect(() => {
-    if (!expandedId && !pendingDeleteCat && !pendingDeleteSub) return
+    if (!expandedId) return
     function handleKey(e: KeyboardEvent) {
       if (e.key === 'Escape' && !e.defaultPrevented) {
         e.preventDefault()
         setExpandedId(null)
-        setPendingDeleteCat(null)
-        setPendingDeleteSub(null)
       }
     }
     document.addEventListener('keydown', handleKey, true)
     return () => document.removeEventListener('keydown', handleKey, true)
-  }, [expandedId, pendingDeleteCat, pendingDeleteSub])
+  }, [expandedId])
 
   function handleAddCategory() {
     const trimmed = newCatName.trim()
@@ -100,15 +98,15 @@ export function SettingsCategories() {
     setNewSubInputs((prev) => ({ ...prev, [categoryId]: '' }))
   }
 
-  function confirmDeleteCategory(id: string) {
-    removeCategory(id)
-    setPendingDeleteCat(null)
-    if (expandedId === id) setExpandedId(null)
-  }
-
-  function confirmDeleteSub(catId: string, sub: string) {
-    removeSubcategory(catId, sub)
-    setPendingDeleteSub(null)
+  function handleConfirmDelete() {
+    if (!deleteTarget) return
+    if (deleteTarget.type === 'cat') {
+      removeCategory(deleteTarget.catId)
+      if (expandedId === deleteTarget.catId) setExpandedId(null)
+    } else {
+      removeSubcategory(deleteTarget.catId, deleteTarget.name)
+    }
+    setDeleteTarget(null)
   }
 
   return (
@@ -177,29 +175,12 @@ export function SettingsCategories() {
 
                     {/* Actions */}
                     <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
-                      {pendingDeleteCat === cat.id ? (
-                        <div className="flex items-center gap-1.5 justify-center">
-                          <button
-                            onClick={() => confirmDeleteCategory(cat.id)}
-                            className="text-[11px] font-medium text-negative-text hover:underline"
-                          >
-                            Sí
-                          </button>
-                          <button
-                            onClick={() => setPendingDeleteCat(null)}
-                            className="text-[11px] font-medium text-mid-gray hover:underline"
-                          >
-                            No
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => setPendingDeleteCat(cat.id)}
-                          className="p-1.5 rounded-lg text-mid-gray hover:text-negative-text hover:bg-red-50 transition-all"
-                        >
-                          <Trash2 size={13} strokeWidth={1.5} />
-                        </button>
-                      )}
+                      <button
+                        onClick={() => setDeleteTarget({ type: 'cat', catId: cat.id, name: cat.name })}
+                        className="p-1.5 rounded-lg text-mid-gray hover:text-negative-text hover:bg-red-50 transition-all"
+                      >
+                        <Trash2 size={13} strokeWidth={1.5} />
+                      </button>
                     </td>
                   </tr>
 
@@ -208,33 +189,23 @@ export function SettingsCategories() {
                     <tr key={sub} className="border-b border-border last:border-b-0 bg-bone/30 group/sub">
                       <td className="border-r border-border" />
                       <td className="px-4 py-2.5 border-r border-border pl-12">
-                        {pendingDeleteSub?.catId === cat.id && pendingDeleteSub?.sub === sub ? (
-                          <div className="flex items-center gap-2">
-                            <span className="text-body text-negative-text">Eliminar "{sub}"?</span>
-                            <button onClick={() => confirmDeleteSub(cat.id, sub)} className="text-[11px] font-medium text-negative-text hover:underline">Sí</button>
-                            <button onClick={() => setPendingDeleteSub(null)} className="text-[11px] font-medium text-mid-gray hover:underline">No</button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: cat.color, opacity: 0.5 }} />
-                            <InlineEdit
-                              value={sub}
-                              onSave={(newName) => updateSubcategory(cat.id, sub, newName)}
-                              className="text-body text-graphite"
-                            />
-                          </div>
-                        )}
+                        <div className="flex items-center gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: cat.color, opacity: 0.5 }} />
+                          <InlineEdit
+                            value={sub}
+                            onSave={(newName) => updateSubcategory(cat.id, sub, newName)}
+                            className="text-body text-graphite"
+                          />
+                        </div>
                       </td>
                       <td className="px-4 py-2.5 border-r border-border" />
                       <td className="px-4 py-2.5 text-center">
-                        {!(pendingDeleteSub?.catId === cat.id && pendingDeleteSub?.sub === sub) && (
-                          <button
-                            onClick={() => setPendingDeleteSub({ catId: cat.id, sub })}
-                            className="p-0.5 rounded text-mid-gray hover:text-negative-text transition-all"
-                          >
-                            <X size={13} strokeWidth={1.5} />
-                          </button>
-                        )}
+                        <button
+                          onClick={() => setDeleteTarget({ type: 'sub', catId: cat.id, name: sub })}
+                          className="p-0.5 rounded text-mid-gray hover:text-negative-text transition-all"
+                        >
+                          <X size={13} strokeWidth={1.5} />
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -310,6 +281,14 @@ export function SettingsCategories() {
           <Plus size={14} strokeWidth={2} />
         </button>
       </div>
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title={deleteTarget?.type === 'cat' ? 'Eliminar categoría' : 'Eliminar subcategoría'}
+        description={`¿Estás seguro de que deseas eliminar ${deleteTarget?.type === 'cat' ? 'la categoría' : 'la subcategoría'} "${deleteTarget?.name}"? Esta acción no se puede deshacer.`}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </PageTransition>
   )
 }

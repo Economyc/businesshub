@@ -3,6 +3,7 @@ import { Plus, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
+import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 
 const inputClass =
   'w-full px-3 py-2.5 rounded-[10px] border border-input-border bg-input-bg text-body text-graphite placeholder:text-mid-gray/60 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200'
@@ -65,11 +66,12 @@ interface SettingsListProps {
   onRemove: (name: string) => void
   onUpdate: (oldName: string, newName: string) => void
   placeholder?: string
+  itemLabel?: string
 }
 
-export function SettingsList({ title, items, onAdd, onRemove, onUpdate, placeholder }: SettingsListProps) {
+export function SettingsList({ title, items, onAdd, onRemove, onUpdate, placeholder, itemLabel }: SettingsListProps) {
   const [newName, setNewName] = useState('')
-  const [pendingDelete, setPendingDelete] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
 
   function handleAdd() {
     const trimmed = newName.trim()
@@ -101,29 +103,12 @@ export function SettingsList({ title, items, onAdd, onRemove, onUpdate, placehol
                   />
                 </td>
                 <td className="px-4 py-3 text-center">
-                  {pendingDelete === item ? (
-                    <div className="flex items-center gap-1.5 justify-center">
-                      <button
-                        onClick={() => { onRemove(item); setPendingDelete(null) }}
-                        className="text-[11px] font-medium text-negative-text hover:underline"
-                      >
-                        Sí
-                      </button>
-                      <button
-                        onClick={() => setPendingDelete(null)}
-                        className="text-[11px] font-medium text-mid-gray hover:underline"
-                      >
-                        No
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setPendingDelete(item)}
-                      className="p-1.5 rounded-lg text-mid-gray hover:text-negative-text hover:bg-red-50 transition-all"
-                    >
-                      <Trash2 size={13} strokeWidth={1.5} />
-                    </button>
-                  )}
+                  <button
+                    onClick={() => setDeleteTarget(item)}
+                    className="p-1.5 rounded-lg text-mid-gray hover:text-negative-text hover:bg-red-50 transition-all"
+                  >
+                    <Trash2 size={13} strokeWidth={1.5} />
+                  </button>
                 </td>
               </tr>
             ))}
@@ -154,6 +139,14 @@ export function SettingsList({ title, items, onAdd, onRemove, onUpdate, placehol
           <Plus size={14} strokeWidth={2} />
         </button>
       </div>
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title={`Eliminar ${itemLabel ?? 'elemento'}`}
+        description={`¿Estás seguro de que deseas eliminar "${deleteTarget}"? Esta acción no se puede deshacer.`}
+        onConfirm={async () => { onRemove(deleteTarget!); setDeleteTarget(null) }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </PageTransition>
   )
 }

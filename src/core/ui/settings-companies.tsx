@@ -3,6 +3,7 @@ import { Plus, MapPin, Trash2, Check, ChevronRight, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
+import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 import { useCompany } from '@/core/hooks/use-company'
 import { CompanyLogo } from '@/core/ui/company-logo'
 import { LogoPicker } from '@/core/ui/logo-picker'
@@ -26,7 +27,7 @@ export function SettingsCompanies() {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [form, setForm] = useState<CompanyForm | null>(null)
   const [savedId, setSavedId] = useState<string | null>(null)
-  const [deleteStep, setDeleteStep] = useState<1 | 2 | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   useEffect(() => {
     if (!expandedId) return
@@ -35,7 +36,7 @@ export function SettingsCompanies() {
         e.preventDefault()
         setExpandedId(null)
         setForm(null)
-        setDeleteStep(null)
+        setConfirmDelete(false)
       }
     }
     document.addEventListener('keydown', handleKey, true)
@@ -46,7 +47,7 @@ export function SettingsCompanies() {
     if (expandedId === company.id) {
       setExpandedId(null)
       setForm(null)
-      setDeleteStep(null)
+      setConfirmDelete(false)
     } else {
       setExpandedId(company.id)
       setForm({
@@ -58,7 +59,7 @@ export function SettingsCompanies() {
         logoThumb: company.logoThumb ?? '',
       })
       setSavedId(null)
-      setDeleteStep(null)
+      setConfirmDelete(false)
     }
   }
 
@@ -89,10 +90,10 @@ export function SettingsCompanies() {
     }
   }
 
-  function handleDeleteCompany() {
+  async function handleDeleteCompany() {
     if (!form) return
-    deleteCompany(form.id)
-    setDeleteStep(null)
+    await deleteCompany(form.id)
+    setConfirmDelete(false)
     setExpandedId(null)
     setForm(null)
   }
@@ -236,7 +237,7 @@ export function SettingsCompanies() {
                         <div className="flex items-center gap-3 mt-5 pt-4 border-t border-border">
                           <button
                             type="button"
-                            onClick={() => setDeleteStep(1)}
+                            onClick={() => setConfirmDelete(true)}
                             className="p-2 rounded-lg text-mid-gray hover:text-red-500 hover:bg-red-50 transition-all duration-150"
                             title="Eliminar compañía"
                           >
@@ -245,7 +246,7 @@ export function SettingsCompanies() {
                           <div className="flex items-center gap-3 ml-auto">
                             <button
                               type="button"
-                              onClick={() => { setExpandedId(null); setForm(null); setDeleteStep(null) }}
+                              onClick={() => { setExpandedId(null); setForm(null); setConfirmDelete(false) }}
                               className="px-4 py-2 rounded-[10px] text-body font-medium text-mid-gray hover:text-graphite hover:bg-bone transition-colors"
                             >
                               Cancelar
@@ -270,53 +271,6 @@ export function SettingsCompanies() {
                           </div>
                         </div>
 
-                        {/* Delete confirmation */}
-                        {deleteStep !== null && (
-                          <div className="mt-3 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
-                            {deleteStep === 1 && (
-                              <div className="flex items-center justify-between gap-3">
-                                <span className="text-body text-red-600">
-                                  Eliminar <strong>{form.name || 'esta compañía'}</strong>?
-                                </span>
-                                <div className="flex items-center gap-2">
-                                  <button
-                                    onClick={() => setDeleteStep(null)}
-                                    className="px-3 py-1.5 rounded-lg text-caption font-medium text-mid-gray hover:bg-surface-elevated transition-colors"
-                                  >
-                                    Cancelar
-                                  </button>
-                                  <button
-                                    onClick={() => setDeleteStep(2)}
-                                    className="px-3 py-1.5 rounded-lg text-caption font-medium bg-red-100 text-red-600 hover:bg-red-200 transition-colors"
-                                  >
-                                    Sí, eliminar
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-                            {deleteStep === 2 && (
-                              <div className="flex items-center justify-between gap-3">
-                                <span className="text-body text-red-700 font-medium">
-                                  Esta acción es irreversible. Todos los datos se perderán.
-                                </span>
-                                <div className="flex items-center gap-2">
-                                  <button
-                                    onClick={() => setDeleteStep(null)}
-                                    className="px-3 py-1.5 rounded-lg text-caption font-medium text-mid-gray hover:bg-surface-elevated transition-colors"
-                                  >
-                                    Cancelar
-                                  </button>
-                                  <button
-                                    onClick={handleDeleteCompany}
-                                    className="px-3 py-1.5 rounded-lg text-caption font-medium bg-red-500 text-white hover:bg-red-600 transition-colors"
-                                  >
-                                    Confirmar eliminación
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        )}
                       </td>
                     </tr>
                   )}
@@ -345,7 +299,7 @@ export function SettingsCompanies() {
             setExpandedId(newId)
             setForm({ id: newId, name: '', location: '', color: '', logo: '', logoThumb: '' })
           }
-          setDeleteStep(null)
+          setConfirmDelete(false)
           setSavedId(null)
         }}
         className="mt-4 w-full flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl border border-dashed border-border text-body font-medium text-mid-gray hover:text-graphite hover:border-graphite hover:bg-bone/50 transition-all duration-200"
@@ -353,6 +307,14 @@ export function SettingsCompanies() {
         <Plus size={15} strokeWidth={2} />
         Agregar compañía
       </button>
+
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Eliminar compañía"
+        description={`¿Estás seguro de que deseas eliminar "${form?.name || 'esta compañía'}"? Esta acción no se puede deshacer.`}
+        onConfirm={handleDeleteCompany}
+        onCancel={() => setConfirmDelete(false)}
+      />
     </PageTransition>
   )
 }
