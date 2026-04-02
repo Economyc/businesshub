@@ -65,12 +65,9 @@ export function Topbar({ onMenuToggle }: TopbarProps) {
           >
             <CompanyLogo company={selectedCompany} />
             <div className="min-w-0 text-left">
-              <div className="text-body font-medium text-dark-graphite truncate max-w-[120px]">
-                {selectedCompany?.name ?? 'BusinessHub'}
-              </div>
               {selectedCompany?.location && (
-                <div className="flex items-center gap-0.5 text-[11px] text-mid-gray truncate">
-                  <MapPin size={9} />
+                <div className="flex items-center gap-0.5 text-body font-medium text-dark-graphite truncate">
+                  <MapPin size={11} />
                   {selectedCompany.location}
                 </div>
               )}
