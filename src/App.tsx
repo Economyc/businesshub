@@ -43,7 +43,9 @@ export default function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route element={<ProtectedRoute />}>
               <Route path="/" element={<Navigate to="/home" replace />} />
-              <Route path="/home" element={<Suspense fallback={<Loading />}><HomePage /></Suspense>} />
+              <Route element={<DateRangeProvider><Outlet /></DateRangeProvider>}>
+                <Route path="/home" element={<Suspense fallback={<Loading />}><HomePage /></Suspense>} />
+              </Route>
               <Route element={<DateRangeProvider><Outlet /></DateRangeProvider>}>
                 <Route path="/analytics" element={<Suspense fallback={<Loading />}><GeneralDashboard /></Suspense>} />
                 <Route path="/analytics/costs" element={<Suspense fallback={<Loading />}><CostsDashboard /></Suspense>} />

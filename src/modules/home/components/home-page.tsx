@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { MapPin, DollarSign, CreditCard, TrendingUp, TrendingDown, Percent, Users, Briefcase, Clock } from 'lucide-react'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
+import { DateRangePicker } from '@/modules/finance/components/date-range-picker'
 import { staggerContainer, staggerItem } from '@/core/animations/variants'
 import { useCompany } from '@/core/hooks/use-company'
 import { CompanyLogo } from '@/core/ui/company-logo'
@@ -150,7 +151,9 @@ export function HomePage() {
 
   return (
     <PageTransition>
-      <PageHeader title="Home" />
+      <PageHeader title="Home">
+        <DateRangePicker />
+      </PageHeader>
 
       {loading ? (
         <div className="flex items-center justify-center h-64">

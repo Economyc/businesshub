@@ -7,6 +7,7 @@ import {
 } from 'recharts'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
+import { DateRangePicker } from '@/modules/finance/components/date-range-picker'
 import { KPICard } from '@/core/ui/kpi-card'
 import { staggerContainer } from '@/core/animations/variants'
 import { formatCurrency } from '@/core/utils/format'
@@ -56,6 +57,7 @@ export function PayrollDashboard() {
   return (
     <PageTransition>
       <PageHeader title="Análisis">
+        <DateRangePicker />
         <ExportPDF targetRef={dashboardRef} />
       </PageHeader>
       <AnalyticsTabs />
