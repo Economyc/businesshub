@@ -23,33 +23,6 @@ const SETTINGS_ITEMS = [
   { to: '/settings/departments', label: 'Departamentos', icon: Network },
 ]
 
-const SEARCHABLE_ITEMS = [
-  { to: '/home', label: 'Home', keywords: 'inicio home dashboard' },
-  { to: '/analytics', label: 'Análisis', keywords: 'reportes estadísticas gráficos kpi métricas analytics análisis dashboard costos nómina compras' },
-  { to: '/analytics/costs', label: 'Estructura de Costos', keywords: 'costos estructura fijos variables rubros gastos análisis' },
-  { to: '/analytics/purchases', label: 'Análisis de Compras', keywords: 'compras insumos proveedores análisis tendencia productos' },
-  { to: '/analytics/payroll', label: 'Análisis de Nómina', keywords: 'nómina salarios empleados departamentos cargos análisis' },
-  { to: '/talent', label: 'Talento', keywords: 'empleados personas equipo recurso humano nómina' },
-  { to: '/suppliers', label: 'Proveedores', keywords: 'proveedores compras suministros vendors' },
-  { to: '/finance/purchases', label: 'Compras', keywords: 'compras insumos pedidos órdenes proveedores' },
-  { to: '/finance/purchases/new', label: 'Nueva Compra', keywords: 'crear nueva compra orden pedido' },
-  { to: '/finance/purchases/products', label: 'Catálogo de Insumos', keywords: 'insumos productos catálogo ingredientes inventario' },
-  { to: '/finance', label: 'Finanzas', keywords: 'finanzas transacciones pagos ingresos egresos contabilidad' },
-  { to: '/finance/new', label: 'Nueva Transacción', keywords: 'crear nueva transacción pago ingreso egreso' },
-  { to: '/finance/import', label: 'Importar Transacciones', keywords: 'importar csv excel transacciones carga masiva' },
-  { to: '/finance/cash-flow', label: 'Flujo de Caja', keywords: 'flujo caja efectivo cash flow saldo entradas salidas balance' },
-  { to: '/finance/income-statement', label: 'Estado de Resultados', keywords: 'estado resultados p&l pérdidas ganancias utilidad margen ingreso gasto operacional' },
-  { to: '/finance/budget', label: 'Presupuesto vs Real', keywords: 'presupuesto budget meta objetivo comparar real ejecución desviación control gastos' },
-  { to: '/partners', label: 'Socios', keywords: 'socios partners inversión participación accionistas' },
-  { to: '/closings', label: 'Cierres', keywords: 'cierres cierre caja diario ventas efectivo datáfono propinas' },
-  { to: '/contracts', label: 'Contratos', keywords: 'contratos laborales documentos legales' },
-  { to: '/contracts/templates', label: 'Plantillas de Contratos', keywords: 'plantillas templates modelos contratos cláusulas' },
-  { to: '/contracts/new', label: 'Generar Contrato', keywords: 'generar crear nuevo contrato laboral' },
-  { to: '/settings/companies', label: 'Compañías', keywords: 'ajustes configuración compañías empresas settings' },
-  { to: '/settings/categories', label: 'Categorías', keywords: 'ajustes configuración categorías financieras settings' },
-  { to: '/settings/roles', label: 'Cargos', keywords: 'ajustes configuración cargos puestos roles settings' },
-  { to: '/settings/departments', label: 'Departamentos', keywords: 'ajustes configuración departamentos áreas settings' },
-]
 
 interface SidebarProps {
   onNavClick?: () => void
@@ -59,12 +32,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
   const { companies, selectedCompany, selectCompany } = useCompany()
   const [collapsed, setCollapsed] = useState(false)
   const [open, setOpen] = useState(false)
-  const [search, setSearch] = useState('')
-  const [searchFocused, setSearchFocused] = useState(false)
-  const [activeIndex, setActiveIndex] = useState(0)
   const dropdownRef = useRef<HTMLDivElement>(null)
-  const searchRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -77,26 +45,10 @@ export function Sidebar({ onNavClick }: SidebarProps) {
     else setSettingsOpen(false)
   }, [isSettingsRoute])
 
-  const searchResults = search.trim()
-    ? SEARCHABLE_ITEMS.filter((item) => {
-        const q = search.toLowerCase()
-        return item.label.toLowerCase().includes(q) || item.keywords.toLowerCase().includes(q)
-      })
-    : []
-
-  const showResults = searchFocused && search.trim().length > 0
-
-  useEffect(() => {
-    setActiveIndex(0)
-  }, [search])
-
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setOpen(false)
-      }
-      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
-        setSearchFocused(false)
       }
     }
     function handleKey(e: KeyboardEvent) {
@@ -117,27 +69,6 @@ export function Sidebar({ onNavClick }: SidebarProps) {
       document.removeEventListener('keydown', handleKey)
     }
   }, [open, settingsOpen])
-
-  function handleSearchKeyDown(e: React.KeyboardEvent) {
-    if (!showResults || searchResults.length === 0) return
-    if (e.key === 'ArrowDown') {
-      e.preventDefault()
-      setActiveIndex((prev) => (prev + 1) % searchResults.length)
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault()
-      setActiveIndex((prev) => (prev - 1 + searchResults.length) % searchResults.length)
-    } else if (e.key === 'Enter') {
-      e.preventDefault()
-      navigate(searchResults[activeIndex].to)
-      setSearch('')
-      setSearchFocused(false)
-      inputRef.current?.blur()
-    } else if (e.key === 'Escape') {
-      setSearch('')
-      setSearchFocused(false)
-      inputRef.current?.blur()
-    }
-  }
 
   function handleSettingsClick() {
     if (settingsOpen && isSettingsRoute) {
@@ -227,46 +158,31 @@ export function Sidebar({ onNavClick }: SidebarProps) {
           </div>
         )}
 
-        {/* Search — only when expanded */}
-        {!collapsed && (
-          <div className="px-3 mb-3 relative" ref={searchRef}>
-            <div className="relative">
-              <Search size={14} strokeWidth={1.5} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-mid-gray pointer-events-none" />
-              <input
-                ref={inputRef}
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                onFocus={() => setSearchFocused(true)}
-                onKeyDown={handleSearchKeyDown}
-                placeholder="Buscar..."
-                className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-input-border bg-input-bg text-caption text-graphite placeholder:text-mid-gray/50 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200"
-              />
-            </div>
-            {showResults && (
-              <div className="absolute left-3 right-3 top-full mt-1 bg-surface-elevated border border-border rounded-xl shadow-lg z-50 py-1.5 overflow-hidden">
-                {searchResults.length === 0 ? (
-                  <div className="px-3 py-2 text-caption text-mid-gray">Sin resultados</div>
-                ) : (
-                  searchResults.map((item, i) => (
-                    <button
-                      key={item.to}
-                      onClick={() => {
-                        navigate(item.to)
-                        setSearch('')
-                        setSearchFocused(false)
-                      }}
-                      className={cn(
-                        'w-full flex items-center gap-2 px-3 py-2 text-left text-caption transition-colors duration-100',
-                        i === activeIndex ? 'bg-bone text-dark-graphite' : 'text-graphite hover:bg-bone/50'
-                      )}
-                    >
-                      {item.label}
-                    </button>
-                  ))
-                )}
-              </div>
-            )}
+        {/* Search — opens CommandPalette */}
+        {!collapsed ? (
+          <div className="px-3 mb-3">
+            <button
+              onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))}
+              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-input-border bg-input-bg text-caption text-mid-gray hover:text-graphite hover:border-input-focus transition-all duration-150 cursor-pointer"
+            >
+              <Search size={14} strokeWidth={1.5} />
+              <span className="flex-1 text-left">Buscar...</span>
+              <kbd className="flex items-center gap-0.5 rounded border border-border bg-surface-elevated px-1 py-0.5 text-[10px] font-medium">
+                Ctrl K
+              </kbd>
+            </button>
+          </div>
+        ) : (
+          <div className="flex justify-center mb-3">
+            <button
+              onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))}
+              className="group/search relative flex items-center justify-center p-1.5 rounded-md text-mid-gray/50 hover:text-graphite transition-colors duration-200"
+            >
+              <Search size={16} strokeWidth={1.5} />
+              <span className="pointer-events-none absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 whitespace-nowrap rounded-lg bg-dark-graphite px-3 py-1.5 text-caption font-medium text-white shadow-lg opacity-0 scale-95 transition-all duration-150 group-hover/search:opacity-100 group-hover/search:scale-100">
+                Buscar (Ctrl K)
+              </span>
+            </button>
           </div>
         )}
 
