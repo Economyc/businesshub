@@ -107,7 +107,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
         className={cn(
           'bg-bone border-r border-border py-5 flex-shrink-0 flex flex-col transition-all duration-300 ease-in-out relative z-10',
         settingsOpen && 'shadow-[4px_0_12px_-2px_rgba(0,0,0,0.08)]',
-          collapsed ? 'w-[60px]' : 'w-[240px]'
+          collapsed ? 'w-[60px]' : 'w-[200px]'
         )}
       >
         {/* Search — inline CommandPalette dropdown */}
