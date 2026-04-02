@@ -12,7 +12,7 @@ import { EmptyState } from '@/core/ui/empty-state'
 import { formatCurrency } from '@/core/utils/format'
 import { parseCategory } from '@/core/utils/categories'
 import { useCompany } from '@/core/hooks/use-company'
-import { useTransactions } from '../hooks'
+import { useTransactions, useRecurringGenerator } from '../hooks'
 import { useDateRange } from '../context/date-range-context'
 import { FinanceSummary } from './finance-summary'
 import { FinanceTabs } from './finance-tabs'
@@ -37,6 +37,7 @@ function getCategoryPill(t: Transaction, categoryItems: CategoryItem[]): { label
 export function TransactionList() {
   const navigate = useNavigate()
   const { data: transactions, loading, refetch } = useTransactions()
+  useRecurringGenerator()
   const { startDate, endDate } = useDateRange()
   const { categories: categoryItems } = useCompany()
   const [search, setSearch] = useState('')
@@ -252,6 +253,9 @@ export function TransactionList() {
                             )}
                             {t.sourceType === 'purchase' && (
                               <span className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-orange-100 text-orange-700">Compra</span>
+                            )}
+                            {t.sourceType === 'recurring' && (
+                              <span className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-100 text-purple-700">Recurrente</span>
                             )}
                           </div>
                           <div className="px-3 py-3.5 flex items-center gap-1.5">

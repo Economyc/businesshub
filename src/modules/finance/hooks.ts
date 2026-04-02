@@ -1,11 +1,30 @@
-import { useMemo, useState, useEffect, useCallback } from 'react'
+import { useMemo, useState, useEffect, useCallback, useRef } from 'react'
 import { useCollection } from '@/core/hooks/use-firestore'
 import { useCompany } from '@/core/hooks/use-company'
 import { budgetService } from './services'
-import type { Transaction, BudgetItem, BudgetConfig } from './types'
+import { generatePendingTransactions } from './recurring-generator'
+import type { Transaction, RecurringTransaction, BudgetItem, BudgetConfig } from './types'
 
 export function useTransactions() {
   return useCollection<Transaction>('transactions')
+}
+
+export function useRecurringTransactions() {
+  return useCollection<RecurringTransaction>('recurring-transactions')
+}
+
+export function useRecurringGenerator() {
+  const { selectedCompany } = useCompany()
+  const { refetch } = useTransactions()
+  const ran = useRef(false)
+
+  useEffect(() => {
+    if (!selectedCompany || ran.current) return
+    ran.current = true
+    generatePendingTransactions(selectedCompany.id).then((count) => {
+      if (count > 0) refetch()
+    })
+  }, [selectedCompany?.id])
 }
 
 export function useFinanceSummary(startDate: Date, endDate: Date) {

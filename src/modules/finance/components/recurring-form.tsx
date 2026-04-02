@@ -9,8 +9,8 @@ import { CurrencyInput } from '@/core/ui/currency-input'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 import { modalVariants } from '@/core/animations/variants'
 import { useCompany } from '@/core/hooks/use-company'
-import { financeService } from '../services'
-import type { Transaction } from '../types'
+import { recurringService } from '../recurring-service'
+import type { RecurringTransaction, RecurrenceFrequency } from '../types'
 
 const inputClass =
   'w-full px-3 py-2.5 rounded-[10px] border border-input-border bg-input-bg text-body text-graphite placeholder:text-mid-gray/60 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200'
@@ -22,61 +22,60 @@ function toDateString(ts: Timestamp | undefined): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-interface TransactionFormProps {
+interface RecurringFormProps {
   open: boolean
-  transactionId?: string | null
+  recurringId?: string | null
   onClose: () => void
   onSaved: () => void
 }
 
-export function TransactionForm({ open, transactionId, onClose, onSaved }: TransactionFormProps) {
+export function RecurringForm({ open, recurringId, onClose, onSaved }: RecurringFormProps) {
   const { selectedCompany } = useCompany()
   const [submitting, setSubmitting] = useState(false)
   const [loading, setLoading] = useState(false)
   const [showDelete, setShowDelete] = useState(false)
-  const [isLinked, setIsLinked] = useState(false)
-  const [isRecurring, setIsRecurring] = useState(false)
 
   const [form, setForm] = useState({
     concept: '',
     category: '',
     amount: '',
-    type: 'income' as 'income' | 'expense',
-    date: '',
+    type: 'expense' as 'income' | 'expense',
     status: 'pending' as 'paid' | 'pending' | 'overdue',
     notes: '',
+    frequency: 'monthly' as RecurrenceFrequency,
+    startDate: '',
+    endDate: '',
+    isActive: true,
   })
 
   useEffect(() => {
     if (!open) {
-      // Reset on close
-      setForm({ concept: '', category: '', amount: '', type: 'income', date: '', status: 'pending', notes: '' })
-      setIsLinked(false)
-      setIsRecurring(false)
+      setForm({ concept: '', category: '', amount: '', type: 'expense', status: 'pending', notes: '', frequency: 'monthly', startDate: '', endDate: '', isActive: true })
       setShowDelete(false)
       return
     }
-    if (!transactionId || !selectedCompany) {
+    if (!recurringId || !selectedCompany) {
       setLoading(false)
       return
     }
     setLoading(true)
-    financeService.getById(selectedCompany.id, transactionId).then((tx: Transaction | null) => {
-      if (!tx) { onClose(); return }
-      if (tx.sourceType === 'closing' || tx.sourceType === 'purchase') setIsLinked(true)
-      if (tx.sourceType === 'recurring') setIsRecurring(true)
+    recurringService.getById(selectedCompany.id, recurringId).then((rec: RecurringTransaction | null) => {
+      if (!rec) { onClose(); return }
       setForm({
-        concept: tx.concept,
-        category: tx.category,
-        amount: String(tx.amount),
-        type: tx.type,
-        date: toDateString(tx.date),
-        status: tx.status,
-        notes: tx.notes ?? '',
+        concept: rec.concept,
+        category: rec.category,
+        amount: String(rec.amount),
+        type: rec.type,
+        status: rec.status,
+        notes: rec.notes ?? '',
+        frequency: rec.frequency,
+        startDate: toDateString(rec.startDate),
+        endDate: toDateString(rec.endDate),
+        isActive: rec.isActive,
       })
       setLoading(false)
     })
-  }, [open, transactionId, selectedCompany?.id])
+  }, [open, recurringId, selectedCompany?.id])
 
   useEffect(() => {
     if (!open) return
@@ -97,19 +96,24 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
     if (!selectedCompany) return
     setSubmitting(true)
     try {
+      const startDate = Timestamp.fromDate(new Date(form.startDate + 'T12:00:00'))
       const data = {
         concept: form.concept,
         category: form.category,
         amount: Number(form.amount),
         type: form.type,
-        date: Timestamp.fromDate(new Date(form.date + 'T12:00:00')),
         status: form.status,
+        frequency: form.frequency,
+        startDate,
+        nextDueDate: startDate,
+        isActive: form.isActive,
         ...(form.notes ? { notes: form.notes } : {}),
+        ...(form.endDate ? { endDate: Timestamp.fromDate(new Date(form.endDate + 'T12:00:00')) } : {}),
       }
-      if (transactionId) {
-        await financeService.update(selectedCompany.id, transactionId, data)
+      if (recurringId) {
+        await recurringService.update(selectedCompany.id, recurringId, data)
       } else {
-        await financeService.create(selectedCompany.id, data as any)
+        await recurringService.create(selectedCompany.id, data as any)
       }
       onSaved()
     } finally {
@@ -118,8 +122,8 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
   }
 
   async function handleDelete() {
-    if (!selectedCompany || !transactionId) return
-    await financeService.remove(selectedCompany.id, transactionId)
+    if (!selectedCompany || !recurringId) return
+    await recurringService.remove(selectedCompany.id, recurringId)
     onSaved()
   }
 
@@ -128,7 +132,6 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
       <AnimatePresence>
         {open && (
           <div className="fixed inset-0 z-50 flex items-start justify-center pt-[5vh] md:pt-[8vh] p-4">
-            {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -137,7 +140,6 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
               onClick={onClose}
             />
 
-            {/* Modal */}
             <motion.div
               variants={modalVariants}
               initial="initial"
@@ -145,13 +147,12 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
               exit="exit"
               className="relative bg-surface-elevated rounded-xl shadow-xl border border-border w-full max-w-lg max-h-[85vh] overflow-y-auto z-10"
             >
-              {/* Header */}
               <div className="flex items-center justify-between px-6 pt-5 pb-3">
                 <h2 className="text-subheading font-semibold text-dark-graphite">
-                  {loading ? 'Cargando...' : isLinked ? 'Transacción Vinculada' : transactionId ? 'Editar Transacción' : 'Nueva Transacción'}
+                  {loading ? 'Cargando...' : recurringId ? 'Editar Recurrente' : 'Nueva Recurrente'}
                 </h2>
                 <div className="flex items-center gap-1">
-                  {transactionId && !isLinked && !loading && (
+                  {recurringId && !loading && (
                     <button
                       onClick={() => setShowDelete(true)}
                       className="p-1.5 rounded-lg text-mid-gray hover:text-red-500 hover:bg-red-50 transition-all duration-150"
@@ -171,22 +172,8 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
 
               {loading ? (
                 <div className="text-body text-mid-gray py-8 text-center">Cargando...</div>
-              ) : isLinked ? (
-                <div className="px-6 pb-6 text-center">
-                  <p className="text-body text-graphite mb-4">
-                    Esta transacción fue generada automáticamente desde un cierre o compra y no se puede editar directamente.
-                  </p>
-                  <button onClick={onClose} className="px-5 py-2.5 rounded-[10px] btn-primary text-body font-medium">
-                    Cerrar
-                  </button>
-                </div>
               ) : (
                 <form onSubmit={handleSubmit} className="px-6 pb-5">
-                  {isRecurring && (
-                    <div className="mb-4 px-3 py-2 rounded-lg bg-purple-50 border border-purple-200 text-caption text-purple-700">
-                      Generada automáticamente desde una transacción recurrente.
-                    </div>
-                  )}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className={labelClass}>Concepto</label>
@@ -195,7 +182,7 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
                         value={form.concept}
                         onChange={handleChange}
                         required
-                        placeholder="Descripción del movimiento"
+                        placeholder="Ej: Arriendo local"
                         className={inputClass}
                       />
                     </div>
@@ -231,15 +218,20 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
                       />
                     </div>
                     <div>
-                      <label className={labelClass}>Fecha</label>
-                      <DateInput
-                        value={form.date}
-                        onChange={(v) => setForm((prev) => ({ ...prev, date: v }))}
-                        required
+                      <label className={labelClass}>Frecuencia</label>
+                      <SelectInput
+                        value={form.frequency}
+                        onChange={(v) => setForm((prev) => ({ ...prev, frequency: v as RecurrenceFrequency }))}
+                        options={[
+                          { value: 'daily', label: 'Diario' },
+                          { value: 'weekly', label: 'Semanal' },
+                          { value: 'monthly', label: 'Mensual' },
+                          { value: 'yearly', label: 'Anual' },
+                        ]}
                       />
                     </div>
                     <div>
-                      <label className={labelClass}>Estado</label>
+                      <label className={labelClass}>Estado al generar</label>
                       <SelectInput
                         value={form.status}
                         onChange={(v) => setForm((prev) => ({ ...prev, status: v as 'paid' | 'pending' | 'overdue' }))}
@@ -248,6 +240,21 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
                           { value: 'pending', label: 'Pendiente' },
                           { value: 'overdue', label: 'Vencido' },
                         ]}
+                      />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Fecha inicio</label>
+                      <DateInput
+                        value={form.startDate}
+                        onChange={(v) => setForm((prev) => ({ ...prev, startDate: v }))}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Fecha fin (opcional)</label>
+                      <DateInput
+                        value={form.endDate}
+                        onChange={(v) => setForm((prev) => ({ ...prev, endDate: v }))}
                       />
                     </div>
                     <div className="md:col-span-2">
@@ -260,6 +267,18 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
                         className={`${inputClass} min-h-[70px] resize-none`}
                       />
                     </div>
+                    <div className="md:col-span-2 flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setForm((prev) => ({ ...prev, isActive: !prev.isActive }))}
+                        className={`relative w-10 h-5.5 rounded-full transition-colors duration-200 ${form.isActive ? 'bg-graphite' : 'bg-mid-gray/30'}`}
+                      >
+                        <span
+                          className={`absolute top-0.5 left-0.5 w-4.5 h-4.5 bg-white rounded-full shadow transition-transform duration-200 ${form.isActive ? 'translate-x-[18px]' : ''}`}
+                        />
+                      </button>
+                      <span className="text-body text-graphite">{form.isActive ? 'Activa' : 'Pausada'}</span>
+                    </div>
                   </div>
 
                   <div className="flex gap-3 mt-5 pt-4 border-t border-border">
@@ -268,7 +287,7 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
                       disabled={submitting}
                       className="px-5 py-2.5 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      {submitting ? 'Guardando...' : transactionId ? 'Guardar Cambios' : 'Guardar Transacción'}
+                      {submitting ? 'Guardando...' : recurringId ? 'Guardar Cambios' : 'Crear Recurrente'}
                     </button>
                     <button
                       type="button"
@@ -289,8 +308,8 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
         open={showDelete}
         onCancel={() => setShowDelete(false)}
         onConfirm={handleDelete}
-        title="Eliminar transacción"
-        description={`¿Estás seguro de que deseas eliminar "${form.concept || 'esta transacción'}"? Esta acción no se puede deshacer.`}
+        title="Eliminar recurrente"
+        description={`¿Estás seguro de que deseas eliminar "${form.concept || 'esta recurrente'}"? Las transacciones ya generadas no se eliminarán.`}
       />
     </>
   )
