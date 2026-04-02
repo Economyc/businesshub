@@ -1,8 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { CircleUser, LogOut, Menu } from 'lucide-react'
+import { CircleUser, LogOut, Menu, ChevronsUpDown, Check, MapPin } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { ThemeToggle } from '@/core/ui/theme-toggle'
+import { CompanyLogo } from '@/core/ui/company-logo'
 import { useAuth } from '@/core/hooks/use-auth'
+import { useCompany } from '@/core/hooks/use-company'
 
 interface TopbarProps {
   onMenuToggle?: () => void
@@ -10,19 +13,25 @@ interface TopbarProps {
 
 export function Topbar({ onMenuToggle }: TopbarProps) {
   const { user, logout } = useAuth()
+  const { companies, selectedCompany, selectCompany } = useCompany()
   const [open, setOpen] = useState(false)
+  const [companyOpen, setCompanyOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  const companyRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setOpen(false)
       }
+      if (companyRef.current && !companyRef.current.contains(e.target as Node)) {
+        setCompanyOpen(false)
+      }
     }
     function handleKey(e: KeyboardEvent) {
-      if (e.key === 'Escape' && !e.defaultPrevented && open) {
-        e.preventDefault()
-        setOpen(false)
+      if (e.key === 'Escape' && !e.defaultPrevented) {
+        if (open) { e.preventDefault(); setOpen(false) }
+        if (companyOpen) { e.preventDefault(); setCompanyOpen(false) }
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -31,7 +40,7 @@ export function Topbar({ onMenuToggle }: TopbarProps) {
       document.removeEventListener('mousedown', handleClickOutside)
       window.removeEventListener('keydown', handleKey, true)
     }
-  }, [open])
+  }, [open, companyOpen])
 
   return (
     <header className="flex items-center justify-between px-4 md:px-6 py-3.5 bg-card-bg border-b border-border">
@@ -42,9 +51,64 @@ export function Topbar({ onMenuToggle }: TopbarProps) {
         >
           <Menu size={20} strokeWidth={1.5} />
         </button>
-        <Link to="/home" className="text-heading font-bold text-dark-graphite tracking-tight hover:opacity-70 transition-opacity">
+
+        {/* Mobile: BusinessHub logo */}
+        <Link to="/home" className="md:hidden text-heading font-bold text-dark-graphite tracking-tight hover:opacity-70 transition-opacity">
           Business<span className="font-light text-mid-gray">Hub</span>
         </Link>
+
+        {/* Desktop: Company selector */}
+        <div className="hidden md:block relative" ref={companyRef}>
+          <button
+            onClick={() => setCompanyOpen(!companyOpen)}
+            className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-bone/70 transition-all duration-150"
+          >
+            <CompanyLogo company={selectedCompany} />
+            <div className="min-w-0 text-left">
+              <div className="text-body font-medium text-dark-graphite truncate max-w-[180px]">
+                {selectedCompany?.name ?? 'BusinessHub'}
+              </div>
+              {selectedCompany?.location && (
+                <div className="flex items-center gap-0.5 text-[11px] text-mid-gray truncate">
+                  <MapPin size={9} />
+                  {selectedCompany.location}
+                </div>
+              )}
+            </div>
+            <ChevronsUpDown size={14} className="text-mid-gray shrink-0" />
+          </button>
+
+          {companyOpen && (
+            <div className="absolute left-0 top-full mt-2 min-w-[250px] bg-surface-elevated border border-border rounded-xl shadow-lg z-50 py-1.5 overflow-hidden">
+              {companies.map((company) => (
+                <button
+                  key={company.id}
+                  onClick={() => { selectCompany(company); setCompanyOpen(false) }}
+                  className={cn(
+                    'w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors duration-100',
+                    selectedCompany?.id === company.id
+                      ? 'bg-bone'
+                      : 'hover:bg-bone/50'
+                  )}
+                >
+                  <CompanyLogo company={company} />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-body text-dark-graphite truncate">{company.name}</div>
+                    {company.location && (
+                      <div className="flex items-center gap-0.5 text-[11px] text-mid-gray truncate">
+                        <MapPin size={9} />
+                        {company.location}
+                      </div>
+                    )}
+                  </div>
+                  {selectedCompany?.id === company.id && (
+                    <Check size={14} className="text-graphite shrink-0" />
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="flex items-center gap-2.5">

@@ -1,9 +1,7 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
-import { BarChart3, Users, Briefcase, DollarSign, Settings, ChevronsUpDown, Check, MapPin, Home, Search, ChevronsLeft, Building2, Tags, BadgeCheck, Network, Handshake, ClipboardList, FileSignature, Wallet } from 'lucide-react'
+import { BarChart3, Users, Briefcase, DollarSign, Settings, Home, Search, ChevronsLeft, Building2, Tags, BadgeCheck, Network, Handshake, ClipboardList, FileSignature, Wallet } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useCompany } from '@/core/hooks/use-company'
-import { CompanyLogo } from '@/core/ui/company-logo'
 import { CommandPalette } from '@/core/ui/command-palette'
 
 interface NavItem {
@@ -61,10 +59,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ onNavClick }: SidebarProps) {
-  const { companies, selectedCompany, selectCompany } = useCompany()
   const [collapsed, setCollapsed] = useState(false)
-  const [open, setOpen] = useState(false)
-  const dropdownRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -78,29 +73,17 @@ export function Sidebar({ onNavClick }: SidebarProps) {
   }, [isSettingsRoute])
 
   useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setOpen(false)
-      }
-    }
     function handleKey(e: KeyboardEvent) {
-      if (e.key === 'Escape' && !e.defaultPrevented) {
-        if (open) {
-          e.preventDefault()
-          setOpen(false)
-        } else if (settingsOpen) {
-          e.preventDefault()
-          setSettingsOpen(false)
-        }
+      if (e.key === 'Escape' && !e.defaultPrevented && settingsOpen) {
+        e.preventDefault()
+        setSettingsOpen(false)
       }
     }
-    document.addEventListener('mousedown', handleClickOutside)
     document.addEventListener('keydown', handleKey)
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
       document.removeEventListener('keydown', handleKey)
     }
-  }, [open, settingsOpen])
+  }, [settingsOpen])
 
   function handleSettingsClick() {
     if (settingsOpen && isSettingsRoute) {
@@ -127,69 +110,6 @@ export function Sidebar({ onNavClick }: SidebarProps) {
           collapsed ? 'w-[60px]' : 'w-[240px]'
         )}
       >
-        {/* Workspace switcher */}
-        {!collapsed ? (
-          <div className="px-3 mb-4 relative" ref={dropdownRef}>
-            <button
-              onClick={() => setOpen(!open)}
-              className="w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-lg bg-selector-bg border border-white/60 dark:border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.5),0_1px_3px_rgba(0,0,0,0.06)] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.5),0_2px_6px_rgba(0,0,0,0.1)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_1px_3px_rgba(0,0,0,0.3)] dark:hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_2px_6px_rgba(0,0,0,0.4)] transition-all duration-150"
-            >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <CompanyLogo company={selectedCompany} />
-                <div className="min-w-0 text-left">
-                  <div className="text-body font-medium text-dark-graphite truncate">
-                    {selectedCompany?.name ?? 'BusinessHub'}
-                  </div>
-                  {selectedCompany?.location && (
-                    <div className="flex items-center gap-1 text-caption text-mid-gray truncate">
-                      <span className="flex items-center gap-0.5">
-                        <MapPin size={10} />
-                        {selectedCompany.location}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-              <ChevronsUpDown size={14} className="text-mid-gray shrink-0" />
-            </button>
-
-            {open && (
-              <div className="absolute left-3 right-3 top-full mt-1 bg-surface-elevated border border-border rounded-xl shadow-lg z-50 py-1.5 overflow-hidden">
-                {companies.map((company) => (
-                  <button
-                    key={company.id}
-                    onClick={() => { selectCompany(company); setOpen(false) }}
-                    className={cn(
-                      'w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors duration-100',
-                      selectedCompany?.id === company.id
-                        ? 'bg-bone'
-                        : 'hover:bg-bone/50'
-                    )}
-                  >
-                    <CompanyLogo company={company} />
-                    <div className="min-w-0 flex-1">
-                      <div className="text-body text-dark-graphite truncate">{company.name}</div>
-                      {company.location && (
-                        <div className="flex items-center gap-0.5 text-[11px] text-mid-gray truncate">
-                          <MapPin size={9} />
-                          {company.location}
-                        </div>
-                      )}
-                    </div>
-                    {selectedCompany?.id === company.id && (
-                      <Check size={14} className="text-graphite shrink-0" />
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="flex justify-center mb-4">
-            <CompanyLogo company={selectedCompany} />
-          </div>
-        )}
-
         {/* Search — inline CommandPalette dropdown */}
         {!collapsed ? (
           <div className="px-3 mb-3">
