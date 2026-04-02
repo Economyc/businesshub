@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom'
 import { Topbar } from './topbar'
 import { Sidebar } from './sidebar'
 import { MobileNav } from './mobile-nav'
+import { Breadcrumb } from './breadcrumb'
 
 export function Layout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -20,6 +21,7 @@ export function Layout() {
         <MobileNav open={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
 
         <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-14">
+          <Breadcrumb />
           <Outlet />
         </main>
       </div>
