@@ -47,13 +47,13 @@ export function KPICard({ label, value, format = 'number', change, trend, icon: 
       variants={staggerItem}
       className="bg-surface rounded-xl p-[18px] card-elevated"
     >
-      <div className="flex justify-between items-center mb-2.5">
+      <div className="flex justify-between items-center mb-2">
         <span className="text-caption uppercase tracking-wider text-mid-gray">{label}</span>
         {Icon && <Icon size={16} strokeWidth={1.5} className="text-smoke" />}
       </div>
-      <div className="text-kpi font-semibold text-dark-graphite">{formattedValue}</div>
+      <div className="text-kpi font-extrabold text-dark-graphite">{formattedValue}</div>
       {change && (
-        <div className={`inline-flex items-center gap-0.5 mt-1.5 text-caption px-2 py-0.5 rounded-full ${trend === 'down' ? 'bg-negative-bg text-negative-text' : 'bg-positive-bg text-positive-text'}`}>
+        <div className={`inline-flex items-center gap-[3px] mt-1.5 text-caption px-2 py-0.5 rounded-full ${trend === 'down' ? 'bg-negative-bg text-negative-text' : 'bg-positive-bg text-positive-text'}`}>
           {trend === 'up' ? <ChevronUp size={12} strokeWidth={1.5} /> : <ChevronDown size={12} strokeWidth={1.5} />}
           {change}
         </div>

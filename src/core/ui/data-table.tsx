@@ -51,13 +51,13 @@ export function DataTable<T extends { id: string }>({ columns, data, onRowClick 
       {/* Desktop table */}
       <div className="hidden md:block bg-surface rounded-xl card-elevated overflow-hidden">
         <div
-          className="grid px-5 py-3 text-caption uppercase tracking-wider text-mid-gray bg-bone/60"
+          className="grid px-[18px] py-3 text-caption uppercase tracking-wider text-mid-gray bg-bone"
           style={{ gridTemplateColumns: gridCols, borderBottom: '1px solid #d4d3cf' }}
         >
           {columns.map((col) => (
             <div
               key={col.key}
-              className="font-medium px-3 first:pl-0 last:pr-0 flex items-center"
+              className="font-semibold px-3 first:pl-0 last:pr-0 flex items-center"
             >
               {col.header}
             </div>
@@ -80,7 +80,7 @@ export function DataTable<T extends { id: string }>({ columns, data, onRowClick 
                 <div
                   key={item.id}
                   onClick={() => onRowClick?.(item)}
-                  className={`grid items-center px-5 py-0 text-body text-graphite hover:bg-bone/50 transition-colors duration-150 ${onRowClick ? 'cursor-pointer' : ''}`}
+                  className={`grid items-center px-[18px] py-0 text-body text-graphite hover:bg-bone transition-colors duration-150 ${onRowClick ? 'cursor-pointer' : ''}`}
                   style={{
                     gridTemplateColumns: gridCols,
                     borderBottom: virtualRow.index < data.length - 1 ? '1px solid #e5e4e0' : 'none',

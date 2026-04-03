@@ -51,8 +51,8 @@ export function AlertsPanel({ alerts }: AlertsPanelProps) {
   const hasAlerts = overdueItems.length > 0 || budgetExceeded.length > 0 || expiringContracts.length > 0
 
   return (
-    <div className="bg-surface rounded-xl card-elevated p-6">
-      <h2 className="text-subheading font-medium text-dark-graphite mb-4">Alertas</h2>
+    <div className="bg-surface rounded-xl card-elevated p-[18px]">
+      <h2 className="text-body font-bold text-dark-graphite mb-3">Alertas</h2>
 
       {!hasAlerts ? (
         <div className="flex flex-col items-center justify-center py-8 text-mid-gray">

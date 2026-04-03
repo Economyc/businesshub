@@ -223,7 +223,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
             <div className="relative flex justify-center">
               <button
                 onClick={() => setCompanyOpen(!companyOpen)}
-                className="group/company relative p-1.5 rounded-md hover:bg-[#eeedeb] dark:hover:bg-[#1c1c1c] transition-colors duration-200"
+                className="group/company relative p-1.5 rounded-md hover:bg-smoke dark:hover:bg-smoke transition-colors duration-200"
               >
                 <CompanyLogo company={selectedCompany} />
                 <span className="pointer-events-none absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 whitespace-nowrap rounded-lg bg-dark-graphite dark:bg-[#2a2a2a] px-3 py-1.5 text-caption font-medium text-white dark:text-[#e0e0e0] shadow-lg opacity-0 scale-95 transition-all duration-150 group-hover/company:opacity-100 group-hover/company:scale-100">
@@ -380,7 +380,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
             ) : (
               <button
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
-                className="w-full flex items-center gap-2 px-1 py-2 rounded-lg hover:bg-[#eeedeb] dark:hover:bg-[#1c1c1c] transition-all duration-150 cursor-pointer"
+                className="w-full flex items-center gap-2 px-1 py-2 rounded-lg hover:bg-smoke dark:hover:bg-smoke transition-all duration-150 cursor-pointer"
               >
                 <div className="w-6 h-6 rounded-full bg-graphite/10 flex items-center justify-center shrink-0">
                   <CircleUser size={14} strokeWidth={1.5} className="text-graphite" />

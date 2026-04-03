@@ -21,7 +21,7 @@ function DashboardContent() {
     <div className="space-y-6">
       <KPICardsRow kpis={kpis} periodLabel={presetLabel} />
       <SalesTrendChart data={salesTrend} periodLabel={presetLabel} />
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <AlertsPanel alerts={alerts} />
         <QuickActions />
       </div>

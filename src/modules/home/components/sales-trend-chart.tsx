@@ -23,14 +23,14 @@ export function SalesTrendChart({ data, periodLabel }: SalesTrendChartProps) {
   const hasData = data.some((d) => d.sales > 0)
 
   return (
-    <div className="bg-surface rounded-xl card-elevated p-6">
-      <h2 className="text-subheading font-medium text-dark-graphite mb-4">Ventas — {periodLabel}</h2>
+    <div className="bg-surface rounded-xl card-elevated p-[18px]">
+      <h2 className="text-body font-bold text-dark-graphite mb-3">Ventas — {periodLabel}</h2>
       {!hasData ? (
-        <div className="flex items-center justify-center h-[280px] text-mid-gray text-caption">
+        <div className="flex items-center justify-center h-[200px] text-mid-gray text-caption">
           Sin datos de ventas en este período
         </div>
       ) : (
-        <ResponsiveContainer width="100%" height={280}>
+        <ResponsiveContainer width="100%" height={200}>
           <AreaChart data={data} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eeece9" vertical={false} />
             <XAxis

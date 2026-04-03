@@ -24,7 +24,7 @@ export function Layout() {
         {/* Mobile navigation drawer */}
         <MobileNav open={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
 
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-14">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-8">
           <Breadcrumb />
           <Outlet />
         </main>

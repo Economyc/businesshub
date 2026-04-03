@@ -24,9 +24,9 @@ function QuickActionButton({ icon: Icon, label, to }: QuickActionButtonProps) {
 
 export function QuickActions() {
   return (
-    <div className="bg-surface rounded-xl card-elevated p-6">
-      <h2 className="text-subheading font-medium text-dark-graphite mb-4">Acciones rápidas</h2>
-      <div className="grid grid-cols-2 gap-3">
+    <div className="bg-surface rounded-xl card-elevated p-[18px]">
+      <h2 className="text-body font-bold text-dark-graphite mb-3">Acciones rápidas</h2>
+      <div className="grid grid-cols-2 gap-2">
         <QuickActionButton icon={Plus} label="Nueva transacción" to="/finance" />
         <QuickActionButton icon={Receipt} label="Nuevo cierre" to="/closings" />
         <QuickActionButton icon={Wallet} label="Ver cartera" to="/cartera" />
