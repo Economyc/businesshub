@@ -352,8 +352,8 @@ export function CommandPalette() {
         className={cn(
           'w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-caption transition-all duration-150 cursor-pointer',
           open
-            ? 'border-input-focus ring-[3px] ring-graphite/5 bg-input-bg text-graphite'
-            : 'border-input-border bg-input-bg text-mid-gray hover:text-graphite hover:border-input-focus'
+            ? 'border-input-focus ring-[3px] ring-graphite/5 bg-surface-elevated text-graphite'
+            : 'border-border bg-smoke text-mid-gray hover:text-graphite hover:border-input-focus'
         )}
       >
         <Search size={14} strokeWidth={1.5} />

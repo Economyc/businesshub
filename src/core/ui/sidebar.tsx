@@ -174,7 +174,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
             <div className="relative">
               <button
                 onClick={() => setCompanyOpen(!companyOpen)}
-                className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg bg-[#f4f3f1] dark:bg-[#171717] hover:bg-[#eeedeb] dark:hover:bg-[#1c1c1c] transition-all duration-150"
+                className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg bg-smoke dark:bg-smoke hover:bg-selector-bg dark:hover:bg-selector-bg transition-all duration-150"
               >
                 <CompanyLogo company={selectedCompany} />
                 <div className="min-w-0 flex-1 text-left">
@@ -300,7 +300,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                         : 'text-graphite/70 hover:bg-card-bg hover:text-graphite'
                     )}
                   >
-                    {section.icon && <section.icon size={18} strokeWidth={1.5} />}
+                    {section.icon && <section.icon size={16} strokeWidth={1.5} />}
                     <span className="flex-1 text-left">{section.title}</span>
                     <ChevronRight
                       size={14}
@@ -317,7 +317,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                     onClick={() => toggleSection(section.title!)}
                     className="group/section relative w-full flex justify-center py-2.5 text-graphite/70 hover:bg-card-bg hover:text-graphite transition-all duration-150"
                   >
-                    {section.icon && <section.icon size={18} strokeWidth={1.5} />}
+                    {section.icon && <section.icon size={16} strokeWidth={1.5} />}
                     <span className="pointer-events-none absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 whitespace-nowrap rounded-lg bg-dark-graphite dark:bg-[#2a2a2a] px-3 py-1.5 text-caption font-medium text-white dark:text-[#e0e0e0] shadow-lg opacity-0 scale-95 transition-all duration-150 group-hover/section:opacity-100 group-hover/section:scale-100">
                       {section.title}
                     </span>
@@ -345,7 +345,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                           )
                         }
                       >
-                        <Icon size={18} strokeWidth={1.5} />
+                        <Icon size={16} strokeWidth={1.5} />
                         {!collapsed && label}
                         {collapsed && (
                           <span className="pointer-events-none absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 whitespace-nowrap rounded-lg bg-dark-graphite dark:bg-[#2a2a2a] px-3 py-1.5 text-caption font-medium text-white dark:text-[#e0e0e0] shadow-lg opacity-0 scale-95 transition-all duration-150 group-hover/nav:opacity-100 group-hover/nav:scale-100">

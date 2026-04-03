@@ -14,7 +14,7 @@ function QuickActionButton({ icon: Icon, label, to }: QuickActionButtonProps) {
   return (
     <button
       onClick={() => navigate(to)}
-      className="flex items-center gap-2.5 bg-bone/50 hover:bg-bone rounded-lg px-3.5 py-3 transition-colors text-left group"
+      className="flex items-center gap-2.5 bg-surface-elevated border border-border hover:bg-bone hover:border-border-hover rounded-lg px-3.5 py-3 transition-colors text-left group"
     >
       <Icon size={16} strokeWidth={1.5} className="text-graphite group-hover:text-dark-graphite shrink-0" />
       <span className="text-body text-graphite group-hover:text-dark-graphite truncate">{label}</span>

@@ -53,7 +53,7 @@ export function KPICard({ label, value, format = 'number', change, trend, icon: 
       </div>
       <div className="text-kpi font-semibold text-dark-graphite">{formattedValue}</div>
       {change && (
-        <div className={`flex items-center gap-1 mt-1 text-caption ${trend === 'down' ? 'text-negative-text' : 'text-positive-text'}`}>
+        <div className={`inline-flex items-center gap-0.5 mt-1.5 text-caption px-2 py-0.5 rounded-full ${trend === 'down' ? 'bg-negative-bg text-negative-text' : 'bg-positive-bg text-positive-text'}`}>
           {trend === 'up' ? <ChevronUp size={12} strokeWidth={1.5} /> : <ChevronDown size={12} strokeWidth={1.5} />}
           {change}
         </div>

@@ -27,7 +27,7 @@ export function UnderlineTabs({ tabs, className }: RouteTabsProps) {
           end={end}
           className={({ isActive }) =>
             cn(
-              'flex items-center justify-center gap-2 px-4 py-2.5 text-body font-medium transition-all duration-200 border-b-2 -mb-px whitespace-nowrap',
+              'flex items-center justify-center gap-2 px-4 py-3 text-body font-medium transition-all duration-200 border-b-2 -mb-px whitespace-nowrap',
               isActive
                 ? 'text-graphite border-graphite'
                 : 'text-mid-gray border-transparent hover:text-graphite'
@@ -60,7 +60,7 @@ export function UnderlineButtonTabs({ tabs, active, onChange, className }: Butto
           key={value}
           onClick={() => onChange(value)}
           className={cn(
-            'flex items-center justify-center gap-2 px-4 py-2.5 text-body font-medium transition-all duration-200 border-b-2 -mb-px whitespace-nowrap flex-shrink-0',
+            'flex items-center justify-center gap-2 px-4 py-3 text-body font-medium transition-all duration-200 border-b-2 -mb-px whitespace-nowrap flex-shrink-0',
             active === value
               ? 'text-graphite border-graphite'
               : 'text-mid-gray border-transparent hover:text-graphite'
