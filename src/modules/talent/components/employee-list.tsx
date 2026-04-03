@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Plus, Users } from 'lucide-react'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
@@ -15,12 +16,12 @@ import { EmployeeForm } from './employee-form'
 import type { Employee } from '../types'
 
 export function EmployeeList() {
+  const navigate = useNavigate()
   const { data: employees, loading, loadingMore, hasMore, totalCount, loadMore, refetch } = usePaginatedEmployees()
   const [search, setSearch] = useState('')
   const [departmentFilter, setDepartmentFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [showForm, setShowForm] = useState(false)
-  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null)
 
   const departments = useMemo(() => {
     const set = new Set(employees.map((e) => e.department).filter(Boolean))
@@ -98,9 +99,9 @@ export function EmployeeList() {
       </PageHeader>
 
       <EmployeeForm
-        open={showForm || !!editingEmployee}
-        employee={editingEmployee}
-        onClose={() => { setShowForm(false); setEditingEmployee(null); refetch() }}
+        open={showForm}
+        employee={null}
+        onClose={() => { setShowForm(false); refetch() }}
       />
 
       <div className="mb-4 text-caption text-mid-gray">
@@ -164,7 +165,7 @@ export function EmployeeList() {
           <DataTable
             columns={columns}
             data={filtered}
-            onRowClick={(e) => setEditingEmployee(e)}
+            onRowClick={(e) => navigate(`/talent/${e.id}`)}
           />
           <LoadMoreButton
             onClick={loadMore}
