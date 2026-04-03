@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { Upload, FileText, Image, File, Trash2, ExternalLink, Download, Loader2 } from 'lucide-react'
+import { Upload, FileText, ImageIcon, FileIcon, Trash2, ExternalLink, Download, Loader2 } from 'lucide-react'
 import { saveAs } from 'file-saver'
 import { queryClient } from '@/core/query/query-client'
 import { useCompany } from '@/core/hooks/use-company'
@@ -34,9 +34,9 @@ function formatDate(ts: Timestamp | undefined): string {
 }
 
 function fileIcon(contentType: string) {
-  if (contentType.startsWith('image/')) return Image
+  if (contentType.startsWith('image/')) return ImageIcon
   if (contentType === 'application/pdf') return FileText
-  return File
+  return FileIcon
 }
 
 interface Props {
@@ -46,7 +46,7 @@ interface Props {
 export function EmployeeDocuments({ employeeId }: Props) {
   const { selectedCompany } = useCompany()
   const companyId = selectedCompany?.id ?? ''
-  const { data: documents, loading, refetch } = useEmployeeDocuments(employeeId)
+  const { data: documents, loading } = useEmployeeDocuments(employeeId)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [pendingFile, setPendingFile] = useState<File | null>(null)
