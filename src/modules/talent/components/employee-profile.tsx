@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Edit, Trash2 } from 'lucide-react'
+import { ArrowLeft, Edit, Trash2, User, FileText } from 'lucide-react'
 import { Timestamp } from 'firebase/firestore'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
@@ -9,12 +9,14 @@ import { SelectInput } from '@/core/ui/select-input'
 import { StatusBadge } from '@/core/ui/status-badge'
 import { CurrencyInput } from '@/core/ui/currency-input'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
+import { UnderlineButtonTabs } from '@/core/ui/underline-tabs'
 import { useCompany } from '@/core/hooks/use-company'
 import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { formatCurrency } from '@/core/utils/format'
 import { Skeleton } from '@/core/ui/skeleton'
 import { useEmployee } from '../hooks'
 import { talentService } from '../services'
+import { EmployeeDocuments } from './employee-documents'
 import type { EmployeeFormData } from '../types'
 
 const inputClass =
@@ -38,6 +40,7 @@ export function EmployeeProfile() {
   const { selectedCompany } = useCompany()
   const { data: employee, loading, error } = useEmployee(id)
 
+  const [activeTab, setActiveTab] = useState('info')
   const [editing, setEditing] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
 
@@ -182,112 +185,129 @@ export function EmployeeProfile() {
         )}
       </PageHeader>
 
-      <div className="bg-surface rounded-xl card-elevated p-6">
-        {editing ? (
-          <div className="grid grid-cols-2 gap-5">
-            <div>
-              <label className={labelClass}>Nombre</label>
-              <input name="name" value={editForm.name} onChange={handleChange} className={inputClass} />
-            </div>
-            <div>
-              <label className={labelClass}>Identificación</label>
-              <input name="identification" value={editForm.identification} onChange={handleChange} placeholder="Cédula o NIT" className={inputClass} />
-            </div>
-            <div>
-              <label className={labelClass}>Cargo</label>
-              <input name="role" value={editForm.role} onChange={handleChange} className={inputClass} />
-            </div>
-            <div>
-              <label className={labelClass}>Departamento</label>
-              <input name="department" value={editForm.department} onChange={handleChange} className={inputClass} />
-            </div>
-            <div>
-              <label className={labelClass}>Email</label>
-              <input name="email" type="email" value={editForm.email} onChange={handleChange} className={inputClass} />
-            </div>
-            <div>
-              <label className={labelClass}>Teléfono</label>
-              <input name="phone" value={editForm.phone} onChange={handleChange} className={inputClass} />
-            </div>
-            <div>
-              <label className={labelClass}>Salario</label>
-              <CurrencyInput name="salary" value={editForm.salary} onChange={(raw) => setEditForm((prev) => ({ ...prev, salary: raw }))} className={inputClass} />
-            </div>
-            <div>
-              <label className={labelClass}>Fecha de Inicio</label>
-              <DateInput
-                value={editForm.startDate}
-                onChange={(v) => setEditForm((prev) => ({ ...prev, startDate: v }))}
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Estado</label>
-              <SelectInput
-                value={editForm.status}
-                onChange={(v) => setEditForm((prev) => ({ ...prev, status: v as 'active' | 'inactive' }))}
-                options={[
-                  { value: 'active', label: 'Activo' },
-                  { value: 'inactive', label: 'Inactivo' },
-                ]}
-              />
-            </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-5">
-            <div>
-              <p className={labelClass}>Identificación</p>
-              <p className="text-body text-graphite">{displayed.identification || '—'}</p>
-            </div>
-            <div>
-              <p className={labelClass}>Cargo</p>
-              <p className="text-body text-graphite">{displayed.role}</p>
-            </div>
-            <div>
-              <p className={labelClass}>Departamento</p>
-              <p className="text-body text-graphite">{displayed.department}</p>
-            </div>
-            <div>
-              <p className={labelClass}>Email</p>
-              <p className="text-body text-graphite">{displayed.email}</p>
-            </div>
-            <div>
-              <p className={labelClass}>Teléfono</p>
-              <p className="text-body text-graphite">{displayed.phone}</p>
-            </div>
-            <div>
-              <p className={labelClass}>Salario</p>
-              <p className="text-body text-graphite">
-                {formatCurrency(displayed.salary ?? 0)}
-              </p>
-            </div>
-            <div>
-              <p className={labelClass}>Fecha de Inicio</p>
-              <p className="text-body text-graphite">{formatDate(displayed.startDate)}</p>
-            </div>
-            <div>
-              <p className={labelClass}>Estado</p>
-              <StatusBadge variant={displayed.status} />
-            </div>
-          </div>
-        )}
-      </div>
+      <UnderlineButtonTabs
+        tabs={[
+          { value: 'info', label: 'Información', icon: User },
+          { value: 'documents', label: 'Documentos', icon: FileText },
+        ]}
+        active={activeTab}
+        onChange={setActiveTab}
+      />
 
-      {editing && (
-        <div className="flex gap-3 mt-5">
-          <button
-            onClick={handleSave}
-            disabled={updateMutation.isPending}
-            className="px-5 py-2.5 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {updateMutation.isPending ? 'Guardando...' : 'Guardar Cambios'}
-          </button>
-          <button
-            onClick={() => setEditing(false)}
-            className="px-5 py-2.5 rounded-[10px] border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
-          >
-            Cancelar
-          </button>
-        </div>
+      {activeTab === 'info' && (
+        <>
+          <div className="bg-surface rounded-xl card-elevated p-6">
+            {editing ? (
+              <div className="grid grid-cols-2 gap-5">
+                <div>
+                  <label className={labelClass}>Nombre</label>
+                  <input name="name" value={editForm.name} onChange={handleChange} className={inputClass} />
+                </div>
+                <div>
+                  <label className={labelClass}>Identificación</label>
+                  <input name="identification" value={editForm.identification} onChange={handleChange} placeholder="Cédula o NIT" className={inputClass} />
+                </div>
+                <div>
+                  <label className={labelClass}>Cargo</label>
+                  <input name="role" value={editForm.role} onChange={handleChange} className={inputClass} />
+                </div>
+                <div>
+                  <label className={labelClass}>Departamento</label>
+                  <input name="department" value={editForm.department} onChange={handleChange} className={inputClass} />
+                </div>
+                <div>
+                  <label className={labelClass}>Email</label>
+                  <input name="email" type="email" value={editForm.email} onChange={handleChange} className={inputClass} />
+                </div>
+                <div>
+                  <label className={labelClass}>Teléfono</label>
+                  <input name="phone" value={editForm.phone} onChange={handleChange} className={inputClass} />
+                </div>
+                <div>
+                  <label className={labelClass}>Salario</label>
+                  <CurrencyInput name="salary" value={editForm.salary} onChange={(raw) => setEditForm((prev) => ({ ...prev, salary: raw }))} className={inputClass} />
+                </div>
+                <div>
+                  <label className={labelClass}>Fecha de Inicio</label>
+                  <DateInput
+                    value={editForm.startDate}
+                    onChange={(v) => setEditForm((prev) => ({ ...prev, startDate: v }))}
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>Estado</label>
+                  <SelectInput
+                    value={editForm.status}
+                    onChange={(v) => setEditForm((prev) => ({ ...prev, status: v as 'active' | 'inactive' }))}
+                    options={[
+                      { value: 'active', label: 'Activo' },
+                      { value: 'inactive', label: 'Inactivo' },
+                    ]}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-5">
+                <div>
+                  <p className={labelClass}>Identificación</p>
+                  <p className="text-body text-graphite">{displayed.identification || '—'}</p>
+                </div>
+                <div>
+                  <p className={labelClass}>Cargo</p>
+                  <p className="text-body text-graphite">{displayed.role}</p>
+                </div>
+                <div>
+                  <p className={labelClass}>Departamento</p>
+                  <p className="text-body text-graphite">{displayed.department}</p>
+                </div>
+                <div>
+                  <p className={labelClass}>Email</p>
+                  <p className="text-body text-graphite">{displayed.email}</p>
+                </div>
+                <div>
+                  <p className={labelClass}>Teléfono</p>
+                  <p className="text-body text-graphite">{displayed.phone}</p>
+                </div>
+                <div>
+                  <p className={labelClass}>Salario</p>
+                  <p className="text-body text-graphite">
+                    {formatCurrency(displayed.salary ?? 0)}
+                  </p>
+                </div>
+                <div>
+                  <p className={labelClass}>Fecha de Inicio</p>
+                  <p className="text-body text-graphite">{formatDate(displayed.startDate)}</p>
+                </div>
+                <div>
+                  <p className={labelClass}>Estado</p>
+                  <StatusBadge variant={displayed.status} />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {editing && (
+            <div className="flex gap-3 mt-5">
+              <button
+                onClick={handleSave}
+                disabled={updateMutation.isPending}
+                className="px-5 py-2.5 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {updateMutation.isPending ? 'Guardando...' : 'Guardar Cambios'}
+              </button>
+              <button
+                onClick={() => setEditing(false)}
+                className="px-5 py-2.5 rounded-[10px] border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
+              >
+                Cancelar
+              </button>
+            </div>
+          )}
+        </>
+      )}
+
+      {activeTab === 'documents' && id && (
+        <EmployeeDocuments employeeId={id} />
       )}
 
       <ConfirmDialog

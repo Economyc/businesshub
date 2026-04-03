@@ -14,3 +14,23 @@ export interface Employee extends BaseEntity {
 }
 
 export type EmployeeFormData = Omit<Employee, 'id' | 'createdAt' | 'updatedAt'>
+
+export type DocumentCategory = 'cedula' | 'rut' | 'certificado' | 'examen_medico' | 'carta' | 'otro'
+
+export const DOCUMENT_CATEGORY_LABELS: Record<DocumentCategory, string> = {
+  cedula: 'Cédula',
+  rut: 'RUT',
+  certificado: 'Certificado',
+  examen_medico: 'Examen Médico',
+  carta: 'Carta',
+  otro: 'Otro',
+}
+
+export interface EmployeeDocument extends BaseEntity {
+  name: string
+  category: DocumentCategory
+  url: string
+  storagePath: string
+  size: number
+  contentType: string
+}
