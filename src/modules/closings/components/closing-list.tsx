@@ -10,6 +10,8 @@ import { TableSkeleton } from '@/core/ui/skeleton'
 import { LoadMoreButton } from '@/core/ui/load-more-button'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 import { formatCurrency } from '@/core/utils/format'
+import { useDateRange } from '@/modules/finance/context/date-range-context'
+import { DateRangePicker } from '@/modules/finance/components/date-range-picker'
 import { useCompany } from '@/core/hooks/use-company'
 import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { usePaginatedClosings } from '../hooks'
@@ -48,12 +50,22 @@ export function ClosingList() {
   const [editingClosing, setEditingClosing] = useState<Closing | null>(null)
   const [receiptClosing, setReceiptClosing] = useState<Closing | null>(null)
 
+  const { startDate, endDate } = useDateRange()
+
   const sorted = useMemo(() => {
     return [...closings].sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''))
   }, [closings])
 
-  const filtered = useMemo(() => {
+  const dateFiltered = useMemo(() => {
     return sorted.filter((c) => {
+      if (!c.date) return true
+      const d = new Date(c.date + 'T12:00:00')
+      return d >= startDate && d <= endDate
+    })
+  }, [sorted, startDate, endDate])
+
+  const filtered = useMemo(() => {
+    return dateFiltered.filter((c) => {
       if (search === '') return true
       const q = search.toLowerCase()
       return (
@@ -61,7 +73,7 @@ export function ClosingList() {
         (c.responsable ?? '').toLowerCase().includes(q)
       )
     })
-  }, [sorted, search])
+  }, [dateFiltered, search])
 
   const totalVentas = useMemo(() => {
     return filtered.reduce((sum, c) => sum + (c.ventaTotal ?? 0), 0)
@@ -169,6 +181,7 @@ export function ClosingList() {
             <div className="flex-1">
               <SearchInput value={search} onChange={setSearch} placeholder="Buscar por fecha o responsable..." />
             </div>
+            <DateRangePicker />
           </div>
 
           {loading ? (

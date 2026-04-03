@@ -91,7 +91,9 @@ export default function App() {
               </Route>
               <Route path="/cartera" element={<Suspense fallback={<Loading />}><CarteraDashboard /></Suspense>} />
               <Route path="/partners" element={<Suspense fallback={<Loading />}><PartnerList /></Suspense>} />
-              <Route path="/closings" element={<Suspense fallback={<Loading />}><ClosingList /></Suspense>} />
+              <Route element={<DateRangeProvider><Outlet /></DateRangeProvider>}>
+                <Route path="/closings" element={<Suspense fallback={<Loading />}><ClosingList /></Suspense>} />
+              </Route>
               <Route path="/contracts" element={<Suspense fallback={<Loading />}><ContractList /></Suspense>} />
               <Route path="/contracts/templates" element={<Suspense fallback={<Loading />}><TemplateList /></Suspense>} />
               <Route path="/contracts/new" element={<Suspense fallback={<Loading />}><ContractGenerate /></Suspense>} />
