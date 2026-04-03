@@ -242,14 +242,14 @@ export function TransactionList() {
                         <div
                           key={t.id}
                           onClick={() => { setEditingId(t.id); setFormOpen(true) }}
-                          className="grid px-5 pl-12 py-0 text-body text-graphite hover:bg-bone/50 transition-colors duration-150 cursor-pointer"
+                          className="grid items-center px-5 pl-12 py-0 text-body text-graphite hover:bg-bone/50 transition-colors duration-150 cursor-pointer"
                           style={{
                             gridTemplateColumns: '2fr 0.8fr 1fr 1fr 0.8fr',
                             borderTop: '1px solid #e5e4e0',
                             borderBottom: ti === group.transactions.length - 1 ? 'none' : undefined,
                           }}
                         >
-                          <div className="px-3 py-3.5 flex items-center gap-2">
+                          <div className="px-3 py-0 flex items-center gap-2">
                             <span className="font-medium text-dark-graphite">{t.concept}</span>
                             {t.sourceType === 'closing' && (
                               <span className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-700">Cierre</span>
@@ -261,21 +261,21 @@ export function TransactionList() {
                               <span className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-100 text-purple-700">Recurrente</span>
                             )}
                           </div>
-                          <div className="px-3 py-3.5 flex items-center gap-1.5">
+                          <div className="px-3 py-0 flex items-center gap-1.5">
                             <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium ${typePill.bg} ${typePill.text}`}>
                               {typePill.label}
                             </span>
                           </div>
-                          <div className="px-3 py-3.5 flex items-center gap-1.5">
+                          <div className="px-3 py-0 flex items-center gap-1.5">
                             <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: catPill.color }} />
                             <span className="truncate">{t.category}</span>
                           </div>
-                          <div className="px-3 py-3.5 flex items-center">
+                          <div className="px-3 py-0 flex items-center">
                             <span className={t.type === 'income' ? 'text-positive-text font-medium' : 'text-graphite'}>
                               {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount, 2)}
                             </span>
                           </div>
-                          <div className="px-3 py-3.5 flex items-center">
+                          <div className="px-3 py-0 flex items-center">
                             <StatusBadge variant={t.status} />
                           </div>
                         </div>

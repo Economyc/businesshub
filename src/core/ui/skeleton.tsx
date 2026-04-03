@@ -22,7 +22,7 @@ export function TableSkeleton({ rows = 5, columns = 4 }: { rows?: number; column
         {Array.from({ length: rows }).map((_, ri) => (
           <div
             key={ri}
-            className="grid px-5 py-4 gap-4"
+            className="grid items-center px-5 py-4 gap-4"
             style={{
               gridTemplateColumns: `repeat(${columns}, 1fr)`,
               borderBottom: ri < rows - 1 ? '1px solid #e5e4e0' : 'none',

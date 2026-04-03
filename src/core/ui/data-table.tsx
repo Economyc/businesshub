@@ -80,7 +80,7 @@ export function DataTable<T extends { id: string }>({ columns, data, onRowClick 
                 <div
                   key={item.id}
                   onClick={() => onRowClick?.(item)}
-                  className={`grid px-5 py-0 text-body text-graphite hover:bg-bone/50 transition-colors duration-150 ${onRowClick ? 'cursor-pointer' : ''}`}
+                  className={`grid items-center px-5 py-0 text-body text-graphite hover:bg-bone/50 transition-colors duration-150 ${onRowClick ? 'cursor-pointer' : ''}`}
                   style={{
                     gridTemplateColumns: gridCols,
                     borderBottom: virtualRow.index < data.length - 1 ? '1px solid #e5e4e0' : 'none',
@@ -95,7 +95,7 @@ export function DataTable<T extends { id: string }>({ columns, data, onRowClick 
                   {columns.map((col) => (
                     <div
                       key={col.key}
-                      className="px-3 py-4 first:pl-0 last:pr-0 flex items-center"
+                      className="px-3 py-0 first:pl-0 last:pr-0 flex items-center"
                     >
                       {col.render(item)}
                     </div>
