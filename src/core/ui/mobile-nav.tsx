@@ -230,8 +230,12 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
                           animate={{ height: 'auto', opacity: 1 }}
                           exit={{ height: 0, opacity: 0 }}
                           transition={{ duration: 0.2 }}
-                          className="overflow-hidden"
+                          className="overflow-hidden relative"
                         >
+                          {/* Tree connector line */}
+                          {section.title && (
+                            <div className="absolute left-[30px] top-0 bottom-0 w-px bg-border" />
+                          )}
                           {section.items.map(({ to, label, icon: Icon }) => (
                             <NavLink
                               key={to}

@@ -330,7 +330,11 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                     isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
                   )}
                 >
-                  <div className="overflow-hidden">
+                  <div className="overflow-hidden relative">
+                    {/* Tree connector line */}
+                    {section.title && !collapsed && (
+                      <div className="absolute left-[27px] top-0 bottom-0 w-px bg-border" />
+                    )}
                     {section.items.map(({ to, label, icon: Icon }) => (
                       <NavLink
                         key={to}
