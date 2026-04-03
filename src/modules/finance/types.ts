@@ -44,3 +44,56 @@ export interface BudgetItem {
 export interface BudgetConfig {
   items: BudgetItem[]
 }
+
+/* ─── Conciliacion Bancaria ─── */
+
+export type BankEntryType = 'credit' | 'debit'
+
+export interface BankEntry {
+  id: string
+  date: string
+  description: string
+  amount: number
+  type: BankEntryType
+  reference?: string
+  balance?: number
+}
+
+export interface ReconciliationMatch {
+  bankEntryId: string
+  transactionId: string
+  confidence: number
+  matchedBy: 'auto' | 'manual'
+}
+
+export type ReconciliationStatus = 'pending' | 'reconciled' | 'partial'
+
+export const RECONCILIATION_STATUS_LABELS: Record<ReconciliationStatus, string> = {
+  pending: 'Pendiente',
+  reconciled: 'Conciliado',
+  partial: 'Parcial',
+}
+
+export const RECONCILIATION_STATUS_COLORS: Record<ReconciliationStatus, string> = {
+  pending: 'bg-amber-50 text-amber-700 border-amber-200',
+  reconciled: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  partial: 'bg-blue-50 text-blue-700 border-blue-200',
+}
+
+export interface BankStatement extends BaseEntity {
+  fileName: string
+  fileFormat: 'csv' | 'ofx'
+  bankName?: string
+  accountNumber?: string
+  periodStart: string
+  periodEnd: string
+  entries: BankEntry[]
+  matches: ReconciliationMatch[]
+  status: ReconciliationStatus
+  entryCount: number
+  matchedCount: number
+  unmatchedBankCount: number
+  unmatchedTransactionCount: number
+}
+
+export type BankStatementFormData = Omit<BankStatement, 'id' | 'createdAt' | 'updatedAt'>

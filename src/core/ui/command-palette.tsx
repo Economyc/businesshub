@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import {
   Search, Home, BarChart3, Users, Briefcase, DollarSign, Handshake,
   ClipboardList, FileSignature, Building2, Tags, BadgeCheck, Network,
-  ArrowRight, Clock, Plus, CornerDownLeft, Wallet,
+  ArrowRight, Clock, Plus, CornerDownLeft, Wallet, Gift,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useEmployees } from '@/modules/talent/hooks'
@@ -47,9 +47,11 @@ const NAV_RESULTS: SearchResult[] = [
   { id: 'nav-income', type: 'navigation', label: 'Estado de Resultados', icon: <DollarSign size={ICON_SIZE} strokeWidth={STROKE} />, to: '/finance/income-statement', keywords: 'estado resultados p&l perdidas ganancias utilidad margen' },
   { id: 'nav-budget', type: 'navigation', label: 'Presupuesto vs Real', icon: <DollarSign size={ICON_SIZE} strokeWidth={STROKE} />, to: '/finance/budget', keywords: 'presupuesto budget meta objetivo comparar real ejecucion' },
   { id: 'nav-import', type: 'navigation', label: 'Importar Transacciones', icon: <DollarSign size={ICON_SIZE} strokeWidth={STROKE} />, to: '/finance/import', keywords: 'importar csv excel transacciones carga masiva' },
+  { id: 'nav-reconciliation', type: 'navigation', label: 'Conciliacion Bancaria', icon: <DollarSign size={ICON_SIZE} strokeWidth={STROKE} />, to: '/finance/reconciliation', keywords: 'conciliacion bancaria extracto banco bank reconciliation statement ofx' },
   { id: 'nav-cartera', type: 'navigation', label: 'Cartera', icon: <Wallet size={ICON_SIZE} strokeWidth={STROKE} />, to: '/cartera', keywords: 'cartera cuentas cobrar pagar pendientes abonos pagos vencidos receivables payables rappi' },
   { id: 'nav-partners', type: 'navigation', label: 'Socios', icon: <Handshake size={ICON_SIZE} strokeWidth={STROKE} />, to: '/partners', keywords: 'socios partners inversion participacion accionistas' },
   { id: 'nav-closings', type: 'navigation', label: 'Cierres de Caja', icon: <ClipboardList size={ICON_SIZE} strokeWidth={STROKE} />, to: '/closings', keywords: 'cierres cierre caja diario ventas efectivo datafono propinas' },
+  { id: 'nav-prestaciones', type: 'navigation', label: 'Prestaciones Sociales', icon: <Gift size={ICON_SIZE} strokeWidth={STROKE} />, to: '/prestaciones', keywords: 'prestaciones sociales prima cesantias intereses vacaciones liquidacion definitiva terminacion' },
   { id: 'nav-contracts', type: 'navigation', label: 'Contratos', icon: <FileSignature size={ICON_SIZE} strokeWidth={STROKE} />, to: '/contracts', keywords: 'contratos laborales documentos legales' },
   { id: 'nav-templates', type: 'navigation', label: 'Plantillas de Contratos', icon: <FileSignature size={ICON_SIZE} strokeWidth={STROKE} />, to: '/contracts/templates', keywords: 'plantillas templates modelos contratos clausulas' },
   { id: 'nav-settings-companies', type: 'navigation', label: 'Companias', icon: <Building2 size={ICON_SIZE} strokeWidth={STROKE} />, to: '/settings/companies', keywords: 'ajustes configuracion companias empresas settings' },
@@ -66,6 +68,7 @@ function getActionResults(_navigate: ReturnType<typeof useNavigate>): SearchResu
     { id: 'act-new-purchase', type: 'action', label: 'Nueva Compra', description: 'Registrar orden de compra', icon: <Plus size={ICON_SIZE} strokeWidth={STROKE} />, to: '/finance/purchases/new', keywords: 'crear nueva compra orden pedido' },
     { id: 'act-new-contract', type: 'action', label: 'Generar Contrato', description: 'Crear contrato laboral', icon: <Plus size={ICON_SIZE} strokeWidth={STROKE} />, to: '/contracts/new', keywords: 'generar crear nuevo contrato laboral' },
     { id: 'act-import', type: 'action', label: 'Importar Transacciones', description: 'Carga masiva CSV/Excel', icon: <Plus size={ICON_SIZE} strokeWidth={STROKE} />, to: '/finance/import', keywords: 'importar csv excel transacciones carga masiva' },
+    { id: 'act-new-settlement', type: 'action', label: 'Nueva Liquidacion de Prestaciones', description: 'Prima, cesantias, vacaciones o liquidacion definitiva', icon: <Plus size={ICON_SIZE} strokeWidth={STROKE} />, to: '/prestaciones', keywords: 'crear nueva liquidacion prestaciones prima cesantias vacaciones' },
   ]
 }
 

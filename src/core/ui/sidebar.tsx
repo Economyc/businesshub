@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
-import { BarChart3, Users, Briefcase, DollarSign, Settings, Home, Search, ChevronsLeft, Building2, Tags, BadgeCheck, Network, Handshake, ClipboardList, FileSignature, Wallet, Receipt } from 'lucide-react'
+import { BarChart3, Users, Briefcase, DollarSign, Settings, Home, Search, ChevronsLeft, Building2, Tags, BadgeCheck, Network, Handshake, ClipboardList, FileSignature, Wallet, Receipt, Gift } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { CommandPalette } from '@/core/ui/command-palette'
 
@@ -42,6 +42,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { to: '/talent', label: 'Equipo', icon: Users },
       { to: '/payroll', label: 'Nomina', icon: Receipt },
+      { to: '/prestaciones', label: 'Prestaciones', icon: Gift },
       { to: '/suppliers', label: 'Proveedores', icon: Briefcase },
     ],
   },

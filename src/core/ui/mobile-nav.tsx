@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { BarChart3, Users, Briefcase, DollarSign, Settings, Home, Handshake, ClipboardList, FileSignature, X, ChevronRight, Building2, Tags, BadgeCheck, Network, ChevronsUpDown, Check, MapPin, Wallet } from 'lucide-react'
+import { BarChart3, Users, Briefcase, DollarSign, Settings, Home, Handshake, ClipboardList, FileSignature, X, ChevronRight, Building2, Tags, BadgeCheck, Network, ChevronsUpDown, Check, MapPin, Wallet, Receipt, Gift } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useCompany } from '@/core/hooks/use-company'
 import { CompanyLogo } from '@/core/ui/company-logo'
@@ -43,6 +43,8 @@ const NAV_SECTIONS: NavSection[] = [
     title: 'Personas',
     items: [
       { to: '/talent', label: 'Equipo', icon: Users },
+      { to: '/payroll', label: 'Nomina', icon: Receipt },
+      { to: '/prestaciones', label: 'Prestaciones', icon: Gift },
       { to: '/suppliers', label: 'Proveedores', icon: Briefcase },
     ],
   },

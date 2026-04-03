@@ -1,5 +1,5 @@
 import { UnderlineTabs } from '@/core/ui/underline-tabs'
-import { List, ShoppingCart, Package, Wallet, FileText, Target, Repeat } from 'lucide-react'
+import { List, ShoppingCart, Package, Wallet, FileText, Target, Repeat, Scale } from 'lucide-react'
 
 const TABS = [
   { to: '/finance', label: 'Transacciones', icon: List, end: true },
@@ -9,6 +9,7 @@ const TABS = [
   { to: '/finance/cash-flow', label: 'Flujo de Caja', icon: Wallet, end: false },
   { to: '/finance/income-statement', label: 'Estado de Resultados', icon: FileText, end: false },
   { to: '/finance/budget', label: 'Presupuesto', icon: Target, end: false },
+  { to: '/finance/reconciliation', label: 'Conciliacion', icon: Scale, end: false },
 ]
 
 export function FinanceTabs() {

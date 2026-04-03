@@ -10,7 +10,7 @@ import { LoginPage } from '@/core/ui/login-page'
 import { GeneralDashboard, CostsDashboard, PurchasesDashboard, PayrollDashboard } from '@/modules/analytics/routes'
 import { EmployeeList, EmployeeProfile } from '@/modules/talent/routes'
 import { SupplierList, SupplierDetail } from '@/modules/suppliers/routes'
-import { TransactionList, ImportView, CashFlowView, IncomeStatementView, BudgetView, RecurringList } from '@/modules/finance/routes'
+import { TransactionList, ImportView, CashFlowView, IncomeStatementView, BudgetView, RecurringList, ReconciliationView, ReconciliationDetail } from '@/modules/finance/routes'
 import { SettingsCompanies } from '@/core/ui/settings-companies'
 import { SettingsCategories } from '@/core/ui/settings-categories'
 import { SettingsRoles } from '@/core/ui/settings-roles'
@@ -22,6 +22,7 @@ import { PurchaseList, PurchaseForm, PurchaseDetail, ProductList, ProductDetail 
 import { HomePage } from '@/modules/home/routes'
 import { CarteraDashboard } from '@/modules/cartera/routes'
 import { PayrollList, PayrollDetail } from '@/modules/payroll/routes'
+import { SettlementList, SettlementDetail } from '@/modules/prestaciones/routes'
 import { DateRangeProvider } from '@/modules/finance/context/date-range-context'
 
 function Loading() {
@@ -67,6 +68,8 @@ export default function App() {
               <Route path="/talent/:id" element={<Suspense fallback={<Loading />}><EmployeeProfile /></Suspense>} />
               <Route path="/payroll" element={<Suspense fallback={<Loading />}><PayrollList /></Suspense>} />
               <Route path="/payroll/:id" element={<Suspense fallback={<Loading />}><PayrollDetail /></Suspense>} />
+              <Route path="/prestaciones" element={<Suspense fallback={<Loading />}><SettlementList /></Suspense>} />
+              <Route path="/prestaciones/:id" element={<Suspense fallback={<Loading />}><SettlementDetail /></Suspense>} />
               <Route path="/suppliers" element={<Suspense fallback={<Loading />}><SupplierList /></Suspense>} />
               <Route path="/suppliers/:id" element={<Suspense fallback={<Loading />}><SupplierDetail /></Suspense>} />
               <Route element={<DateRangeProvider><Outlet /></DateRangeProvider>}>
@@ -78,6 +81,8 @@ export default function App() {
                 <Route path="/finance/cash-flow" element={<Suspense fallback={<Loading />}><CashFlowView /></Suspense>} />
                 <Route path="/finance/income-statement" element={<Suspense fallback={<Loading />}><IncomeStatementView /></Suspense>} />
                 <Route path="/finance/budget" element={<Suspense fallback={<Loading />}><BudgetView /></Suspense>} />
+                <Route path="/finance/reconciliation" element={<Suspense fallback={<Loading />}><ReconciliationView /></Suspense>} />
+                <Route path="/finance/reconciliation/:id" element={<Suspense fallback={<Loading />}><ReconciliationDetail /></Suspense>} />
                 <Route path="/finance/purchases" element={<Suspense fallback={<Loading />}><PurchaseList /></Suspense>} />
                 <Route path="/finance/purchases/new" element={<Suspense fallback={<Loading />}><PurchaseForm /></Suspense>} />
                 <Route path="/finance/purchases/products" element={<Suspense fallback={<Loading />}><ProductList /></Suspense>} />

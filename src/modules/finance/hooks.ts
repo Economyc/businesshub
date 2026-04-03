@@ -1,13 +1,15 @@
 import { useMemo, useEffect, useCallback, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { useCollection } from '@/core/hooks/use-firestore'
+import { useCollection, useDocument } from '@/core/hooks/use-firestore'
+import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { usePaginatedCollection } from '@/core/hooks/use-paginated-collection'
 import { orderBy } from 'firebase/firestore'
 import { useCompany } from '@/core/hooks/use-company'
 import { queryClient } from '@/core/query/query-client'
-import { budgetService } from './services'
+import { budgetService, bankStatementService } from './services'
 import { generatePendingTransactions } from './recurring-generator'
-import type { Transaction, RecurringTransaction, BudgetItem } from './types'
+import { autoMatch } from './utils/reconciliation-matcher'
+import type { Transaction, RecurringTransaction, BudgetItem, BankStatement, BankStatementFormData, ReconciliationMatch } from './types'
 
 export function useTransactions() {
   return useCollection<Transaction>('transactions')
@@ -428,5 +430,97 @@ export function useBudgetComparison(startDate: Date, endDate: Date) {
     loading: txLoading || budgetLoading,
     saveBudget: save,
     refetchBudget: refetch,
+  }
+}
+
+/* ─── Bank Reconciliation Hooks ─── */
+
+export function useBankStatements() {
+  return useCollection<BankStatement>('bank-statements')
+}
+
+export function useBankStatement(id: string | undefined) {
+  return useDocument<BankStatement>('bank-statements', id)
+}
+
+export function useBankStatementMutation() {
+  return useFirestoreMutation<{ id?: string } & Partial<BankStatementFormData>>(
+    'bank-statements',
+    async (companyId, data) => {
+      const { id, ...rest } = data
+      if (id) await bankStatementService.update(companyId, id, rest)
+      else await bankStatementService.create(companyId, rest as BankStatementFormData)
+    },
+  )
+}
+
+export function useBankStatementDelete() {
+  return useFirestoreMutation<string>(
+    'bank-statements',
+    (companyId, id) => bankStatementService.remove(companyId, id),
+    { optimisticDelete: true },
+  )
+}
+
+export function useReconciliation(statementId: string | undefined) {
+  const { data: statement, loading: stmtLoading } = useBankStatement(statementId)
+  const { data: transactions, loading: txLoading } = useTransactions()
+  const { selectedCompany } = useCompany()
+
+  const runAutoMatch = useCallback(async () => {
+    if (!statement || !selectedCompany) return
+    const result = autoMatch(statement.entries, transactions)
+    await bankStatementService.update(selectedCompany.id, statement.id, {
+      matches: result.matches,
+      matchedCount: result.matches.length,
+      unmatchedBankCount: result.unmatchedBankEntries.length,
+      unmatchedTransactionCount: result.unmatchedTransactions.length,
+      status: result.unmatchedBankEntries.length === 0 && result.matches.length > 0 ? 'reconciled' : result.matches.length > 0 ? 'partial' : 'pending',
+    })
+    queryClient.invalidateQueries({ queryKey: ['firestore', selectedCompany.id, 'bank-statements'] })
+  }, [statement, transactions, selectedCompany])
+
+  const addManualMatch = useCallback(async (bankEntryId: string, transactionId: string) => {
+    if (!statement || !selectedCompany) return
+    const newMatch: ReconciliationMatch = { bankEntryId, transactionId, confidence: 100, matchedBy: 'manual' }
+    const updated = [...statement.matches, newMatch]
+    const matchedBankIds = new Set(updated.map((m) => m.bankEntryId))
+    await bankStatementService.update(selectedCompany.id, statement.id, {
+      matches: updated,
+      matchedCount: updated.length,
+      unmatchedBankCount: statement.entries.length - matchedBankIds.size,
+      status: matchedBankIds.size === statement.entries.length ? 'reconciled' : 'partial',
+    })
+    queryClient.invalidateQueries({ queryKey: ['firestore', selectedCompany.id, 'bank-statements'] })
+  }, [statement, selectedCompany])
+
+  const removeMatch = useCallback(async (bankEntryId: string) => {
+    if (!statement || !selectedCompany) return
+    const updated = statement.matches.filter((m) => m.bankEntryId !== bankEntryId)
+    const matchedBankIds = new Set(updated.map((m) => m.bankEntryId))
+    await bankStatementService.update(selectedCompany.id, statement.id, {
+      matches: updated,
+      matchedCount: updated.length,
+      unmatchedBankCount: statement.entries.length - matchedBankIds.size,
+      status: updated.length === 0 ? 'pending' : matchedBankIds.size === statement.entries.length ? 'reconciled' : 'partial',
+    })
+    queryClient.invalidateQueries({ queryKey: ['firestore', selectedCompany.id, 'bank-statements'] })
+  }, [statement, selectedCompany])
+
+  // Build transaction lookup
+  const txMap = useMemo(() => {
+    const map = new Map<string, Transaction>()
+    for (const tx of transactions) map.set(tx.id, tx)
+    return map
+  }, [transactions])
+
+  return {
+    statement,
+    transactions,
+    txMap,
+    loading: stmtLoading || txLoading,
+    runAutoMatch,
+    addManualMatch,
+    removeMatch,
   }
 }

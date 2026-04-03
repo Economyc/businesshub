@@ -7,3 +7,5 @@ export const CashFlowView = lazy(() => import('./components/cash-flow-view').the
 export const IncomeStatementView = lazy(() => import('./components/income-statement-view').then(m => ({ default: m.IncomeStatementView })))
 export const BudgetView = lazy(() => import('./components/budget-view').then(m => ({ default: m.BudgetView })))
 export const RecurringList = lazy(() => import('./components/recurring-list').then(m => ({ default: m.RecurringList })))
+export const ReconciliationView = lazy(() => import('./components/reconciliation-view').then(m => ({ default: m.ReconciliationView })))
+export const ReconciliationDetail = lazy(() => import('./components/reconciliation-detail').then(m => ({ default: m.ReconciliationDetail })))
