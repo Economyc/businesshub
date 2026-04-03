@@ -53,7 +53,6 @@ export function PayrollDashboard() {
   ]
 
   const deptChartHeight = Math.max(200, departments.length * 52)
-  const roleChartHeight = Math.max(200, roles.length * 52)
 
   return (
     <PageTransition>

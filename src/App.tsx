@@ -21,6 +21,7 @@ import { ContractList, TemplateList, ContractGenerate, ContractDetail } from '@/
 import { PurchaseList, PurchaseForm, PurchaseDetail, ProductList, ProductDetail } from '@/modules/purchases/routes'
 import { HomePage } from '@/modules/home/routes'
 import { CarteraDashboard } from '@/modules/cartera/routes'
+import { PayrollList, PayrollDetail } from '@/modules/payroll/routes'
 import { DateRangeProvider } from '@/modules/finance/context/date-range-context'
 
 function Loading() {
@@ -64,6 +65,8 @@ export default function App() {
               </Route>
               <Route path="/talent" element={<Suspense fallback={<Loading />}><EmployeeList /></Suspense>} />
               <Route path="/talent/:id" element={<Suspense fallback={<Loading />}><EmployeeProfile /></Suspense>} />
+              <Route path="/payroll" element={<Suspense fallback={<Loading />}><PayrollList /></Suspense>} />
+              <Route path="/payroll/:id" element={<Suspense fallback={<Loading />}><PayrollDetail /></Suspense>} />
               <Route path="/suppliers" element={<Suspense fallback={<Loading />}><SupplierList /></Suspense>} />
               <Route path="/suppliers/:id" element={<Suspense fallback={<Loading />}><SupplierDetail /></Suspense>} />
               <Route element={<DateRangeProvider><Outlet /></DateRangeProvider>}>

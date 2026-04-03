@@ -7,7 +7,6 @@ import { PageHeader } from '@/core/ui/page-header'
 import { DateInput } from '@/core/ui/date-input'
 import { SelectInput } from '@/core/ui/select-input'
 import { CurrencyInput } from '@/core/ui/currency-input'
-import { useCompany } from '@/core/hooks/use-company'
 import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { useProducts } from '../hooks'
 import { useSuppliers } from '@/modules/suppliers/hooks'
@@ -29,7 +28,6 @@ interface FormItem {
 
 export function PurchaseForm() {
   const navigate = useNavigate()
-  const { selectedCompany } = useCompany()
   const { data: suppliers } = useSuppliers()
   const { data: products } = useProducts()
 

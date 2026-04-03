@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 import { motion } from 'framer-motion'
-import { DollarSign, RefreshCw, Scale, ShieldCheck, PackageOpen } from 'lucide-react'
+import { DollarSign, RefreshCw, ShieldCheck, PackageOpen } from 'lucide-react'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts'

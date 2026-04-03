@@ -9,7 +9,7 @@ export interface Transaction extends BaseEntity {
   date: Timestamp
   status: TransactionStatus
   notes?: string
-  sourceType?: 'closing' | 'purchase' | 'recurring'
+  sourceType?: 'closing' | 'purchase' | 'recurring' | 'payroll'
   sourceId?: string
   sourceLabel?: string
 }

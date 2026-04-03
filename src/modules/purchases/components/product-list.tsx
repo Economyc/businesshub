@@ -10,7 +10,6 @@ import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 import { EmptyState } from '@/core/ui/empty-state'
 import { TableSkeleton } from '@/core/ui/skeleton'
 import { formatCurrency } from '@/core/utils/format'
-import { useCompany } from '@/core/hooks/use-company'
 import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { useProducts } from '../hooks'
 import { productService } from '../services'
@@ -20,7 +19,6 @@ import { ProductForm } from './product-form'
 import type { Product } from '../types'
 
 export function ProductList() {
-  const { selectedCompany } = useCompany()
   const { data: products, loading } = useProducts()
 
   const deleteMutation = useFirestoreMutation(

@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { useCollection } from '@/core/hooks/use-firestore'
 import { useCompany } from '@/core/hooks/use-company'
 import { useDateRange } from '@/modules/finance/context/date-range-context'
-import { MONTH_LABELS, getCostGroup, COST_GROUP_LABELS, calcChange, getMonthsBetween } from './services'
+import { getCostGroup, COST_GROUP_LABELS, calcChange, getMonthsBetween } from './services'
 import type { Transaction } from '@/modules/finance/types'
 import type { Purchase } from '@/modules/purchases/types'
 import type { Employee } from '@/modules/talent/types'
@@ -269,7 +269,6 @@ export function usePurchaseAnalytics(): {
     const avgTicket = orderCount > 0 ? totalPurchases / orderCount : 0
     const prevAvg = prevOrders > 0 ? prevTotal / prevOrders : 0
     const supplierIds = new Set(inRange_.map((p) => p.supplierId))
-    const prevSupplierIds = new Set(prev.map((p) => p.supplierId))
 
     const kpis: PurchaseAnalyticsKPIs = {
       totalPurchases,

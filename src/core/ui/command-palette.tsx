@@ -60,7 +60,7 @@ const NAV_RESULTS: SearchResult[] = [
 
 // --- Quick actions ---
 
-function getActionResults(navigate: ReturnType<typeof useNavigate>): SearchResult[] {
+function getActionResults(_navigate: ReturnType<typeof useNavigate>): SearchResult[] {
   return [
     { id: 'act-new-transaction', type: 'action', label: 'Nueva Transaccion', description: 'Registrar ingreso o egreso', icon: <Plus size={ICON_SIZE} strokeWidth={STROKE} />, to: '/finance', keywords: 'crear nueva transaccion pago ingreso egreso' },
     { id: 'act-new-purchase', type: 'action', label: 'Nueva Compra', description: 'Registrar orden de compra', icon: <Plus size={ICON_SIZE} strokeWidth={STROKE} />, to: '/finance/purchases/new', keywords: 'crear nueva compra orden pedido' },
