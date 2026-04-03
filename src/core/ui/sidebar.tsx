@@ -37,7 +37,7 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: 'Operaciones',
+    title: 'Gestión',
     icon: Boxes,
     items: [
       { to: '/contracts', label: 'Contratos', icon: FileSignature },
