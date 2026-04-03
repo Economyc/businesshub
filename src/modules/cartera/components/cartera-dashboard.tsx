@@ -155,7 +155,7 @@ export function CarteraDashboard() {
           className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-caption font-medium btn-primary hover:shadow-sm transition-all"
         >
           <Banknote size={13} strokeWidth={1.5} />
-          Pagar
+          {tab === 'receivables' ? 'Recibido' : 'Pagar'}
         </button>
       ),
     },
