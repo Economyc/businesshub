@@ -36,7 +36,7 @@ export function KPICardsRow({ kpis, periodLabel }: KPICardsRowProps) {
       <KPICard
         label="Margen neto"
         value={Math.round(kpis.margenNeto)}
-        format="number"
+        format="percent"
         change={kpis.margenNetoChange}
         trend={kpis.margenNetoTrend}
         icon={Percent}

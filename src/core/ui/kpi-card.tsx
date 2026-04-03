@@ -8,7 +8,7 @@ import type { LucideIcon } from 'lucide-react'
 interface KPICardProps {
   label: string
   value: number
-  format?: 'number' | 'currency'
+  format?: 'number' | 'currency' | 'percent'
   change?: string
   trend?: 'up' | 'down'
   icon?: LucideIcon
@@ -40,7 +40,9 @@ export function KPICard({ label, value, format = 'number', change, trend, icon: 
 
   const formattedValue = format === 'currency'
     ? formatCurrency(animatedValue)
-    : animatedValue.toLocaleString('es-CO')
+    : format === 'percent'
+      ? `${animatedValue}%`
+      : animatedValue.toLocaleString('es-CO')
 
   return (
     <motion.div
