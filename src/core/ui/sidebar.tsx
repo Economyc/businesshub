@@ -318,10 +318,10 @@ export function Sidebar({ onNavClick }: SidebarProps) {
         })}
       </div>
 
-      {/* Bottom — User menu + Collapse toggle */}
-      <div className={cn('border-t border-border', collapsed ? 'mx-3 pt-2 flex flex-col items-center gap-1' : 'mx-4 pt-2')}>
+      {/* Bottom — User menu + Collapse toggle (same row) */}
+      <div className={cn('flex items-center border-t border-border', collapsed ? 'mx-3 pt-1 flex-col gap-1' : 'mx-4 pt-1')}>
         {/* User menu */}
-        <div className="relative w-full" ref={userMenuRef}>
+        <div className="relative flex-1 min-w-0" ref={userMenuRef}>
           {collapsed ? (
             <button
               onClick={() => setUserMenuOpen(!userMenuOpen)}
