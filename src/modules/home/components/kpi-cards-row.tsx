@@ -6,9 +6,10 @@ import type { DashboardKPIs } from '../hooks'
 
 interface KPICardsRowProps {
   kpis: DashboardKPIs
+  periodLabel: string
 }
 
-export function KPICardsRow({ kpis }: KPICardsRowProps) {
+export function KPICardsRow({ kpis, periodLabel }: KPICardsRowProps) {
   return (
     <motion.div
       variants={staggerContainer}
@@ -17,7 +18,7 @@ export function KPICardsRow({ kpis }: KPICardsRowProps) {
       className="grid grid-cols-2 lg:grid-cols-4 gap-4"
     >
       <KPICard
-        label="Ventas hoy"
+        label={`Ventas — ${periodLabel}`}
         value={kpis.ventasHoy}
         format="currency"
         change={kpis.ventasHoyChange}
@@ -25,7 +26,7 @@ export function KPICardsRow({ kpis }: KPICardsRowProps) {
         icon={DollarSign}
       />
       <KPICard
-        label="Gastos del mes"
+        label={`Gastos — ${periodLabel}`}
         value={kpis.gastosMes}
         format="currency"
         change={kpis.gastosMesChange}

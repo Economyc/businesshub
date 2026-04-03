@@ -4,6 +4,7 @@ import { useTransactions } from '@/modules/finance/hooks'
 import { useClosings } from '@/modules/closings/hooks'
 import { useCarteraItems, useCarteraSummary } from '@/modules/cartera/hooks'
 import { useBudgetComparison } from '@/modules/finance/hooks'
+import { useDateRange } from '@/modules/finance/context/date-range-context'
 import type { Transaction } from '@/modules/finance/types'
 import type { Closing } from '@/modules/closings/types'
 import type { Supplier } from '@/modules/suppliers/types'
@@ -79,12 +80,22 @@ function daysUntil(ts: any): number {
 // ─── Hook ───────────────────────────────────────────────────────────
 
 export function useDashboardData() {
+  const { startDate, endDate } = useDateRange()
   const { data: transactions, loading: txLoading } = useTransactions()
   const { data: closings, loading: closingsLoading } = useClosings()
   const { receivables, payables, loading: carteraLoading } = useCarteraItems()
   const { summary: carteraSummary } = useCarteraSummary()
   const { data: suppliers, loading: suppliersLoading } = useCollection<Supplier>('suppliers')
   const { data: contracts, loading: contractsLoading } = useCollection<Contract>('contracts')
+
+  // Previous period of equal duration for comparison
+  const { prevStart, prevEnd } = useMemo(() => {
+    const durationMs = endDate.getTime() - startDate.getTime()
+    return {
+      prevStart: new Date(startDate.getTime() - durationMs - 1),
+      prevEnd: new Date(startDate.getTime() - 1),
+    }
+  }, [startDate, endDate])
 
   // Stabilize dates for useBudgetComparison
   const { monthStart, monthEnd } = useMemo(() => {
@@ -97,80 +108,81 @@ export function useDashboardData() {
 
   const { comparison: budgetComparison, loading: budgetLoading } = useBudgetComparison(monthStart, monthEnd)
 
-  // ─── KPIs ───────────────────────────────────────────────────────
+  // ─── KPIs (filtered by date range) ─────────────────────────────
   const kpis = useMemo<DashboardKPIs>(() => {
-    const now = new Date()
-    const todayStr = toDateStr(now)
-    const yesterday = new Date(now)
-    yesterday.setDate(yesterday.getDate() - 1)
-    const yesterdayStr = toDateStr(yesterday)
+    const startStr = toDateStr(startDate)
+    const endStr = toDateStr(endDate)
+    const prevStartStr = toDateStr(prevStart)
+    const prevEndStr = toDateStr(prevEnd)
 
-    // Ventas hoy: from closings
-    const todayClosings = closings.filter((c) => c.date === todayStr)
-    const yesterdayClosings = closings.filter((c) => c.date === yesterdayStr)
-    let ventasHoy = todayClosings.reduce((s, c) => s + c.ventaTotal, 0)
-    let ventasAyer = yesterdayClosings.reduce((s, c) => s + c.ventaTotal, 0)
+    // Ventas del período: from closings
+    const periodClosings = closings.filter((c) => c.date >= startStr && c.date <= endStr)
+    const prevClosings = closings.filter((c) => c.date >= prevStartStr && c.date <= prevEndStr)
+    let ventas = periodClosings.reduce((s, c) => s + c.ventaTotal, 0)
+    let ventasPrev = prevClosings.reduce((s, c) => s + c.ventaTotal, 0)
 
     // Fallback to income transactions if no closings
-    if (ventasHoy === 0 && todayClosings.length === 0) {
-      ventasHoy = transactions
-        .filter((t) => t.type === 'income' && toDateStr(t.date?.toDate?.() ?? new Date(0)) === todayStr)
+    if (ventas === 0 && periodClosings.length === 0) {
+      ventas = transactions
+        .filter((t) => {
+          const d = t.date?.toDate?.()
+          return d && t.type === 'income' && d >= startDate && d <= endDate
+        })
         .reduce((s, t) => s + t.amount, 0)
     }
-    if (ventasAyer === 0 && yesterdayClosings.length === 0) {
-      ventasAyer = transactions
-        .filter((t) => t.type === 'income' && toDateStr(t.date?.toDate?.() ?? new Date(0)) === yesterdayStr)
+    if (ventasPrev === 0 && prevClosings.length === 0) {
+      ventasPrev = transactions
+        .filter((t) => {
+          const d = t.date?.toDate?.()
+          return d && t.type === 'income' && d >= prevStart && d <= prevEnd
+        })
         .reduce((s, t) => s + t.amount, 0)
     }
 
-    // Gastos del mes
-    const msStart = new Date(now.getFullYear(), now.getMonth(), 1)
-    const prevMsStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-    const prevMsEnd = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate(), 23, 59, 59, 999)
-
-    const gastosMes = transactions
+    // Gastos del período
+    const gastos = transactions
       .filter((t) => {
         const d = t.date?.toDate?.()
-        return d && t.type === 'expense' && d >= msStart && d <= now
+        return d && t.type === 'expense' && d >= startDate && d <= endDate
       })
       .reduce((s, t) => s + t.amount, 0)
 
-    const gastosMesPrev = transactions
+    const gastosPrev = transactions
       .filter((t) => {
         const d = t.date?.toDate?.()
-        return d && t.type === 'expense' && d >= prevMsStart && d <= prevMsEnd
+        return d && t.type === 'expense' && d >= prevStart && d <= prevEnd
       })
       .reduce((s, t) => s + t.amount, 0)
 
-    // Ingresos del mes (para margen)
-    const ingresosMes = transactions
+    // Ingresos del período (para margen)
+    const ingresos = transactions
       .filter((t) => {
         const d = t.date?.toDate?.()
-        return d && t.type === 'income' && d >= msStart && d <= now
+        return d && t.type === 'income' && d >= startDate && d <= endDate
       })
       .reduce((s, t) => s + t.amount, 0)
 
-    const ingresosMesPrev = transactions
+    const ingresosPrev = transactions
       .filter((t) => {
         const d = t.date?.toDate?.()
-        return d && t.type === 'income' && d >= prevMsStart && d <= prevMsEnd
+        return d && t.type === 'income' && d >= prevStart && d <= prevEnd
       })
       .reduce((s, t) => s + t.amount, 0)
 
-    const margenNeto = ingresosMes > 0 ? ((ingresosMes - gastosMes) / ingresosMes) * 100 : 0
-    const margenPrev = ingresosMesPrev > 0 ? ((ingresosMesPrev - gastosMesPrev) / ingresosMesPrev) * 100 : 0
+    const margenNeto = ingresos > 0 ? ((ingresos - gastos) / ingresos) * 100 : 0
+    const margenPrev = ingresosPrev > 0 ? ((ingresosPrev - gastosPrev) / ingresosPrev) * 100 : 0
 
-    // Cuentas por cobrar
+    // Cuentas por cobrar (estado actual, no depende del filtro)
     const porCobrar = carteraSummary.totalReceivables
     const overdueCount = receivables.filter((r) => r.status === 'overdue').length
 
     return {
-      ventasHoy,
-      ventasHoyChange: pctChange(ventasHoy, ventasAyer),
-      ventasHoyTrend: ventasHoy >= ventasAyer ? 'up' : 'down',
-      gastosMes,
-      gastosMesChange: pctChange(gastosMes, gastosMesPrev),
-      gastosMesTrend: gastosMes <= gastosMesPrev ? 'up' : 'down',
+      ventasHoy: ventas,
+      ventasHoyChange: pctChange(ventas, ventasPrev),
+      ventasHoyTrend: ventas >= ventasPrev ? 'up' : 'down',
+      gastosMes: gastos,
+      gastosMesChange: pctChange(gastos, gastosPrev),
+      gastosMesTrend: gastos <= gastosPrev ? 'up' : 'down',
       margenNeto,
       margenNetoChange: `${margenNeto.toFixed(1)}%`,
       margenNetoTrend: margenNeto >= margenPrev ? 'up' : 'down',
@@ -178,11 +190,10 @@ export function useDashboardData() {
       porCobrarChange: overdueCount > 0 ? `${overdueCount} vencidas` : 'Al día',
       porCobrarTrend: overdueCount > 0 ? 'down' : 'up',
     }
-  }, [transactions, closings, carteraSummary, receivables])
+  }, [transactions, closings, carteraSummary, receivables, startDate, endDate, prevStart, prevEnd])
 
-  // ─── Sales Trend (30 days) ──────────────────────────────────────
+  // ─── Sales Trend (filtered by date range) ──────────────────────
   const salesTrend = useMemo<SalesTrendPoint[]>(() => {
-    const now = new Date()
     const points: SalesTrendPoint[] = []
 
     // Build a map of closings by date
@@ -201,17 +212,21 @@ export function useDashboardData() {
       txByDate.set(key, (txByDate.get(key) ?? 0) + t.amount)
     }
 
-    for (let i = 29; i >= 0; i--) {
-      const d = new Date(now)
-      d.setDate(d.getDate() - i)
-      const dateStr = toDateStr(d)
-      // Prefer closings, fallback to income transactions
+    // Iterate each day in the selected range
+    const current = new Date(startDate)
+    current.setHours(0, 0, 0, 0)
+    const end = new Date(endDate)
+    end.setHours(0, 0, 0, 0)
+
+    while (current <= end) {
+      const dateStr = toDateStr(current)
       const sales = closingsByDate.get(dateStr) ?? txByDate.get(dateStr) ?? 0
       points.push({ date: formatShortDate(dateStr), sales })
+      current.setDate(current.getDate() + 1)
     }
 
     return points
-  }, [closings, transactions])
+  }, [closings, transactions, startDate, endDate])
 
   // ─── Alerts ─────────────────────────────────────────────────────
   const alerts = useMemo<DashboardAlerts>(() => {

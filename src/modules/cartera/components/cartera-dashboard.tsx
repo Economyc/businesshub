@@ -8,6 +8,8 @@ import { DataTable } from '@/core/ui/data-table'
 import { EmptyState } from '@/core/ui/empty-state'
 import { formatCurrency } from '@/core/utils/format'
 import { CarteraSkeleton } from '@/core/ui/skeleton'
+import { useDateRange } from '@/modules/finance/context/date-range-context'
+import { DateRangePicker } from '@/modules/finance/components/date-range-picker'
 import { useCarteraItems, useCarteraSummary } from '../hooks'
 import { PaymentForm } from './payment-form'
 import type { CarteraItem } from '../types'
@@ -67,6 +69,7 @@ export function CarteraDashboard() {
   const [tab, setTab] = useState<Tab>('receivables')
   const [search, setSearch] = useState('')
   const [paymentTarget, setPaymentTarget] = useState<CarteraItem | null>(null)
+  const { startDate, endDate } = useDateRange()
 
   const items = tab === 'receivables' ? receivables : payables
 
@@ -79,14 +82,22 @@ export function CarteraDashboard() {
     )
   }, [items, search])
 
+  const dateFiltered = useMemo(() => {
+    return filtered.filter((i) => {
+      if (!i.date?.toDate) return true
+      const d = i.date.toDate()
+      return d >= startDate && d <= endDate
+    })
+  }, [filtered, startDate, endDate])
+
   const sorted = useMemo(() => {
-    return [...filtered].sort((a, b) => {
+    return [...dateFiltered].sort((a, b) => {
       // Overdue first, then by days outstanding desc
       if (a.status === 'overdue' && b.status !== 'overdue') return -1
       if (b.status === 'overdue' && a.status !== 'overdue') return 1
       return b.daysOutstanding - a.daysOutstanding
     })
-  }, [filtered])
+  }, [dateFiltered])
 
   function handleRefresh() {
     // The hooks auto-refresh via cache invalidation in services
@@ -185,8 +196,11 @@ export function CarteraDashboard() {
           active={tab}
           onChange={(v) => { setTab(v as Tab); setSearch('') }}
         />
-        <div className="w-64">
-          <SearchInput value={search} onChange={setSearch} placeholder="Buscar..." />
+        <div className="flex items-center gap-2">
+          <div className="w-64">
+            <SearchInput value={search} onChange={setSearch} placeholder="Buscar..." />
+          </div>
+          <DateRangePicker />
         </div>
       </div>
 

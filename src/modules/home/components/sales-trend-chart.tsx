@@ -16,14 +16,15 @@ function ChartTooltip({ active, payload, label }: any) {
 
 interface SalesTrendChartProps {
   data: SalesTrendPoint[]
+  periodLabel: string
 }
 
-export function SalesTrendChart({ data }: SalesTrendChartProps) {
+export function SalesTrendChart({ data, periodLabel }: SalesTrendChartProps) {
   const hasData = data.some((d) => d.sales > 0)
 
   return (
     <div className="bg-surface rounded-xl card-elevated p-6">
-      <h2 className="text-subheading font-medium text-dark-graphite mb-4">Ventas — Últimos 30 días</h2>
+      <h2 className="text-subheading font-medium text-dark-graphite mb-4">Ventas — {periodLabel}</h2>
       {!hasData ? (
         <div className="flex items-center justify-center h-[280px] text-mid-gray text-caption">
           Sin datos de ventas en este período
