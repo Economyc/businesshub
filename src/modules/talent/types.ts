@@ -15,7 +15,7 @@ export interface Employee extends BaseEntity {
 
 export type EmployeeFormData = Omit<Employee, 'id' | 'createdAt' | 'updatedAt'>
 
-export type DocumentCategory = 'cedula' | 'rut' | 'certificado' | 'examen_medico' | 'carta' | 'otro'
+export type DocumentCategory = 'cedula' | 'rut' | 'certificado' | 'examen_medico' | 'carta' | 'contrato' | 'otro'
 
 export const DOCUMENT_CATEGORY_LABELS: Record<DocumentCategory, string> = {
   cedula: 'Cédula',
@@ -23,6 +23,7 @@ export const DOCUMENT_CATEGORY_LABELS: Record<DocumentCategory, string> = {
   certificado: 'Certificado',
   examen_medico: 'Examen Médico',
   carta: 'Carta',
+  contrato: 'Contrato',
   otro: 'Otro',
 }
 

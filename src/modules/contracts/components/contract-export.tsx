@@ -8,8 +8,8 @@ interface ContractExportProps {
   employeeName: string
 }
 
-/* ─── PDF Export (native text, multi-page) ─── */
-async function exportPDF(clauses: ContractClause[], title: string, employeeName: string) {
+/* ─── PDF generation (returns blob for reuse) ─── */
+export async function generatePDFBlob(clauses: ContractClause[], title: string, employeeName: string): Promise<Blob> {
   const { default: jsPDF } = await import('jspdf')
 
   const pdf = new jsPDF({ unit: 'mm', format: 'letter' })
@@ -138,9 +138,20 @@ async function exportPDF(clauses: ContractClause[], title: string, employeeName:
 
   addPageNumber()
 
+  return pdf.output('blob')
+}
+
+/* ─── PDF Export (download) ─── */
+async function exportPDF(clauses: ContractClause[], title: string, employeeName: string) {
+  const blob = await generatePDFBlob(clauses, title, employeeName)
   const date = new Date().toISOString().slice(0, 10)
   const safeName = employeeName.replace(/[^a-zA-ZáéíóúñÁÉÍÓÚÑ\s]/g, '').trim().replace(/\s+/g, '_')
-  pdf.save(`Contrato_${safeName}_${date}.pdf`)
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `Contrato_${safeName}_${date}.pdf`
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
 /* ─── Word Export ─── */

@@ -14,9 +14,10 @@ import { useCollection } from '@/core/hooks/use-firestore'
 import { contractService } from '../services'
 import { resolvePlaceholders, numberToWords } from '../defaults/placeholders'
 import { ContractPreview } from './contract-preview'
-import { ContractExport } from './contract-export'
+import { ContractExport, generatePDFBlob } from './contract-export'
 import { ContractsTabs } from './contracts-tabs'
 import type { ContractMetadata, ContractClause, ContractFormData } from '../types'
+import { talentService } from '@/modules/talent/services'
 import type { Employee } from '@/modules/talent/types'
 import type { ContractStatus } from '@/core/types'
 
@@ -122,6 +123,23 @@ export function ContractGenerate() {
     if (selectedEmployeeId) data.employeeId = selectedEmployeeId
     if (metadata.endDate) data.endDate = Timestamp.fromDate(new Date(metadata.endDate))
     await createMutation.mutateAsync(data as unknown as Record<string, unknown>)
+
+    // Auto-link contract PDF to employee documents
+    if (selectedEmployeeId && selectedCompany.id) {
+      try {
+        const title = `CONTRATO DE TRABAJO — ${selectedTemplate.name}`
+        const blob = await generatePDFBlob(clauses, title, metadata.employeeName)
+        await talentService.uploadContractDocument(
+          selectedCompany.id,
+          selectedEmployeeId,
+          blob,
+          metadata.employeeName,
+        )
+      } catch (err) {
+        console.error('Error linking contract to employee documents:', err)
+      }
+    }
+
     navigate('/contracts')
   }
 

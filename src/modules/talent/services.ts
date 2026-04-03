@@ -51,6 +51,33 @@ export const talentService = {
     return docRef.id
   },
 
+  async uploadContractDocument(
+    companyId: string,
+    employeeId: string,
+    blob: Blob,
+    contractName: string,
+  ): Promise<string> {
+    const safeName = contractName.replace(/[^a-zA-ZáéíóúñÁÉÍÓÚÑ0-9\s]/g, '').trim().replace(/\s+/g, '_')
+    const path = `employees/${companyId}/${employeeId}/${Date.now()}_Contrato_${safeName}.pdf`
+    const fileRef = storageRef(storage, path)
+    await uploadBytes(fileRef, blob)
+    const url = await getDownloadURL(fileRef)
+
+    const now = Timestamp.now()
+    const ref = docsCollection(companyId, employeeId)
+    const docRef = await addDoc(ref, {
+      name: `Contrato_${safeName}.pdf`,
+      category: 'contrato',
+      url,
+      storagePath: path,
+      size: blob.size,
+      contentType: 'application/pdf',
+      createdAt: now,
+      updatedAt: now,
+    })
+    return docRef.id
+  },
+
   async deleteDocument(
     companyId: string,
     employeeId: string,
