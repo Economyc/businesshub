@@ -89,7 +89,9 @@ export default function App() {
                 <Route path="/finance/purchases/products/:id" element={<Suspense fallback={<Loading />}><ProductDetail /></Suspense>} />
                 <Route path="/finance/purchases/:id" element={<Suspense fallback={<Loading />}><PurchaseDetail /></Suspense>} />
               </Route>
-              <Route path="/cartera" element={<Suspense fallback={<Loading />}><CarteraDashboard /></Suspense>} />
+              <Route element={<DateRangeProvider><Outlet /></DateRangeProvider>}>
+                <Route path="/cartera" element={<Suspense fallback={<Loading />}><CarteraDashboard /></Suspense>} />
+              </Route>
               <Route path="/partners" element={<Suspense fallback={<Loading />}><PartnerList /></Suspense>} />
               <Route element={<DateRangeProvider><Outlet /></DateRangeProvider>}>
                 <Route path="/closings" element={<Suspense fallback={<Loading />}><ClosingList /></Suspense>} />
