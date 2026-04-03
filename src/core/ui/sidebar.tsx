@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
-import { BarChart3, Users, Briefcase, DollarSign, Home, Search, ChevronsLeft, Building2, Tags, BadgeCheck, Network, Handshake, ClipboardList, FileSignature, Wallet, Receipt, Gift, ChevronRight, ChevronsUpDown, Check, MapPin, CircleUser, LogOut, Settings } from 'lucide-react'
+import { BarChart3, Users, Briefcase, DollarSign, Home, Search, ChevronsLeft, Building2, Tags, BadgeCheck, Network, Handshake, ClipboardList, FileSignature, Wallet, Receipt, Gift, ChevronRight, ChevronsUpDown, Check, MapPin, CircleUser, LogOut, Landmark, Boxes, UserRound } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { CommandPalette } from '@/core/ui/command-palette'
 import { CompanyLogo } from '@/core/ui/company-logo'
@@ -16,6 +16,7 @@ interface NavItem {
 
 interface NavSection {
   title?: string
+  icon?: typeof Home
   items: NavItem[]
 }
 
@@ -28,6 +29,7 @@ const NAV_SECTIONS: NavSection[] = [
   },
   {
     title: 'Finanzas',
+    icon: Landmark,
     items: [
       { to: '/finance', label: 'Finanzas', icon: DollarSign },
       { to: '/cartera', label: 'Cartera', icon: Wallet },
@@ -36,6 +38,7 @@ const NAV_SECTIONS: NavSection[] = [
   },
   {
     title: 'Operaciones',
+    icon: Boxes,
     items: [
       { to: '/contracts', label: 'Contratos', icon: FileSignature },
       { to: '/partners', label: 'Socios', icon: Handshake },
@@ -43,6 +46,7 @@ const NAV_SECTIONS: NavSection[] = [
   },
   {
     title: 'Personas',
+    icon: UserRound,
     items: [
       { to: '/talent', label: 'Equipo', icon: Users },
       { to: '/payroll', label: 'Nomina', icon: Receipt },
@@ -264,14 +268,18 @@ export function Sidebar({ onNavClick }: SidebarProps) {
               {section.title && !collapsed && (
                 <button
                   onClick={() => toggleSection(section.title!)}
-                  className="w-full flex items-center justify-between px-5 pt-4 pb-1 group/section"
+                  className={cn(
+                    'group/section w-full flex items-center gap-2.5 py-2.5 px-5 text-body transition-all duration-150',
+                    isOpen
+                      ? 'text-dark-graphite font-medium'
+                      : 'text-graphite/70 hover:bg-card-bg hover:text-graphite'
+                  )}
                 >
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-mid-gray/60 group-hover/section:text-mid-gray transition-colors">
-                    {section.title}
-                  </span>
+                  {section.icon && <section.icon size={18} strokeWidth={1.5} />}
+                  <span className="flex-1 text-left">{section.title}</span>
                   <ChevronRight
-                    size={12}
-                    strokeWidth={2}
+                    size={14}
+                    strokeWidth={1.5}
                     className={cn(
                       'text-mid-gray/40 group-hover/section:text-mid-gray transition-all duration-200',
                       isOpen && 'rotate-90'
@@ -279,7 +287,17 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                   />
                 </button>
               )}
-              {section.title && collapsed && <div className="mx-4 my-2 border-t border-border/60" />}
+              {section.title && collapsed && (
+                <button
+                  onClick={() => toggleSection(section.title!)}
+                  className="group/section relative w-full flex justify-center py-2.5 text-graphite/70 hover:bg-card-bg hover:text-graphite transition-all duration-150"
+                >
+                  {section.icon && <section.icon size={18} strokeWidth={1.5} />}
+                  <span className="pointer-events-none absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 whitespace-nowrap rounded-lg bg-dark-graphite dark:bg-[#2a2a2a] px-3 py-1.5 text-caption font-medium text-white dark:text-[#e0e0e0] shadow-lg opacity-0 scale-95 transition-all duration-150 group-hover/section:opacity-100 group-hover/section:scale-100">
+                    {section.title}
+                  </span>
+                </button>
+              )}
               <div
                 className={cn(
                   'grid transition-all duration-200 ease-in-out',
@@ -295,7 +313,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                       className={({ isActive }) =>
                         cn(
                           'group/nav relative flex items-center gap-2.5 py-2.5 text-body transition-all duration-150',
-                          collapsed ? 'justify-center px-0' : 'px-5',
+                          collapsed ? 'justify-center px-0' : (section.title ? 'pl-8 pr-5' : 'px-5'),
                           isActive
                             ? 'text-dark-graphite font-medium bg-bone border-r-2 border-graphite'
                             : 'text-graphite/70 hover:bg-card-bg hover:text-graphite'
