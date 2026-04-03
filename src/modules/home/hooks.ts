@@ -26,7 +26,7 @@ export interface DashboardKPIs {
   margenNetoTrend: 'up' | 'down'
   porCobrar: number
   porCobrarChange: string
-  porCobrarTrend: 'up' | 'down'
+  porCobrarTrend: 'up' | 'down' | 'neutral'
 }
 
 export interface SalesTrendPoint {
@@ -187,8 +187,8 @@ export function useDashboardData() {
       margenNetoChange: `${margenNeto.toFixed(1)}%`,
       margenNetoTrend: margenNeto >= margenPrev ? 'up' : 'down',
       porCobrar,
-      porCobrarChange: overdueCount > 0 ? `${overdueCount} vencidas` : 'Al día',
-      porCobrarTrend: overdueCount > 0 ? 'down' : 'up',
+      porCobrarChange: overdueCount > 0 ? `${overdueCount} vencidas` : porCobrar > 0 ? `${receivables.filter((r) => r.status === 'pending').length} pendientes` : 'Al día',
+      porCobrarTrend: overdueCount > 0 ? 'down' : porCobrar > 0 ? 'neutral' : 'up',
     }
   }, [transactions, closings, carteraSummary, receivables, startDate, endDate, prevStart, prevEnd])
 

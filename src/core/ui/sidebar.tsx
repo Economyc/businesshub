@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
-import { BarChart3, Users, Briefcase, DollarSign, Home, Search, ChevronsLeft, Building2, Tags, BadgeCheck, Network, Handshake, ClipboardList, FileSignature, Wallet, Receipt, Gift, ChevronRight, ChevronsUpDown, Check, MapPin, CircleUser, LogOut, Settings, Landmark, Boxes, UserRound } from 'lucide-react'
+import { BarChart3, Users, Briefcase, DollarSign, Home, Search, ChevronsLeft, Building2, Tags, BadgeCheck, Network, Handshake, ClipboardList, FileSignature, Wallet, Receipt, Gift, ChevronRight, ChevronsUpDown, Check, MapPin, CircleUser, LogOut, Settings, Landmark, Boxes, UserRound, Bot } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { CommandPalette } from '@/core/ui/command-palette'
 import { CompanyLogo } from '@/core/ui/company-logo'
@@ -25,6 +25,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { to: '/home', label: 'Home', icon: Home },
       { to: '/analytics', label: 'Análisis', icon: BarChart3 },
+      { to: '/agent', label: 'Asistente AI', icon: Bot },
     ],
   },
   {

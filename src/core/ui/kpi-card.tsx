@@ -10,7 +10,7 @@ interface KPICardProps {
   value: number
   format?: 'number' | 'currency' | 'percent'
   change?: string
-  trend?: 'up' | 'down'
+  trend?: 'up' | 'down' | 'neutral'
   icon?: LucideIcon
 }
 
@@ -55,8 +55,8 @@ export function KPICard({ label, value, format = 'number', change, trend, icon: 
       </div>
       <div className="text-kpi font-extrabold text-dark-graphite">{formattedValue}</div>
       {change && (
-        <div className={`inline-flex items-center gap-[3px] mt-1.5 text-caption px-2 py-0.5 rounded-full ${trend === 'down' ? 'bg-negative-bg text-negative-text' : 'bg-positive-bg text-positive-text'}`}>
-          {trend === 'up' ? <ChevronUp size={12} strokeWidth={1.5} /> : <ChevronDown size={12} strokeWidth={1.5} />}
+        <div className={`inline-flex items-center gap-[3px] mt-1.5 text-caption px-2 py-0.5 rounded-full ${trend === 'down' ? 'bg-negative-bg text-negative-text' : trend === 'neutral' ? 'bg-warning-bg text-warning-text' : 'bg-positive-bg text-positive-text'}`}>
+          {trend === 'up' ? <ChevronUp size={12} strokeWidth={1.5} /> : trend === 'down' ? <ChevronDown size={12} strokeWidth={1.5} /> : null}
           {change}
         </div>
       )}

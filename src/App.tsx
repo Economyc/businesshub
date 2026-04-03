@@ -24,6 +24,7 @@ import { CarteraDashboard } from '@/modules/cartera/routes'
 import { PayrollList, PayrollDetail } from '@/modules/payroll/routes'
 import { SettlementList, SettlementDetail } from '@/modules/prestaciones/routes'
 import { DateRangeProvider } from '@/modules/finance/context/date-range-context'
+import { AgentPage } from '@/modules/agent/routes'
 
 function Loading() {
   return (
@@ -100,6 +101,7 @@ export default function App() {
               <Route path="/contracts/templates" element={<Suspense fallback={<Loading />}><TemplateList /></Suspense>} />
               <Route path="/contracts/new" element={<Suspense fallback={<Loading />}><ContractGenerate /></Suspense>} />
               <Route path="/contracts/:id" element={<Suspense fallback={<Loading />}><ContractDetail /></Suspense>} />
+              <Route path="/agent" element={<Suspense fallback={<Loading />}><AgentPage /></Suspense>} />
               <Route path="/settings" element={<Navigate to="/settings/companies" replace />} />
               <Route path="/settings/companies" element={<Suspense fallback={<Loading />}><SettingsCompanies /></Suspense>} />
               <Route path="/settings/categories" element={<Suspense fallback={<Loading />}><SettingsCategories /></Suspense>} />
