@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { BarChart3, Users, Briefcase, DollarSign, Settings, Home, Handshake, ClipboardList, FileSignature, X, ChevronRight, Building2, Tags, BadgeCheck, Network, ChevronsUpDown, Check, MapPin, Wallet, Receipt, Gift } from 'lucide-react'
@@ -62,11 +62,43 @@ interface MobileNavProps {
   onClose: () => void
 }
 
+function getActiveSections(pathname: string): Set<string> {
+  const active = new Set<string>()
+  for (const section of NAV_SECTIONS) {
+    if (section.title && section.items.some(item => pathname.startsWith(item.to))) {
+      active.add(section.title)
+    }
+  }
+  return active
+}
+
 export function MobileNav({ open, onClose }: MobileNavProps) {
   const { companies, selectedCompany, selectCompany } = useCompany()
   const [companyOpen, setCompanyOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [openSections, setOpenSections] = useState<Set<string>>(() => getActiveSections(window.location.pathname))
   const location = useLocation()
+
+  // Auto-expand section when navigating
+  useEffect(() => {
+    const active = getActiveSections(location.pathname)
+    if (active.size > 0) {
+      setOpenSections(prev => {
+        const next = new Set(prev)
+        active.forEach(s => next.add(s))
+        return next
+      })
+    }
+  }, [location.pathname])
+
+  function toggleSection(title: string) {
+    setOpenSections(prev => {
+      const next = new Set(prev)
+      if (next.has(title)) next.delete(title)
+      else next.add(title)
+      return next
+    })
+  }
 
   function handleNav() {
     onClose()
@@ -166,35 +198,61 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
 
             {/* Navigation */}
             <div className="flex-1 overflow-y-auto py-2">
-              {NAV_SECTIONS.map((section, sIdx) => (
-                <div key={section.title ?? sIdx}>
-                  {section.title && (
-                    <div className="px-6 pt-4 pb-1">
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-mid-gray/60">
-                        {section.title}
-                      </span>
-                    </div>
-                  )}
-                  {section.items.map(({ to, label, icon: Icon }) => (
-                    <NavLink
-                      key={to}
-                      to={to}
-                      onClick={handleNav}
-                      className={({ isActive }) =>
-                        cn(
-                          'flex items-center gap-3 mx-3 px-3 py-3 rounded-xl text-[15px] transition-all duration-150',
-                          isActive
-                            ? 'text-dark-graphite font-medium bg-bone'
-                            : 'text-graphite/70 active:bg-bone/50'
-                        )
-                      }
-                    >
-                      <Icon size={20} strokeWidth={1.5} />
-                      {label}
-                    </NavLink>
-                  ))}
-                </div>
-              ))}
+              {NAV_SECTIONS.map((section, sIdx) => {
+                const isOpen = !section.title || openSections.has(section.title)
+                return (
+                  <div key={section.title ?? sIdx}>
+                    {section.title && (
+                      <button
+                        onClick={() => toggleSection(section.title!)}
+                        className="w-full flex items-center justify-between px-6 pt-4 pb-1 group/section"
+                      >
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-mid-gray/60 group-hover/section:text-mid-gray transition-colors">
+                          {section.title}
+                        </span>
+                        <ChevronRight
+                          size={14}
+                          strokeWidth={2}
+                          className={cn(
+                            'text-mid-gray/40 group-hover/section:text-mid-gray transition-all duration-200 mr-3',
+                            isOpen && 'rotate-90'
+                          )}
+                        />
+                      </button>
+                    )}
+                    <AnimatePresence initial={false}>
+                      {isOpen && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="overflow-hidden"
+                        >
+                          {section.items.map(({ to, label, icon: Icon }) => (
+                            <NavLink
+                              key={to}
+                              to={to}
+                              onClick={handleNav}
+                              className={({ isActive }) =>
+                                cn(
+                                  'flex items-center gap-3 mx-3 px-3 py-3 rounded-xl text-[15px] transition-all duration-150',
+                                  isActive
+                                    ? 'text-dark-graphite font-medium bg-bone'
+                                    : 'text-graphite/70 active:bg-bone/50'
+                                )
+                              }
+                            >
+                              <Icon size={20} strokeWidth={1.5} />
+                              {label}
+                            </NavLink>
+                          ))}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                )
+              })}
             </div>
 
             {/* Settings */}
