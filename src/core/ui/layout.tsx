@@ -10,7 +10,11 @@ export function Layout() {
 
   return (
     <div className="h-screen flex flex-col">
-      <Topbar onMenuToggle={() => setMobileMenuOpen(true)} />
+      {/* Mobile-only topbar */}
+      <div className="md:hidden">
+        <Topbar onMenuToggle={() => setMobileMenuOpen(true)} />
+      </div>
+
       <div className="flex flex-1 overflow-hidden">
         {/* Desktop sidebar */}
         <div className="hidden md:flex h-full">

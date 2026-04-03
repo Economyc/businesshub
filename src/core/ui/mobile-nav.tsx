@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { BarChart3, Users, Briefcase, DollarSign, Settings, Home, Handshake, ClipboardList, FileSignature, X, ChevronRight, Building2, Tags, BadgeCheck, Network, ChevronsUpDown, Check, MapPin, Wallet, Receipt, Gift } from 'lucide-react'
+import { BarChart3, Users, Briefcase, DollarSign, Home, Handshake, ClipboardList, FileSignature, X, ChevronRight, Building2, Tags, BadgeCheck, Network, ChevronsUpDown, Check, MapPin, Wallet, Receipt, Gift, CircleUser, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useCompany } from '@/core/hooks/use-company'
+import { useAuth } from '@/core/hooks/use-auth'
 import { CompanyLogo } from '@/core/ui/company-logo'
+import { ThemeToggle } from '@/core/ui/theme-toggle'
 
 interface NavItem {
   to: string
@@ -74,8 +76,9 @@ function getActiveSections(pathname: string): Set<string> {
 
 export function MobileNav({ open, onClose }: MobileNavProps) {
   const { companies, selectedCompany, selectCompany } = useCompany()
+  const { user, logout } = useAuth()
   const [companyOpen, setCompanyOpen] = useState(false)
-  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [openSections, setOpenSections] = useState<Set<string>>(() => getActiveSections(window.location.pathname))
   const location = useLocation()
 
@@ -102,7 +105,7 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
 
   function handleNav() {
     onClose()
-    setSettingsOpen(false)
+    setUserMenuOpen(false)
     setCompanyOpen(false)
   }
 
@@ -255,28 +258,28 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
               })}
             </div>
 
-            {/* Settings */}
+            {/* User card with settings */}
             <div className="border-t border-border">
               <button
-                onClick={() => setSettingsOpen(!settingsOpen)}
-                className={cn(
-                  'w-full flex items-center gap-3 px-6 py-3.5 text-[15px] transition-all duration-150',
-                  settingsOpen || location.pathname.startsWith('/settings')
-                    ? 'text-dark-graphite font-medium'
-                    : 'text-graphite/70'
-                )}
+                onClick={() => setUserMenuOpen(!userMenuOpen)}
+                className="w-full flex items-center gap-3 px-6 py-3.5 text-[15px] transition-all duration-150 text-dark-graphite"
               >
-                <Settings size={20} strokeWidth={1.5} />
-                <span className="flex-1 text-left">Configuración</span>
+                <div className="w-8 h-8 rounded-full bg-graphite/10 flex items-center justify-center shrink-0">
+                  <CircleUser size={18} strokeWidth={1.5} className="text-graphite" />
+                </div>
+                <div className="flex-1 min-w-0 text-left">
+                  <div className="text-body font-medium text-dark-graphite truncate">{user?.displayName ?? user?.email?.split('@')[0] ?? 'Usuario'}</div>
+                  <div className="text-caption text-mid-gray truncate">{user?.email ?? ''}</div>
+                </div>
                 <ChevronRight
                   size={16}
                   strokeWidth={1.5}
-                  className={cn('text-mid-gray transition-transform duration-200', settingsOpen && 'rotate-90')}
+                  className={cn('text-mid-gray transition-transform duration-200', userMenuOpen && 'rotate-90')}
                 />
               </button>
 
               <AnimatePresence>
-                {settingsOpen && (
+                {userMenuOpen && (
                   <motion.div
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: 'auto', opacity: 1 }}
@@ -284,7 +287,12 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
                     transition={{ duration: 0.2 }}
                     className="overflow-hidden"
                   >
-                    <div className="pb-3 space-y-0.5">
+                    <div className="pb-3 px-3 space-y-0.5">
+                      <ThemeToggle />
+                      <div className="mx-3 my-1 border-t border-border/60" />
+                      <div className="px-3 pt-1 pb-1">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-mid-gray/60">Configuración</span>
+                      </div>
                       {SETTINGS_ITEMS.map(({ to, label, icon: Icon }) => (
                         <NavLink
                           key={to}
@@ -292,7 +300,7 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
                           onClick={handleNav}
                           className={({ isActive }) =>
                             cn(
-                              'flex items-center gap-3 mx-3 px-3 pl-10 py-2.5 rounded-xl text-body transition-all duration-150',
+                              'flex items-center gap-3 px-3 pl-6 py-2.5 rounded-xl text-body transition-all duration-150',
                               isActive
                                 ? 'text-dark-graphite font-medium bg-bone'
                                 : 'text-graphite/70 active:bg-bone/50'
@@ -303,6 +311,17 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
                           {label}
                         </NavLink>
                       ))}
+                      <div className="mx-3 my-1 border-t border-border/60" />
+                      <button
+                        onClick={() => {
+                          handleNav()
+                          logout()
+                        }}
+                        className="w-full flex items-center gap-3 px-3 pl-6 py-2.5 rounded-xl text-body text-mid-gray hover:text-dark-graphite transition-colors duration-150"
+                      >
+                        <LogOut size={16} strokeWidth={1.5} />
+                        Cerrar sesión
+                      </button>
                     </div>
                   </motion.div>
                 )}

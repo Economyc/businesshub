@@ -1,8 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
-import { BarChart3, Users, Briefcase, DollarSign, Settings, Home, Search, ChevronsLeft, Building2, Tags, BadgeCheck, Network, Handshake, ClipboardList, FileSignature, Wallet, Receipt, Gift, ChevronRight } from 'lucide-react'
+import { BarChart3, Users, Briefcase, DollarSign, Home, Search, ChevronsLeft, Building2, Tags, BadgeCheck, Network, Handshake, ClipboardList, FileSignature, Wallet, Receipt, Gift, ChevronRight, ChevronsUpDown, Check, MapPin, CircleUser, LogOut, Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { CommandPalette } from '@/core/ui/command-palette'
+import { CompanyLogo } from '@/core/ui/company-logo'
+import { ThemeToggle } from '@/core/ui/theme-toggle'
+import { useAuth } from '@/core/hooks/use-auth'
+import { useCompany } from '@/core/hooks/use-company'
 
 interface NavItem {
   to: string
@@ -74,8 +78,14 @@ export function Sidebar({ onNavClick }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
+  const { user, logout } = useAuth()
+  const { companies, selectedCompany, selectCompany } = useCompany()
 
   const [openSections, setOpenSections] = useState<Set<string>>(() => getActiveSections(location.pathname))
+  const [companyOpen, setCompanyOpen] = useState(false)
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const companyRef = useRef<HTMLDivElement>(null)
+  const userMenuRef = useRef<HTMLDivElement>(null)
 
   // Auto-expand section when navigating to a route within it
   useEffect(() => {
@@ -98,218 +108,325 @@ export function Sidebar({ onNavClick }: SidebarProps) {
     })
   }
 
-  const isSettingsRoute = location.pathname.startsWith('/settings')
-  const [settingsOpen, setSettingsOpen] = useState(isSettingsRoute)
-
-  // Sync settings panel with route
+  // Close dropdowns on outside click / Escape
   useEffect(() => {
-    if (isSettingsRoute) setSettingsOpen(true)
-    else setSettingsOpen(false)
-  }, [isSettingsRoute])
-
-  useEffect(() => {
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === 'Escape' && !e.defaultPrevented && settingsOpen) {
-        e.preventDefault()
-        setSettingsOpen(false)
+    function handleClickOutside(e: MouseEvent) {
+      if (companyRef.current && !companyRef.current.contains(e.target as Node)) {
+        setCompanyOpen(false)
+      }
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false)
       }
     }
-    document.addEventListener('keydown', handleKey)
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === 'Escape' && !e.defaultPrevented) {
+        if (companyOpen) { e.preventDefault(); setCompanyOpen(false) }
+        if (userMenuOpen) { e.preventDefault(); setUserMenuOpen(false) }
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    window.addEventListener('keydown', handleKey, true)
     return () => {
-      document.removeEventListener('keydown', handleKey)
+      document.removeEventListener('mousedown', handleClickOutside)
+      window.removeEventListener('keydown', handleKey, true)
     }
-  }, [settingsOpen])
-
-  function handleSettingsClick() {
-    if (settingsOpen && isSettingsRoute) {
-      // Already in settings, toggle panel closed and navigate away
-      setSettingsOpen(false)
-      navigate('/home')
-    } else if (settingsOpen) {
-      // Panel open but not on settings route, close it
-      setSettingsOpen(false)
-    } else {
-      // Open panel and navigate to first settings item
-      setSettingsOpen(true)
-      navigate('/settings/companies')
-    }
-  }
+  }, [companyOpen, userMenuOpen])
 
   return (
-    <div className="flex flex-shrink-0">
-      {/* Main sidebar */}
-      <nav
-        className={cn(
-          'bg-bone border-r border-border py-5 flex-shrink-0 flex flex-col transition-all duration-300 ease-in-out relative z-10',
-        settingsOpen && 'shadow-[4px_0_12px_-2px_rgba(0,0,0,0.08)]',
-          collapsed ? 'w-[60px]' : 'w-[200px]'
-        )}
-      >
-        {/* Search — inline CommandPalette dropdown */}
+    <nav
+      className={cn(
+        'bg-bone border-r border-border py-5 flex-shrink-0 flex flex-col transition-all duration-300 ease-in-out',
+        collapsed ? 'w-[60px]' : 'w-[200px]'
+      )}
+    >
+      {/* Company selector */}
+      <div className={cn('mb-3', collapsed ? 'px-2' : 'px-3')} ref={companyRef}>
         {!collapsed ? (
-          <div className="px-3 mb-3">
-            <CommandPalette />
+          <div className="relative">
+            <button
+              onClick={() => setCompanyOpen(!companyOpen)}
+              className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg bg-[#f4f3f1] dark:bg-[#171717] hover:bg-[#eeedeb] dark:hover:bg-[#1c1c1c] transition-all duration-150"
+            >
+              <CompanyLogo company={selectedCompany} />
+              <div className="min-w-0 flex-1 text-left">
+                {selectedCompany?.location && (
+                  <div className="flex items-center gap-0.5 text-body font-medium text-dark-graphite truncate">
+                    <MapPin size={11} />
+                    {selectedCompany.location}
+                  </div>
+                )}
+              </div>
+              <ChevronsUpDown size={14} className="text-mid-gray shrink-0" />
+            </button>
+
+            {companyOpen && (
+              <div className="absolute left-0 top-full mt-2 min-w-[250px] bg-surface-elevated border border-border rounded-xl shadow-lg z-50 py-1.5 overflow-hidden">
+                {companies.map((company) => (
+                  <button
+                    key={company.id}
+                    onClick={() => { selectCompany(company); setCompanyOpen(false) }}
+                    className={cn(
+                      'w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors duration-100',
+                      selectedCompany?.id === company.id
+                        ? 'bg-bone'
+                        : 'hover:bg-bone/50'
+                    )}
+                  >
+                    <CompanyLogo company={company} />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-body text-dark-graphite truncate">{company.name}</div>
+                      {company.location && (
+                        <div className="flex items-center gap-0.5 text-[11px] text-mid-gray truncate">
+                          <MapPin size={9} />
+                          {company.location}
+                        </div>
+                      )}
+                    </div>
+                    {selectedCompany?.id === company.id && (
+                      <Check size={14} className="text-graphite shrink-0" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         ) : (
-          <div className="flex justify-center mb-3">
+          <div className="relative flex justify-center">
             <button
-              onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))}
-              className="group/search relative flex items-center justify-center p-1.5 rounded-md text-mid-gray/50 hover:text-graphite transition-colors duration-200"
+              onClick={() => setCompanyOpen(!companyOpen)}
+              className="group/company relative p-1.5 rounded-md hover:bg-[#eeedeb] dark:hover:bg-[#1c1c1c] transition-colors duration-200"
             >
-              <Search size={16} strokeWidth={1.5} />
-              <span className="pointer-events-none absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 whitespace-nowrap rounded-lg bg-dark-graphite dark:bg-[#2a2a2a] px-3 py-1.5 text-caption font-medium text-white dark:text-[#e0e0e0] shadow-lg opacity-0 scale-95 transition-all duration-150 group-hover/search:opacity-100 group-hover/search:scale-100">
-                Buscar (Ctrl K)
+              <CompanyLogo company={selectedCompany} />
+              <span className="pointer-events-none absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 whitespace-nowrap rounded-lg bg-dark-graphite dark:bg-[#2a2a2a] px-3 py-1.5 text-caption font-medium text-white dark:text-[#e0e0e0] shadow-lg opacity-0 scale-95 transition-all duration-150 group-hover/company:opacity-100 group-hover/company:scale-100">
+                {selectedCompany?.name ?? 'Compañía'}
               </span>
             </button>
+
+            {companyOpen && (
+              <div className="absolute left-full ml-2 top-0 min-w-[250px] bg-surface-elevated border border-border rounded-xl shadow-lg z-50 py-1.5 overflow-hidden">
+                {companies.map((company) => (
+                  <button
+                    key={company.id}
+                    onClick={() => { selectCompany(company); setCompanyOpen(false) }}
+                    className={cn(
+                      'w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors duration-100',
+                      selectedCompany?.id === company.id
+                        ? 'bg-bone'
+                        : 'hover:bg-bone/50'
+                    )}
+                  >
+                    <CompanyLogo company={company} />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-body text-dark-graphite truncate">{company.name}</div>
+                      {company.location && (
+                        <div className="flex items-center gap-0.5 text-[11px] text-mid-gray truncate">
+                          <MapPin size={9} />
+                          {company.location}
+                        </div>
+                      )}
+                    </div>
+                    {selectedCompany?.id === company.id && (
+                      <Check size={14} className="text-graphite shrink-0" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
+      </div>
 
-        {/* Nav items */}
-        <div className="flex-1 overflow-y-auto">
-          {NAV_SECTIONS.map((section, sIdx) => {
-            const isOpen = !section.title || collapsed || openSections.has(section.title)
-            return (
-              <div key={section.title ?? sIdx}>
-                {section.title && !collapsed && (
-                  <button
-                    onClick={() => toggleSection(section.title!)}
-                    className="w-full flex items-center justify-between px-5 pt-4 pb-1 group/section"
-                  >
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-mid-gray/60 group-hover/section:text-mid-gray transition-colors">
-                      {section.title}
-                    </span>
-                    <ChevronRight
-                      size={12}
-                      strokeWidth={2}
-                      className={cn(
-                        'text-mid-gray/40 group-hover/section:text-mid-gray transition-all duration-200',
-                        isOpen && 'rotate-90'
-                      )}
-                    />
-                  </button>
-                )}
-                {section.title && collapsed && <div className="mx-4 my-2 border-t border-border/60" />}
-                <div
-                  className={cn(
-                    'grid transition-all duration-200 ease-in-out',
-                    isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
-                  )}
+      {/* Search — inline CommandPalette dropdown */}
+      {!collapsed ? (
+        <div className="px-3 mb-3">
+          <CommandPalette />
+        </div>
+      ) : (
+        <div className="flex justify-center mb-3">
+          <button
+            onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))}
+            className="group/search relative flex items-center justify-center p-1.5 rounded-md text-mid-gray/50 hover:text-graphite transition-colors duration-200"
+          >
+            <Search size={16} strokeWidth={1.5} />
+            <span className="pointer-events-none absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 whitespace-nowrap rounded-lg bg-dark-graphite dark:bg-[#2a2a2a] px-3 py-1.5 text-caption font-medium text-white dark:text-[#e0e0e0] shadow-lg opacity-0 scale-95 transition-all duration-150 group-hover/search:opacity-100 group-hover/search:scale-100">
+              Buscar (Ctrl K)
+            </span>
+          </button>
+        </div>
+      )}
+
+      {/* Nav items */}
+      <div className="flex-1 overflow-y-auto">
+        {NAV_SECTIONS.map((section, sIdx) => {
+          const isOpen = !section.title || collapsed || openSections.has(section.title)
+          return (
+            <div key={section.title ?? sIdx}>
+              {section.title && !collapsed && (
+                <button
+                  onClick={() => toggleSection(section.title!)}
+                  className="w-full flex items-center justify-between px-5 pt-4 pb-1 group/section"
                 >
-                  <div className="overflow-hidden">
-                    {section.items.map(({ to, label, icon: Icon }) => (
-                      <NavLink
-                        key={to}
-                        to={to}
-                        onClick={onNavClick}
-                        className={({ isActive }) =>
-                          cn(
-                            'group/nav relative flex items-center gap-2.5 py-2.5 text-body transition-all duration-150',
-                            collapsed ? 'justify-center px-0' : 'px-5',
-                            isActive
-                              ? 'text-dark-graphite font-medium bg-bone border-r-2 border-graphite'
-                              : 'text-graphite/70 hover:bg-card-bg hover:text-graphite'
-                          )
-                        }
-                      >
-                        <Icon size={18} strokeWidth={1.5} />
-                        {!collapsed && label}
-                        {collapsed && (
-                          <span className="pointer-events-none absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 whitespace-nowrap rounded-lg bg-dark-graphite dark:bg-[#2a2a2a] px-3 py-1.5 text-caption font-medium text-white dark:text-[#e0e0e0] shadow-lg opacity-0 scale-95 transition-all duration-150 group-hover/nav:opacity-100 group-hover/nav:scale-100">
-                          {label}
-                        </span>
-                        )}
-                      </NavLink>
-                    ))}
-                  </div>
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-mid-gray/60 group-hover/section:text-mid-gray transition-colors">
+                    {section.title}
+                  </span>
+                  <ChevronRight
+                    size={12}
+                    strokeWidth={2}
+                    className={cn(
+                      'text-mid-gray/40 group-hover/section:text-mid-gray transition-all duration-200',
+                      isOpen && 'rotate-90'
+                    )}
+                  />
+                </button>
+              )}
+              {section.title && collapsed && <div className="mx-4 my-2 border-t border-border/60" />}
+              <div
+                className={cn(
+                  'grid transition-all duration-200 ease-in-out',
+                  isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+                )}
+              >
+                <div className="overflow-hidden">
+                  {section.items.map(({ to, label, icon: Icon }) => (
+                    <NavLink
+                      key={to}
+                      to={to}
+                      onClick={onNavClick}
+                      className={({ isActive }) =>
+                        cn(
+                          'group/nav relative flex items-center gap-2.5 py-2.5 text-body transition-all duration-150',
+                          collapsed ? 'justify-center px-0' : 'px-5',
+                          isActive
+                            ? 'text-dark-graphite font-medium bg-bone border-r-2 border-graphite'
+                            : 'text-graphite/70 hover:bg-card-bg hover:text-graphite'
+                        )
+                      }
+                    >
+                      <Icon size={18} strokeWidth={1.5} />
+                      {!collapsed && label}
+                      {collapsed && (
+                        <span className="pointer-events-none absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 whitespace-nowrap rounded-lg bg-dark-graphite dark:bg-[#2a2a2a] px-3 py-1.5 text-caption font-medium text-white dark:text-[#e0e0e0] shadow-lg opacity-0 scale-95 transition-all duration-150 group-hover/nav:opacity-100 group-hover/nav:scale-100">
+                        {label}
+                      </span>
+                      )}
+                    </NavLink>
+                  ))}
                 </div>
               </div>
-            )
-          })}
-        </div>
+            </div>
+          )
+        })}
+      </div>
 
-        {/* Bottom — Settings + Collapse toggle */}
-        <div className={cn('flex items-center border-t border-border', collapsed ? 'mx-3 pt-1 flex-col gap-1' : 'mx-4 pt-1')}>
+      {/* Bottom — User menu + Collapse toggle */}
+      <div className={cn('border-t border-border', collapsed ? 'mx-3 pt-2 flex flex-col items-center gap-1' : 'mx-4 pt-2')}>
+        {/* User menu */}
+        <div className="relative w-full" ref={userMenuRef}>
           {collapsed ? (
             <button
-              onClick={handleSettingsClick}
-              className="group/settings relative flex items-center justify-center p-1.5 rounded-md text-mid-gray/50 hover:text-graphite transition-colors duration-200"
+              onClick={() => setUserMenuOpen(!userMenuOpen)}
+              className="group/user relative flex items-center justify-center p-1.5 rounded-md text-mid-gray/50 hover:text-graphite transition-colors duration-200"
             >
-              <Settings size={16} strokeWidth={1.5} />
-              <span className="pointer-events-none absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 whitespace-nowrap rounded-lg bg-dark-graphite dark:bg-[#2a2a2a] px-3 py-1.5 text-caption font-medium text-white dark:text-[#e0e0e0] shadow-lg opacity-0 scale-95 transition-all duration-150 group-hover/settings:opacity-100 group-hover/settings:scale-100">
-                Configuración
+              <div className="w-6 h-6 rounded-full bg-graphite/10 flex items-center justify-center">
+                <CircleUser size={14} strokeWidth={1.5} className="text-graphite" />
+              </div>
+              <span className="pointer-events-none absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 whitespace-nowrap rounded-lg bg-dark-graphite dark:bg-[#2a2a2a] px-3 py-1.5 text-caption font-medium text-white dark:text-[#e0e0e0] shadow-lg opacity-0 scale-95 transition-all duration-150 group-hover/user:opacity-100 group-hover/user:scale-100">
+                {user?.displayName ?? user?.email?.split('@')[0] ?? 'Usuario'}
               </span>
             </button>
           ) : (
             <button
-              onClick={handleSettingsClick}
-              className={cn(
-                'flex items-center gap-2 py-2 px-1 text-caption transition-all duration-150 flex-1 min-w-0',
-                settingsOpen
-                  ? 'text-dark-graphite font-medium'
-                  : 'text-graphite/70 hover:text-graphite'
-              )}
+              onClick={() => setUserMenuOpen(!userMenuOpen)}
+              className="w-full flex items-center gap-2 px-1 py-2 rounded-lg hover:bg-[#eeedeb] dark:hover:bg-[#1c1c1c] transition-all duration-150 cursor-pointer"
             >
-              <Settings size={16} strokeWidth={1.5} className="shrink-0" />
-              Configuración
+              <div className="w-6 h-6 rounded-full bg-graphite/10 flex items-center justify-center shrink-0">
+                <CircleUser size={14} strokeWidth={1.5} className="text-graphite" />
+              </div>
+              <span className="text-body font-medium text-dark-graphite truncate flex-1 text-left">{user?.displayName ?? user?.email?.split('@')[0] ?? 'Usuario'}</span>
             </button>
           )}
-          <button
-            onClick={() => { if (!collapsed) setSettingsOpen(false); setCollapsed(!collapsed) }}
-            className="group/toggle relative flex items-center justify-center p-1.5 rounded-md text-mid-gray/50 hover:text-graphite transition-colors duration-200 shrink-0"
-          >
-            <ChevronsLeft
-              size={15}
-              strokeWidth={1.5}
-              className={cn('transition-transform duration-300', collapsed && 'rotate-180')}
-            />
-            {collapsed && (
-              <span className="pointer-events-none absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 whitespace-nowrap rounded-lg bg-dark-graphite dark:bg-[#2a2a2a] px-3 py-1.5 text-caption font-medium text-white dark:text-[#e0e0e0] shadow-lg opacity-0 scale-95 transition-all duration-150 group-hover/toggle:opacity-100 group-hover/toggle:scale-100">
-                Expandir
-              </span>
-            )}
-          </button>
-        </div>
-      </nav>
 
-      {/* Settings sub-panel */}
-      <div
-        className={cn(
-          'bg-card-bg border-r border-border flex flex-col py-5 overflow-hidden transition-all duration-300 ease-in-out',
-          settingsOpen ? 'w-[200px] opacity-100' : 'w-0 opacity-0'
-        )}
-      >
-        <div className="px-4 mb-4">
-          <h3 className="text-caption uppercase tracking-wider text-mid-gray font-medium">Configuración</h3>
+          {/* User dropdown — opens upward */}
+          {userMenuOpen && (
+            <div className={cn(
+              'absolute bottom-full mb-2 bg-bone border border-border rounded-xl shadow-lg z-50 p-2',
+              collapsed ? 'left-full ml-2 bottom-0 mb-0' : 'left-0 w-[250px]'
+            )}>
+              {/* Main card */}
+              <div className="bg-surface-elevated rounded-lg border border-border/60 shadow-sm">
+                {/* User info header */}
+                <div className="flex items-center gap-3 px-4 py-4">
+                  <div className="w-10 h-10 rounded-full bg-graphite/10 flex items-center justify-center shrink-0">
+                    <CircleUser size={22} strokeWidth={1.5} className="text-graphite" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-body font-medium text-dark-graphite truncate">{user?.displayName ?? user?.email?.split('@')[0] ?? 'Usuario'}</div>
+                    <div className="text-caption text-mid-gray truncate">{user?.email ?? ''}</div>
+                  </div>
+                </div>
+                <div className="border-t border-border/60" />
+                <ThemeToggle />
+                <div className="border-t border-border/60" />
+                {/* Settings items */}
+                <div className="py-1">
+                  <div className="px-4 pt-2 pb-1">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-mid-gray/60">Configuración</span>
+                  </div>
+                  {SETTINGS_ITEMS.map(({ to, label, icon: Icon }) => (
+                    <NavLink
+                      key={to}
+                      to={to}
+                      onClick={() => { setUserMenuOpen(false); onNavClick?.() }}
+                      className={({ isActive }) =>
+                        cn(
+                          'flex items-center gap-2.5 px-4 py-2 text-body transition-colors duration-100 rounded-md mx-1',
+                          isActive
+                            ? 'text-dark-graphite font-medium bg-bone/80'
+                            : 'text-graphite/70 hover:text-dark-graphite hover:bg-bone/50'
+                        )
+                      }
+                    >
+                      <Icon size={15} strokeWidth={1.5} />
+                      {label}
+                    </NavLink>
+                  ))}
+                </div>
+              </div>
+
+              {/* Logout sub-card */}
+              <div className="mt-2 bg-surface/60 rounded-lg border border-border/60">
+                <button
+                  onClick={() => {
+                    setUserMenuOpen(false)
+                    logout()
+                  }}
+                  className="w-full flex items-center gap-2.5 px-4 py-3 rounded-lg text-body text-mid-gray hover:text-dark-graphite transition-colors duration-150"
+                >
+                  <LogOut size={16} strokeWidth={1.5} />
+                  Cerrar sesión
+                </button>
+              </div>
+            </div>
+          )}
         </div>
-        <div className="flex flex-col gap-0.5 flex-1">
-          {SETTINGS_ITEMS.map(({ to, label, icon: Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              onClick={onNavClick}
-              className={({ isActive }) =>
-                cn(
-                  'flex items-center gap-2.5 px-4 py-2.5 text-body transition-all duration-150 whitespace-nowrap',
-                  isActive
-                    ? 'text-dark-graphite font-medium bg-bone/80'
-                    : 'text-graphite/70 hover:bg-bone/50 hover:text-graphite'
-                )
-              }
-            >
-              <Icon size={16} strokeWidth={1.5} />
-              {label}
-            </NavLink>
-          ))}
-        </div>
-        <div className="mx-4 pt-1 border-t border-border flex justify-end">
-          <button
-            onClick={() => setSettingsOpen(false)}
-            className="group/close relative flex items-center justify-center p-1.5 rounded-md text-mid-gray/50 hover:text-graphite transition-colors duration-200"
-          >
-            <ChevronsLeft size={15} strokeWidth={1.5} />
-          </button>
-        </div>
+
+        {/* Collapse toggle */}
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          className="group/toggle relative flex items-center justify-center p-1.5 rounded-md text-mid-gray/50 hover:text-graphite transition-colors duration-200 shrink-0"
+        >
+          <ChevronsLeft
+            size={15}
+            strokeWidth={1.5}
+            className={cn('transition-transform duration-300', collapsed && 'rotate-180')}
+          />
+          {collapsed && (
+            <span className="pointer-events-none absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 whitespace-nowrap rounded-lg bg-dark-graphite dark:bg-[#2a2a2a] px-3 py-1.5 text-caption font-medium text-white dark:text-[#e0e0e0] shadow-lg opacity-0 scale-95 transition-all duration-150 group-hover/toggle:opacity-100 group-hover/toggle:scale-100">
+              Expandir
+            </span>
+          )}
+        </button>
       </div>
-    </div>
+    </nav>
   )
 }
