@@ -17,7 +17,7 @@ interface ClosingFormProps {
 
 const emptyForm = {
   date: '',
-  ap: '',
+  ap: '500000',
   qr: '',
   datafono: '',
   rappiVentas: '',
