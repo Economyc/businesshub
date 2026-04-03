@@ -6,7 +6,7 @@ export function AgentPage() {
   const [chatKey, setChatKey] = useState(0)
 
   return (
-    <div className="h-[calc(100vh-6rem)] flex flex-col rounded-xl border border-border bg-surface-elevated overflow-hidden">
+    <div className="h-[calc(100vh-6rem)] md:h-[calc(100vh-3rem)] flex flex-col rounded-xl border border-border bg-surface-elevated overflow-hidden">
       <div className="px-4 py-3 border-b border-border flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <div className="w-7 h-7 rounded-full bg-graphite/10 flex items-center justify-center">
