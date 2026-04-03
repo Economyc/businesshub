@@ -36,7 +36,7 @@ export function AgentChat() {
     append,
   } = useChat({
     api: AGENT_API_URL,
-    maxSteps: 8,
+    maxSteps: 3,
     body: {
       companyId: selectedCompany?.id,
     },
