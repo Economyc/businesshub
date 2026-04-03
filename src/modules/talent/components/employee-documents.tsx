@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { Upload, FileText, ImageIcon, FileIcon, Trash2, ExternalLink, Download, Loader2 } from 'lucide-react'
 import { saveAs } from 'file-saver'
@@ -52,6 +52,8 @@ export function EmployeeDocuments({ employeeId }: Props) {
   const [pendingFile, setPendingFile] = useState<File | null>(null)
   const [category, setCategory] = useState<DocumentCategory>('certificado')
   const [deleteTarget, setDeleteTarget] = useState<EmployeeDocument | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
+  const dragCounter = useRef(0)
 
   const uploadMutation = useMutation({
     mutationFn: ({ file, cat }: { file: File; cat: DocumentCategory }) =>
@@ -71,17 +73,55 @@ export function EmployeeDocuments({ employeeId }: Props) {
     },
   })
 
-  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
+  const ACCEPTED_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
+
+  const processFile = useCallback((file: File) => {
     if (file.size > MAX_SIZE) {
       alert('El archivo excede el límite de 10 MB.')
       return
     }
+    if (!ACCEPTED_TYPES.includes(file.type)) {
+      alert('Formato no soportado. Usa PDF, JPG, PNG o Word.')
+      return
+    }
     setPendingFile(file)
     setCategory('certificado')
+  }, [])
+
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    processFile(file)
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
+
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    dragCounter.current++
+    setIsDragging(true)
+  }, [])
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    dragCounter.current--
+    if (dragCounter.current === 0) setIsDragging(false)
+  }, [])
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }, [])
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+    dragCounter.current = 0
+    const file = e.dataTransfer.files?.[0]
+    if (file) processFile(file)
+  }, [processFile])
 
   function handleUploadConfirm() {
     if (!pendingFile) return
@@ -110,8 +150,19 @@ export function EmployeeDocuments({ employeeId }: Props) {
 
   return (
     <div className="space-y-5">
-      {/* Upload trigger */}
-      <div>
+      {/* Drop zone + upload trigger */}
+      <div
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+        onClick={() => fileInputRef.current?.click()}
+        className={`relative flex flex-col items-center justify-center gap-3 px-6 py-8 rounded-xl border-2 border-dashed cursor-pointer transition-all duration-200 ${
+          isDragging
+            ? 'border-graphite bg-graphite/5 scale-[1.01]'
+            : 'border-mid-gray/30 bg-bone/30 hover:border-mid-gray/50 hover:bg-bone/50'
+        }`}
+      >
         <input
           ref={fileInputRef}
           type="file"
@@ -119,13 +170,19 @@ export function EmployeeDocuments({ employeeId }: Props) {
           onChange={handleFileSelect}
           className="hidden"
         />
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          className="flex items-center gap-1.5 px-4 py-2.5 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md"
-        >
-          <Upload size={15} strokeWidth={1.5} />
-          Subir Documento
-        </button>
+        <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors duration-200 ${
+          isDragging ? 'bg-graphite/10' : 'bg-bone'
+        }`}>
+          <Upload size={22} strokeWidth={1.5} className={`transition-colors duration-200 ${isDragging ? 'text-graphite' : 'text-mid-gray'}`} />
+        </div>
+        <div className="text-center">
+          <p className="text-body font-medium text-graphite">
+            {isDragging ? 'Suelta el archivo aquí' : 'Arrastra un archivo o haz clic para subir'}
+          </p>
+          <p className="text-caption text-mid-gray mt-1">
+            PDF, JPG, PNG o Word — máx. 10 MB
+          </p>
+        </div>
       </div>
 
       {/* Pending upload card */}
