@@ -50,12 +50,17 @@ function renderMarkdown(text: string): string {
 
   html = outputLines.join('\n')
 
-  // Bold
+  // Bold (must be before bullet list processing since * is used for both)
   html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
 
-  // Bullet lists
-  html = html.replace(/^[\s]*[-•]\s+(.+)$/gm, '<li>$1</li>')
-  html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul class="list-disc pl-4 space-y-0.5">$&</ul>')
+  // Headers (### before ##)
+  html = html.replace(/^####\s+(.+)$/gm, '<h4 class="text-sm font-semibold text-dark-graphite mt-3 mb-1">$1</h4>')
+  html = html.replace(/^###\s+(.+)$/gm, '<h3 class="text-sm font-bold text-dark-graphite mt-3 mb-1.5">$1</h3>')
+  html = html.replace(/^##\s+(.+)$/gm, '<h2 class="text-base font-bold text-dark-graphite mt-4 mb-2">$1</h2>')
+
+  // Bullet lists (- or * or •)
+  html = html.replace(/^[\s]*[-*•]\s+(.+)$/gm, '<li>$1</li>')
+  html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul class="list-disc pl-4 space-y-0.5 my-1">$&</ul>')
 
   // Numbered lists
   html = html.replace(/^[\s]*\d+\.\s+(.+)$/gm, '<li>$1</li>')
@@ -63,11 +68,15 @@ function renderMarkdown(text: string): string {
   // Line breaks
   html = html.replace(/\n/g, '<br/>')
 
-  // Clean up consecutive br inside lists/tables
+  // Clean up br inside headers, lists, and tables
   html = html.replace(/<br\/>\s*<li>/g, '<li>')
   html = html.replace(/<\/li>\s*<br\/>/g, '</li>')
   html = html.replace(/<br\/>\s*<table/g, '<table')
   html = html.replace(/<\/table>\s*<br\/>/g, '</table>')
+  html = html.replace(/<br\/>\s*<h([234])/g, '<h$1')
+  html = html.replace(/<\/h([234])>\s*<br\/>/g, '</h$1>')
+  html = html.replace(/<br\/>\s*<ul/g, '<ul')
+  html = html.replace(/<\/ul>\s*<br\/>/g, '</ul>')
 
   return html
 }

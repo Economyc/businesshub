@@ -1,7 +1,7 @@
 import { onRequest } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
 import { streamText } from 'ai';
-import { AGENT_SYSTEM_PROMPT } from './system-prompt.js';
+import { getAgentSystemPrompt } from './system-prompt.js';
 import { createAgentTools } from './tools/index.js';
 import { LLMRouter, isRateLimitError, parseRetryAfter, messagesContainImages } from './llm-router.js';
 const geminiApiKey = defineSecret('GEMINI_API_KEY');
@@ -50,7 +50,7 @@ export const agentChat = onRequest({
                 console.log(`[AgentChat] Attempt ${attempt + 1} using ${provider}${needsVision ? ' (vision)' : ''}`);
                 const result = streamText({
                     model,
-                    system: AGENT_SYSTEM_PROMPT,
+                    system: getAgentSystemPrompt(),
                     messages,
                     tools,
                     maxSteps: 3,
