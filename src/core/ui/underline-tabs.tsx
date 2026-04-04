@@ -18,7 +18,7 @@ interface RouteTabsProps {
 export function UnderlineTabs({ tabs, className }: RouteTabsProps) {
   return (
     <div
-      className={cn('flex overflow-x-auto mb-5 border-b border-border scrollbar-hide', className)}
+      className={cn('flex flex-nowrap overflow-x-auto mb-5 border-b border-border scrollbar-hide', className)}
     >
       {tabs.map(({ to, label, icon: Icon, end }) => (
         <NavLink
@@ -27,7 +27,7 @@ export function UnderlineTabs({ tabs, className }: RouteTabsProps) {
           end={end}
           className={({ isActive }) =>
             cn(
-              'flex items-center justify-center gap-2 px-4 py-3 text-body font-medium transition-all duration-200 border-b-2 -mb-px whitespace-nowrap',
+              'flex items-center justify-center gap-2 px-4 py-3 text-body font-medium transition-all duration-200 border-b-2 -mb-px whitespace-nowrap shrink-0',
               isActive
                 ? 'text-graphite border-graphite'
                 : 'text-mid-gray border-transparent hover:text-graphite'
@@ -53,14 +53,14 @@ interface ButtonTabsProps {
 export function UnderlineButtonTabs({ tabs, active, onChange, className }: ButtonTabsProps) {
   return (
     <div
-      className={cn('flex overflow-x-auto mb-5 border-b border-border scrollbar-hide', className)}
+      className={cn('flex flex-nowrap overflow-x-auto mb-5 border-b border-border scrollbar-hide', className)}
     >
       {tabs.map(({ value, label, icon: Icon }) => (
         <button
           key={value}
           onClick={() => onChange(value)}
           className={cn(
-            'flex items-center justify-center gap-2 px-4 py-3 text-body font-medium transition-all duration-200 border-b-2 -mb-px whitespace-nowrap flex-shrink-0',
+            'flex items-center justify-center gap-2 px-4 py-3 text-body font-medium transition-all duration-200 border-b-2 -mb-px whitespace-nowrap shrink-0',
             active === value
               ? 'text-graphite border-graphite'
               : 'text-mid-gray border-transparent hover:text-graphite'

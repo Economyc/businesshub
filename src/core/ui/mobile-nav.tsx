@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { BarChart3, Users, Briefcase, DollarSign, Home, Handshake, ClipboardList, FileSignature, X, ChevronRight, Building2, Tags, BadgeCheck, Network, ChevronsUpDown, Check, MapPin, Wallet, Receipt, Gift, CircleUser, LogOut, Bot } from 'lucide-react'
+import { BarChart3, Users, Briefcase, DollarSign, Home, Handshake, ClipboardList, FileSignature, X, ChevronRight, Building2, Tags, BadgeCheck, Network, ChevronsUpDown, Check, MapPin, Wallet, Receipt, Gift, CircleUser, LogOut, Bot, Landmark, Boxes, UserRound } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useCompany } from '@/core/hooks/use-company'
 import { useAuth } from '@/core/hooks/use-auth'
@@ -16,6 +16,7 @@ interface NavItem {
 
 interface NavSection {
   title?: string
+  icon?: typeof Home
   items: NavItem[]
 }
 
@@ -29,6 +30,7 @@ const NAV_SECTIONS: NavSection[] = [
   },
   {
     title: 'Finanzas',
+    icon: Landmark,
     items: [
       { to: '/finance', label: 'Finanzas', icon: DollarSign },
       { to: '/cartera', label: 'Cartera', icon: Wallet },
@@ -37,6 +39,7 @@ const NAV_SECTIONS: NavSection[] = [
   },
   {
     title: 'Gestión',
+    icon: Boxes,
     items: [
       { to: '/contracts', label: 'Contratos', icon: FileSignature },
       { to: '/partners', label: 'Socios', icon: Handshake },
@@ -44,6 +47,7 @@ const NAV_SECTIONS: NavSection[] = [
   },
   {
     title: 'Personas',
+    icon: UserRound,
     items: [
       { to: '/talent', label: 'Equipo', icon: Users },
       { to: '/payroll', label: 'Nomina', icon: Receipt },
@@ -209,16 +213,20 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
                     {section.title && (
                       <button
                         onClick={() => toggleSection(section.title!)}
-                        className="w-full flex items-center justify-between px-6 pt-4 pb-1 group/section"
+                        className={cn(
+                          'w-full flex items-center gap-2.5 mx-3 px-3 py-2.5 mt-2 rounded-xl text-[15px] transition-all duration-150 group/section',
+                          isOpen
+                            ? 'text-dark-graphite font-medium'
+                            : 'text-graphite/70 active:bg-bone/50'
+                        )}
                       >
-                        <span className="text-[10px] font-semibold uppercase tracking-wider text-mid-gray/60 group-hover/section:text-mid-gray transition-colors">
-                          {section.title}
-                        </span>
+                        {section.icon && <section.icon size={20} strokeWidth={1.5} />}
+                        <span className="flex-1 text-left">{section.title}</span>
                         <ChevronRight
                           size={14}
-                          strokeWidth={2}
+                          strokeWidth={1.5}
                           className={cn(
-                            'text-mid-gray/40 group-hover/section:text-mid-gray transition-all duration-200 mr-3',
+                            'text-mid-gray/40 group-hover/section:text-mid-gray transition-all duration-200',
                             isOpen && 'rotate-90'
                           )}
                         />

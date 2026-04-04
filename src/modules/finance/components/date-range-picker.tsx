@@ -76,7 +76,7 @@ export function DateRangePicker() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 4 }}
             transition={{ duration: 0.15, ease: 'easeOut' }}
-            className="absolute right-0 top-full mt-1.5 bg-surface-elevated border border-border rounded-xl shadow-lg z-50 flex flex-col sm:flex-row overflow-hidden max-w-[calc(100vw-2rem)]"
+            className="fixed left-2 right-2 bottom-2 sm:bottom-auto sm:left-auto sm:right-0 sm:absolute sm:top-full sm:mt-1.5 bg-surface-elevated border border-border rounded-xl shadow-lg z-50 flex flex-col sm:flex-row overflow-hidden sm:max-w-none"
           >
             {/* Presets list */}
             <div className="w-full sm:w-[200px] py-2 border-b sm:border-b-0 sm:border-r border-border">
