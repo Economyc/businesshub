@@ -68,7 +68,7 @@ export function InlineChart({ chartType, title, data, valueLabel = 'Valor', valu
               outerRadius={80}
               label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
               labelLine={false}
-              fontSize={10}
+              fontSize={9}
             >
               {data.map((_, i) => (
                 <Cell key={i} fill={COLORS[i % COLORS.length]} />
@@ -80,7 +80,7 @@ export function InlineChart({ chartType, title, data, valueLabel = 'Valor', valu
           <BarChart data={data} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eeece9" vertical={false} />
             <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#8a8a8a' }} />
-            <YAxis tickFormatter={formatter} tick={{ fontSize: 10, fill: '#8a8a8a' }} width={70} />
+            <YAxis tickFormatter={formatter} tick={{ fontSize: 10, fill: '#8a8a8a' }} width={55} />
             <Tooltip content={<CustomTooltip formatAsCurrency={formatAsCurrency} />} />
             <Bar dataKey="value" name={valueLabel} fill="#5a7a5a" radius={[4, 4, 0, 0]} />
             {value2Label && (
@@ -92,7 +92,7 @@ export function InlineChart({ chartType, title, data, valueLabel = 'Valor', valu
           <AreaChart data={data} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eeece9" vertical={false} />
             <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#8a8a8a' }} />
-            <YAxis tickFormatter={formatter} tick={{ fontSize: 10, fill: '#8a8a8a' }} width={70} />
+            <YAxis tickFormatter={formatter} tick={{ fontSize: 10, fill: '#8a8a8a' }} width={55} />
             <Tooltip content={<CustomTooltip formatAsCurrency={formatAsCurrency} />} />
             <Area type="monotone" dataKey="value" name={valueLabel} stroke="#5a7a5a" fill="#5a7a5a" fillOpacity={0.1} />
             {value2Label && (
@@ -104,7 +104,7 @@ export function InlineChart({ chartType, title, data, valueLabel = 'Valor', valu
           <LineChart data={data} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eeece9" vertical={false} />
             <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#8a8a8a' }} />
-            <YAxis tickFormatter={formatter} tick={{ fontSize: 10, fill: '#8a8a8a' }} width={70} />
+            <YAxis tickFormatter={formatter} tick={{ fontSize: 10, fill: '#8a8a8a' }} width={55} />
             <Tooltip content={<CustomTooltip formatAsCurrency={formatAsCurrency} />} />
             <Line type="monotone" dataKey="value" name={valueLabel} stroke="#5a7a5a" strokeWidth={2} dot={{ r: 3 }} />
             {value2Label && (

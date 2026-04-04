@@ -125,7 +125,7 @@ export function ConfirmationCard({ toolName, args, onConfirm, onCancel }: Confir
       <div className="space-y-1.5 mb-4">
         {fields.map(([key, value]) => (
           <div key={key} className="flex items-baseline gap-2 text-xs">
-            <span className="text-mid-gray font-medium min-w-[100px]">{formatFieldName(key)}:</span>
+            <span className="text-mid-gray font-medium min-w-[80px] sm:min-w-[100px] shrink-0">{formatFieldName(key)}:</span>
             <span className="text-dark-graphite">{formatValue(key, value)}</span>
           </div>
         ))}

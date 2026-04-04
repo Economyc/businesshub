@@ -23,7 +23,7 @@ export function AgentPage() {
           title="Nueva conversación"
         >
           <RotateCcw size={15} strokeWidth={1.5} />
-          <span className="pointer-events-none absolute right-full mr-2 top-1/2 -translate-y-1/2 z-50 whitespace-nowrap rounded-lg bg-dark-graphite dark:bg-[#2a2a2a] px-3 py-1.5 text-caption font-medium text-white dark:text-[#e0e0e0] shadow-lg opacity-0 scale-95 transition-all duration-150 group-hover/new:opacity-100 group-hover/new:scale-100">
+          <span className="pointer-events-none absolute right-full mr-2 top-1/2 -translate-y-1/2 z-50 whitespace-nowrap rounded-lg bg-dark-graphite dark:bg-[#2a2a2a] px-3 py-1.5 text-caption font-medium text-white dark:text-[#e0e0e0] shadow-lg opacity-0 scale-95 transition-all duration-150 group-hover/new:opacity-100 group-hover/new:scale-100 hidden sm:block">
             Nueva conversación
           </span>
         </button>
