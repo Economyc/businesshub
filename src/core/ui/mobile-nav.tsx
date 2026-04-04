@@ -134,7 +134,8 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
             animate={{ x: 0 }}
             exit={{ x: '-100%' }}
             transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }}
-            className="fixed inset-y-0 left-0 w-[85vw] max-w-[320px] bg-surface-elevated flex flex-col shadow-2xl overflow-x-hidden touch-pan-y"
+            className="fixed inset-y-0 left-0 w-[85vw] max-w-[320px] bg-surface-elevated flex flex-col shadow-2xl overflow-hidden"
+            style={{ touchAction: 'pan-y', overscrollBehaviorX: 'none' }}
           >
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
@@ -205,7 +206,7 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
             </div>
 
             {/* Navigation */}
-            <div className="flex-1 overflow-y-auto py-2">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden py-2" style={{ touchAction: 'pan-y', overscrollBehaviorX: 'none' }}>
               {NAV_SECTIONS.map((section, sIdx) => {
                 const isOpen = !section.title || openSections.has(section.title)
                 return (
