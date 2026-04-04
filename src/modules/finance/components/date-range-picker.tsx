@@ -76,10 +76,10 @@ export function DateRangePicker() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 4 }}
             transition={{ duration: 0.15, ease: 'easeOut' }}
-            className="absolute right-0 top-full mt-1.5 bg-surface-elevated border border-border rounded-xl shadow-lg z-50 flex overflow-hidden"
+            className="absolute right-0 top-full mt-1.5 bg-surface-elevated border border-border rounded-xl shadow-lg z-50 flex flex-col sm:flex-row overflow-hidden max-w-[calc(100vw-2rem)]"
           >
             {/* Presets list */}
-            <div className="w-[200px] py-2 border-r border-border">
+            <div className="w-full sm:w-[200px] py-2 border-b sm:border-b-0 sm:border-r border-border">
               {DATE_PRESETS.map((preset) => (
                 <button
                   key={preset.key}
@@ -117,13 +117,14 @@ export function DateRangePicker() {
             <AnimatePresence>
               {showCustom && (
                 <motion.div
-                  initial={{ width: 0, opacity: 0 }}
-                  animate={{ width: 260, opacity: 1 }}
-                  exit={{ width: 0, opacity: 0 }}
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
                   transition={{ duration: 0.15 }}
-                  className="overflow-hidden"
+                  className="overflow-hidden sm:!h-auto"
+                  style={{ width: 'auto' }}
                 >
-                  <div className="w-[260px] p-4 flex flex-col gap-3">
+                  <div className="w-full sm:w-[260px] p-4 flex flex-col gap-3">
                     <div>
                       <label className="block text-caption text-mid-gray mb-1.5">Desde</label>
                       <DateInput value={customFrom} onChange={setCustomFrom} />

@@ -110,7 +110,7 @@ export function DataTable<T extends { id: string }>({ columns, data, onRowClick 
       {/* Mobile cards */}
       <div
         ref={mobileScrollRef}
-        className="md:hidden"
+        className="md:hidden px-0.5"
         style={{ maxHeight: '80vh', overflow: 'auto' }}
       >
         <div

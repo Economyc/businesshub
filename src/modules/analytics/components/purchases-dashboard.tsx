@@ -115,7 +115,7 @@ export function PurchasesDashboard() {
                     return (
                       <div key={i} className="flex items-center gap-3">
                         <span className="text-caption text-mid-gray w-5 text-right shrink-0">{i + 1}</span>
-                        <span className="text-body text-graphite w-36 truncate shrink-0">{p.name}</span>
+                        <span className="text-body text-graphite w-24 sm:w-36 truncate shrink-0">{p.name}</span>
                         <div className="flex-1 h-6 bg-bone rounded-md overflow-hidden">
                           <div
                             className="h-full rounded-md transition-all duration-500 bg-[#6a7a9a]/60"

@@ -132,7 +132,7 @@ export function TransactionList() {
       <FinanceSummary />
 
       <div className="flex gap-3 mb-5">
-        <div className="flex-1 min-w-[180px]">
+        <div className="flex-1 min-w-0 sm:min-w-[180px]">
           <SearchInput value={search} onChange={setSearch} placeholder="Buscar transacción..." />
         </div>
         <FilterPopover
@@ -223,10 +223,10 @@ export function TransactionList() {
 
                 {/* Expanded transactions */}
                 {isExpanded && (
-                  <div>
+                  <div className="overflow-x-auto">
                     {/* Column headers */}
                     <div
-                      className="grid px-5 pl-12 py-2 text-caption uppercase tracking-wider text-mid-gray bg-bone/40"
+                      className="hidden sm:grid px-5 pl-12 py-2 text-caption uppercase tracking-wider text-mid-gray bg-bone/40"
                       style={{ gridTemplateColumns: '2fr 0.8fr 1fr 1fr 0.8fr', borderTop: '1px solid #e5e4e0' }}
                     >
                       <div className="px-3">Concepto</div>
@@ -242,7 +242,7 @@ export function TransactionList() {
                         <div
                           key={t.id}
                           onClick={() => { setEditingId(t.id); setFormOpen(true) }}
-                          className="grid items-center px-5 pl-12 py-0 text-body text-graphite hover:bg-bone/50 transition-colors duration-150 cursor-pointer"
+                          className="hidden sm:grid items-center px-5 pl-12 py-0 text-body text-graphite hover:bg-bone/50 transition-colors duration-150 cursor-pointer"
                           style={{
                             gridTemplateColumns: '2fr 0.8fr 1fr 1fr 0.8fr',
                             borderTop: '1px solid #e5e4e0',
@@ -276,6 +276,45 @@ export function TransactionList() {
                             </span>
                           </div>
                           <div className="px-3 py-0 flex items-center">
+                            <StatusBadge variant={t.status} />
+                          </div>
+                        </div>
+                      )
+                    })}
+                    {/* Mobile card view for expanded transactions */}
+                    {group.transactions.map((t, ti) => {
+                      const typePill = getTypePill(t)
+                      const catPill = getCategoryPill(t, categoryItems)
+                      return (
+                        <div
+                          key={`m-${t.id}`}
+                          onClick={() => { setEditingId(t.id); setFormOpen(true) }}
+                          className="sm:hidden px-4 pl-10 py-3 text-body text-graphite hover:bg-bone/50 transition-colors duration-150 cursor-pointer"
+                          style={{ borderTop: '1px solid #e5e4e0' }}
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-dark-graphite">{t.concept}</span>
+                              {t.sourceType === 'closing' && (
+                                <span className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-700">Cierre</span>
+                              )}
+                              {t.sourceType === 'purchase' && (
+                                <span className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-orange-100 text-orange-700">Compra</span>
+                              )}
+                              {t.sourceType === 'recurring' && (
+                                <span className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-100 text-purple-700">Recurrente</span>
+                              )}
+                            </div>
+                            <span className={t.type === 'income' ? 'text-positive-text font-medium' : 'text-graphite'}>
+                              {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount, 2)}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 text-caption">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium ${typePill.bg} ${typePill.text}`}>
+                              {typePill.label}
+                            </span>
+                            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: catPill.color }} />
+                            <span className="truncate text-mid-gray">{t.category}</span>
                             <StatusBadge variant={t.status} />
                           </div>
                         </div>

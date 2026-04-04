@@ -134,7 +134,7 @@ export function PayrollForm({ open, onClose }: PayrollFormProps) {
             <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
               <div className="p-6 overflow-y-auto flex-1 space-y-6">
                 {/* Periodo */}
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
                     <label className={labelClass}>Mes</label>
                     <SelectInput
@@ -201,7 +201,7 @@ export function PayrollForm({ open, onClose }: PayrollFormProps) {
 
                             {isExpanded && (
                               <div className="px-4 pb-4 border-t border-border bg-card-bg/50">
-                                <div className="grid grid-cols-2 gap-x-8 gap-y-1 py-3 text-caption">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1 py-3 text-caption">
                                   <div className="flex justify-between">
                                     <span className="text-mid-gray">Salario Base</span>
                                     <span className="text-graphite">{formatCurrency(item.baseSalary)}</span>
@@ -253,7 +253,7 @@ export function PayrollForm({ open, onClose }: PayrollFormProps) {
                 {items.length > 0 && (
                   <div className="bg-card-bg rounded-xl p-4 space-y-2">
                     <h3 className="text-caption font-semibold text-dark-graphite mb-2">Resumen</h3>
-                    <div className="grid grid-cols-2 gap-x-8 gap-y-1 text-body">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1 text-body">
                       <div className="flex justify-between">
                         <span className="text-mid-gray">Total Salarios Base</span>
                         <span className="text-graphite">{formatCurrency(totals.totalBaseSalary)}</span>

@@ -22,7 +22,7 @@ export function FilterPopover({ activeCount, onClear, children }: FilterPopoverP
           </span>
         )}
       </PopoverTrigger>
-      <PopoverContent className="w-72">
+      <PopoverContent className="w-[calc(100vw-2rem)] sm:w-72">
         <div className="flex flex-col gap-3">
           {children}
         </div>

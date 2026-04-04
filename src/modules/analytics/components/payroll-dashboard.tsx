@@ -164,7 +164,7 @@ export function PayrollDashboard() {
                   return (
                     <div key={i} className="flex items-center gap-3">
                       <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                      <span className="text-body text-graphite w-36 truncate shrink-0">{r.role}</span>
+                      <span className="text-body text-graphite w-24 sm:w-36 truncate shrink-0">{r.role}</span>
                       <div className="flex-1 h-7 bg-bone rounded-lg overflow-hidden">
                         <div
                           className="h-full rounded-lg transition-all duration-500"

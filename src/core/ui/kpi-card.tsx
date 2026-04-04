@@ -47,7 +47,7 @@ export function KPICard({ label, value, format = 'number', change, trend, icon: 
   return (
     <motion.div
       variants={staggerItem}
-      className="bg-surface rounded-xl p-[18px] card-elevated"
+      className="bg-surface rounded-xl p-3 sm:p-[18px] card-elevated"
     >
       <div className="flex justify-between items-center mb-2">
         <span className="text-caption uppercase tracking-wider text-mid-gray">{label}</span>

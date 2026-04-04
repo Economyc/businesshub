@@ -63,7 +63,7 @@ function ComparisonRow({ row }: { row: BudgetComparisonRow }) {
   const isPositiveDiff = row.difference >= 0
 
   return (
-    <div className="grid grid-cols-[2fr_1fr_1fr_1fr_140px] items-center px-4 py-3 hover:bg-bone/30 transition-colors duration-150 rounded-lg">
+    <div className="min-w-[600px] grid grid-cols-[2fr_1fr_1fr_1fr_140px] items-center px-4 py-3 hover:bg-bone/30 transition-colors duration-150 rounded-lg">
       <div className="flex items-center gap-2">
         <div className={`w-2 h-2 rounded-full ${row.type === 'income' ? 'bg-positive-text' : 'bg-mid-gray'}`} />
         <span className="text-body text-graphite">{row.category}</span>
@@ -93,7 +93,7 @@ function TotalRow({
   const execution = budgeted > 0 ? (actual / budgeted) * 100 : 0
 
   return (
-    <div className="grid grid-cols-[2fr_1fr_1fr_1fr_140px] items-center px-4 py-3 bg-bone/50 rounded-lg">
+    <div className="min-w-[600px] grid grid-cols-[2fr_1fr_1fr_1fr_140px] items-center px-4 py-3 bg-bone/50 rounded-lg">
       <span className="text-body font-semibold text-dark-graphite uppercase text-[13px] tracking-wide">
         {label}
       </span>
@@ -163,7 +163,7 @@ function BudgetEditor({
 
       <div className="flex flex-col gap-2.5 mb-4">
         {draft.map((item, i) => (
-          <div key={i} className="grid grid-cols-[2fr_1fr_1fr_auto] gap-3 items-center">
+          <div key={i} className="grid grid-cols-1 sm:grid-cols-[2fr_1fr_1fr_auto] gap-3 items-center">
             <CategorySelect
               value={item.category}
               onChange={(v) => updateItem(i, 'category', v)}
@@ -275,7 +275,7 @@ export function BudgetView() {
             variants={staggerContainer}
             initial="initial"
             animate="animate"
-            className="grid grid-cols-4 gap-4 mb-6"
+            className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6"
           >
             <KPICard
               label="Presupuesto Gastos"
@@ -309,9 +309,9 @@ export function BudgetView() {
           </motion.div>
 
           {/* Tabla comparativa */}
-          <div className="bg-surface rounded-xl card-elevated overflow-hidden">
+          <div className="bg-surface rounded-xl card-elevated overflow-hidden overflow-x-auto">
             {/* Header */}
-            <div className="grid grid-cols-[2fr_1fr_1fr_1fr_140px] items-center px-4 py-3 border-b border-border">
+            <div className="min-w-[600px] grid grid-cols-[2fr_1fr_1fr_1fr_140px] items-center px-4 py-3 border-b border-border">
               <span className="text-caption uppercase tracking-wider text-mid-gray font-medium">Categoría</span>
               <span className="text-caption uppercase tracking-wider text-mid-gray font-medium text-right">Presupuesto</span>
               <span className="text-caption uppercase tracking-wider text-mid-gray font-medium text-right">Real</span>
@@ -363,7 +363,7 @@ export function BudgetView() {
             </div>
 
             {/* Balance final */}
-            <div className="border-t border-border px-4 py-4 grid grid-cols-[2fr_1fr_1fr_1fr_140px] items-center">
+            <div className="border-t border-border px-4 py-4 min-w-[600px] grid grid-cols-[2fr_1fr_1fr_1fr_140px] items-center">
               <span className="text-body font-semibold text-dark-graphite uppercase text-[13px] tracking-wide">
                 Balance Neto
               </span>

@@ -35,11 +35,11 @@ export function HomePage() {
   return (
     <PageTransition>
       <PageHeader title="Dashboard">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {selectedCompany && (
             <div className="flex items-center gap-2">
               <CompanyLogo company={selectedCompany} size="sm" />
-              <span className="text-body text-graphite">{selectedCompany.name}</span>
+              <span className="text-body text-graphite hidden sm:inline">{selectedCompany.name}</span>
             </div>
           )}
           <DateRangePicker />

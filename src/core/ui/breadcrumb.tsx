@@ -51,7 +51,7 @@ export function Breadcrumb() {
   })
 
   return (
-    <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 mb-3 text-caption">
+    <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 mb-3 text-caption overflow-x-auto scrollbar-hide whitespace-nowrap">
       {crumbs.map((crumb, i) => (
         <span key={crumb.path} className="flex items-center gap-1.5">
           {i > 0 && <ChevronRight size={14} className="text-mid-gray/50" />}

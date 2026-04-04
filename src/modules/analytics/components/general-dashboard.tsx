@@ -165,14 +165,14 @@ export function GeneralDashboard() {
                 {top5.map((cat) => (
                   <div key={cat.category} className="flex items-center gap-3">
                     <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: cat.color || '#8a8a8a' }} />
-                    <span className="text-body text-graphite w-32 truncate">{cat.category}</span>
+                    <span className="text-body text-graphite w-20 sm:w-32 truncate">{cat.category}</span>
                     <div className="flex-1 h-7 bg-bone rounded-lg overflow-hidden relative">
                       <div
                         className="h-full rounded-lg transition-all duration-700 ease-out"
                         style={{ width: `${Math.max(cat.percentage, 2)}%`, backgroundColor: cat.color || '#8a8a8a', opacity: 0.7 }}
                       />
                     </div>
-                    <span className="text-body font-medium text-dark-graphite w-24 text-right">{formatCurrency(cat.amount)}</span>
+                    <span className="text-body font-medium text-dark-graphite w-16 sm:w-24 text-right">{formatCurrency(cat.amount)}</span>
                     <span className="text-caption text-mid-gray w-12 text-right">{cat.percentage.toFixed(1)}%</span>
                   </div>
                 ))}

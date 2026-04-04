@@ -198,7 +198,7 @@ export function EmployeeProfile() {
         <>
           <div className="bg-surface rounded-xl card-elevated p-6">
             {editing ? (
-              <div className="grid grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div>
                   <label className={labelClass}>Nombre</label>
                   <input name="name" value={editForm.name} onChange={handleChange} className={inputClass} />
@@ -247,7 +247,7 @@ export function EmployeeProfile() {
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div>
                   <p className={labelClass}>Identificación</p>
                   <p className="text-body text-graphite">{displayed.identification || '—'}</p>

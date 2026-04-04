@@ -16,7 +16,7 @@ export function FinanceSummary() {
       variants={staggerContainer}
       initial="initial"
       animate="animate"
-      className="grid grid-cols-3 gap-4 mb-6"
+      className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6"
     >
       <KPICard
         label="Ingresos"

@@ -218,7 +218,7 @@ export function ContractGenerate() {
         <div className="bg-surface rounded-xl card-elevated p-6">
           <h3 className="text-body font-semibold text-dark-graphite mb-4">Datos del Contrato</h3>
 
-          <div className="grid grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div>
               <label className={labelClass}>Nombre de la empresa</label>
               <input value={metadata.companyName} onChange={(e) => handleField('companyName', e.target.value)} className={inputClass} placeholder="Razón social" />

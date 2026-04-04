@@ -154,7 +154,7 @@ export function DateInput({ value, onChange, required, className }: DateInputPro
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full mt-1 bg-surface-elevated border border-border rounded-xl shadow-lg z-50 p-3 w-[280px]">
+        <div className="absolute left-0 top-full mt-1 bg-surface-elevated border border-border rounded-xl shadow-lg z-50 p-3 w-[calc(100vw-3rem)] sm:w-[280px]">
           {/* Month/Year header */}
           <div className="flex items-center justify-between mb-2">
             <button

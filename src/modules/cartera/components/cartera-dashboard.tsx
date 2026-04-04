@@ -190,14 +190,14 @@ export function CarteraDashboard() {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center justify-between gap-4 mb-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
         <UnderlineButtonTabs
           tabs={TABS}
           active={tab}
           onChange={(v) => { setTab(v as Tab); setSearch('') }}
         />
-        <div className="flex items-center gap-2">
-          <div className="w-64">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="w-full sm:w-64">
             <SearchInput value={search} onChange={setSearch} placeholder="Buscar..." />
           </div>
           <DateRangePicker />

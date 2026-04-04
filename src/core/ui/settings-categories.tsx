@@ -113,8 +113,8 @@ export function SettingsCategories() {
     <PageTransition>
       <PageHeader title="Categorías Financieras" />
 
-      <div className="rounded-xl bg-surface card-elevated overflow-hidden">
-        <table className="w-full">
+      <div className="rounded-xl bg-surface card-elevated overflow-hidden overflow-x-auto">
+        <table className="w-full min-w-[500px]">
           <thead>
             <tr className="border-b border-border">
               <th className="text-left text-caption uppercase tracking-wider text-mid-gray font-medium px-4 py-3 w-10 border-r border-border"></th>

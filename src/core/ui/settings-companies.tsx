@@ -103,8 +103,8 @@ export function SettingsCompanies() {
     <PageTransition>
       <PageHeader title="Compañías" />
 
-      <div className="rounded-xl bg-surface card-elevated">
-        <table className="w-full table-fixed">
+      <div className="rounded-xl bg-surface card-elevated overflow-x-auto">
+        <table className="w-full table-fixed min-w-[600px]">
           <thead>
             <tr className="border-b border-border">
               <th className="text-left text-caption uppercase tracking-wider text-mid-gray font-medium px-4 py-3 w-10 border-r border-border"></th>
@@ -179,7 +179,7 @@ export function SettingsCompanies() {
                     <tr className="border-b border-border last:border-b-0 bg-bone/30">
                       <td className="border-r border-border" />
                       <td colSpan={4} className="px-6 py-5">
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div>
                             <label className={labelClass}>Nombre</label>
                             <input

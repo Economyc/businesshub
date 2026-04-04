@@ -237,7 +237,7 @@ export function BankStatementImport({ open, onClose, onImported }: Props) {
                     Archivo: <strong>{file?.name}</strong> — {csvHeaders.length} columnas detectadas
                   </p>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className={labelClass}>Fecha *</label>
                       <SelectInput

@@ -80,7 +80,7 @@ export function RecurringList() {
       <FinanceTabs />
 
       <div className="flex gap-3 mb-5">
-        <div className="flex-1 min-w-[180px]">
+        <div className="flex-1 min-w-0 sm:min-w-[180px]">
           <SearchInput value={search} onChange={setSearch} placeholder="Buscar recurrente..." />
         </div>
       </div>
@@ -94,10 +94,10 @@ export function RecurringList() {
           description="Crea una transacción recurrente para automatizar gastos o ingresos fijos"
         />
       ) : (
-        <div className="bg-surface rounded-xl card-elevated overflow-hidden">
+        <div className="bg-surface rounded-xl card-elevated overflow-hidden overflow-x-auto">
           {/* Header */}
           <div
-            className="grid px-5 py-2.5 text-caption uppercase tracking-wider text-mid-gray bg-bone/40 border-b border-border"
+            className="min-w-[640px] grid px-5 py-2.5 text-caption uppercase tracking-wider text-mid-gray bg-bone/40 border-b border-border"
             style={{ gridTemplateColumns: '2fr 0.8fr 0.8fr 1fr 1fr 0.5fr' }}
           >
             <div className="px-3">Concepto</div>
@@ -113,7 +113,7 @@ export function RecurringList() {
             return (
               <div
                 key={rec.id}
-                className={`grid px-5 py-0 text-body hover:bg-bone/50 transition-colors duration-150 ${!rec.isActive ? 'opacity-50' : ''}`}
+                className={`min-w-[640px] grid px-5 py-0 text-body hover:bg-bone/50 transition-colors duration-150 ${!rec.isActive ? 'opacity-50' : ''}`}
                 style={{
                   gridTemplateColumns: '2fr 0.8fr 0.8fr 1fr 1fr 0.5fr',
                   borderBottom: i < sorted.length - 1 ? '1px solid #e5e4e0' : 'none',

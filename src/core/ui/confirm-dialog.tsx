@@ -52,7 +52,7 @@ export function ConfirmDialog({ open, title, description, onConfirm, onCancel }:
             initial="initial"
             animate="animate"
             exit="exit"
-            className="relative bg-surface-elevated rounded-xl p-6 shadow-lg max-w-sm w-full mx-4 border border-border"
+            className="relative bg-surface-elevated rounded-xl p-4 sm:p-6 shadow-lg max-w-sm w-full mx-4 border border-border"
           >
             <h3 className="text-subheading font-semibold text-dark-graphite mb-2">{title}</h3>
             <p className="text-body text-mid-gray mb-6">{description}</p>

@@ -171,7 +171,7 @@ export function EmployeeForm({ open, onClose, employee }: EmployeeFormProps) {
             </div>
 
             <form onSubmit={handleSubmit} className="p-6">
-              <div className="grid grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div>
                   <label className={labelClass}>Nombre</label>
                   <input

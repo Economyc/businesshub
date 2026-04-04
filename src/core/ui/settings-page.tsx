@@ -155,7 +155,7 @@ export function SettingsPage() {
     <PageTransition>
       <PageHeader title="Configuración" />
 
-      <div className="grid grid-cols-2 gap-6 items-stretch">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-stretch">
       {/* Sección 1: Compañías */}
       <section className="flex flex-col">
         <h2 className="text-subheading font-medium text-dark-graphite mb-4">Compañías</h2>
