@@ -110,14 +110,14 @@ export function ChatInput({ input, onInputChange, onSubmit, onSendWithFiles, isL
         </div>
       )}
 
-      <div className="flex items-end gap-2 p-3">
+      <div className="flex items-end gap-2 px-3 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
-          className="shrink-0 p-2 rounded-lg text-mid-gray hover:text-graphite hover:bg-smoke transition-colors"
+          className="shrink-0 w-10 h-10 flex items-center justify-center rounded-full text-mid-gray hover:text-graphite hover:bg-bone transition-colors active:scale-95"
           title="Adjuntar archivo (imagen o Excel)"
         >
-          <Paperclip size={18} strokeWidth={1.5} />
+          <Paperclip size={20} strokeWidth={1.5} />
         </button>
         <input
           ref={fileInputRef}
@@ -133,30 +133,30 @@ export function ChatInput({ input, onInputChange, onSubmit, onSendWithFiles, isL
           }}
         />
 
-        <textarea
-          ref={textareaRef}
-          value={input}
-          onChange={(e) => {
-            onInputChange(e.target.value)
-            handleTextareaInput()
-          }}
-          onKeyDown={handleKeyDown}
-          placeholder={attachedFiles.length > 0 ? 'Describe qué hacer con el archivo...' : 'Escribe un mensaje...'}
-          rows={1}
-          className={cn(
-            'flex-1 resize-none rounded-lg border border-input bg-transparent px-3 py-2 text-sm',
-            'placeholder:text-muted-foreground outline-none',
-            'focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50',
-            'max-h-40 min-h-[36px]',
-            'dark:bg-input/30'
-          )}
-        />
+        <div className="flex-1 bg-surface-elevated border border-input rounded-[20px] shadow-sm overflow-hidden focus-within:border-mid-gray focus-within:ring-1 focus-within:ring-mid-gray/20 transition-all">
+          <textarea
+            ref={textareaRef}
+            value={input}
+            onChange={(e) => {
+              onInputChange(e.target.value)
+              handleTextareaInput()
+            }}
+            onKeyDown={handleKeyDown}
+            placeholder={attachedFiles.length > 0 ? 'Describe qué hacer con el archivo...' : 'Pregunta sobre tus datos...'}
+            rows={1}
+            className={cn(
+              'w-full resize-none bg-transparent px-4 py-[10px] text-sm text-graphite',
+              'placeholder:text-mid-gray outline-none',
+              'max-h-[120px] min-h-[40px]',
+            )}
+          />
+        </div>
 
         {isLoading ? (
           <button
             type="button"
             onClick={onStop}
-            className="shrink-0 p-2 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
+            className="shrink-0 w-10 h-10 flex items-center justify-center rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors active:scale-95"
             title="Detener"
           >
             <Square size={18} strokeWidth={1.5} />
@@ -167,10 +167,10 @@ export function ChatInput({ input, onInputChange, onSubmit, onSendWithFiles, isL
             onClick={handleSend}
             disabled={!input.trim() && attachedFiles.length === 0}
             className={cn(
-              'shrink-0 p-2 rounded-lg transition-colors',
+              'shrink-0 w-10 h-10 flex items-center justify-center rounded-full transition-all active:scale-90',
               (input.trim() || attachedFiles.length > 0)
-                ? 'bg-primary text-primary-foreground hover:bg-primary/80'
-                : 'text-mid-gray/40 cursor-not-allowed'
+                ? 'bg-dark-graphite text-white shadow-sm hover:opacity-90'
+                : 'text-mid-gray/30 cursor-not-allowed'
             )}
           >
             <Send size={18} strokeWidth={1.5} />

@@ -128,9 +128,10 @@ export function MessageBubble({ role, content }: MessageBubbleProps) {
   }, [content, isUser])
 
   return (
-    <div className={cn('flex gap-3 px-4 py-3', isUser && 'flex-row-reverse')}>
+    <div className={cn('flex gap-2 sm:gap-3 px-3 sm:px-4 py-1.5 sm:py-3', isUser ? 'flex-row-reverse' : '')}>
+      {/* Avatar - hidden on mobile for more bubble space */}
       <div className={cn(
-        'shrink-0 w-7 h-7 rounded-full flex items-center justify-center mt-0.5',
+        'shrink-0 w-7 h-7 rounded-full flex items-center justify-center mt-0.5 hidden sm:flex',
         isUser ? 'bg-primary/10' : 'bg-graphite/10'
       )}>
         {isUser ? (
@@ -140,10 +141,10 @@ export function MessageBubble({ role, content }: MessageBubbleProps) {
         )}
       </div>
       <div className={cn(
-        'max-w-[92%] sm:max-w-[85%] rounded-xl px-3 sm:px-4 py-2.5 text-sm leading-relaxed',
+        'max-w-[88%] sm:max-w-[85%] px-3.5 sm:px-4 py-2.5 text-sm leading-relaxed shadow-sm',
         isUser
-          ? 'bg-primary text-primary-foreground'
-          : 'bg-card-bg text-dark-graphite border border-border/60'
+          ? 'bg-dark-graphite text-white rounded-[18px] rounded-tr-[4px]'
+          : 'bg-card-bg text-dark-graphite border border-border/60 rounded-[18px] rounded-tl-[4px]'
       )}>
         {isUser ? (
           <div className="whitespace-pre-wrap break-words">{content}</div>

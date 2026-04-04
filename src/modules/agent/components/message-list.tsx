@@ -38,21 +38,21 @@ export function MessageList({ messages, isLoading, onSuggestionClick, onToolConf
 
   if (messages.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center p-8">
+      <div className="flex-1 flex items-center justify-center p-6 sm:p-8">
         <div className="text-center max-w-md">
-          <div className="w-12 h-12 rounded-full bg-graphite/10 flex items-center justify-center mx-auto mb-4">
-            <Bot size={24} strokeWidth={1.5} className="text-graphite" />
+          <div className="w-14 h-14 rounded-full bg-graphite flex items-center justify-center mx-auto mb-4">
+            <Bot size={28} strokeWidth={1.5} className="text-white" />
           </div>
-          <h3 className="text-lg font-semibold text-dark-graphite mb-2">Asistente BusinessHub</h3>
+          <h3 className="text-lg font-bold text-dark-graphite mb-1">BusinessHub AI</h3>
           <p className="text-sm text-mid-gray mb-6">
-            Puedo ayudarte a analizar finanzas, gestionar empleados y proveedores, procesar facturas y mucho mas.
+            Analiza finanzas, gestiona empleados, procesa facturas y mas.
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div className="flex flex-col sm:grid sm:grid-cols-2 gap-2">
             {SUGGESTIONS.map((suggestion) => (
               <button
                 key={suggestion}
                 onClick={() => onSuggestionClick?.(suggestion)}
-                className="text-left text-xs px-3 py-2 rounded-lg border border-border hover:bg-card-bg transition-colors text-graphite"
+                className="text-left text-[13px] px-3.5 py-2.5 rounded-xl border border-border hover:bg-card-bg active:bg-bone transition-colors text-graphite"
               >
                 {suggestion}
               </button>

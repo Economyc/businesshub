@@ -6,26 +6,24 @@ export function AgentPage() {
   const [chatKey, setChatKey] = useState(0)
 
   return (
-    <div className="h-[calc(100vh-6rem)] md:h-[calc(100vh-3rem)] flex flex-col rounded-xl border border-border bg-surface-elevated overflow-hidden">
-      <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-full bg-graphite/10 flex items-center justify-center">
-            <Bot size={14} strokeWidth={1.5} className="text-graphite" />
+    <div className="-mx-4 -mb-8 md:mx-0 md:mb-0 h-[calc(100dvh-6.5rem)] md:h-[calc(100vh-3rem)] flex flex-col md:rounded-xl md:border md:border-border bg-surface-elevated overflow-hidden">
+      {/* Compact header */}
+      <div className="px-3 h-12 border-b border-border flex items-center justify-between shrink-0 bg-surface-elevated shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-full bg-graphite flex items-center justify-center">
+            <Bot size={14} strokeWidth={1.5} className="text-white" />
           </div>
-          <div>
-            <h1 className="text-sm font-semibold text-dark-graphite">Asistente AI</h1>
-            <p className="text-[11px] text-mid-gray leading-tight">Analiza, gestiona y automatiza tu negocio</p>
+          <div className="flex flex-col justify-center">
+            <h1 className="text-sm font-bold text-dark-graphite leading-none tracking-tight">BusinessHub AI</h1>
+            <p className="text-[10px] text-mid-gray leading-none mt-0.5">Siempre activo</p>
           </div>
         </div>
         <button
           onClick={() => setChatKey((k) => k + 1)}
-          className="group/new relative p-1.5 rounded-md text-mid-gray/50 hover:text-graphite hover:bg-smoke transition-colors"
+          className="w-8 h-8 flex items-center justify-center rounded-full text-mid-gray hover:text-graphite hover:bg-bone transition-colors active:scale-95"
           title="Nueva conversación"
         >
-          <RotateCcw size={15} strokeWidth={1.5} />
-          <span className="pointer-events-none absolute right-full mr-2 top-1/2 -translate-y-1/2 z-50 whitespace-nowrap rounded-lg bg-dark-graphite dark:bg-[#2a2a2a] px-3 py-1.5 text-caption font-medium text-white dark:text-[#e0e0e0] shadow-lg opacity-0 scale-95 transition-all duration-150 group-hover/new:opacity-100 group-hover/new:scale-100 hidden sm:block">
-            Nueva conversación
-          </span>
+          <RotateCcw size={16} strokeWidth={1.5} />
         </button>
       </div>
       <AgentChat key={chatKey} />
