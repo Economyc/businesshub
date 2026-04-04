@@ -26,11 +26,12 @@ export function SalesTrendChart({ data, periodLabel }: SalesTrendChartProps) {
     <div className="bg-surface rounded-xl card-elevated p-[18px]">
       <h2 className="text-body font-bold text-dark-graphite mb-3">Ventas — {periodLabel}</h2>
       {!hasData ? (
-        <div className="flex items-center justify-center h-[200px] text-mid-gray text-caption">
+        <div className="flex items-center justify-center h-[150px] sm:h-[200px] text-mid-gray text-caption">
           Sin datos de ventas en este período
         </div>
       ) : (
-        <ResponsiveContainer width="100%" height={200}>
+        <div className="h-[150px] sm:h-[200px]">
+        <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eeece9" vertical={false} />
             <XAxis
@@ -58,6 +59,7 @@ export function SalesTrendChart({ data, periodLabel }: SalesTrendChartProps) {
             />
           </AreaChart>
         </ResponsiveContainer>
+        </div>
       )}
     </div>
   )

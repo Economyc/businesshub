@@ -134,7 +134,7 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
             animate={{ x: 0 }}
             exit={{ x: '-100%' }}
             transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }}
-            className="fixed inset-y-0 left-0 w-[85vw] max-w-[320px] bg-surface-elevated flex flex-col shadow-2xl"
+            className="fixed inset-y-0 left-0 w-[85vw] max-w-[320px] bg-surface-elevated flex flex-col shadow-2xl overflow-x-hidden touch-pan-y"
           >
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">

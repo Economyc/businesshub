@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { Wallet, ArrowDownCircle, ArrowUpCircle, DollarSign, AlertTriangle, Clock, Banknote } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
 import { UnderlineButtonTabs } from '@/core/ui/underline-tabs'
@@ -37,14 +38,15 @@ function StatusBadge({ status }: { status: CarteraItem['status'] }) {
   )
 }
 
-function SummaryCard({ label, value, icon: Icon, negative }: {
+function SummaryCard({ label, value, icon: Icon, negative, tinted }: {
   label: string
   value: number
   icon: typeof Wallet
   negative?: boolean
+  tinted?: boolean
 }) {
   return (
-    <div className="bg-surface rounded-xl card-elevated p-4">
+    <div className={cn('rounded-xl card-elevated p-4', tinted ? 'bg-red-50 border border-red-100' : 'bg-surface')}>
       <div className="flex items-center gap-2 mb-2">
         <div className="p-1.5 rounded-lg bg-bone">
           <Icon size={15} strokeWidth={1.5} className="text-mid-gray" />
@@ -61,6 +63,43 @@ function SummaryCard({ label, value, icon: Icon, negative }: {
 function formatDate(ts: { toDate?: () => Date } | undefined): string {
   if (!ts?.toDate) return '—'
   return ts.toDate().toLocaleDateString('es-CO', { year: 'numeric', month: 'short', day: 'numeric' })
+}
+
+function CarteraCard({ item, actionLabel, onAction }: { item: CarteraItem; actionLabel: string; onAction: () => void }) {
+  const borderColor = item.status === 'overdue' ? 'border-l-red-500' : item.daysOutstanding > 15 ? 'border-l-amber-400' : 'border-l-border'
+
+  return (
+    <div className={`bg-surface rounded-xl card-elevated p-4 border border-border border-l-[4px] ${borderColor}`}>
+      {/* Row 1: concept + status */}
+      <div className="flex items-start justify-between gap-2 mb-1">
+        <h3 className="font-bold text-dark-graphite leading-tight flex-1 truncate">{item.concept}</h3>
+        <StatusBadge status={item.status} />
+      </div>
+      {/* Row 2: counterparty + days */}
+      <div className="flex items-center justify-between text-caption mb-3">
+        <span className="text-mid-gray truncate">{item.counterparty}</span>
+        <span className={cn(
+          'font-bold text-[11px] shrink-0',
+          item.status === 'overdue' ? 'text-red-500' : item.daysOutstanding > 15 ? 'text-amber-500' : 'text-mid-gray'
+        )}>
+          {item.daysOutstanding}d
+        </span>
+      </div>
+      {/* Row 3: balance + action */}
+      <div className="flex items-end justify-between pt-3 border-t border-border/40">
+        <div>
+          <span className="block text-[10px] text-mid-gray font-semibold uppercase mb-0.5">Saldo</span>
+          <span className="text-lg font-extrabold text-dark-graphite">{formatCurrency(item.balance)}</span>
+        </div>
+        <button
+          onClick={(e) => { e.stopPropagation(); onAction() }}
+          className="px-4 py-1.5 rounded-lg text-caption font-bold btn-primary hover:shadow-sm transition-all"
+        >
+          {actionLabel}
+        </button>
+      </div>
+    </div>
+  )
 }
 
 export function CarteraDashboard() {
@@ -186,6 +225,7 @@ export function CarteraDashboard() {
           value={summary.overdueTotal}
           icon={AlertTriangle}
           negative={summary.overdueTotal > 0}
+          tinted={summary.overdueTotal > 0}
         />
       </div>
 
@@ -215,7 +255,21 @@ export function CarteraDashboard() {
         />
       ) : (
         <>
-          <DataTable columns={columns} data={sorted} />
+          {/* Mobile cards */}
+          <div className="flex flex-col gap-3 md:hidden">
+            {sorted.map((item) => (
+              <CarteraCard
+                key={item.id}
+                item={item}
+                actionLabel={tab === 'receivables' ? 'Recibido' : 'Pagar'}
+                onAction={() => setPaymentTarget(item)}
+              />
+            ))}
+          </div>
+          {/* Desktop table */}
+          <div className="hidden md:block">
+            <DataTable columns={columns} data={sorted} />
+          </div>
           <div className="mt-3 text-caption text-mid-gray text-right">
             {sorted.length} {sorted.length === 1 ? 'registro' : 'registros'} — Total saldo: {formatCurrency(sorted.reduce((s, i) => s + i.balance, 0))}
           </div>
