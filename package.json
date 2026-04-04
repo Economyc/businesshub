@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "deploy:functions": "NODE_OPTIONS=--dns-result-order=ipv4first firebase deploy --only functions"
   },
   "dependencies": {
     "@ai-sdk/react": "^1.2.12",
