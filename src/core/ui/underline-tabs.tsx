@@ -18,7 +18,7 @@ interface RouteTabsProps {
 export function UnderlineTabs({ tabs, className }: RouteTabsProps) {
   return (
     <div
-      className={cn('flex flex-nowrap overflow-x-auto mb-5 border-b border-border scrollbar-hide', className)}
+      className={cn('flex flex-nowrap overflow-x-auto overflow-y-hidden overscroll-x-contain mb-5 border-b border-border scrollbar-hide touch-pan-x', className)}
     >
       {tabs.map(({ to, label, icon: Icon, end }) => (
         <NavLink
@@ -53,7 +53,7 @@ interface ButtonTabsProps {
 export function UnderlineButtonTabs({ tabs, active, onChange, className }: ButtonTabsProps) {
   return (
     <div
-      className={cn('flex flex-nowrap overflow-x-auto mb-5 border-b border-border scrollbar-hide', className)}
+      className={cn('flex flex-nowrap overflow-x-auto overflow-y-hidden overscroll-x-contain mb-5 border-b border-border scrollbar-hide touch-pan-x', className)}
     >
       {tabs.map(({ value, label, icon: Icon }) => (
         <button
