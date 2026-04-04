@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { ClipboardList, List, FilePlus, Percent, Trash2, SquarePen } from 'lucide-react'
+import { ClipboardList, List, FilePlus, Percent, Trash2, SquarePen, UserCircle } from 'lucide-react'
 import { PageTransition } from '@/core/ui/page-transition'
 import { UnderlineButtonTabs } from '@/core/ui/underline-tabs'
 import { PageHeader } from '@/core/ui/page-header'
@@ -25,6 +25,70 @@ function formatDate(dateStr: string): string {
   if (!dateStr) return '—'
   const d = new Date(dateStr + 'T12:00:00')
   return d.toLocaleDateString('es-CO', { year: 'numeric', month: 'short', day: 'numeric' })
+}
+
+function formatShortDate(dateStr: string): string {
+  if (!dateStr) return '—'
+  const d = new Date(dateStr + 'T12:00:00')
+  return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short' }).toUpperCase()
+}
+
+function ClosingCard({ closing, onEdit, onDelete, onClick }: { closing: Closing; onEdit: () => void; onDelete: () => void; onClick: () => void }) {
+  return (
+    <article
+      onClick={onClick}
+      className="bg-surface rounded-xl card-elevated p-4 relative cursor-pointer active:bg-bone/50 transition-colors"
+    >
+      {/* Edit button */}
+      <div className="absolute top-3 right-3 flex gap-1">
+        <button
+          onClick={(e) => { e.stopPropagation(); onEdit() }}
+          className="w-8 h-8 rounded-full bg-bone flex items-center justify-center text-graphite active:bg-border transition-colors"
+        >
+          <SquarePen size={14} strokeWidth={1.5} />
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete() }}
+          className="w-8 h-8 rounded-full bg-bone flex items-center justify-center text-mid-gray active:bg-red-100 active:text-red-500 transition-colors"
+        >
+          <Trash2 size={14} strokeWidth={1.5} />
+        </button>
+      </div>
+
+      {/* Header: date badge + responsable */}
+      <div className="border-b border-bone pb-3 mb-3 pr-20">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="bg-dark-graphite text-white text-[10px] font-bold px-2 py-0.5 rounded">
+            {formatShortDate(closing.date)}
+          </span>
+        </div>
+        <h3 className="text-[14px] font-bold text-dark-graphite flex items-center gap-1.5">
+          <UserCircle size={16} className="text-mid-gray" />
+          {closing.responsable || '—'}
+        </h3>
+      </div>
+
+      {/* 2x2 grid of values */}
+      <div className="grid grid-cols-2 gap-y-3 gap-x-4">
+        <div>
+          <span className="block text-[10px] font-bold text-mid-gray uppercase mb-0.5">Venta Total</span>
+          <span className="block font-extrabold text-emerald-700">{formatCurrency(closing.ventaTotal ?? 0)}</span>
+        </div>
+        <div>
+          <span className="block text-[10px] font-bold text-mid-gray uppercase mb-0.5">Efectivo</span>
+          <span className="block font-bold text-dark-graphite">{formatCurrency(closing.efectivo ?? 0)}</span>
+        </div>
+        <div>
+          <span className="block text-[10px] font-bold text-mid-gray uppercase mb-0.5">Datáfono</span>
+          <span className="block font-bold text-dark-graphite">{formatCurrency(closing.datafono ?? 0)}</span>
+        </div>
+        <div>
+          <span className="block text-[10px] font-bold text-mid-gray uppercase mb-0.5">Propinas</span>
+          <span className="block font-bold text-dark-graphite">{formatCurrency(closing.propinas ?? 0)}</span>
+        </div>
+      </div>
+    </article>
+  )
 }
 
 type Tab = 'form' | 'history' | 'discounts'
@@ -197,11 +261,26 @@ export function ClosingList() {
             />
           ) : (
             <>
-              <DataTable
-                columns={columns}
-                data={filtered}
-                onRowClick={(c) => setReceiptClosing(c)}
-              />
+              {/* Mobile: custom cards */}
+              <div className="flex flex-col gap-3 md:hidden">
+                {filtered.map((c) => (
+                  <ClosingCard
+                    key={c.id}
+                    closing={c}
+                    onEdit={() => { setEditingClosing(c); setTab('form') }}
+                    onDelete={() => setDeleteTarget(c)}
+                    onClick={() => setReceiptClosing(c)}
+                  />
+                ))}
+              </div>
+              {/* Desktop: full table */}
+              <div className="hidden md:block">
+                <DataTable
+                  columns={columns}
+                  data={filtered}
+                  onRowClick={(c) => setReceiptClosing(c)}
+                />
+              </div>
               <LoadMoreButton
                 onClick={loadMore}
                 loading={loadingMore}

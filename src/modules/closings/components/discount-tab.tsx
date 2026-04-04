@@ -216,29 +216,22 @@ export function DiscountTab() {
 
   return (
     <>
-      {/* Form */}
-      <div className="bg-surface rounded-xl card-elevated p-6 mb-6">
-        <h2 className="text-subheading font-semibold text-dark-graphite mb-5">
+      {/* Form - card-based layout */}
+      <form onSubmit={handleSubmit} className="bg-surface rounded-2xl card-elevated p-4 sm:p-6 mb-6">
+        <h2 className="text-caption font-extrabold uppercase tracking-widest text-mid-gray mb-4 flex items-center gap-2">
+          <Tag size={14} />
           {editing ? 'Editar Descuento' : 'Registrar Descuento'}
         </h2>
 
-        <form onSubmit={handleSubmit}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div>
-              <label className={labelClass}>Fecha</label>
-              <DateInput
-                value={form.date}
-                onChange={(v) => setForm((prev) => ({ ...prev, date: v }))}
-                required
-              />
-            </div>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={labelClass}>Tipo</label>
               <SelectInput
                 value={form.type}
                 onChange={(v) => setForm((prev) => ({ ...prev, type: v }))}
                 options={TYPE_OPTIONS}
-                placeholder="Seleccionar tipo..."
+                placeholder="Seleccionar..."
               />
             </div>
             <div>
@@ -251,73 +244,85 @@ export function DiscountTab() {
                 className={inputClass}
               />
             </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={labelClass}>Fecha</label>
+              <DateInput
+                value={form.date}
+                onChange={(v) => setForm((prev) => ({ ...prev, date: v }))}
+                required
+              />
+            </div>
             <div>
               <label className={labelClass}>Motivo</label>
               <SelectInput
                 value={form.reason}
                 onChange={(v) => setForm((prev) => ({ ...prev, reason: v }))}
                 options={REASON_OPTIONS}
-                placeholder="Seleccionar motivo..."
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Detalle</label>
-              <input
-                value={form.description}
-                onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
-                placeholder="Nombre, producto, contexto..."
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Autorizado por</label>
-              <input
-                value={form.authorizedBy}
-                onChange={(e) => setForm((prev) => ({ ...prev, authorizedBy: e.target.value }))}
-                placeholder="Quien autorizo"
-                required
-                className={inputClass}
+                placeholder="Seleccionar..."
               />
             </div>
           </div>
 
-          <div className="flex items-center gap-3 mt-6 pt-5 border-t border-border">
-            {success && (
-              <span className="text-caption text-green-600 font-medium">
-                {editing ? 'Descuento actualizado' : 'Descuento registrado'}
-              </span>
-            )}
-            <div className="flex items-center gap-3 ml-auto">
-              <button
-                type="button"
-                onClick={resetForm}
-                className="px-5 py-2.5 rounded-[10px] border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
-              >
-                Limpiar
-              </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="px-5 py-2.5 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {submitting ? 'Guardando...' : editing ? 'Actualizar Descuento' : 'Guardar Descuento'}
-              </button>
-            </div>
+          <div>
+            <label className={labelClass}>Detalle</label>
+            <input
+              value={form.description}
+              onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
+              placeholder="Nombre, producto, contexto..."
+              className={inputClass}
+            />
           </div>
-        </form>
-      </div>
+          <div>
+            <label className={labelClass}>Autorizado por</label>
+            <input
+              value={form.authorizedBy}
+              onChange={(e) => setForm((prev) => ({ ...prev, authorizedBy: e.target.value }))}
+              placeholder="Nombre del manager"
+              required
+              className={inputClass}
+            />
+          </div>
+        </div>
 
-      {/* History */}
-      <div className="mb-4 text-caption text-mid-gray">
-        Total descuentos:{' '}
-        <span className="font-medium text-graphite">
-          {formatCurrency(totalDescuentos)}
-        </span>
+        <div className="flex flex-col sm:flex-row items-center gap-3 mt-5 pt-4 border-t border-border">
+          {success && (
+            <span className="text-caption text-green-600 font-medium">
+              {editing ? 'Descuento actualizado' : 'Descuento registrado'}
+            </span>
+          )}
+          <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto sm:ml-auto">
+            <button
+              type="submit"
+              disabled={submitting}
+              className="w-full sm:w-auto px-5 py-3 sm:py-2.5 rounded-xl btn-primary text-body font-bold transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {submitting ? 'Guardando...' : editing ? 'Actualizar' : 'Guardar Descuento'}
+            </button>
+            <button
+              type="button"
+              onClick={resetForm}
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl text-mid-gray text-body font-bold transition-all duration-200 hover:bg-bone"
+            >
+              Limpiar
+            </button>
+          </div>
+        </div>
+      </form>
+
+      {/* Accumulated total + search */}
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <span className="block text-[11px] font-bold text-mid-gray uppercase tracking-wide">Total Descuentos</span>
+          <span className="text-xl font-extrabold text-dark-graphite">{formatCurrency(totalDescuentos)}</span>
+        </div>
       </div>
 
       <div className="flex gap-3 mb-5">
         <div className="flex-1">
-          <SearchInput value={search} onChange={setSearch} placeholder="Buscar por motivo, detalle o responsable..." />
+          <SearchInput value={search} onChange={setSearch} placeholder="Buscar motivo, detalle o responsable..." />
         </div>
       </div>
 
@@ -330,7 +335,44 @@ export function DiscountTab() {
           description="Registra descuentos y cortesias para llevar seguimiento"
         />
       ) : (
-        <DataTable columns={columns} data={filtered} />
+        <>
+          {/* Mobile: custom cards */}
+          <div className="flex flex-col gap-2 md:hidden">
+            {filtered.map((d) => (
+              <div key={d.id} className="bg-surface rounded-xl card-elevated p-3.5 flex items-center justify-between">
+                <div className="flex gap-3 items-center min-w-0">
+                  <div className={`h-10 w-10 rounded-full flex items-center justify-center shrink-0 ${
+                    d.type === 'full' ? 'bg-amber-100 text-amber-600' : 'bg-blue-50 text-blue-500'
+                  }`}>
+                    {d.type === 'full' ? <Gift size={20} /> : <Tag size={20} />}
+                  </div>
+                  <div className="min-w-0">
+                    <h4 className="font-bold text-dark-graphite text-[14px] leading-tight truncate">
+                      {d.reason || 'Sin motivo'}{d.description ? ` (${d.description})` : ''}
+                    </h4>
+                    <span className="text-[11px] text-mid-gray font-semibold">
+                      {formatDate(d.date)} · Aut: {d.authorizedBy || '—'}
+                    </span>
+                  </div>
+                </div>
+                <div className="text-right shrink-0 ml-2">
+                  <span className={`block text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded mb-1 inline-block ${
+                    d.type === 'full'
+                      ? 'bg-amber-100 text-amber-700 border border-amber-200'
+                      : 'bg-blue-50 text-blue-600 border border-blue-100'
+                  }`}>
+                    {d.type === 'full' ? 'Cortesía' : 'Parcial'}
+                  </span>
+                  <span className="block font-bold text-dark-graphite">{formatCurrency(d.amount ?? 0)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          {/* Desktop: full table */}
+          <div className="hidden md:block">
+            <DataTable columns={columns} data={filtered} />
+          </div>
+        </>
       )}
 
       <ConfirmDialog
