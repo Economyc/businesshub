@@ -1,5 +1,7 @@
 {
-  "projects": {},
+  "projects": {
+    "default": "empresas-bf"
+  },
   "targets": {},
   "etags": {}
 }
