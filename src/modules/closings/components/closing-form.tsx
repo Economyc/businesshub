@@ -120,11 +120,13 @@ export function ClosingForm({ onSaved, editing, onCancelEdit }: ClosingFormProps
   }
 
   return (
-    <div className="bg-surface rounded-xl card-elevated p-6">
-      <h2 className="text-subheading font-semibold text-dark-graphite mb-5">{editing ? 'Editar Cierre' : 'Registrar Cierre'}</h2>
-
-      <form onSubmit={handleSubmit}>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      {/* Card: Datos de Cierre */}
+      <div className="bg-surface rounded-2xl card-elevated p-4 sm:p-6">
+        <h2 className="text-caption font-extrabold uppercase tracking-widest text-mid-gray mb-4">
+          {editing ? 'Editar Cierre' : 'Datos de Cierre'}
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className={labelClass}>Fecha</label>
             <DateInput
@@ -144,48 +146,73 @@ export function ClosingForm({ onSaved, editing, onCancelEdit }: ClosingFormProps
               className={inputClass}
             />
           </div>
+        </div>
+      </div>
 
+      {/* Card: Desglose de Ventas */}
+      <div className="bg-surface rounded-2xl card-elevated p-4 sm:p-6">
+        <h2 className="text-caption font-extrabold uppercase tracking-widest text-mid-gray mb-4">
+          Desglose de Ventas
+        </h2>
+        <div className="grid grid-cols-2 gap-x-3 gap-y-4">
           {currencyField('AP (Apertura)', 'ap')}
           {currencyField('QR', 'qr')}
           {currencyField('Datáfono', 'datafono')}
           {currencyField('Rappi', 'rappiVentas')}
-          {currencyField('Efectivo', 'efectivo')}
-
-          <div>
-            <label className={labelClass}>Venta Total</label>
-            <div className="px-3 py-2.5 rounded-[10px] border border-input-border bg-bone/50 text-body text-dark-graphite font-semibold">
-              ${ventaTotal.toLocaleString('es-CO')}
-            </div>
+          <div className="col-span-2">
+            {currencyField('Efectivo en Caja', 'efectivo')}
           </div>
+        </div>
 
+        {/* Venta Total - highlighted result */}
+        <div className="mt-4 p-4 rounded-xl bg-emerald-50 border border-emerald-200">
+          <span className="block text-[11px] font-bold text-emerald-700 uppercase mb-1">Venta Total</span>
+          <div className="flex items-baseline gap-1">
+            <span className="text-emerald-800 text-lg font-bold">$</span>
+            <span className="text-emerald-900 text-2xl sm:text-3xl font-extrabold tracking-tight">{ventaTotal.toLocaleString('es-CO')}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Card: Otros Movimientos */}
+      <div className="bg-surface rounded-2xl card-elevated p-4 sm:p-6">
+        <h2 className="text-caption font-extrabold uppercase tracking-widest text-mid-gray mb-4">
+          Otros Movimientos
+        </h2>
+        <div className="grid grid-cols-2 gap-x-3 gap-y-4">
           {currencyField('Propinas', 'propinas')}
-          {currencyField('Gastos', 'gastos')}
           {currencyField('Caja Menor', 'cajaMenor')}
-          {currencyField('Entrega de Efectivo', 'entregaEfectivo')}
-        </div>
-
-        <div className="flex items-center gap-3 mt-6 pt-5 border-t border-border">
-          {success && (
-            <span className="text-caption text-green-600 font-medium">{editing ? 'Cierre actualizado' : 'Cierre guardado correctamente'}</span>
-          )}
-          <div className="flex items-center gap-3 ml-auto">
-            <button
-              type="button"
-              onClick={resetForm}
-              className="px-5 py-2.5 rounded-[10px] border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
-            >
-              Limpiar
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="px-5 py-2.5 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {submitting ? 'Guardando...' : editing ? 'Actualizar Cierre' : 'Guardar Cierre'}
-            </button>
+          <div className="col-span-2">
+            {currencyField('Gastos', 'gastos')}
+          </div>
+          <div className="col-span-2">
+            {currencyField('Entrega de Efectivo', 'entregaEfectivo')}
           </div>
         </div>
-      </form>
-    </div>
+      </div>
+
+      {/* Actions */}
+      <div className="flex flex-col sm:flex-row items-center gap-3">
+        {success && (
+          <span className="text-caption text-green-600 font-medium">{editing ? 'Cierre actualizado' : 'Cierre guardado correctamente'}</span>
+        )}
+        <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto sm:ml-auto">
+          <button
+            type="submit"
+            disabled={submitting}
+            className="w-full sm:w-auto px-5 py-3 sm:py-2.5 rounded-xl btn-primary text-body font-bold transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {submitting ? 'Guardando...' : editing ? 'Actualizar Cierre' : 'Guardar Cierre'}
+          </button>
+          <button
+            type="button"
+            onClick={resetForm}
+            className="w-full sm:w-auto px-5 py-2.5 rounded-xl text-mid-gray text-body font-bold transition-all duration-200 hover:bg-bone"
+          >
+            Limpiar
+          </button>
+        </div>
+      </div>
+    </form>
   )
 }

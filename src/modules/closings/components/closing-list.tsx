@@ -109,12 +109,14 @@ export function ClosingList() {
       key: 'datafono',
       header: 'Datáfono',
       width: '1fr',
+      hideOnMobile: true,
       render: (c: Closing) => formatCurrency(c.datafono ?? 0),
     },
     {
       key: 'propinas',
       header: 'Propinas',
       width: '0.8fr',
+      hideOnMobile: true,
       render: (c: Closing) => formatCurrency(c.propinas ?? 0),
     },
     {
@@ -150,7 +152,7 @@ export function ClosingList() {
 
   return (
     <PageTransition>
-      <PageHeader title="Cierres" />
+      <PageHeader title="Cierres de Caja" />
 
       {/* Tabs */}
       <UnderlineButtonTabs
@@ -170,18 +172,19 @@ export function ClosingList() {
 
       {tab === 'history' && (
         <>
-          <div className="mb-4 text-caption text-mid-gray">
-            Venta total acumulada:{' '}
-            <span className="font-medium text-graphite">
-              {formatCurrency(totalVentas)}
-            </span>
+          {/* Accumulated total + period filter */}
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <span className="block text-[11px] font-bold text-mid-gray uppercase tracking-wide">Acumulado</span>
+              <span className="text-xl font-extrabold text-dark-graphite">{formatCurrency(totalVentas)}</span>
+            </div>
+            <DateRangePicker />
           </div>
 
           <div className="flex gap-3 mb-5">
             <div className="flex-1">
-              <SearchInput value={search} onChange={setSearch} placeholder="Buscar por fecha o responsable..." />
+              <SearchInput value={search} onChange={setSearch} placeholder="Buscar responsable o fecha..." />
             </div>
-            <DateRangePicker />
           </div>
 
           {loading ? (
