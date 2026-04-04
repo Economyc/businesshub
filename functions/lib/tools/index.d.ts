@@ -1,4 +1,382 @@
 export declare function createAgentTools(companyId: string): {
+    exportReport: import("ai").Tool<import("zod").ZodObject<{
+        format: import("zod").ZodEnum<["pdf", "excel"]>;
+        title: import("zod").ZodString;
+        sections: import("zod").ZodArray<import("zod").ZodObject<{
+            heading: import("zod").ZodString;
+            type: import("zod").ZodEnum<["table", "kpi", "text"]>;
+            data: import("zod").ZodUnknown;
+        }, "strip", import("zod").ZodTypeAny, {
+            type: "table" | "kpi" | "text";
+            heading: string;
+            data?: unknown;
+        }, {
+            type: "table" | "kpi" | "text";
+            heading: string;
+            data?: unknown;
+        }>, "many">;
+    }, "strip", import("zod").ZodTypeAny, {
+        title: string;
+        format: "pdf" | "excel";
+        sections: {
+            type: "table" | "kpi" | "text";
+            heading: string;
+            data?: unknown;
+        }[];
+    }, {
+        title: string;
+        format: "pdf" | "excel";
+        sections: {
+            type: "table" | "kpi" | "text";
+            heading: string;
+            data?: unknown;
+        }[];
+    }>, unknown> & {
+        execute: undefined;
+    };
+    generateChart: import("ai").Tool<import("zod").ZodObject<{
+        chartType: import("zod").ZodEnum<["bar", "pie", "area", "line"]>;
+        title: import("zod").ZodString;
+        data: import("zod").ZodArray<import("zod").ZodObject<{
+            name: import("zod").ZodString;
+            value: import("zod").ZodNumber;
+            value2: import("zod").ZodOptional<import("zod").ZodNumber>;
+        }, "strip", import("zod").ZodTypeAny, {
+            name: string;
+            value: number;
+            value2?: number | undefined;
+        }, {
+            name: string;
+            value: number;
+            value2?: number | undefined;
+        }>, "many">;
+        valueLabel: import("zod").ZodDefault<import("zod").ZodOptional<import("zod").ZodString>>;
+        value2Label: import("zod").ZodOptional<import("zod").ZodString>;
+        formatAsCurrency: import("zod").ZodDefault<import("zod").ZodOptional<import("zod").ZodBoolean>>;
+    }, "strip", import("zod").ZodTypeAny, {
+        title: string;
+        chartType: "bar" | "pie" | "area" | "line";
+        data: {
+            name: string;
+            value: number;
+            value2?: number | undefined;
+        }[];
+        valueLabel: string;
+        formatAsCurrency: boolean;
+        value2Label?: string | undefined;
+    }, {
+        title: string;
+        chartType: "bar" | "pie" | "area" | "line";
+        data: {
+            name: string;
+            value: number;
+            value2?: number | undefined;
+        }[];
+        valueLabel?: string | undefined;
+        value2Label?: string | undefined;
+        formatAsCurrency?: boolean | undefined;
+    }>, unknown> & {
+        execute: undefined;
+    };
+    searchAll: import("ai").Tool<import("zod").ZodObject<{
+        query: import("zod").ZodString;
+    }, "strip", import("zod").ZodTypeAny, {
+        query: string;
+    }, {
+        query: string;
+    }>, {
+        query: string;
+        totalResults: number;
+        employees: {
+            count: number;
+            results: {
+                id: unknown;
+                name: unknown;
+                role: unknown;
+                department: unknown;
+                email: unknown;
+                status: unknown;
+            }[];
+        };
+        suppliers: {
+            count: number;
+            results: {
+                id: unknown;
+                name: unknown;
+                category: unknown;
+                contactName: unknown;
+                status: unknown;
+            }[];
+        };
+        transactions: {
+            count: number;
+            results: {
+                id: unknown;
+                concept: unknown;
+                category: unknown;
+                amount: unknown;
+                type: unknown;
+                date: string | null;
+                status: unknown;
+            }[];
+        };
+        contracts: {
+            count: number;
+            results: {
+                id: unknown;
+                title: unknown;
+                employeeName: unknown;
+                templateName: unknown;
+                startDate: string | null;
+                endDate: string | null;
+            }[];
+        };
+    }> & {
+        execute: (args: {
+            query: string;
+        }, options: import("ai").ToolExecutionOptions) => PromiseLike<{
+            query: string;
+            totalResults: number;
+            employees: {
+                count: number;
+                results: {
+                    id: unknown;
+                    name: unknown;
+                    role: unknown;
+                    department: unknown;
+                    email: unknown;
+                    status: unknown;
+                }[];
+            };
+            suppliers: {
+                count: number;
+                results: {
+                    id: unknown;
+                    name: unknown;
+                    category: unknown;
+                    contactName: unknown;
+                    status: unknown;
+                }[];
+            };
+            transactions: {
+                count: number;
+                results: {
+                    id: unknown;
+                    concept: unknown;
+                    category: unknown;
+                    amount: unknown;
+                    type: unknown;
+                    date: string | null;
+                    status: unknown;
+                }[];
+            };
+            contracts: {
+                count: number;
+                results: {
+                    id: unknown;
+                    title: unknown;
+                    employeeName: unknown;
+                    templateName: unknown;
+                    startDate: string | null;
+                    endDate: string | null;
+                }[];
+            };
+        }>;
+    };
+    updateBudget: import("ai").Tool<import("zod").ZodObject<{
+        category: import("zod").ZodString;
+        type: import("zod").ZodEnum<["income", "expense"]>;
+        amount: import("zod").ZodNumber;
+    }, "strip", import("zod").ZodTypeAny, {
+        type: "income" | "expense";
+        category: string;
+        amount: number;
+    }, {
+        type: "income" | "expense";
+        category: string;
+        amount: number;
+    }>, unknown> & {
+        execute: undefined;
+    };
+    addBudgetItem: import("ai").Tool<import("zod").ZodObject<{
+        category: import("zod").ZodString;
+        type: import("zod").ZodEnum<["income", "expense"]>;
+        amount: import("zod").ZodNumber;
+    }, "strip", import("zod").ZodTypeAny, {
+        type: "income" | "expense";
+        category: string;
+        amount: number;
+    }, {
+        type: "income" | "expense";
+        category: string;
+        amount: number;
+    }>, unknown> & {
+        execute: undefined;
+    };
+    getBusinessAlerts: import("ai").Tool<import("zod").ZodObject<{
+        daysAhead: import("zod").ZodDefault<import("zod").ZodOptional<import("zod").ZodNumber>>;
+    }, "strip", import("zod").ZodTypeAny, {
+        daysAhead: number;
+    }, {
+        daysAhead?: number | undefined;
+    }>, {
+        totalAlerts: number;
+        dangerCount: number;
+        warningCount: number;
+        infoCount: number;
+        alerts: import("./alerts-tools.js").Alert[];
+    }> & {
+        execute: (args: {
+            daysAhead: number;
+        }, options: import("ai").ToolExecutionOptions) => PromiseLike<{
+            totalAlerts: number;
+            dangerCount: number;
+            warningCount: number;
+            infoCount: number;
+            alerts: import("./alerts-tools.js").Alert[];
+        }>;
+    };
+    getContracts: import("ai").Tool<import("zod").ZodObject<{
+        employeeName: import("zod").ZodOptional<import("zod").ZodString>;
+        status: import("zod").ZodOptional<import("zod").ZodString>;
+    }, "strip", import("zod").ZodTypeAny, {
+        status?: string | undefined;
+        employeeName?: string | undefined;
+    }, {
+        status?: string | undefined;
+        employeeName?: string | undefined;
+    }>, {
+        count: number;
+        contracts: {
+            id: unknown;
+            title: unknown;
+            employeeName: unknown;
+            employeeId: unknown;
+            templateName: unknown;
+            status: unknown;
+            startDate: unknown;
+            endDate: unknown;
+            createdAt: string | null;
+            salary: unknown;
+            position: unknown;
+            department: unknown;
+        }[];
+    }> & {
+        execute: (args: {
+            status?: string | undefined;
+            employeeName?: string | undefined;
+        }, options: import("ai").ToolExecutionOptions) => PromiseLike<{
+            count: number;
+            contracts: {
+                id: unknown;
+                title: unknown;
+                employeeName: unknown;
+                employeeId: unknown;
+                templateName: unknown;
+                status: unknown;
+                startDate: unknown;
+                endDate: unknown;
+                createdAt: string | null;
+                salary: unknown;
+                position: unknown;
+                department: unknown;
+            }[];
+        }>;
+    };
+    getContractTemplates: import("ai").Tool<import("zod").ZodObject<{}, "strip", import("zod").ZodTypeAny, {}, {}>, {
+        count: number;
+        templates: {
+            id: unknown;
+            name: unknown;
+            description: unknown;
+            clauseCount: number;
+        }[];
+    }> & {
+        execute: (args: {}, options: import("ai").ToolExecutionOptions) => PromiseLike<{
+            count: number;
+            templates: {
+                id: unknown;
+                name: unknown;
+                description: unknown;
+                clauseCount: number;
+            }[];
+        }>;
+    };
+    getExpiringContracts: import("ai").Tool<import("zod").ZodObject<{
+        days: import("zod").ZodDefault<import("zod").ZodOptional<import("zod").ZodNumber>>;
+    }, "strip", import("zod").ZodTypeAny, {
+        days: number;
+    }, {
+        days?: number | undefined;
+    }>, {
+        expiringCount: number;
+        expiredCount: number;
+        expiring: {
+            id: unknown;
+            title: unknown;
+            employeeName: unknown;
+            employeeId: unknown;
+            templateName: unknown;
+            status: unknown;
+            startDate: unknown;
+            endDate: unknown;
+            createdAt: string | null;
+            salary: unknown;
+            position: unknown;
+            department: unknown;
+        }[];
+        expired: {
+            id: unknown;
+            title: unknown;
+            employeeName: unknown;
+            employeeId: unknown;
+            templateName: unknown;
+            status: unknown;
+            startDate: unknown;
+            endDate: unknown;
+            createdAt: string | null;
+            salary: unknown;
+            position: unknown;
+            department: unknown;
+        }[];
+        searchDays: number;
+    }> & {
+        execute: (args: {
+            days: number;
+        }, options: import("ai").ToolExecutionOptions) => PromiseLike<{
+            expiringCount: number;
+            expiredCount: number;
+            expiring: {
+                id: unknown;
+                title: unknown;
+                employeeName: unknown;
+                employeeId: unknown;
+                templateName: unknown;
+                status: unknown;
+                startDate: unknown;
+                endDate: unknown;
+                createdAt: string | null;
+                salary: unknown;
+                position: unknown;
+                department: unknown;
+            }[];
+            expired: {
+                id: unknown;
+                title: unknown;
+                employeeName: unknown;
+                employeeId: unknown;
+                templateName: unknown;
+                status: unknown;
+                startDate: unknown;
+                endDate: unknown;
+                createdAt: string | null;
+                salary: unknown;
+                position: unknown;
+                department: unknown;
+            }[];
+            searchDays: number;
+        }>;
+    };
     createEmployee: import("ai").Tool<import("zod").ZodObject<{
         name: import("zod").ZodString;
         identification: import("zod").ZodString;

@@ -21,6 +21,20 @@ const TOOL_LABELS: Record<string, string> = {
   updateSupplier: 'Proveedor actualizado',
   deleteSupplier: 'Proveedor eliminado',
   createTransaction: 'Transacción creada',
+  // Document tools
+  getContracts: 'Consultando contratos',
+  getContractTemplates: 'Consultando plantillas de contratos',
+  getExpiringContracts: 'Revisando vencimientos de contratos',
+  // Alerts
+  getBusinessAlerts: 'Generando alertas del negocio',
+  // Settings
+  updateBudget: 'Presupuesto actualizado',
+  addBudgetItem: 'Item de presupuesto agregado',
+  // Search
+  searchAll: 'Buscando en todos los módulos',
+  // Chart & Export
+  generateChart: 'Generando gráfico',
+  exportReport: 'Exportando reporte',
 }
 
 interface ToolStepProps {

@@ -81,6 +81,10 @@ function renderMarkdown(text: string): string {
   return html
 }
 
+function isNumericCell(text: string): boolean {
+  return /^[\s]*[\-]?[\$]?[\d.,]+[%]?[\s]*$/.test(text) || /&lt;strong&gt;[\s]*[\-]?[\$]?[\d.,]+[%]?[\s]*&lt;\/strong&gt;/.test(text)
+}
+
 function buildTable(lines: string[]): string {
   if (lines.length === 0) return ''
   const rows = lines.map((line) =>
@@ -92,20 +96,26 @@ function buildTable(lines: string[]): string {
   const header = rows[0]
   const body = rows.slice(1)
 
-  let html = '<table class="text-xs border-collapse w-full my-2">'
+  let html = '<div class="overflow-x-auto my-2"><table class="text-xs border-collapse w-full">'
   html += '<thead><tr>'
   for (const h of header) {
-    html += `<th class="border border-border/60 px-2 py-1 text-left bg-card-bg font-medium">${h}</th>`
+    const align = isNumericCell(h) ? 'text-right' : 'text-left'
+    html += `<th class="border border-border/60 px-2.5 py-1.5 ${align} bg-card-bg font-semibold text-dark-graphite">${h}</th>`
   }
   html += '</tr></thead><tbody>'
-  for (const row of body) {
-    html += '<tr>'
+  for (let r = 0; r < body.length; r++) {
+    const row = body[r]
+    const isLast = r === body.length - 1
+    const rowClass = isLast ? 'bg-card-bg/50 font-medium' : 'hover:bg-card-bg/30 transition-colors'
+    html += `<tr class="${rowClass}">`
     for (let i = 0; i < header.length; i++) {
-      html += `<td class="border border-border/60 px-2 py-1">${row[i] ?? ''}</td>`
+      const cell = row[i] ?? ''
+      const align = isNumericCell(cell) ? 'text-right tabular-nums' : 'text-left'
+      html += `<td class="border border-border/60 px-2.5 py-1.5 ${align}">${cell}</td>`
     }
     html += '</tr>'
   }
-  html += '</tbody></table>'
+  html += '</tbody></table></div>'
   return html
 }
 

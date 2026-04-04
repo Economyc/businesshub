@@ -5,6 +5,7 @@ import { invalidateCollection } from '@/core/query/invalidation'
 import { MessageList } from './message-list'
 import { ChatInput } from './chat-input'
 import { executeMutation } from '../utils/execute-mutation'
+import { exportToPDF, exportToExcel } from '../utils/export-report'
 import { preprocessImage, isImageFile, isSpreadsheetFile } from '../utils/image-preprocessing'
 import { parseSpreadsheetToText } from '../utils/parse-spreadsheet'
 
@@ -18,6 +19,8 @@ const TOOL_COLLECTIONS: Record<string, string> = {
   updateSupplier: 'suppliers',
   deleteSupplier: 'suppliers',
   createTransaction: 'transactions',
+  updateBudget: 'settings',
+  addBudgetItem: 'settings',
 }
 
 export function AgentChat() {
@@ -36,9 +39,18 @@ export function AgentChat() {
     append,
   } = useChat({
     api: AGENT_API_URL,
-    maxSteps: 3,
+    maxSteps: 5,
     body: {
       companyId: selectedCompany?.id,
+    },
+    onToolCall: async ({ toolCall }) => {
+      // Auto-resolve client-rendered tools so the conversation continues
+      if (toolCall.toolName === 'generateChart') {
+        return { rendered: true }
+      }
+      if (toolCall.toolName === 'exportReport') {
+        return { rendered: true, message: 'Reporte listo para descargar.' }
+      }
     },
   })
 
@@ -123,6 +135,25 @@ export function AgentChat() {
     })
   }, [addToolResult])
 
+  const handleExportReport = useCallback((args: Record<string, unknown>) => {
+    try {
+      const format = String(args.format ?? 'pdf')
+      const title = String(args.title ?? 'Reporte')
+      const sections = (args.sections ?? []) as Array<{
+        heading: string
+        type: 'table' | 'kpi' | 'text'
+        data: unknown
+      }>
+      if (format === 'excel') {
+        exportToExcel(title, sections)
+      } else {
+        exportToPDF(title, sections)
+      }
+    } catch (err) {
+      console.error('Error exporting report:', err)
+    }
+  }, [])
+
   if (!selectedCompany) {
     return (
       <div className="flex-1 flex items-center justify-center p-8">
@@ -139,6 +170,7 @@ export function AgentChat() {
         onSuggestionClick={handleSuggestionClick}
         onToolConfirm={handleToolConfirm}
         onToolCancel={handleToolCancel}
+        onExportReport={handleExportReport}
       />
 
       {error && (

@@ -1,7 +1,7 @@
 import { Timestamp } from 'firebase/firestore'
 import { talentService } from '@/modules/talent/services'
 import { supplierService } from '@/modules/suppliers/services'
-import { financeService } from '@/modules/finance/services'
+import { financeService, budgetService } from '@/modules/finance/services'
 import type { EmployeeFormData } from '@/modules/talent/types'
 import type { SupplierFormData } from '@/modules/suppliers/types'
 import type { TransactionFormData } from '@/modules/finance/types'
@@ -97,6 +97,31 @@ export async function executeMutation(
       }
       const id = await financeService.create(companyId, data)
       return { success: true, message: `Transacción "${data.concept}" por $${data.amount.toLocaleString('es-CL')} creada.`, id }
+    }
+
+    case 'updateBudget': {
+      const budget = await budgetService.get(companyId)
+      const category = String(args.category)
+      const type = String(args.type) as 'income' | 'expense'
+      const amount = Number(args.amount)
+      const idx = budget.items.findIndex((i) => i.category === category && i.type === type)
+      if (idx >= 0) {
+        budget.items[idx].amount = amount
+      } else {
+        budget.items.push({ category, type, amount })
+      }
+      await budgetService.save(companyId, budget)
+      return { success: true, message: `Presupuesto de "${category}" actualizado a $${amount.toLocaleString('es-CL')}.` }
+    }
+
+    case 'addBudgetItem': {
+      const budget = await budgetService.get(companyId)
+      const category = String(args.category)
+      const type = String(args.type) as 'income' | 'expense'
+      const amount = Number(args.amount)
+      budget.items.push({ category, type, amount })
+      await budgetService.save(companyId, budget)
+      return { success: true, message: `Item "${category}" agregado al presupuesto por $${amount.toLocaleString('es-CL')}.` }
     }
 
     default:

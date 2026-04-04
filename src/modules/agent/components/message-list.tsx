@@ -1,9 +1,10 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { UIMessage } from 'ai'
 import { MessageBubble } from './message-bubble'
 import { ToolStep } from './tool-step'
 import { ConfirmationCard } from './confirmation-card'
-import { Bot } from 'lucide-react'
+import { InlineChart } from './inline-chart'
+import { Bot, Download, FileSpreadsheet, FileText } from 'lucide-react'
 
 const MUTATION_TOOLS = new Set([
   'createEmployee',
@@ -13,7 +14,11 @@ const MUTATION_TOOLS = new Set([
   'updateSupplier',
   'deleteSupplier',
   'createTransaction',
+  'updateBudget',
+  'addBudgetItem',
 ])
+
+const CLIENT_RENDERED_TOOLS = new Set(['generateChart', 'exportReport'])
 
 interface MessageListProps {
   messages: UIMessage[]
@@ -21,9 +26,10 @@ interface MessageListProps {
   onSuggestionClick?: (suggestion: string) => void
   onToolConfirm?: (toolCallId: string, toolName: string, args: Record<string, unknown>) => void
   onToolCancel?: (toolCallId: string) => void
+  onExportReport?: (args: Record<string, unknown>) => void
 }
 
-export function MessageList({ messages, isLoading, onSuggestionClick, onToolConfirm, onToolCancel }: MessageListProps) {
+export function MessageList({ messages, isLoading, onSuggestionClick, onToolConfirm, onToolCancel, onExportReport }: MessageListProps) {
   const endRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -102,6 +108,41 @@ export function MessageList({ messages, isLoading, onSuggestionClick, onToolConf
                 )
               }
 
+              // Render inline chart
+              if (toolName === 'generateChart' && CLIENT_RENDERED_TOOLS.has(toolName)) {
+                const chartArgs = args as {
+                  chartType: 'bar' | 'pie' | 'area' | 'line'
+                  title: string
+                  data: Array<{ name: string; value: number; value2?: number }>
+                  valueLabel?: string
+                  value2Label?: string
+                  formatAsCurrency?: boolean
+                }
+                return (
+                  <InlineChart
+                    key={`${message.id}-chart-${i}`}
+                    chartType={chartArgs.chartType}
+                    title={chartArgs.title}
+                    data={chartArgs.data}
+                    valueLabel={chartArgs.valueLabel}
+                    value2Label={chartArgs.value2Label}
+                    formatAsCurrency={chartArgs.formatAsCurrency}
+                  />
+                )
+              }
+
+              // Render export button
+              if (toolName === 'exportReport' && CLIENT_RENDERED_TOOLS.has(toolName)) {
+                const exportArgs = args as Record<string, unknown>
+                return (
+                  <ExportButton
+                    key={`${message.id}-export-${i}`}
+                    args={exportArgs}
+                    onExport={() => onExportReport?.(exportArgs)}
+                  />
+                )
+              }
+
               // For read-only tools or already confirmed mutations
               return (
                 <ToolStep
@@ -137,7 +178,41 @@ export function MessageList({ messages, isLoading, onSuggestionClick, onToolConf
 
 const SUGGESTIONS = [
   'Genera un informe ejecutivo de este mes',
-  'Compara los gastos vs ingresos del último trimestre',
-  'Lista los empleados activos con sus salarios',
-  'Muestra el flujo de caja de marzo',
+  'Muestra las alertas y pendientes del negocio',
+  'Muestra un gráfico de gastos por categoría',
+  'Busca todo lo relacionado con "marketing"',
 ]
+
+function ExportButton({ args, onExport }: { args: Record<string, unknown>; onExport: () => void }) {
+  const [downloaded, setDownloaded] = useState(false)
+  const format = String(args.format ?? 'pdf')
+  const title = String(args.title ?? 'Reporte')
+  const Icon = format === 'excel' ? FileSpreadsheet : FileText
+
+  function handleClick() {
+    onExport()
+    setDownloaded(true)
+  }
+
+  return (
+    <div className="mx-4 my-2 rounded-xl border border-border/60 bg-card-bg p-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Icon size={16} className="text-graphite" />
+          <div>
+            <p className="text-xs font-semibold text-dark-graphite">{title}</p>
+            <p className="text-[10px] text-mid-gray">Formato: {format.toUpperCase()}</p>
+          </div>
+        </div>
+        <button
+          onClick={handleClick}
+          disabled={downloaded}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-60"
+        >
+          <Download size={12} />
+          {downloaded ? 'Descargado' : 'Descargar'}
+        </button>
+      </div>
+    </div>
+  )
+}

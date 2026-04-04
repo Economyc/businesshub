@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Check, X, AlertTriangle, UserPlus, UserMinus, Briefcase, DollarSign, Pencil, Trash2 } from 'lucide-react'
+import { Check, X, AlertTriangle, UserPlus, UserMinus, Briefcase, DollarSign, Pencil, Trash2, Wallet, PlusCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type ActionType = 'create' | 'update' | 'delete'
@@ -19,6 +19,8 @@ const TOOL_CONFIG: Record<string, { label: string; type: ActionType; icon: typeo
   updateSupplier: { label: 'Actualizar Proveedor', type: 'update', icon: Pencil },
   deleteSupplier: { label: 'Eliminar Proveedor', type: 'delete', icon: Trash2 },
   createTransaction: { label: 'Crear Transacción', type: 'create', icon: DollarSign },
+  updateBudget: { label: 'Actualizar Presupuesto', type: 'update', icon: Wallet },
+  addBudgetItem: { label: 'Agregar Item de Presupuesto', type: 'create', icon: PlusCircle },
 }
 
 const TYPE_STYLES: Record<ActionType, { bg: string; border: string; icon: string; button: string }> = {

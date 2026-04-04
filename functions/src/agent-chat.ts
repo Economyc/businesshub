@@ -67,7 +67,7 @@ export const agentChat = onRequest(
             system: getAgentSystemPrompt(),
             messages,
             tools,
-            maxSteps: 3,
+            maxSteps: 5,
           })
 
           result.pipeDataStreamToResponse(res)
