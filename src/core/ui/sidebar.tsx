@@ -210,7 +210,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
             <div className="relative">
               <button
                 onClick={() => setCompanyOpen(!companyOpen)}
-                className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg bg-smoke dark:bg-smoke hover:bg-selector-bg dark:hover:bg-selector-bg transition-all duration-150"
+                className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg bg-smoke dark:bg-smoke hover:bg-selector-bg dark:hover:bg-selector-bg shadow-sm transition-all duration-150"
               >
                 <CompanyLogo company={selectedCompany} />
                 <div className="min-w-0 flex-1 text-left">
