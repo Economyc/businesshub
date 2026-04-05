@@ -29,12 +29,14 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: 'Finanzas',
+    title: 'Contabilidad',
     icon: Landmark,
     items: [
       { to: '/finance', label: 'Finanzas', icon: DollarSign },
       { to: '/cartera', label: 'Cartera', icon: Wallet },
       { to: '/closings', label: 'Cierres de Caja', icon: ClipboardList },
+      { to: '/payroll', label: 'Nomina', icon: Receipt },
+      { to: '/prestaciones', label: 'Prestaciones', icon: Gift },
     ],
   },
   {
@@ -50,8 +52,6 @@ const NAV_SECTIONS: NavSection[] = [
     icon: UserRound,
     items: [
       { to: '/talent', label: 'Equipo', icon: Users },
-      { to: '/payroll', label: 'Nomina', icon: Receipt },
-      { to: '/prestaciones', label: 'Prestaciones', icon: Gift },
       { to: '/suppliers', label: 'Proveedores', icon: Briefcase },
     ],
   },
