@@ -371,9 +371,9 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
                     className="overflow-hidden"
                   >
                     <div className="pb-3 px-3 space-y-0.5">
-                      <ThemeToggle />
-                      <div className="mx-3 my-1 border-t border-border/60" />
                       <AvatarPicker config={avatarConfig} onConfigChange={setAvatarConfig} />
+                      <div className="mx-3 my-1 border-t border-border/60" />
+                      <ThemeToggle />
                       <div className="mx-3 my-1 border-t border-border/60" />
                       <div className="px-3 pt-1 pb-1">
                         <span className="text-[10px] font-semibold uppercase tracking-wider text-mid-gray/60">Configuración</span>

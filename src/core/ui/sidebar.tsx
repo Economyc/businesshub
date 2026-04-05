@@ -523,9 +523,9 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                       </div>
                     </div>
                     <div className="border-t border-border/60" />
-                    <ThemeToggle />
-                    <div className="border-t border-border/60" />
                     <AvatarPicker config={avatarConfig} onConfigChange={setAvatarConfig} />
+                    <div className="border-t border-border/60" />
+                    <ThemeToggle />
                     <div className="border-t border-border/60" />
                     {/* Configuración button — opens side panel */}
                     <button
