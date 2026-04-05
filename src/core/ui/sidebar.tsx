@@ -103,6 +103,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const companyRef = useRef<HTMLDivElement>(null)
   const userMenuRef = useRef<HTMLDivElement>(null)
+  const userDropdownRef = useRef<HTMLDivElement>(null)
 
   const isSettingsRoute = location.pathname.startsWith('/settings')
   const [settingsOpen, setSettingsOpen] = useState(isSettingsRoute)
@@ -176,7 +177,8 @@ export function Sidebar({ onNavClick }: SidebarProps) {
       if (companyRef.current && !companyRef.current.contains(e.target as Node)) {
         setCompanyOpen(false)
       }
-      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node) &&
+          userDropdownRef.current && !userDropdownRef.current.contains(e.target as Node)) {
         setUserMenuOpen(false)
       }
     }
@@ -489,58 +491,64 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                 <div className="w-6 h-6 rounded-full bg-graphite/10 flex items-center justify-center shrink-0">
                   <CircleUser size={14} strokeWidth={1.5} className="text-graphite" />
                 </div>
-                <span className="text-body font-medium text-dark-graphite truncate flex-1 text-left">{user?.displayName ?? user?.email?.split('@')[0] ?? 'Usuario'}</span>
+                <div className="min-w-0 flex-1 text-left">
+                  <div className="text-body font-medium text-dark-graphite truncate">{user?.displayName ?? user?.email?.split('@')[0] ?? 'Usuario'}</div>
+                  <div className="text-[11px] text-mid-gray truncate leading-tight">{user?.email ?? ''}</div>
+                </div>
               </button>
             )}
 
-            {/* User dropdown — opens upward */}
+            {/* User dropdown — opens to the right of sidebar */}
             {userMenuOpen && (
-              <div className={cn(
-                'absolute bottom-full mb-2 bg-bone border border-border rounded-xl shadow-lg z-50 p-2',
-                collapsed ? 'left-full ml-2 bottom-0 mb-0' : 'left-0 w-[250px]'
-              )}>
-                {/* Main card */}
-                <div className="bg-surface-elevated rounded-lg border border-border/60 shadow-sm">
-                  {/* User info header */}
-                  <div className="flex items-center gap-3 px-4 py-4">
-                    <div className="w-10 h-10 rounded-full bg-graphite/10 flex items-center justify-center shrink-0">
-                      <CircleUser size={22} strokeWidth={1.5} className="text-graphite" />
+              <div
+                ref={userDropdownRef}
+                className="fixed bottom-4 z-50 w-[250px] animate-in fade-in slide-in-from-left-2 duration-200"
+                style={{ left: collapsed ? 68 : 208 }}
+              >
+                <div className="bg-bone border border-border rounded-xl shadow-lg p-2">
+                  {/* Main card */}
+                  <div className="bg-surface-elevated rounded-lg border border-border/60 shadow-sm">
+                    {/* User info header */}
+                    <div className="flex items-center gap-3 px-4 py-4">
+                      <div className="w-10 h-10 rounded-full bg-graphite/10 flex items-center justify-center shrink-0">
+                        <CircleUser size={22} strokeWidth={1.5} className="text-graphite" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-body font-medium text-dark-graphite truncate">{user?.displayName ?? user?.email?.split('@')[0] ?? 'Usuario'}</div>
+                        <div className="text-caption text-mid-gray truncate">{user?.email ?? ''}</div>
+                      </div>
                     </div>
-                    <div className="min-w-0">
-                      <div className="text-body font-medium text-dark-graphite truncate">{user?.displayName ?? user?.email?.split('@')[0] ?? 'Usuario'}</div>
-                      <div className="text-caption text-mid-gray truncate">{user?.email ?? ''}</div>
-                    </div>
+                    <div className="border-t border-border/60" />
+                    <ThemeToggle />
+                    <div className="border-t border-border/60" />
+                    {/* Configuración button — opens side panel */}
+                    <button
+                      onClick={handleSettingsClick}
+                      className={cn(
+                        'w-full flex items-center gap-2.5 px-4 py-3 rounded-lg text-body transition-colors duration-150',
+                        settingsOpen
+                          ? 'text-dark-graphite font-medium'
+                          : 'text-mid-gray hover:text-dark-graphite'
+                      )}
+                    >
+                      <Settings size={16} strokeWidth={1.5} />
+                      Configuración
+                    </button>
                   </div>
-                  <div className="border-t border-border/60" />
-                  <ThemeToggle />
-                  <div className="border-t border-border/60" />
-                  {/* Configuración button — opens side panel */}
-                  <button
-                    onClick={handleSettingsClick}
-                    className={cn(
-                      'w-full flex items-center gap-2.5 px-4 py-3 rounded-lg text-body transition-colors duration-150',
-                      settingsOpen
-                        ? 'text-dark-graphite font-medium'
-                        : 'text-mid-gray hover:text-dark-graphite'
-                    )}
-                  >
-                    <Settings size={16} strokeWidth={1.5} />
-                    Configuración
-                  </button>
-                </div>
 
-                {/* Logout sub-card */}
-                <div className="mt-2 bg-surface/60 rounded-lg border border-border/60">
-                  <button
-                    onClick={() => {
-                      setUserMenuOpen(false)
-                      logout()
-                    }}
-                    className="w-full flex items-center gap-2.5 px-4 py-3 rounded-lg text-body text-mid-gray hover:text-dark-graphite transition-colors duration-150"
-                  >
-                    <LogOut size={16} strokeWidth={1.5} />
-                    Cerrar sesión
-                  </button>
+                  {/* Logout sub-card */}
+                  <div className="mt-2 bg-surface/60 rounded-lg border border-border/60">
+                    <button
+                      onClick={() => {
+                        setUserMenuOpen(false)
+                        logout()
+                      }}
+                      className="w-full flex items-center gap-2.5 px-4 py-3 rounded-lg text-body text-mid-gray hover:text-dark-graphite transition-colors duration-150"
+                    >
+                      <LogOut size={16} strokeWidth={1.5} />
+                      Cerrar sesión
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
