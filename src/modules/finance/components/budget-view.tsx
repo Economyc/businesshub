@@ -21,7 +21,7 @@ import { formatCurrency } from '@/core/utils/format'
 import { DashboardSkeleton } from '@/core/ui/skeleton'
 import { useBudgetComparison } from '../hooks'
 import { useDateRange } from '../context/date-range-context'
-import { FinanceTabs } from './finance-tabs'
+
 import { DateRangePicker } from './date-range-picker'
 import type { BudgetItem } from '../types'
 import type { BudgetComparisonRow } from '../hooks'
@@ -247,8 +247,6 @@ export function BudgetView() {
           {editing ? 'Cerrar Editor' : hasBudget ? 'Editar Presupuesto' : 'Crear Presupuesto'}
         </button>
       </PageHeader>
-      <FinanceTabs />
-
       {/* Editor de presupuesto */}
       {editing && (
         <BudgetEditor

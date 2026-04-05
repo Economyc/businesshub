@@ -11,7 +11,7 @@ import { useCompany } from '@/core/hooks/use-company'
 import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { useRecurringTransactions } from '../hooks'
 import { recurringService } from '../recurring-service'
-import { FinanceTabs } from './finance-tabs'
+
 import { DateRangePicker } from './date-range-picker'
 import type { RecurringTransaction, RecurrenceFrequency } from '../types'
 
@@ -76,8 +76,6 @@ export function RecurringList() {
           Nueva
         </button>
       </PageHeader>
-
-      <FinanceTabs />
 
       <div className="flex gap-3 mb-5">
         <div className="flex-1 min-w-0 sm:min-w-[180px]">

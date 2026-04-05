@@ -16,7 +16,7 @@ import { formatCurrency } from '@/core/utils/format'
 import { DashboardSkeleton } from '@/core/ui/skeleton'
 import { useIncomeStatement } from '../hooks'
 import { useDateRange } from '../context/date-range-context'
-import { FinanceTabs } from './finance-tabs'
+
 import { DateRangePicker } from './date-range-picker'
 import type { IncomeStatementSection, CategoryBreakdown } from '../hooks'
 
@@ -255,8 +255,6 @@ export function IncomeStatementView() {
       <PageHeader title="Monitor Financiero">
         <DateRangePicker />
       </PageHeader>
-      <FinanceTabs />
-
       {loading ? (
         <DashboardSkeleton kpiCount={4} charts={1} />
       ) : (

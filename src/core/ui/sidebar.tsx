@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
-import { BarChart3, Users, Briefcase, DollarSign, Home, Search, ChevronsLeft, Building2, Tags, BadgeCheck, Network, Handshake, ClipboardList, FileSignature, Wallet, Receipt, Gift, ChevronRight, ChevronsUpDown, Check, MapPin, CircleUser, LogOut, Settings, Landmark, Boxes, UserRound, Bot } from 'lucide-react'
+import { BarChart3, Users, Briefcase, DollarSign, Home, Search, ChevronsLeft, Building2, Tags, BadgeCheck, Network, Handshake, ClipboardList, FileSignature, Wallet, Receipt, Gift, ChevronRight, ChevronsUpDown, Check, MapPin, CircleUser, LogOut, Settings, Landmark, Boxes, UserRound, Bot, List, ShoppingCart, Package, Target, Repeat, Scale, FileText } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { CommandPalette } from '@/core/ui/command-palette'
 import { CompanyLogo } from '@/core/ui/company-logo'
@@ -64,6 +64,17 @@ const SETTINGS_ITEMS = [
   { to: '/settings/departments', label: 'Departamentos', icon: Network },
 ]
 
+const FINANCE_ITEMS: (NavItem & { end?: boolean })[] = [
+  { to: '/finance', label: 'Transacciones', icon: List, end: true },
+  { to: '/finance/recurring', label: 'Recurrentes', icon: Repeat },
+  { to: '/finance/purchases', label: 'Compras', icon: ShoppingCart, end: true },
+  { to: '/finance/purchases/products', label: 'Insumos', icon: Package },
+  { to: '/finance/cash-flow', label: 'Flujo de Caja', icon: Wallet },
+  { to: '/finance/income-statement', label: 'Estado de Resultados', icon: FileText },
+  { to: '/finance/budget', label: 'Presupuesto', icon: Target },
+  { to: '/finance/reconciliation', label: 'Conciliacion', icon: Scale },
+]
+
 
 interface SidebarProps {
   onNavClick?: () => void
@@ -95,11 +106,20 @@ export function Sidebar({ onNavClick }: SidebarProps) {
   const isSettingsRoute = location.pathname.startsWith('/settings')
   const [settingsOpen, setSettingsOpen] = useState(isSettingsRoute)
 
+  const isFinanceRoute = location.pathname.startsWith('/finance')
+  const [financeOpen, setFinanceOpen] = useState(isFinanceRoute)
+
   // Sync settings panel with route
   useEffect(() => {
     if (isSettingsRoute) setSettingsOpen(true)
     else setSettingsOpen(false)
   }, [isSettingsRoute])
+
+  // Sync finance panel with route
+  useEffect(() => {
+    if (isFinanceRoute) setFinanceOpen(true)
+    else setFinanceOpen(false)
+  }, [isFinanceRoute])
 
   // Auto-expand section when navigating to a route within it
   useEffect(() => {
@@ -122,6 +142,19 @@ export function Sidebar({ onNavClick }: SidebarProps) {
     })
   }
 
+  function handleFinanceClick() {
+    if (financeOpen && isFinanceRoute) {
+      setFinanceOpen(false)
+      navigate('/home')
+    } else if (financeOpen) {
+      setFinanceOpen(false)
+    } else {
+      setSettingsOpen(false)
+      setFinanceOpen(true)
+      if (!isFinanceRoute) navigate('/finance')
+    }
+  }
+
   function handleSettingsClick() {
     setUserMenuOpen(false)
     if (settingsOpen && isSettingsRoute) {
@@ -130,6 +163,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
     } else if (settingsOpen) {
       setSettingsOpen(false)
     } else {
+      setFinanceOpen(false)
       setSettingsOpen(true)
       navigate('/settings/companies')
     }
@@ -150,6 +184,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
         if (companyOpen) { e.preventDefault(); setCompanyOpen(false) }
         if (userMenuOpen) { e.preventDefault(); setUserMenuOpen(false) }
         if (settingsOpen) { e.preventDefault(); setSettingsOpen(false) }
+        if (financeOpen) { e.preventDefault(); setFinanceOpen(false) }
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -158,7 +193,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
       document.removeEventListener('mousedown', handleClickOutside)
       window.removeEventListener('keydown', handleKey, true)
     }
-  }, [companyOpen, userMenuOpen, settingsOpen])
+  }, [companyOpen, userMenuOpen, settingsOpen, financeOpen])
 
   return (
     <div className="flex flex-shrink-0">
@@ -335,30 +370,55 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                     {section.title && !collapsed && (
                       <div className="absolute left-[27px] top-0 bottom-0 w-px bg-border" />
                     )}
-                    {section.items.map(({ to, label, icon: Icon }) => (
-                      <NavLink
-                        key={to}
-                        to={to}
-                        onClick={onNavClick}
-                        className={({ isActive }) =>
-                          cn(
-                            'group/nav relative flex items-center gap-2.5 py-2.5 text-body transition-all duration-150',
-                            collapsed ? 'justify-center px-0' : (section.title ? 'pl-8 pr-5' : 'px-5'),
-                            isActive
-                              ? 'text-dark-graphite font-medium bg-bone border-r-2 border-graphite'
-                              : 'text-graphite/70 hover:bg-card-bg hover:text-graphite'
-                          )
-                        }
-                      >
-                        <Icon size={16} strokeWidth={1.5} />
-                        {!collapsed && label}
-                        {collapsed && (
-                          <span className="pointer-events-none absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 whitespace-nowrap rounded-lg bg-dark-graphite dark:bg-[#2a2a2a] px-3 py-1.5 text-caption font-medium text-white dark:text-[#e0e0e0] shadow-lg opacity-0 scale-95 transition-all duration-150 group-hover/nav:opacity-100 group-hover/nav:scale-100">
-                          {label}
-                        </span>
-                        )}
-                      </NavLink>
-                    ))}
+                    {section.items.map(({ to, label, icon: Icon }) => {
+                      if (to === '/finance') {
+                        return (
+                          <button
+                            key={to}
+                            onClick={handleFinanceClick}
+                            className={cn(
+                              'group/nav relative flex items-center gap-2.5 py-2.5 text-body transition-all duration-150 w-full',
+                              collapsed ? 'justify-center px-0' : (section.title ? 'pl-8 pr-5' : 'px-5'),
+                              isFinanceRoute
+                                ? 'text-dark-graphite font-medium bg-bone border-r-2 border-graphite'
+                                : 'text-graphite/70 hover:bg-card-bg hover:text-graphite'
+                            )}
+                          >
+                            <Icon size={16} strokeWidth={1.5} />
+                            {!collapsed && label}
+                            {collapsed && (
+                              <span className="pointer-events-none absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 whitespace-nowrap rounded-lg bg-dark-graphite dark:bg-[#2a2a2a] px-3 py-1.5 text-caption font-medium text-white dark:text-[#e0e0e0] shadow-lg opacity-0 scale-95 transition-all duration-150 group-hover/nav:opacity-100 group-hover/nav:scale-100">
+                                {label}
+                              </span>
+                            )}
+                          </button>
+                        )
+                      }
+                      return (
+                        <NavLink
+                          key={to}
+                          to={to}
+                          onClick={onNavClick}
+                          className={({ isActive }) =>
+                            cn(
+                              'group/nav relative flex items-center gap-2.5 py-2.5 text-body transition-all duration-150',
+                              collapsed ? 'justify-center px-0' : (section.title ? 'pl-8 pr-5' : 'px-5'),
+                              isActive
+                                ? 'text-dark-graphite font-medium bg-bone border-r-2 border-graphite'
+                                : 'text-graphite/70 hover:bg-card-bg hover:text-graphite'
+                            )
+                          }
+                        >
+                          <Icon size={16} strokeWidth={1.5} />
+                          {!collapsed && label}
+                          {collapsed && (
+                            <span className="pointer-events-none absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 whitespace-nowrap rounded-lg bg-dark-graphite dark:bg-[#2a2a2a] px-3 py-1.5 text-caption font-medium text-white dark:text-[#e0e0e0] shadow-lg opacity-0 scale-95 transition-all duration-150 group-hover/nav:opacity-100 group-hover/nav:scale-100">
+                              {label}
+                            </span>
+                          )}
+                        </NavLink>
+                      )
+                    })}
                   </div>
                 </div>
               </div>
@@ -449,7 +509,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
 
           {/* Collapse toggle */}
           <button
-            onClick={() => { if (!collapsed) setSettingsOpen(false); setCollapsed(!collapsed) }}
+            onClick={() => { if (!collapsed) { setSettingsOpen(false); setFinanceOpen(false) }; setCollapsed(!collapsed) }}
             className="group/toggle relative flex items-center justify-center p-1.5 rounded-md text-mid-gray/50 hover:text-graphite transition-colors duration-200 shrink-0"
           >
             <ChevronsLeft
@@ -465,6 +525,47 @@ export function Sidebar({ onNavClick }: SidebarProps) {
           </button>
         </div>
       </nav>
+
+      {/* Finance sub-panel */}
+      <div
+        className={cn(
+          'bg-card-bg border-r border-border flex flex-col py-5 overflow-hidden transition-all duration-300 ease-in-out',
+          financeOpen ? 'w-[200px] opacity-100' : 'w-0 opacity-0'
+        )}
+      >
+        <div className="px-4 mb-4">
+          <h3 className="text-caption uppercase tracking-wider text-mid-gray font-medium">Finanzas</h3>
+        </div>
+        <div className="flex flex-col gap-0.5 flex-1">
+          {FINANCE_ITEMS.map(({ to, label, icon: Icon, end }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={end}
+              onClick={onNavClick}
+              className={({ isActive }) =>
+                cn(
+                  'flex items-center gap-2.5 px-4 py-2.5 text-body transition-all duration-150 whitespace-nowrap',
+                  isActive
+                    ? 'text-dark-graphite font-medium bg-bone/80'
+                    : 'text-graphite/70 hover:bg-bone/50 hover:text-graphite'
+                )
+              }
+            >
+              <Icon size={16} strokeWidth={1.5} />
+              {label}
+            </NavLink>
+          ))}
+        </div>
+        <div className="mx-4 pt-1 border-t border-border flex justify-end">
+          <button
+            onClick={() => setFinanceOpen(false)}
+            className="group/close relative flex items-center justify-center p-1.5 rounded-md text-mid-gray/50 hover:text-graphite transition-colors duration-200"
+          >
+            <ChevronsLeft size={15} strokeWidth={1.5} />
+          </button>
+        </div>
+      </div>
 
       {/* Settings sub-panel */}
       <div

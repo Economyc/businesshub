@@ -8,7 +8,7 @@ import { EmptyState } from '@/core/ui/empty-state'
 import { TableSkeleton } from '@/core/ui/skeleton'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 import { formatCurrency } from '@/core/utils/format'
-import { FinanceTabs } from './finance-tabs'
+
 import { BankStatementImport } from './bank-statement-import'
 import { useBankStatements, useBankStatementDelete } from '../hooks'
 import {
@@ -63,8 +63,6 @@ export function ReconciliationView() {
           Importar Extracto
         </button>
       </PageHeader>
-
-      <FinanceTabs />
 
       <BankStatementImport
         open={showImport}

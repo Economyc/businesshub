@@ -12,7 +12,7 @@ import { TableSkeleton } from '@/core/ui/skeleton'
 import { LoadMoreButton } from '@/core/ui/load-more-button'
 import { formatCurrency } from '@/core/utils/format'
 import { usePaginatedPurchases } from '../hooks'
-import { FinanceTabs } from '@/modules/finance/components/finance-tabs'
+
 import { DateRangePicker } from '@/modules/finance/components/date-range-picker'
 import type { Purchase, PurchaseStatus, PaymentStatus } from '../types'
 
@@ -133,8 +133,6 @@ export function PurchaseList() {
           Nueva Compra
         </button>
       </PageHeader>
-      <FinanceTabs />
-
       <div className="flex gap-3 mb-5">
         <div className="flex-1">
           <SearchInput value={search} onChange={setSearch} placeholder="Buscar por proveedor o factura..." />

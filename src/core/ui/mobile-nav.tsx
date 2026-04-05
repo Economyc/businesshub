@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { BarChart3, Users, Briefcase, DollarSign, Home, Handshake, ClipboardList, FileSignature, X, ChevronRight, Building2, Tags, BadgeCheck, Network, ChevronsUpDown, Check, MapPin, Wallet, Receipt, Gift, CircleUser, LogOut, Bot, Landmark, Boxes, UserRound } from 'lucide-react'
+import { BarChart3, Users, Briefcase, DollarSign, Home, Handshake, ClipboardList, FileSignature, X, ChevronRight, Building2, Tags, BadgeCheck, Network, ChevronsUpDown, Check, MapPin, Wallet, Receipt, Gift, CircleUser, LogOut, Bot, Landmark, Boxes, UserRound, List, ShoppingCart, Package, Target, Repeat, Scale, FileText } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useCompany } from '@/core/hooks/use-company'
 import { useAuth } from '@/core/hooks/use-auth'
@@ -64,6 +64,17 @@ const SETTINGS_ITEMS = [
   { to: '/settings/departments', label: 'Departamentos', icon: Network },
 ]
 
+const FINANCE_ITEMS: (NavItem & { end?: boolean })[] = [
+  { to: '/finance', label: 'Transacciones', icon: List, end: true },
+  { to: '/finance/recurring', label: 'Recurrentes', icon: Repeat },
+  { to: '/finance/purchases', label: 'Compras', icon: ShoppingCart, end: true },
+  { to: '/finance/purchases/products', label: 'Insumos', icon: Package },
+  { to: '/finance/cash-flow', label: 'Flujo de Caja', icon: Wallet },
+  { to: '/finance/income-statement', label: 'Estado de Resultados', icon: FileText },
+  { to: '/finance/budget', label: 'Presupuesto', icon: Target },
+  { to: '/finance/reconciliation', label: 'Conciliacion', icon: Scale },
+]
+
 interface MobileNavProps {
   open: boolean
   onClose: () => void
@@ -84,6 +95,7 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
   const { user, logout } = useAuth()
   const [companyOpen, setCompanyOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [financeExpanded, setFinanceExpanded] = useState(() => window.location.pathname.startsWith('/finance'))
   const [openSections, setOpenSections] = useState<Set<string>>(() => getActiveSections(window.location.pathname))
   const location = useLocation()
 
@@ -246,24 +258,79 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
                           {section.title && (
                             <div className="absolute left-[30px] top-0 bottom-0 w-px bg-border" />
                           )}
-                          {section.items.map(({ to, label, icon: Icon }) => (
-                            <NavLink
-                              key={to}
-                              to={to}
-                              onClick={handleNav}
-                              className={({ isActive }) =>
-                                cn(
-                                  'flex items-center gap-3 mx-3 px-3 py-3 rounded-xl text-[15px] transition-all duration-150',
-                                  isActive
-                                    ? 'text-dark-graphite font-medium bg-bone'
-                                    : 'text-graphite/70 active:bg-bone/50'
-                                )
-                              }
-                            >
-                              <Icon size={20} strokeWidth={1.5} />
-                              {label}
-                            </NavLink>
-                          ))}
+                          {section.items.map(({ to, label, icon: Icon }) => {
+                            if (to === '/finance') {
+                              return (
+                                <div key={to}>
+                                  <button
+                                    onClick={() => setFinanceExpanded(!financeExpanded)}
+                                    className={cn(
+                                      'w-full flex items-center gap-3 mx-3 px-3 py-3 rounded-xl text-[15px] transition-all duration-150',
+                                      location.pathname.startsWith('/finance')
+                                        ? 'text-dark-graphite font-medium bg-bone'
+                                        : 'text-graphite/70 active:bg-bone/50'
+                                    )}
+                                  >
+                                    <Icon size={20} strokeWidth={1.5} />
+                                    {label}
+                                    <ChevronRight
+                                      size={14}
+                                      className={cn('ml-auto text-mid-gray transition-transform duration-200', financeExpanded && 'rotate-90')}
+                                    />
+                                  </button>
+                                  <AnimatePresence initial={false}>
+                                    {financeExpanded && (
+                                      <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: 'auto', opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        transition={{ duration: 0.2 }}
+                                        className="overflow-hidden"
+                                      >
+                                        {FINANCE_ITEMS.map((fi) => (
+                                          <NavLink
+                                            key={fi.to}
+                                            to={fi.to}
+                                            end={fi.end}
+                                            onClick={handleNav}
+                                            className={({ isActive }) =>
+                                              cn(
+                                                'flex items-center gap-3 mx-3 px-3 pl-9 py-2.5 rounded-xl text-body transition-all duration-150',
+                                                isActive
+                                                  ? 'text-dark-graphite font-medium bg-bone'
+                                                  : 'text-graphite/70 active:bg-bone/50'
+                                              )
+                                            }
+                                          >
+                                            <fi.icon size={16} strokeWidth={1.5} />
+                                            {fi.label}
+                                          </NavLink>
+                                        ))}
+                                      </motion.div>
+                                    )}
+                                  </AnimatePresence>
+                                </div>
+                              )
+                            }
+                            return (
+                              <NavLink
+                                key={to}
+                                to={to}
+                                onClick={handleNav}
+                                className={({ isActive }) =>
+                                  cn(
+                                    'flex items-center gap-3 mx-3 px-3 py-3 rounded-xl text-[15px] transition-all duration-150',
+                                    isActive
+                                      ? 'text-dark-graphite font-medium bg-bone'
+                                      : 'text-graphite/70 active:bg-bone/50'
+                                  )
+                                }
+                              >
+                                <Icon size={20} strokeWidth={1.5} />
+                                {label}
+                              </NavLink>
+                            )
+                          })}
                         </motion.div>
                       )}
                     </AnimatePresence>

@@ -9,7 +9,7 @@ import { formatCurrency } from '@/core/utils/format'
 import { DashboardSkeleton } from '@/core/ui/skeleton'
 import { useCashFlow } from '../hooks'
 import { useDateRange } from '../context/date-range-context'
-import { FinanceTabs } from './finance-tabs'
+
 import { DateRangePicker } from './date-range-picker'
 import type { CategoryBreakdown } from '../hooks'
 
@@ -208,8 +208,6 @@ export function CashFlowView() {
       <PageHeader title="Monitor Financiero">
         <DateRangePicker />
       </PageHeader>
-      <FinanceTabs />
-
       {loading ? (
         <DashboardSkeleton kpiCount={4} charts={1} />
       ) : (

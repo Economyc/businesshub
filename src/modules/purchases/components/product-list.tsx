@@ -13,7 +13,7 @@ import { formatCurrency } from '@/core/utils/format'
 import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { useProducts } from '../hooks'
 import { productService } from '../services'
-import { FinanceTabs } from '@/modules/finance/components/finance-tabs'
+
 import { DateRangePicker } from '@/modules/finance/components/date-range-picker'
 import { ProductForm } from './product-form'
 import type { Product } from '../types'
@@ -146,8 +146,6 @@ export function ProductList() {
           Nuevo
         </button>
       </PageHeader>
-      <FinanceTabs />
-
       <ProductForm open={showForm} onClose={handleCloseForm} product={editingProduct} />
 
       <ConfirmDialog

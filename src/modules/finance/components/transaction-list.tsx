@@ -17,7 +17,7 @@ import { useCompany } from '@/core/hooks/use-company'
 import { usePaginatedTransactions, useRecurringGenerator } from '../hooks'
 import { useDateRange } from '../context/date-range-context'
 import { FinanceSummary } from './finance-summary'
-import { FinanceTabs } from './finance-tabs'
+
 import { DateRangePicker } from './date-range-picker'
 import type { Transaction } from '../types'
 import type { CategoryItem } from '@/core/types/categories'
@@ -128,7 +128,6 @@ export function TransactionList() {
         </button>
       </PageHeader>
 
-      <FinanceTabs />
       <FinanceSummary />
 
       <div className="flex gap-3 mb-5">
