@@ -1,11 +1,14 @@
 import { useState, useEffect, useRef } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
-import { BarChart3, Users, Briefcase, DollarSign, Home, Search, ChevronsLeft, Building2, Tags, BadgeCheck, Network, Handshake, ClipboardList, FileSignature, Wallet, Receipt, Gift, ChevronRight, ChevronsUpDown, Check, MapPin, CircleUser, LogOut, Settings, Landmark, Boxes, UserRound, Bot, List, ShoppingCart, Package, Target, Repeat, Scale, FileText } from 'lucide-react'
+import { BarChart3, Users, Briefcase, DollarSign, Home, Search, ChevronsLeft, Building2, Tags, BadgeCheck, Network, Handshake, ClipboardList, FileSignature, Wallet, Receipt, Gift, ChevronRight, ChevronsUpDown, Check, MapPin, LogOut, Settings, Landmark, Boxes, UserRound, Bot, List, ShoppingCart, Package, Target, Repeat, Scale, FileText } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { CommandPalette } from '@/core/ui/command-palette'
 import { CompanyLogo } from '@/core/ui/company-logo'
 import { ThemeToggle } from '@/core/ui/theme-toggle'
+import { AvatarPicker } from '@/core/ui/avatar-picker'
+import { UserAvatar } from '@/core/ui/user-avatar'
 import { useAuth } from '@/core/hooks/use-auth'
+import { useAvatarConfig } from '@/core/hooks/use-avatar-config'
 import { useCompany } from '@/core/hooks/use-company'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
@@ -96,6 +99,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, logout } = useAuth()
+  const { config: avatarConfig, setConfig: setAvatarConfig } = useAvatarConfig(user?.uid)
   const { companies, selectedCompany, selectCompany } = useCompany()
 
   const [openSections, setOpenSections] = useState<Set<string>>(() => getActiveSections(location.pathname))
@@ -482,9 +486,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
                     className="flex items-center justify-center p-1.5 rounded-md text-mid-gray/50 hover:text-graphite transition-colors duration-200"
                   >
-                    <div className="w-6 h-6 rounded-full bg-graphite/10 flex items-center justify-center">
-                      <CircleUser size={14} strokeWidth={1.5} className="text-graphite" />
-                    </div>
+                    <UserAvatar config={avatarConfig} displayName={user?.displayName} email={user?.email} size="sm" />
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="right">{user?.displayName ?? user?.email?.split('@')[0] ?? 'Usuario'}</TooltipContent>
@@ -494,9 +496,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
                 className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg bg-smoke dark:bg-smoke hover:bg-selector-bg dark:hover:bg-selector-bg shadow-sm transition-all duration-150 cursor-pointer"
               >
-                <div className="w-7 h-7 rounded-full bg-graphite/10 flex items-center justify-center shrink-0">
-                  <CircleUser size={16} strokeWidth={1.5} className="text-graphite" />
-                </div>
+                <UserAvatar config={avatarConfig} displayName={user?.displayName} email={user?.email} size="md" />
                 <div className="min-w-0 flex-1 text-left">
                   <div className="text-body font-medium text-dark-graphite truncate">{user?.displayName ?? user?.email?.split('@')[0] ?? 'Usuario'}</div>
                   <div className="text-[11px] text-mid-gray truncate leading-tight">{user?.email ?? ''}</div>
@@ -516,9 +516,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                   <div className="bg-surface-elevated rounded-lg border border-border/60 shadow-sm">
                     {/* User info header */}
                     <div className="flex items-center gap-3 px-4 py-4">
-                      <div className="w-10 h-10 rounded-full bg-graphite/10 flex items-center justify-center shrink-0">
-                        <CircleUser size={22} strokeWidth={1.5} className="text-graphite" />
-                      </div>
+                      <UserAvatar config={avatarConfig} displayName={user?.displayName} email={user?.email} size="lg" />
                       <div className="min-w-0">
                         <div className="text-body font-medium text-dark-graphite truncate">{user?.displayName ?? user?.email?.split('@')[0] ?? 'Usuario'}</div>
                         <div className="text-caption text-mid-gray truncate">{user?.email ?? ''}</div>
@@ -526,6 +524,8 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                     </div>
                     <div className="border-t border-border/60" />
                     <ThemeToggle />
+                    <div className="border-t border-border/60" />
+                    <AvatarPicker config={avatarConfig} onConfigChange={setAvatarConfig} />
                     <div className="border-t border-border/60" />
                     {/* Configuración button — opens side panel */}
                     <button

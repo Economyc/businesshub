@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { BarChart3, Users, Briefcase, DollarSign, Home, Handshake, ClipboardList, FileSignature, X, ChevronRight, Building2, Tags, BadgeCheck, Network, ChevronsUpDown, Check, MapPin, Wallet, Receipt, Gift, CircleUser, LogOut, Bot, Landmark, Boxes, UserRound, List, ShoppingCart, Package, Target, Repeat, Scale, FileText } from 'lucide-react'
+import { BarChart3, Users, Briefcase, DollarSign, Home, Handshake, ClipboardList, FileSignature, X, ChevronRight, Building2, Tags, BadgeCheck, Network, ChevronsUpDown, Check, MapPin, Wallet, Receipt, Gift, LogOut, Bot, Landmark, Boxes, UserRound, List, ShoppingCart, Package, Target, Repeat, Scale, FileText } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useCompany } from '@/core/hooks/use-company'
 import { useAuth } from '@/core/hooks/use-auth'
 import { CompanyLogo } from '@/core/ui/company-logo'
 import { ThemeToggle } from '@/core/ui/theme-toggle'
+import { AvatarPicker } from '@/core/ui/avatar-picker'
+import { UserAvatar } from '@/core/ui/user-avatar'
+import { useAvatarConfig } from '@/core/hooks/use-avatar-config'
 
 interface NavItem {
   to: string
@@ -93,6 +96,7 @@ function getActiveSections(pathname: string): Set<string> {
 export function MobileNav({ open, onClose }: MobileNavProps) {
   const { companies, selectedCompany, selectCompany } = useCompany()
   const { user, logout } = useAuth()
+  const { config: avatarConfig, setConfig: setAvatarConfig } = useAvatarConfig(user?.uid)
   const [companyOpen, setCompanyOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [financeExpanded, setFinanceExpanded] = useState(() => window.location.pathname.startsWith('/finance'))
@@ -345,9 +349,7 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
                 className="w-full flex items-center gap-3 px-6 py-3.5 text-[15px] transition-all duration-150 text-dark-graphite"
               >
-                <div className="w-8 h-8 rounded-full bg-graphite/10 flex items-center justify-center shrink-0">
-                  <CircleUser size={18} strokeWidth={1.5} className="text-graphite" />
-                </div>
+                <UserAvatar config={avatarConfig} displayName={user?.displayName} email={user?.email} size="md" />
                 <div className="flex-1 min-w-0 text-left">
                   <div className="text-body font-medium text-dark-graphite truncate">{user?.displayName ?? user?.email?.split('@')[0] ?? 'Usuario'}</div>
                   <div className="text-caption text-mid-gray truncate">{user?.email ?? ''}</div>
@@ -370,6 +372,8 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
                   >
                     <div className="pb-3 px-3 space-y-0.5">
                       <ThemeToggle />
+                      <div className="mx-3 my-1 border-t border-border/60" />
+                      <AvatarPicker config={avatarConfig} onConfigChange={setAvatarConfig} />
                       <div className="mx-3 my-1 border-t border-border/60" />
                       <div className="px-3 pt-1 pb-1">
                         <span className="text-[10px] font-semibold uppercase tracking-wider text-mid-gray/60">Configuración</span>

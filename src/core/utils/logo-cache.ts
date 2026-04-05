@@ -1,17 +1,26 @@
-import { ref as storageRef, listAll, getDownloadURL } from 'firebase/storage'
+import { ref as storageRef, listAll, getDownloadURL, deleteObject } from 'firebase/storage'
 import { storage } from '@/core/firebase/config'
 import { cacheGet, cacheSet } from '@/core/utils/cache'
 
 const CACHE_KEY = 'logo-urls'
+const PATH_KEY = 'logo-paths'
 
 // In-memory mirror — survives across component renders
 let urlCache: string[] = cacheGet<string[]>(CACHE_KEY) ?? []
+let pathMap = new Map<string, string>(
+  Object.entries(cacheGet<Record<string, string>>(PATH_KEY) ?? {})
+)
 let preloaded = false
 let preloadPromise: Promise<void> | null = null
 
 /** Get cached logo URLs instantly (synchronous) */
 export function getCachedLogoUrls(): string[] {
   return urlCache
+}
+
+/** Get the Firebase Storage path for a cached logo URL */
+export function getLogoStoragePath(url: string): string | undefined {
+  return pathMap.get(url)
 }
 
 /** Preload images into browser cache using hidden Image objects */
@@ -48,14 +57,21 @@ async function _preload() {
       ...rootResult.items,
       ...folderResults.flatMap((r) => r.items),
     ]
-    const urls = await Promise.all(allItems.map((item) => getDownloadURL(item)))
-    const deduped = [...new Set(urls)]
+    const entries = await Promise.all(
+      allItems.map(async (item) => {
+        const url = await getDownloadURL(item)
+        return [url, item.fullPath] as const
+      })
+    )
+    const deduped = [...new Map(entries)]
 
-    urlCache = deduped
-    cacheSet(CACHE_KEY, deduped)
+    urlCache = deduped.map(([url]) => url)
+    pathMap = new Map(deduped)
+    cacheSet(CACHE_KEY, urlCache)
+    cacheSet(PATH_KEY, Object.fromEntries(pathMap))
 
     // Warm browser cache with any new URLs
-    warmBrowserCache(deduped)
+    warmBrowserCache(urlCache)
     preloaded = true
   } catch (err) {
     console.error('Logo preload failed:', err)
@@ -64,7 +80,29 @@ async function _preload() {
 }
 
 /** Add a newly uploaded logo URL to the cache immediately */
-export function addLogoToCache(url: string) {
+export function addLogoToCache(url: string, path?: string) {
   urlCache = [url, ...urlCache.filter((u) => u !== url)]
+  if (path) pathMap.set(url, path)
   cacheSet(CACHE_KEY, urlCache)
+  cacheSet(PATH_KEY, Object.fromEntries(pathMap))
+}
+
+/** Remove a logo URL from the cache */
+function removeLogoFromCache(url: string) {
+  urlCache = urlCache.filter((u) => u !== url)
+  pathMap.delete(url)
+  cacheSet(CACHE_KEY, urlCache)
+  cacheSet(PATH_KEY, Object.fromEntries(pathMap))
+}
+
+/** Delete a logo from Firebase Storage and remove from cache */
+export async function deleteLogo(url: string): Promise<void> {
+  const path = pathMap.get(url)
+  if (path) {
+    await deleteObject(storageRef(storage, path))
+  }
+  removeLogoFromCache(url)
+  // Reset preload so next picker open fetches fresh list
+  preloadPromise = null
+  preloaded = false
 }

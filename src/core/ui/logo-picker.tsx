@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
-import { Upload, ImageIcon, X, Loader2, Check } from 'lucide-react'
+import { Upload, ImageIcon, X, Loader2, Check, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { storage } from '@/core/firebase/config'
 import { fileToBase64Thumb } from '@/core/utils/image'
-import { getCachedLogoUrls, addLogoToCache, preloadLogos } from '@/core/utils/logo-cache'
+import { getCachedLogoUrls, addLogoToCache, preloadLogos, deleteLogo, getLogoStoragePath } from '@/core/utils/logo-cache'
+import { useCompany } from '@/core/hooks/use-company'
 
 interface LogoPickerProps {
   value: string
@@ -16,8 +17,12 @@ export function LogoPicker({ value, onChange, companyId }: LogoPickerProps) {
   const [open, setOpen] = useState(false)
   const [logos, setLogos] = useState(getCachedLogoUrls)
   const [uploading, setUploading] = useState(false)
+  const [deleting, setDeleting] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const { companies } = useCompany()
+
+  const inUseUrls = new Set(companies.map((c) => c.logo).filter(Boolean))
 
   // Close on click outside
   useEffect(() => {
@@ -62,7 +67,7 @@ export function LogoPicker({ value, onChange, companyId }: LogoPickerProps) {
         uploadBytes(fileRef, file),
       ])
       const url = await getDownloadURL(fileRef)
-      addLogoToCache(url)
+      addLogoToCache(url, fileRef.fullPath)
       setLogos(getCachedLogoUrls())
       onChange(url, thumb)
       setOpen(false)
@@ -85,6 +90,19 @@ export function LogoPicker({ value, onChange, companyId }: LogoPickerProps) {
       thumb = await fileToBase64Thumb(new File([blob], 'logo', { type: blob.type }))
     } catch { /* fallback: no thumb, loads from URL */ }
     onChange(url, thumb)
+  }
+
+  async function handleDelete(url: string) {
+    setDeleting(url)
+    try {
+      await deleteLogo(url)
+      setLogos(getCachedLogoUrls())
+      if (value === url) onChange('')
+    } catch (err) {
+      console.error('Error deleting logo:', err)
+    } finally {
+      setDeleting(null)
+    }
   }
 
   return (
@@ -161,22 +179,41 @@ export function LogoPicker({ value, onChange, companyId }: LogoPickerProps) {
                 <div className="grid grid-cols-5 gap-2 max-h-40 overflow-y-auto">
                   {logos.map((url) => {
                     const isSelected = url === value
+                    const isInUse = inUseUrls.has(url)
+                    const hasPath = !!getLogoStoragePath(url)
+                    const canDelete = !isInUse && hasPath
+                    const isDeleting = deleting === url
                     return (
                       <button
                         key={url}
                         type="button"
                         onClick={() => selectLogo(url)}
                         className={cn(
-                          'relative w-full aspect-square rounded-lg border overflow-hidden transition-all hover:shadow-md bg-white flex items-center justify-center',
+                          'group relative w-full aspect-square rounded-lg border overflow-hidden transition-all hover:shadow-md bg-white flex items-center justify-center',
                           isSelected
                             ? 'border-graphite ring-2 ring-graphite/20'
-                            : 'border-border hover:border-graphite/30'
+                            : 'border-border hover:border-graphite/30',
+                          isDeleting && 'opacity-50 pointer-events-none'
                         )}
                       >
                         <img src={url} alt="" className="w-full h-full object-cover" />
                         {isSelected && (
                           <div className="absolute inset-0 bg-graphite/20 flex items-center justify-center">
                             <Check size={14} strokeWidth={2.5} className="text-white drop-shadow" />
+                          </div>
+                        )}
+                        {canDelete && !isDeleting && (
+                          <div
+                            role="button"
+                            onClick={(e) => { e.stopPropagation(); handleDelete(url) }}
+                            className="absolute top-0.5 right-0.5 w-[18px] h-[18px] rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:bg-red-600"
+                          >
+                            <Trash2 size={10} strokeWidth={2} />
+                          </div>
+                        )}
+                        {isDeleting && (
+                          <div className="absolute inset-0 bg-white/60 flex items-center justify-center">
+                            <Loader2 size={14} strokeWidth={2} className="animate-spin text-mid-gray" />
                           </div>
                         )}
                       </button>
