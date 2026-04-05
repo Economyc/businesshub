@@ -330,7 +330,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
         <div className="flex-1 overflow-y-auto">
           {collapsed ? (
             /* Collapsed: flat list of all item icons, no section headers */
-            <div className="flex flex-col items-center">
+            <div className="flex flex-col">
               {NAV_SECTIONS.flatMap((section) =>
                 section.items.map(({ to, label, icon: Icon }) => {
                   if (to === '/finance') {
