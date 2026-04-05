@@ -327,7 +327,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
         )}
 
         {/* Nav items */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden">
+        <div className="flex-1 overflow-y-auto">
           {collapsed ? (
             /* Collapsed: flat list of all item icons, no section headers */
             NAV_SECTIONS.flatMap((section) =>
@@ -339,9 +339,9 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                         <button
                           onClick={handleFinanceClick}
                           className={cn(
-                            'flex items-center justify-center py-2.5 w-full text-body transition-all duration-150',
+                            'flex items-center justify-center py-2.5 w-full transition-all duration-150',
                             isFinanceRoute
-                              ? 'text-dark-graphite font-medium bg-bone border-r-2 border-graphite'
+                              ? 'text-dark-graphite font-medium shadow-[inset_-2px_0_0_0_var(--color-graphite)]'
                               : 'text-graphite/70 hover:bg-card-bg hover:text-graphite'
                           )}
                         >
@@ -360,9 +360,9 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                         onClick={onNavClick}
                         className={({ isActive }) =>
                           cn(
-                            'flex items-center justify-center py-2.5 text-body transition-all duration-150',
+                            'flex items-center justify-center py-2.5 transition-all duration-150',
                             isActive
-                              ? 'text-dark-graphite font-medium bg-bone border-r-2 border-graphite'
+                              ? 'text-dark-graphite font-medium shadow-[inset_-2px_0_0_0_var(--color-graphite)]'
                               : 'text-graphite/70 hover:bg-card-bg hover:text-graphite'
                           )
                         }
