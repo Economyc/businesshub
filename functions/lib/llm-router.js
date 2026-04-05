@@ -1,5 +1,6 @@
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createGroq } from '@ai-sdk/groq';
+import { createCerebras } from '@ai-sdk/cerebras';
 /**
  * LLM Router with automatic fallback between free providers.
  * Tracks rate limits in-memory and skips providers that are cooling down.
@@ -33,6 +34,18 @@ export class LLMRouter {
         this.providers.push({
             name: 'groq-llama70b',
             createModel: () => groq('llama-3.3-70b-versatile'),
+            supportsVision: false,
+            rateLimitedUntil: 0,
+        });
+        return this;
+    }
+    addCerebras(apiKey) {
+        if (!apiKey)
+            return this;
+        const cerebras = createCerebras({ apiKey });
+        this.providers.push({
+            name: 'cerebras-llama8b',
+            createModel: () => cerebras('llama-3.1-8b'),
             supportsVision: false,
             rateLimitedUntil: 0,
         });

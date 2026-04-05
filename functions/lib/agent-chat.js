@@ -5,13 +5,15 @@ import { getAgentSystemPrompt } from './system-prompt.js';
 import { createAgentTools } from './tools/index.js';
 import { LLMRouter, isRateLimitError, parseRetryAfter, messagesContainImages } from './llm-router.js';
 const geminiApiKey = defineSecret('GEMINI_API_KEY');
+const cerebrasApiKey = defineSecret('CEREBRAS_API_KEY');
 // Singleton router (persists across warm invocations of the Cloud Function)
 let router = null;
 function getRouter() {
     if (!router) {
         router = new LLMRouter()
-            .addGemini(geminiApiKey.value());
-        // Groq and Cerebras can be added later when keys are available
+            .addGemini(geminiApiKey.value())
+            .addCerebras(cerebrasApiKey.value());
+        // Groq can be added later when key is available
         // .addGroq(groqApiKey.value())
     }
     return router;
@@ -21,7 +23,7 @@ export const agentChat = onRequest({
     cors: true,
     timeoutSeconds: 120,
     memory: '512MiB',
-    secrets: [geminiApiKey],
+    secrets: [geminiApiKey, cerebrasApiKey],
 }, async (req, res) => {
     if (req.method !== 'POST') {
         res.status(405).json({ error: 'Method not allowed' });

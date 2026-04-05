@@ -1,5 +1,6 @@
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { createGroq } from '@ai-sdk/groq'
+import { createCerebras } from '@ai-sdk/cerebras'
 import type { LanguageModelV1 } from 'ai'
 
 interface ProviderConfig {
@@ -42,6 +43,18 @@ export class LLMRouter {
     this.providers.push({
       name: 'groq-llama70b',
       createModel: () => groq('llama-3.3-70b-versatile'),
+      supportsVision: false,
+      rateLimitedUntil: 0,
+    })
+    return this
+  }
+
+  addCerebras(apiKey: string) {
+    if (!apiKey) return this
+    const cerebras = createCerebras({ apiKey })
+    this.providers.push({
+      name: 'cerebras-llama8b',
+      createModel: () => cerebras('llama-3.1-8b'),
       supportsVision: false,
       rateLimitedUntil: 0,
     })

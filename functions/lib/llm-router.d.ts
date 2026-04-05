@@ -7,6 +7,7 @@ export declare class LLMRouter {
     private providers;
     addGemini(apiKey: string): this;
     addGroq(apiKey: string): this;
+    addCerebras(apiKey: string): this;
     /**
      * Get the best available model. Skips rate-limited providers.
      * If the request includes images, only returns vision-capable models.
