@@ -328,112 +328,137 @@ export function Sidebar({ onNavClick }: SidebarProps) {
 
         {/* Nav items */}
         <div className="flex-1 overflow-y-auto overflow-x-hidden">
-          {NAV_SECTIONS.map((section, sIdx) => {
-            const isOpen = !section.title || collapsed || openSections.has(section.title)
-            return (
-              <div key={section.title ?? sIdx}>
-                {section.title && !collapsed && (
-                  <button
-                    onClick={() => toggleSection(section.title!)}
-                    className={cn(
-                      'group/section w-full flex items-center gap-2.5 py-2.5 px-5 text-body transition-all duration-150',
-                      isOpen
-                        ? 'text-dark-graphite font-medium'
-                        : 'text-graphite/70 hover:bg-card-bg hover:text-graphite'
-                    )}
-                  >
-                    {section.icon && <section.icon size={16} strokeWidth={1.5} />}
-                    <span className="flex-1 text-left">{section.title}</span>
-                    <ChevronRight
-                      size={14}
-                      strokeWidth={1.5}
-                      className={cn(
-                        'text-mid-gray/40 group-hover/section:text-mid-gray transition-all duration-200',
-                        isOpen && 'rotate-90'
-                      )}
-                    />
-                  </button>
-                )}
-                {section.title && collapsed && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        onClick={() => toggleSection(section.title!)}
-                        className="group/section relative w-full flex justify-center py-2.5 text-graphite/70 hover:bg-card-bg hover:text-graphite transition-all duration-150"
-                      >
-                        {section.icon && <section.icon size={16} strokeWidth={1.5} />}
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">{section.title}</TooltipContent>
-                  </Tooltip>
-                )}
-                <div
-                  className={cn(
-                    'grid transition-all duration-200 ease-in-out',
-                    isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
-                  )}
-                >
-                  <div className="overflow-hidden relative">
-                    {/* Tree connector line */}
-                    {section.title && !collapsed && (
-                      <div className="absolute left-[27px] top-0 bottom-0 w-px bg-border" />
-                    )}
-                    {section.items.map(({ to, label, icon: Icon }) => {
-                      const financeBtn = (
+          {collapsed ? (
+            /* Collapsed: flat list of all item icons, no section headers */
+            NAV_SECTIONS.flatMap((section) =>
+              section.items.map(({ to, label, icon: Icon }) => {
+                if (to === '/finance') {
+                  return (
+                    <Tooltip key={to}>
+                      <TooltipTrigger asChild>
                         <button
-                          key={to}
                           onClick={handleFinanceClick}
                           className={cn(
-                            'group/nav relative flex items-center gap-2.5 py-2.5 text-body transition-all duration-150 w-full',
-                            collapsed ? 'justify-center px-0' : (section.title ? 'pl-8 pr-5' : 'px-5'),
+                            'flex items-center justify-center py-2.5 w-full text-body transition-all duration-150',
                             isFinanceRoute
                               ? 'text-dark-graphite font-medium bg-bone border-r-2 border-graphite'
                               : 'text-graphite/70 hover:bg-card-bg hover:text-graphite'
                           )}
                         >
                           <Icon size={16} strokeWidth={1.5} />
-                          {!collapsed && label}
                         </button>
-                      )
-                      if (to === '/finance') {
-                        return collapsed ? (
-                          <Tooltip key={to}>
-                            <TooltipTrigger asChild>{financeBtn}</TooltipTrigger>
-                            <TooltipContent side="right">{label}</TooltipContent>
-                          </Tooltip>
-                        ) : financeBtn
-                      }
-                      const navLink = (
-                        <NavLink
-                          key={to}
-                          to={to}
-                          onClick={onNavClick}
-                          className={({ isActive }) =>
-                            cn(
-                              'group/nav relative flex items-center gap-2.5 py-2.5 text-body transition-all duration-150',
-                              collapsed ? 'justify-center px-0' : (section.title ? 'pl-8 pr-5' : 'px-5'),
-                              isActive
-                                ? 'text-dark-graphite font-medium bg-bone border-r-2 border-graphite'
-                                : 'text-graphite/70 hover:bg-card-bg hover:text-graphite'
-                            )
-                          }
-                        >
-                          <Icon size={16} strokeWidth={1.5} />
-                          {!collapsed && label}
-                        </NavLink>
-                      )
-                      return collapsed ? (
-                        <Tooltip key={to}>
-                          <TooltipTrigger asChild>{navLink}</TooltipTrigger>
-                          <TooltipContent side="right">{label}</TooltipContent>
-                        </Tooltip>
-                      ) : navLink
-                    })}
+                      </TooltipTrigger>
+                      <TooltipContent side="right">{label}</TooltipContent>
+                    </Tooltip>
+                  )
+                }
+                return (
+                  <Tooltip key={to}>
+                    <TooltipTrigger asChild>
+                      <NavLink
+                        to={to}
+                        onClick={onNavClick}
+                        className={({ isActive }) =>
+                          cn(
+                            'flex items-center justify-center py-2.5 text-body transition-all duration-150',
+                            isActive
+                              ? 'text-dark-graphite font-medium bg-bone border-r-2 border-graphite'
+                              : 'text-graphite/70 hover:bg-card-bg hover:text-graphite'
+                          )
+                        }
+                      >
+                        <Icon size={16} strokeWidth={1.5} />
+                      </NavLink>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">{label}</TooltipContent>
+                  </Tooltip>
+                )
+              })
+            )
+          ) : (
+            /* Expanded: sections with headers, tree lines, labels */
+            NAV_SECTIONS.map((section, sIdx) => {
+              const isOpen = !section.title || openSections.has(section.title)
+              return (
+                <div key={section.title ?? sIdx}>
+                  {section.title && (
+                    <button
+                      onClick={() => toggleSection(section.title!)}
+                      className={cn(
+                        'group/section w-full flex items-center gap-2.5 py-2.5 px-5 text-body transition-all duration-150',
+                        isOpen
+                          ? 'text-dark-graphite font-medium'
+                          : 'text-graphite/70 hover:bg-card-bg hover:text-graphite'
+                      )}
+                    >
+                      {section.icon && <section.icon size={16} strokeWidth={1.5} />}
+                      <span className="flex-1 text-left">{section.title}</span>
+                      <ChevronRight
+                        size={14}
+                        strokeWidth={1.5}
+                        className={cn(
+                          'text-mid-gray/40 group-hover/section:text-mid-gray transition-all duration-200',
+                          isOpen && 'rotate-90'
+                        )}
+                      />
+                    </button>
+                  )}
+                  <div
+                    className={cn(
+                      'grid transition-all duration-200 ease-in-out',
+                      isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+                    )}
+                  >
+                    <div className="overflow-hidden relative">
+                      {/* Tree connector line */}
+                      {section.title && (
+                        <div className="absolute left-[27px] top-0 bottom-0 w-px bg-border" />
+                      )}
+                      {section.items.map(({ to, label, icon: Icon }) => {
+                        if (to === '/finance') {
+                          return (
+                            <button
+                              key={to}
+                              onClick={handleFinanceClick}
+                              className={cn(
+                                'group/nav relative flex items-center gap-2.5 py-2.5 text-body transition-all duration-150 w-full',
+                                section.title ? 'pl-8 pr-5' : 'px-5',
+                                isFinanceRoute
+                                  ? 'text-dark-graphite font-medium bg-bone border-r-2 border-graphite'
+                                  : 'text-graphite/70 hover:bg-card-bg hover:text-graphite'
+                              )}
+                            >
+                              <Icon size={16} strokeWidth={1.5} />
+                              {label}
+                            </button>
+                          )
+                        }
+                        return (
+                          <NavLink
+                            key={to}
+                            to={to}
+                            onClick={onNavClick}
+                            className={({ isActive }) =>
+                              cn(
+                                'group/nav relative flex items-center gap-2.5 py-2.5 text-body transition-all duration-150',
+                                section.title ? 'pl-8 pr-5' : 'px-5',
+                                isActive
+                                  ? 'text-dark-graphite font-medium bg-bone border-r-2 border-graphite'
+                                  : 'text-graphite/70 hover:bg-card-bg hover:text-graphite'
+                              )
+                            }
+                          >
+                            <Icon size={16} strokeWidth={1.5} />
+                            {label}
+                          </NavLink>
+                        )
+                      })}
+                    </div>
                   </div>
                 </div>
-              </div>
-            )
-          })}
+              )
+            })
+          )}
         </div>
 
         {/* Bottom — User menu + Collapse toggle (same row) */}
