@@ -200,7 +200,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
 
   return (
     <TooltipProvider delayDuration={200}>
-    <div className="flex flex-shrink-0">
+    <div className="flex flex-shrink-0 group/sidebar">
       <nav
         className={cn(
           'bg-bone border-r border-border py-5 flex-shrink-0 flex flex-col transition-all duration-300 ease-in-out relative z-10',
@@ -208,6 +208,13 @@ export function Sidebar({ onNavClick }: SidebarProps) {
           collapsed ? 'w-[60px]' : 'w-[200px]'
         )}
       >
+        {/* Collapse toggle — hover-reveal on sidebar edge */}
+        <button
+          onClick={() => { if (!collapsed) { setSettingsOpen(false); setFinanceOpen(false) }; setCollapsed(!collapsed) }}
+          className="absolute top-1/2 -translate-y-1/2 -right-3 w-6 h-6 rounded-full bg-bone border border-border shadow-sm flex items-center justify-center text-mid-gray/60 hover:text-graphite hover:bg-smoke opacity-0 group-hover/sidebar:opacity-100 transition-all duration-200 z-20 cursor-pointer"
+        >
+          <ChevronsLeft size={13} strokeWidth={1.5} className={cn('transition-transform duration-300', collapsed && 'rotate-180')} />
+        </button>
         {/* Company selector */}
         <div className={cn('mb-3', collapsed ? 'px-2' : 'px-3')} ref={companyRef}>
           {!collapsed ? (
@@ -465,10 +472,9 @@ export function Sidebar({ onNavClick }: SidebarProps) {
           )}
         </div>
 
-        {/* Bottom — User menu + Collapse toggle (same row) */}
-        <div className={cn('flex items-center border-t border-border', collapsed ? 'mx-3 pt-1 flex-col gap-1' : 'mx-4 pt-1')}>
-          {/* User menu */}
-          <div className="relative flex-1 min-w-0" ref={userMenuRef}>
+        {/* Bottom — User menu */}
+        <div className={cn('border-t border-border', collapsed ? 'mx-3 pt-1' : 'mx-4 pt-1')}>
+          <div className="relative" ref={userMenuRef}>
             {collapsed ? (
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -486,10 +492,10 @@ export function Sidebar({ onNavClick }: SidebarProps) {
             ) : (
               <button
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
-                className="w-full flex items-center gap-2 px-1 py-2 rounded-lg hover:bg-smoke dark:hover:bg-smoke transition-all duration-150 cursor-pointer"
+                className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg bg-smoke dark:bg-smoke hover:bg-selector-bg dark:hover:bg-selector-bg shadow-sm transition-all duration-150 cursor-pointer"
               >
-                <div className="w-6 h-6 rounded-full bg-graphite/10 flex items-center justify-center shrink-0">
-                  <CircleUser size={14} strokeWidth={1.5} className="text-graphite" />
+                <div className="w-7 h-7 rounded-full bg-graphite/10 flex items-center justify-center shrink-0">
+                  <CircleUser size={16} strokeWidth={1.5} className="text-graphite" />
                 </div>
                 <div className="min-w-0 flex-1 text-left">
                   <div className="text-body font-medium text-dark-graphite truncate">{user?.displayName ?? user?.email?.split('@')[0] ?? 'Usuario'}</div>
@@ -554,27 +560,6 @@ export function Sidebar({ onNavClick }: SidebarProps) {
             )}
           </div>
 
-          {/* Collapse toggle */}
-          {collapsed ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={() => setCollapsed(false)}
-                  className="flex items-center justify-center p-1.5 rounded-md text-mid-gray/50 hover:text-graphite transition-colors duration-200 shrink-0"
-                >
-                  <ChevronsLeft size={15} strokeWidth={1.5} className="rotate-180 transition-transform duration-300" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="right">Expandir</TooltipContent>
-            </Tooltip>
-          ) : (
-            <button
-              onClick={() => { setSettingsOpen(false); setFinanceOpen(false); setCollapsed(true) }}
-              className="flex items-center justify-center p-1.5 rounded-md text-mid-gray/50 hover:text-graphite transition-colors duration-200 shrink-0"
-            >
-              <ChevronsLeft size={15} strokeWidth={1.5} className="transition-transform duration-300" />
-            </button>
-          )}
         </div>
       </nav>
 
