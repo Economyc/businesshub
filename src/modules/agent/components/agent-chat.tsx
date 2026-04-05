@@ -1,5 +1,6 @@
 import { useChat } from '@ai-sdk/react'
-import { useCallback } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
+import type { UIMessage } from 'ai'
 import { useCompany } from '@/core/hooks/use-company'
 import { invalidateCollection } from '@/core/query/invalidation'
 import { MessageList } from './message-list'
@@ -8,6 +9,7 @@ import { executeMutation } from '../utils/execute-mutation'
 import { exportToPDF, exportToExcel } from '../utils/export-report'
 import { preprocessImage, isImageFile, isSpreadsheetFile } from '../utils/image-preprocessing'
 import { parseSpreadsheetToText } from '../utils/parse-spreadsheet'
+import { conversationService } from '../services'
 
 const AGENT_API_URL = import.meta.env.VITE_AGENT_API_URL || '/api/agent/chat'
 
@@ -23,8 +25,62 @@ const TOOL_COLLECTIONS: Record<string, string> = {
   addBudgetItem: 'settings',
 }
 
-export function AgentChat() {
+interface AgentChatProps {
+  initialMessages?: UIMessage[]
+  conversationId: string | null
+  onConversationSaved: (id: string, title: string, messageCount: number) => void
+}
+
+function stripAttachments(messages: UIMessage[]) {
+  return messages.map((msg) => {
+    if (!('experimental_attachments' in msg)) return msg
+    const { experimental_attachments, ...rest } = msg as any
+    return rest
+  })
+}
+
+function generateTitle(messages: UIMessage[]): string {
+  const firstUser = messages.find((m) => m.role === 'user')
+  if (!firstUser) return 'Conversación'
+  const text = firstUser.content || ''
+  return text.length > 50 ? text.slice(0, 50) + '…' : text || 'Conversación'
+}
+
+export function AgentChat({ initialMessages, conversationId, onConversationSaved }: AgentChatProps) {
   const { selectedCompany } = useCompany()
+  const conversationIdRef = useRef(conversationId)
+  const isSavingRef = useRef(false)
+
+  useEffect(() => {
+    conversationIdRef.current = conversationId
+  }, [conversationId])
+
+  const handleAutoSave = useCallback(async () => {
+    if (!selectedCompany?.id || isSavingRef.current) return
+    isSavingRef.current = true
+
+    try {
+      const currentMessages = messagesRef.current
+      if (currentMessages.length === 0) return
+
+      const cleanMessages = stripAttachments(currentMessages)
+      const title = generateTitle(currentMessages)
+      const messageCount = currentMessages.length
+      const currentId = conversationIdRef.current
+
+      if (currentId) {
+        await conversationService.update(selectedCompany.id, currentId, { messages: cleanMessages, messageCount, title })
+        onConversationSaved(currentId, title, messageCount)
+      } else {
+        const newId = await conversationService.create(selectedCompany.id, { title, messages: cleanMessages, messageCount })
+        onConversationSaved(newId, title, messageCount)
+      }
+    } catch (err) {
+      console.error('Error saving conversation:', err)
+    } finally {
+      isSavingRef.current = false
+    }
+  }, [selectedCompany?.id, onConversationSaved])
 
   const {
     messages,
@@ -39,12 +95,13 @@ export function AgentChat() {
     append,
   } = useChat({
     api: AGENT_API_URL,
+    initialMessages,
     maxSteps: 5,
     body: {
       companyId: selectedCompany?.id,
     },
+    onFinish: handleAutoSave,
     onToolCall: async ({ toolCall }) => {
-      // Auto-resolve client-rendered tools so the conversation continues
       if (toolCall.toolName === 'generateChart') {
         return { rendered: true }
       }
@@ -53,6 +110,11 @@ export function AgentChat() {
       }
     },
   })
+
+  const messagesRef = useRef(messages)
+  useEffect(() => {
+    messagesRef.current = messages
+  }, [messages])
 
   const handleSuggestionClick = useCallback((suggestion: string) => {
     append({ role: 'user', content: suggestion })
@@ -67,7 +129,6 @@ export function AgentChat() {
 
       let messageText = text
 
-      // For images: convert to base64 data URLs and send as experimental_attachments
       const attachments: Array<{ name: string; contentType: string; url: string }> = []
 
       for (const img of imageFiles) {
@@ -80,7 +141,6 @@ export function AgentChat() {
         })
       }
 
-      // For spreadsheets: parse to text and append to message
       for (const file of spreadsheetFiles) {
         const parsed = await parseSpreadsheetToText(file)
         messageText += `\n\nContenido del archivo "${file.name}":\n${parsed}`

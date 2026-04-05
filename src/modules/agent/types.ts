@@ -1,3 +1,6 @@
+import type { Message } from '@ai-sdk/ui-utils'
+import type { Timestamp } from 'firebase/firestore'
+
 export interface AgentMessage {
   id: string
   role: 'user' | 'assistant'
@@ -16,3 +19,12 @@ export interface ToolInvocation {
 }
 
 export type AutonomyLevel = 'conservative' | 'balanced' | 'autonomous'
+
+export interface Conversation {
+  id: string
+  title: string
+  messages: Message[]
+  messageCount: number
+  createdAt: Timestamp
+  updatedAt: Timestamp
+}
