@@ -330,51 +330,53 @@ export function Sidebar({ onNavClick }: SidebarProps) {
         <div className="flex-1 overflow-y-auto">
           {collapsed ? (
             /* Collapsed: flat list of all item icons, no section headers */
-            NAV_SECTIONS.flatMap((section) =>
-              section.items.map(({ to, label, icon: Icon }) => {
-                if (to === '/finance') {
+            <div className="flex flex-col items-center">
+              {NAV_SECTIONS.flatMap((section) =>
+                section.items.map(({ to, label, icon: Icon }) => {
+                  if (to === '/finance') {
+                    return (
+                      <Tooltip key={to}>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={handleFinanceClick}
+                            className={cn(
+                              'w-full flex items-center justify-center py-2.5 transition-all duration-150',
+                              isFinanceRoute
+                                ? 'text-dark-graphite font-medium shadow-[inset_-2px_0_0_0_var(--color-graphite)]'
+                                : 'text-graphite/70 hover:bg-card-bg hover:text-graphite'
+                            )}
+                          >
+                            <Icon size={16} strokeWidth={1.5} />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="right">{label}</TooltipContent>
+                      </Tooltip>
+                    )
+                  }
                   return (
                     <Tooltip key={to}>
                       <TooltipTrigger asChild>
-                        <button
-                          onClick={handleFinanceClick}
-                          className={cn(
-                            'flex items-center justify-center py-2.5 w-full transition-all duration-150',
-                            isFinanceRoute
-                              ? 'text-dark-graphite font-medium shadow-[inset_-2px_0_0_0_var(--color-graphite)]'
-                              : 'text-graphite/70 hover:bg-card-bg hover:text-graphite'
-                          )}
+                        <NavLink
+                          to={to}
+                          onClick={onNavClick}
+                          className={({ isActive }) =>
+                            cn(
+                              'w-full flex items-center justify-center py-2.5 transition-all duration-150',
+                              isActive
+                                ? 'text-dark-graphite font-medium shadow-[inset_-2px_0_0_0_var(--color-graphite)]'
+                                : 'text-graphite/70 hover:bg-card-bg hover:text-graphite'
+                            )
+                          }
                         >
                           <Icon size={16} strokeWidth={1.5} />
-                        </button>
+                        </NavLink>
                       </TooltipTrigger>
                       <TooltipContent side="right">{label}</TooltipContent>
                     </Tooltip>
                   )
-                }
-                return (
-                  <Tooltip key={to}>
-                    <TooltipTrigger asChild>
-                      <NavLink
-                        to={to}
-                        onClick={onNavClick}
-                        className={({ isActive }) =>
-                          cn(
-                            'flex items-center justify-center py-2.5 transition-all duration-150',
-                            isActive
-                              ? 'text-dark-graphite font-medium shadow-[inset_-2px_0_0_0_var(--color-graphite)]'
-                              : 'text-graphite/70 hover:bg-card-bg hover:text-graphite'
-                          )
-                        }
-                      >
-                        <Icon size={16} strokeWidth={1.5} />
-                      </NavLink>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">{label}</TooltipContent>
-                  </Tooltip>
-                )
-              })
-            )
+                })
+              )}
+            </div>
           ) : (
             /* Expanded: sections with headers, tree lines, labels */
             NAV_SECTIONS.map((section, sIdx) => {
