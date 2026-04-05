@@ -7,6 +7,7 @@ import { CompanyLogo } from '@/core/ui/company-logo'
 import { ThemeToggle } from '@/core/ui/theme-toggle'
 import { useAuth } from '@/core/hooks/use-auth'
 import { useCompany } from '@/core/hooks/use-company'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 interface NavItem {
   to: string
@@ -196,6 +197,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
   }, [companyOpen, userMenuOpen, settingsOpen, financeOpen])
 
   return (
+    <TooltipProvider delayDuration={200}>
     <div className="flex flex-shrink-0">
       <nav
         className={cn(
@@ -257,15 +259,17 @@ export function Sidebar({ onNavClick }: SidebarProps) {
             </div>
           ) : (
             <div className="relative flex justify-center">
-              <button
-                onClick={() => setCompanyOpen(!companyOpen)}
-                className="group/company relative p-1.5 rounded-md hover:bg-smoke dark:hover:bg-smoke transition-colors duration-200"
-              >
-                <CompanyLogo company={selectedCompany} />
-                <span className="pointer-events-none absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 whitespace-nowrap rounded-lg bg-dark-graphite dark:bg-[#2a2a2a] px-3 py-1.5 text-caption font-medium text-white dark:text-[#e0e0e0] shadow-lg opacity-0 scale-95 transition-all duration-150 group-hover/company:opacity-100 group-hover/company:scale-100">
-                  {selectedCompany?.name ?? 'Compañía'}
-                </span>
-              </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setCompanyOpen(!companyOpen)}
+                    className="relative p-1.5 rounded-md hover:bg-smoke dark:hover:bg-smoke transition-colors duration-200"
+                  >
+                    <CompanyLogo company={selectedCompany} />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right">{selectedCompany?.name ?? 'Compañía'}</TooltipContent>
+              </Tooltip>
 
               {companyOpen && (
                 <div className="absolute left-full ml-2 top-0 min-w-[250px] bg-surface-elevated border border-border rounded-xl shadow-lg z-50 py-1.5 overflow-hidden">
@@ -308,20 +312,22 @@ export function Sidebar({ onNavClick }: SidebarProps) {
           </div>
         ) : (
           <div className="flex justify-center mb-3">
-            <button
-              onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))}
-              className="group/search relative flex items-center justify-center p-1.5 rounded-md text-mid-gray/50 hover:text-graphite transition-colors duration-200"
-            >
-              <Search size={16} strokeWidth={1.5} />
-              <span className="pointer-events-none absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 whitespace-nowrap rounded-lg bg-dark-graphite dark:bg-[#2a2a2a] px-3 py-1.5 text-caption font-medium text-white dark:text-[#e0e0e0] shadow-lg opacity-0 scale-95 transition-all duration-150 group-hover/search:opacity-100 group-hover/search:scale-100">
-                Buscar (Ctrl K)
-              </span>
-            </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))}
+                  className="flex items-center justify-center p-1.5 rounded-md text-mid-gray/50 hover:text-graphite transition-colors duration-200"
+                >
+                  <Search size={16} strokeWidth={1.5} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">Buscar (Ctrl K)</TooltipContent>
+            </Tooltip>
           </div>
         )}
 
         {/* Nav items */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden">
           {NAV_SECTIONS.map((section, sIdx) => {
             const isOpen = !section.title || collapsed || openSections.has(section.title)
             return (
@@ -349,15 +355,17 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                   </button>
                 )}
                 {section.title && collapsed && (
-                  <button
-                    onClick={() => toggleSection(section.title!)}
-                    className="group/section relative w-full flex justify-center py-2.5 text-graphite/70 hover:bg-card-bg hover:text-graphite transition-all duration-150"
-                  >
-                    {section.icon && <section.icon size={16} strokeWidth={1.5} />}
-                    <span className="pointer-events-none absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 whitespace-nowrap rounded-lg bg-dark-graphite dark:bg-[#2a2a2a] px-3 py-1.5 text-caption font-medium text-white dark:text-[#e0e0e0] shadow-lg opacity-0 scale-95 transition-all duration-150 group-hover/section:opacity-100 group-hover/section:scale-100">
-                      {section.title}
-                    </span>
-                  </button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => toggleSection(section.title!)}
+                        className="group/section relative w-full flex justify-center py-2.5 text-graphite/70 hover:bg-card-bg hover:text-graphite transition-all duration-150"
+                      >
+                        {section.icon && <section.icon size={16} strokeWidth={1.5} />}
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">{section.title}</TooltipContent>
+                  </Tooltip>
                 )}
                 <div
                   className={cn(
@@ -371,30 +379,31 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                       <div className="absolute left-[27px] top-0 bottom-0 w-px bg-border" />
                     )}
                     {section.items.map(({ to, label, icon: Icon }) => {
+                      const financeBtn = (
+                        <button
+                          key={to}
+                          onClick={handleFinanceClick}
+                          className={cn(
+                            'group/nav relative flex items-center gap-2.5 py-2.5 text-body transition-all duration-150 w-full',
+                            collapsed ? 'justify-center px-0' : (section.title ? 'pl-8 pr-5' : 'px-5'),
+                            isFinanceRoute
+                              ? 'text-dark-graphite font-medium bg-bone border-r-2 border-graphite'
+                              : 'text-graphite/70 hover:bg-card-bg hover:text-graphite'
+                          )}
+                        >
+                          <Icon size={16} strokeWidth={1.5} />
+                          {!collapsed && label}
+                        </button>
+                      )
                       if (to === '/finance') {
-                        return (
-                          <button
-                            key={to}
-                            onClick={handleFinanceClick}
-                            className={cn(
-                              'group/nav relative flex items-center gap-2.5 py-2.5 text-body transition-all duration-150 w-full',
-                              collapsed ? 'justify-center px-0' : (section.title ? 'pl-8 pr-5' : 'px-5'),
-                              isFinanceRoute
-                                ? 'text-dark-graphite font-medium bg-bone border-r-2 border-graphite'
-                                : 'text-graphite/70 hover:bg-card-bg hover:text-graphite'
-                            )}
-                          >
-                            <Icon size={16} strokeWidth={1.5} />
-                            {!collapsed && label}
-                            {collapsed && (
-                              <span className="pointer-events-none absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 whitespace-nowrap rounded-lg bg-dark-graphite dark:bg-[#2a2a2a] px-3 py-1.5 text-caption font-medium text-white dark:text-[#e0e0e0] shadow-lg opacity-0 scale-95 transition-all duration-150 group-hover/nav:opacity-100 group-hover/nav:scale-100">
-                                {label}
-                              </span>
-                            )}
-                          </button>
-                        )
+                        return collapsed ? (
+                          <Tooltip key={to}>
+                            <TooltipTrigger asChild>{financeBtn}</TooltipTrigger>
+                            <TooltipContent side="right">{label}</TooltipContent>
+                          </Tooltip>
+                        ) : financeBtn
                       }
-                      return (
+                      const navLink = (
                         <NavLink
                           key={to}
                           to={to}
@@ -411,13 +420,14 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                         >
                           <Icon size={16} strokeWidth={1.5} />
                           {!collapsed && label}
-                          {collapsed && (
-                            <span className="pointer-events-none absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 whitespace-nowrap rounded-lg bg-dark-graphite dark:bg-[#2a2a2a] px-3 py-1.5 text-caption font-medium text-white dark:text-[#e0e0e0] shadow-lg opacity-0 scale-95 transition-all duration-150 group-hover/nav:opacity-100 group-hover/nav:scale-100">
-                              {label}
-                            </span>
-                          )}
                         </NavLink>
                       )
+                      return collapsed ? (
+                        <Tooltip key={to}>
+                          <TooltipTrigger asChild>{navLink}</TooltipTrigger>
+                          <TooltipContent side="right">{label}</TooltipContent>
+                        </Tooltip>
+                      ) : navLink
                     })}
                   </div>
                 </div>
@@ -431,17 +441,19 @@ export function Sidebar({ onNavClick }: SidebarProps) {
           {/* User menu */}
           <div className="relative flex-1 min-w-0" ref={userMenuRef}>
             {collapsed ? (
-              <button
-                onClick={() => setUserMenuOpen(!userMenuOpen)}
-                className="group/user relative flex items-center justify-center p-1.5 rounded-md text-mid-gray/50 hover:text-graphite transition-colors duration-200"
-              >
-                <div className="w-6 h-6 rounded-full bg-graphite/10 flex items-center justify-center">
-                  <CircleUser size={14} strokeWidth={1.5} className="text-graphite" />
-                </div>
-                <span className="pointer-events-none absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 whitespace-nowrap rounded-lg bg-dark-graphite dark:bg-[#2a2a2a] px-3 py-1.5 text-caption font-medium text-white dark:text-[#e0e0e0] shadow-lg opacity-0 scale-95 transition-all duration-150 group-hover/user:opacity-100 group-hover/user:scale-100">
-                  {user?.displayName ?? user?.email?.split('@')[0] ?? 'Usuario'}
-                </span>
-              </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setUserMenuOpen(!userMenuOpen)}
+                    className="flex items-center justify-center p-1.5 rounded-md text-mid-gray/50 hover:text-graphite transition-colors duration-200"
+                  >
+                    <div className="w-6 h-6 rounded-full bg-graphite/10 flex items-center justify-center">
+                      <CircleUser size={14} strokeWidth={1.5} className="text-graphite" />
+                    </div>
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right">{user?.displayName ?? user?.email?.split('@')[0] ?? 'Usuario'}</TooltipContent>
+              </Tooltip>
             ) : (
               <button
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
@@ -508,21 +520,26 @@ export function Sidebar({ onNavClick }: SidebarProps) {
           </div>
 
           {/* Collapse toggle */}
-          <button
-            onClick={() => { if (!collapsed) { setSettingsOpen(false); setFinanceOpen(false) }; setCollapsed(!collapsed) }}
-            className="group/toggle relative flex items-center justify-center p-1.5 rounded-md text-mid-gray/50 hover:text-graphite transition-colors duration-200 shrink-0"
-          >
-            <ChevronsLeft
-              size={15}
-              strokeWidth={1.5}
-              className={cn('transition-transform duration-300', collapsed && 'rotate-180')}
-            />
-            {collapsed && (
-              <span className="pointer-events-none absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 whitespace-nowrap rounded-lg bg-dark-graphite dark:bg-[#2a2a2a] px-3 py-1.5 text-caption font-medium text-white dark:text-[#e0e0e0] shadow-lg opacity-0 scale-95 transition-all duration-150 group-hover/toggle:opacity-100 group-hover/toggle:scale-100">
-                Expandir
-              </span>
-            )}
-          </button>
+          {collapsed ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => setCollapsed(false)}
+                  className="flex items-center justify-center p-1.5 rounded-md text-mid-gray/50 hover:text-graphite transition-colors duration-200 shrink-0"
+                >
+                  <ChevronsLeft size={15} strokeWidth={1.5} className="rotate-180 transition-transform duration-300" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">Expandir</TooltipContent>
+            </Tooltip>
+          ) : (
+            <button
+              onClick={() => { setSettingsOpen(false); setFinanceOpen(false); setCollapsed(true) }}
+              className="flex items-center justify-center p-1.5 rounded-md text-mid-gray/50 hover:text-graphite transition-colors duration-200 shrink-0"
+            >
+              <ChevronsLeft size={15} strokeWidth={1.5} className="transition-transform duration-300" />
+            </button>
+          )}
         </div>
       </nav>
 
@@ -607,5 +624,6 @@ export function Sidebar({ onNavClick }: SidebarProps) {
         </div>
       </div>
     </div>
+    </TooltipProvider>
   )
 }

@@ -5,7 +5,7 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-  --font-sans: 'Nunito Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Cabin', ui-sans-serif, system-ui, sans-serif;
 
   --text-heading: 20px;
   --text-subheading: 16px;
@@ -97,7 +97,7 @@
 
 @theme inline {
   --font-heading: var(--font-sans);
-  --font-sans: 'Nunito Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Cabin', ui-sans-serif, system-ui, sans-serif;
   --color-bone: var(--app-bone);
   --color-smoke: var(--app-smoke);
   --color-selector-bg: var(--app-selector-bg);
