@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
-import { BarChart3, Users, Briefcase, DollarSign, Home, Search, ChevronsLeft, Building2, Tags, BadgeCheck, Network, Handshake, ClipboardList, FileSignature, Wallet, Receipt, Gift, ChevronRight, ChevronsUpDown, Check, MapPin, LogOut, Settings, Landmark, Boxes, UserRound, Bot, List, ShoppingCart, Package, Target, Repeat, Scale, FileText, Shield, Lock } from 'lucide-react'
+import { BarChart3, Users, Briefcase, DollarSign, Home, Search, ChevronsLeft, Building2, Tags, BadgeCheck, Network, Handshake, ClipboardList, FileSignature, Wallet, Receipt, Gift, ChevronRight, ChevronsUpDown, Check, MapPin, LogOut, Settings, Landmark, Boxes, UserRound, Bot, List, ShoppingCart, Package, Target, Repeat, Scale, FileText, Shield } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { CommandPalette } from '@/core/ui/command-palette'
 import { CompanyLogo } from '@/core/ui/company-logo'
@@ -351,7 +351,10 @@ export function Sidebar({ onNavClick }: SidebarProps) {
             /* Collapsed: flat list of all item icons, no section headers */
             <div className="flex flex-col">
               {NAV_SECTIONS.flatMap((section) =>
-                section.items.map(({ to, label, icon: Icon }) => {
+                section.items.map(({ to, label, icon: Icon, moduleKey }) => {
+                  const hasAccess = !moduleKey || can(moduleKey, 'read')
+                  if (!hasAccess) return null
+
                   if (to === '/finance') {
                     return (
                       <Tooltip key={to}>
@@ -399,6 +402,10 @@ export function Sidebar({ onNavClick }: SidebarProps) {
           ) : (
             /* Expanded: sections with headers, tree lines, labels */
             NAV_SECTIONS.map((section, sIdx) => {
+              // Hide entire section if no items have access
+              const visibleItems = section.items.filter(({ moduleKey }) => !moduleKey || can(moduleKey, 'read'))
+              if (visibleItems.length === 0) return null
+
               const isOpen = !section.title || openSections.has(section.title)
               return (
                 <div key={section.title ?? sIdx} className={section.title ? 'relative' : ''}>
@@ -437,30 +444,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                     <div className="overflow-hidden relative">
                       {section.items.map(({ to, label, icon: Icon, moduleKey }) => {
                         const hasAccess = !moduleKey || can(moduleKey, 'read')
-
-                        // Locked item — show disabled with tooltip
-                        if (!hasAccess) {
-                          return (
-                            <Tooltip key={to}>
-                              <TooltipTrigger asChild>
-                                <div
-                                  className={cn(
-                                    'group/nav relative flex items-center gap-2.5 py-2.5 text-body opacity-40 cursor-not-allowed',
-                                    section.title ? 'pl-8 pr-5' : 'px-5',
-                                  )}
-                                >
-                                  {section.title && (
-                                    <div className="absolute left-[27px] top-1/2 -translate-y-1/2 w-[13px] h-[1.5px] bg-graphite/25 z-10" />
-                                  )}
-                                  <Icon size={16} strokeWidth={1.5} />
-                                  <span className="flex-1">{label}</span>
-                                  <Lock size={12} strokeWidth={1.5} className="text-mid-gray" />
-                                </div>
-                              </TooltipTrigger>
-                              <TooltipContent side="right">No tienes acceso a este modulo</TooltipContent>
-                            </Tooltip>
-                          )
-                        }
+                        if (!hasAccess) return null
 
                         if (to === '/finance') {
                           return (
