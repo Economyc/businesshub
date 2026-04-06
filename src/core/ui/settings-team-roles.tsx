@@ -62,10 +62,12 @@ function RolePermissionSheet({
   role,
   onClose,
   onSave,
+  onDelete,
 }: {
   role: RoleDefinition
   onClose: () => void
   onSave: (updated: RoleDefinition) => Promise<void>
+  onDelete?: () => void
 }) {
   const [draft, setDraft] = useState<RoleDefinition>(() => JSON.parse(JSON.stringify(role)))
   const [saving, setSaving] = useState(false)
@@ -281,6 +283,19 @@ function RolePermissionSheet({
             </div>
           </div>
         ))}
+
+        {/* Delete button for custom roles */}
+        {onDelete && !role.isSystem && (
+          <div className="pt-4 border-t border-border">
+            <button
+              onClick={onDelete}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-[10px] text-body font-medium text-negative-text border border-red-200 hover:bg-red-50 transition-all duration-200"
+            >
+              <Trash2 size={14} />
+              Eliminar rol
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Sticky save bar */}
@@ -435,6 +450,10 @@ export function SettingsTeamRoles() {
               role={selectedRole}
               onClose={() => setSelectedRole(null)}
               onSave={handleSaveRole}
+              onDelete={!selectedRole.isSystem && canManageUsers ? () => {
+                setDeleteTarget(selectedRole)
+                setSelectedRole(null)
+              } : undefined}
             />
           </>
         )}
