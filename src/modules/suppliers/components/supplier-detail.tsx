@@ -1,19 +1,23 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Edit, Trash2, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, Edit, Trash2, AlertTriangle, Info, ShoppingCart, Package } from 'lucide-react'
 import { Timestamp } from 'firebase/firestore'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
 import { DateInput } from '@/core/ui/date-input'
 import { SelectInput } from '@/core/ui/select-input'
+import { CurrencyInput } from '@/core/ui/currency-input'
 import { CategorySelect } from '@/core/ui/category-select'
 import { StatusBadge } from '@/core/ui/status-badge'
+import { UnderlineButtonTabs } from '@/core/ui/underline-tabs'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 import { useCompany } from '@/core/hooks/use-company'
 import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { Skeleton } from '@/core/ui/skeleton'
 import { useSupplier } from '../hooks'
+import { useSupplierPurchases } from '@/modules/purchases/hooks'
 import { supplierService } from '../services'
+import { formatCurrency } from '@/core/utils/format'
 import type { SupplierFormData } from '../types'
 
 const inputClass =
@@ -36,6 +40,12 @@ function getDaysUntilExpiry(ts: Timestamp | undefined): number | null {
   return Math.ceil((ts.toDate().getTime() - Date.now()) / (1000 * 60 * 60 * 24))
 }
 
+const SUPPLIER_TABS = [
+  { value: 'info', label: 'Información', icon: Info },
+  { value: 'purchases', label: 'Compras', icon: ShoppingCart },
+  { value: 'products', label: 'Productos', icon: Package },
+]
+
 export function SupplierDetail() {
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
@@ -44,6 +54,8 @@ export function SupplierDetail() {
 
   const [editing, setEditing] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [activeTab, setActiveTab] = useState('info')
+  const { supplierData, loading: purchasesLoading } = useSupplierPurchases(id)
 
   const updateMutation = useFirestoreMutation(
     'suppliers',
@@ -72,6 +84,8 @@ export function SupplierDetail() {
     contractStart: string
     contractEnd: string
     status: 'active' | 'expired' | 'pending'
+    paymentTerms: string
+    creditLimit: string
   }>({
     name: '',
     identification: '',
@@ -82,6 +96,8 @@ export function SupplierDetail() {
     contractStart: '',
     contractEnd: '',
     status: 'active',
+    paymentTerms: '0',
+    creditLimit: '',
   })
 
   function startEditing() {
@@ -96,6 +112,8 @@ export function SupplierDetail() {
       contractStart: toDateInputValue(displayed.contractStart),
       contractEnd: toDateInputValue(displayed.contractEnd),
       status: displayed.status,
+      paymentTerms: String(displayed.paymentTerms ?? 0),
+      creditLimit: displayed.creditLimit ? String(displayed.creditLimit) : '',
     })
     setEditing(true)
   }
@@ -117,6 +135,8 @@ export function SupplierDetail() {
       contractStart: Timestamp.fromDate(new Date(editForm.contractStart)),
       contractEnd: Timestamp.fromDate(new Date(editForm.contractEnd)),
       status: editForm.status,
+      paymentTerms: Number(editForm.paymentTerms),
+      creditLimit: editForm.creditLimit ? Number(editForm.creditLimit) : undefined,
     }
     await updateMutation.mutateAsync({ id, updates })
     // Update local display data without reloading
@@ -198,8 +218,12 @@ export function SupplierDetail() {
         )}
       </PageHeader>
 
-      <div className="bg-surface rounded-xl card-elevated p-6">
-        {editing ? (
+      {!editing && (
+        <UnderlineButtonTabs tabs={SUPPLIER_TABS} active={activeTab} onChange={setActiveTab} />
+      )}
+
+      {editing && (
+        <div className="bg-surface rounded-xl card-elevated p-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div>
               <label className={labelClass}>Nombre</label>
@@ -255,8 +279,37 @@ export function SupplierDetail() {
                 onChange={(v) => setEditForm((prev) => ({ ...prev, contractEnd: v }))}
               />
             </div>
+            <div>
+              <label className={labelClass}>Plazo de Pago</label>
+              <SelectInput
+                value={editForm.paymentTerms}
+                onChange={(v) => setEditForm((prev) => ({ ...prev, paymentTerms: v }))}
+                options={[
+                  { value: '0', label: 'Contado' },
+                  { value: '15', label: '15 días' },
+                  { value: '30', label: '30 días' },
+                  { value: '45', label: '45 días' },
+                  { value: '60', label: '60 días' },
+                  { value: '90', label: '90 días' },
+                ]}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Cupo de Crédito (opcional)</label>
+              <CurrencyInput
+                name="creditLimit"
+                value={editForm.creditLimit}
+                onChange={(raw) => setEditForm((prev) => ({ ...prev, creditLimit: raw }))}
+                placeholder="0"
+                className={inputClass}
+              />
+            </div>
           </div>
-        ) : (
+        </div>
+      )}
+
+      {!editing && activeTab === 'info' && (
+        <div className="bg-surface rounded-xl card-elevated p-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div>
               <p className={labelClass}>Identificación</p>
@@ -290,9 +343,97 @@ export function SupplierDetail() {
               <p className={labelClass}>Estado</p>
               <StatusBadge variant={displayed.status} />
             </div>
+            <div>
+              <p className={labelClass}>Plazo de Pago</p>
+              <p className="text-body text-graphite">{displayed.paymentTerms ? `${displayed.paymentTerms} días` : 'Contado'}</p>
+            </div>
+            {displayed.creditLimit && (
+              <div>
+                <p className={labelClass}>Cupo de Crédito</p>
+                <p className="text-body text-graphite">{formatCurrency(displayed.creditLimit)}</p>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {!editing && activeTab === 'purchases' && (
+        <div>
+          {/* 3 stat cards */}
+          <div className="grid grid-cols-3 gap-4 mb-5">
+            <div className="bg-surface rounded-xl p-[18px] card-elevated">
+              <span className="text-caption uppercase tracking-wider text-mid-gray">Total Gastado</span>
+              <div className="text-kpi font-semibold text-dark-graphite mt-1">{formatCurrency(supplierData.totalSpent)}</div>
+            </div>
+            <div className="bg-surface rounded-xl p-[18px] card-elevated">
+              <span className="text-caption uppercase tracking-wider text-mid-gray">Compras Realizadas</span>
+              <div className="text-kpi font-semibold text-dark-graphite mt-1">{supplierData.purchaseCount}</div>
+            </div>
+            <div className="bg-surface rounded-xl p-[18px] card-elevated">
+              <span className="text-caption uppercase tracking-wider text-mid-gray">Ticket Promedio</span>
+              <div className="text-kpi font-semibold text-dark-graphite mt-1">{formatCurrency(supplierData.purchaseCount > 0 ? supplierData.totalSpent / supplierData.purchaseCount : 0)}</div>
+            </div>
+          </div>
+          {/* Purchases table */}
+          {supplierData.purchases.length === 0 ? (
+            <div className="text-body text-mid-gray py-8 text-center">No hay compras registradas con este proveedor.</div>
+          ) : (
+            <div className="bg-surface rounded-xl card-elevated p-6">
+              <table className="w-full text-body">
+                <thead>
+                  <tr className="text-caption uppercase tracking-wider text-mid-gray border-b border-border">
+                    <th className="text-left py-2 pr-4">Fecha</th>
+                    <th className="text-left py-2 px-4">N° Factura</th>
+                    <th className="text-right py-2 px-4">Total</th>
+                    <th className="text-left py-2 pl-4">Estado Pago</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {supplierData.purchases.map((p) => (
+                    <tr key={p.id} className="border-b border-border/50">
+                      <td className="py-2.5 pr-4 text-graphite">{p.date?.toDate().toLocaleDateString('es-CO')}</td>
+                      <td className="py-2.5 px-4 text-graphite">{p.invoiceNumber || '—'}</td>
+                      <td className="py-2.5 px-4 text-right text-graphite font-medium">{formatCurrency(p.total)}</td>
+                      <td className="py-2.5 pl-4"><StatusBadge variant={p.paymentStatus} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {!editing && activeTab === 'products' && (
+        <div>
+          {supplierData.productBreakdown.length === 0 ? (
+            <div className="text-body text-mid-gray py-8 text-center">No hay productos registrados.</div>
+          ) : (
+            <div className="bg-surface rounded-xl card-elevated p-6">
+              <table className="w-full text-body">
+                <thead>
+                  <tr className="text-caption uppercase tracking-wider text-mid-gray border-b border-border">
+                    <th className="text-left py-2 pr-4">Producto</th>
+                    <th className="text-right py-2 px-4">Cantidad</th>
+                    <th className="text-right py-2 px-4">Total</th>
+                    <th className="text-right py-2 pl-4">Precio Promedio</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {supplierData.productBreakdown.map((p, i) => (
+                    <tr key={i} className="border-b border-border/50">
+                      <td className="py-2.5 pr-4 text-graphite font-medium">{p.productName}</td>
+                      <td className="py-2.5 px-4 text-right text-graphite">{p.totalQty}</td>
+                      <td className="py-2.5 px-4 text-right text-graphite">{formatCurrency(p.totalSpent)}</td>
+                      <td className="py-2.5 pl-4 text-right text-graphite">{formatCurrency(p.avgPrice)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       {editing && (
         <div className="flex gap-3 mt-5">

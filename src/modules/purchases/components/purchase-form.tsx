@@ -1,6 +1,6 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash2, TrendingDown, TrendingUp } from 'lucide-react'
 import { Timestamp } from 'firebase/firestore'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
@@ -8,7 +8,8 @@ import { DateInput } from '@/core/ui/date-input'
 import { SelectInput } from '@/core/ui/select-input'
 import { CurrencyInput } from '@/core/ui/currency-input'
 import { useFirestoreMutation } from '@/core/query/use-mutation'
-import { useProducts } from '../hooks'
+import { useProducts, usePurchases } from '../hooks'
+import { formatCurrency } from '@/core/utils/format'
 import { useSuppliers } from '@/modules/suppliers/hooks'
 import { purchaseService } from '../services'
 import { UNIT_OPTIONS } from '../types'
@@ -30,6 +31,36 @@ export function PurchaseForm() {
   const navigate = useNavigate()
   const { data: suppliers } = useSuppliers()
   const { data: products } = useProducts()
+  const { data: historicalPurchases } = usePurchases()
+
+  const priceComparisons = useMemo(() => {
+    const map = new Map<string, { avgPrice: number; bestPrice: number; bestSupplier: string }>()
+
+    const productPrices = new Map<string, { prices: number[]; bestPrice: number; bestSupplier: string }>()
+
+    for (const purchase of historicalPurchases) {
+      for (const item of purchase.items) {
+        const existing = productPrices.get(item.productId) ?? { prices: [], bestPrice: Infinity, bestSupplier: '' }
+        existing.prices.push(item.unitPrice)
+        if (item.unitPrice < existing.bestPrice) {
+          existing.bestPrice = item.unitPrice
+          existing.bestSupplier = purchase.supplierName
+        }
+        productPrices.set(item.productId, existing)
+      }
+    }
+
+    for (const [productId, data] of productPrices) {
+      if (data.prices.length === 0) continue
+      map.set(productId, {
+        avgPrice: Math.round(data.prices.reduce((s, p) => s + p, 0) / data.prices.length),
+        bestPrice: data.bestPrice,
+        bestSupplier: data.bestSupplier,
+      })
+    }
+
+    return map
+  }, [historicalPurchases])
 
   const mutation = useFirestoreMutation(
     'purchases',
@@ -63,6 +94,22 @@ export function PurchaseForm() {
   )
 
   const selectedSupplierName = suppliers.find((s) => s.id === form.supplierId)?.name ?? ''
+
+  // Auto-calculate payment due date based on supplier's payment terms
+  useEffect(() => {
+    if (!form.supplierId || !form.date) return
+    const supplier = suppliers.find((s) => s.id === form.supplierId)
+    if (!supplier?.paymentTerms) return
+
+    const purchaseDate = new Date(form.date)
+    if (isNaN(purchaseDate.getTime())) return
+
+    const dueDate = new Date(purchaseDate)
+    dueDate.setDate(dueDate.getDate() + supplier.paymentTerms)
+    const dueDateStr = dueDate.toISOString().split('T')[0]
+
+    setForm((prev) => ({ ...prev, paymentDueDate: dueDateStr }))
+  }, [form.supplierId, form.date, suppliers])
 
   function handleProductSelect(index: number, productId: string) {
     const product = products.find((p) => p.id === productId)
@@ -228,44 +275,62 @@ export function PurchaseForm() {
 
             {items.map((item, index) => {
               const itemSubtotal = (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0)
+              const currentPrice = Number(item.unitPrice) || 0
+              const comparison = item.productId ? priceComparisons.get(item.productId) : null
+
               return (
-                <div key={index} className="grid grid-cols-[2fr_0.8fr_0.6fr_1fr_1fr_auto] gap-2 items-center">
-                  <SelectInput
-                    value={item.productId}
-                    onChange={(v) => handleProductSelect(index, v)}
-                    options={[{ value: '', label: 'Seleccionar...' }, ...productOptions]}
-                  />
-                  <input
-                    type="number"
-                    step="any"
-                    value={item.quantity}
-                    onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
-                    placeholder="0"
-                    className={inputClass}
-                  />
-                  <SelectInput
-                    value={item.unit}
-                    onChange={(v) => handleItemChange(index, 'unit', v)}
-                    options={UNIT_OPTIONS}
-                  />
-                  <CurrencyInput
-                    name={`price-${index}`}
-                    value={item.unitPrice}
-                    onChange={(raw) => handleItemChange(index, 'unitPrice', raw)}
-                    placeholder="0"
-                    className={inputClass}
-                  />
-                  <div className="px-3 py-2.5 text-body text-graphite">
-                    ${itemSubtotal.toLocaleString('es-CO')}
+                <div key={index}>
+                  <div className="grid grid-cols-[2fr_0.8fr_0.6fr_1fr_1fr_auto] gap-2 items-center">
+                    <SelectInput
+                      value={item.productId}
+                      onChange={(v) => handleProductSelect(index, v)}
+                      options={[{ value: '', label: 'Seleccionar...' }, ...productOptions]}
+                    />
+                    <input
+                      type="number"
+                      step="any"
+                      value={item.quantity}
+                      onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
+                      placeholder="0"
+                      className={inputClass}
+                    />
+                    <SelectInput
+                      value={item.unit}
+                      onChange={(v) => handleItemChange(index, 'unit', v)}
+                      options={UNIT_OPTIONS}
+                    />
+                    <CurrencyInput
+                      name={`price-${index}`}
+                      value={item.unitPrice}
+                      onChange={(raw) => handleItemChange(index, 'unitPrice', raw)}
+                      placeholder="0"
+                      className={inputClass}
+                    />
+                    <div className="px-3 py-2.5 text-body text-graphite">
+                      ${itemSubtotal.toLocaleString('es-CO')}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeItem(index)}
+                      disabled={items.length <= 1}
+                      className="p-2 rounded-lg text-mid-gray hover:text-negative-text hover:bg-negative-bg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      <Trash2 size={14} strokeWidth={1.5} />
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => removeItem(index)}
-                    disabled={items.length <= 1}
-                    className="p-2 rounded-lg text-mid-gray hover:text-negative-text hover:bg-negative-bg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                  >
-                    <Trash2 size={14} strokeWidth={1.5} />
-                  </button>
+                  {comparison && currentPrice > 0 && (
+                    currentPrice <= comparison.bestPrice ? (
+                      <div className="flex items-center gap-1.5 px-1 pt-1 pb-1 text-caption text-positive-text">
+                        <TrendingDown size={12} strokeWidth={2} />
+                        Mejor precio registrado
+                      </div>
+                    ) : currentPrice > comparison.avgPrice ? (
+                      <div className="flex items-center gap-1.5 px-1 pt-1 pb-1 text-caption text-warning-text">
+                        <TrendingUp size={12} strokeWidth={2} />
+                        Promedio: {formatCurrency(comparison.avgPrice)} · Mejor: {formatCurrency(comparison.bestPrice)} ({comparison.bestSupplier})
+                      </div>
+                    ) : null
+                  )}
                 </div>
               )
             })}

@@ -4,6 +4,7 @@ import { X } from 'lucide-react'
 import { Timestamp } from 'firebase/firestore'
 import { DateInput } from '@/core/ui/date-input'
 import { SelectInput } from '@/core/ui/select-input'
+import { CurrencyInput } from '@/core/ui/currency-input'
 import { CategorySelect } from '@/core/ui/category-select'
 import { useCompany } from '@/core/hooks/use-company'
 import { useFirestoreMutation } from '@/core/query/use-mutation'
@@ -37,6 +38,8 @@ export function SupplierForm({ open, onClose }: SupplierFormProps) {
     contractStart: '',
     contractEnd: '',
     status: 'active' as 'active' | 'expired' | 'pending',
+    paymentTerms: '0',
+    creditLimit: '',
   })
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
@@ -55,6 +58,8 @@ export function SupplierForm({ open, onClose }: SupplierFormProps) {
       contractStart: '',
       contractEnd: '',
       status: 'active',
+      paymentTerms: '0',
+      creditLimit: '',
     })
   }
 
@@ -71,6 +76,8 @@ export function SupplierForm({ open, onClose }: SupplierFormProps) {
       contractStart: Timestamp.fromDate(new Date(form.contractStart)),
       contractEnd: Timestamp.fromDate(new Date(form.contractEnd)),
       status: form.status,
+      paymentTerms: Number(form.paymentTerms),
+      creditLimit: form.creditLimit ? Number(form.creditLimit) : undefined,
     })
     resetForm()
     onClose()
@@ -194,6 +201,31 @@ export function SupplierForm({ open, onClose }: SupplierFormProps) {
                       { value: 'expired', label: 'Vencido' },
                       { value: 'pending', label: 'Pendiente' },
                     ]}
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>Plazo de Pago</label>
+                  <SelectInput
+                    value={form.paymentTerms}
+                    onChange={(v) => setForm((prev) => ({ ...prev, paymentTerms: v }))}
+                    options={[
+                      { value: '0', label: 'Contado' },
+                      { value: '15', label: '15 días' },
+                      { value: '30', label: '30 días' },
+                      { value: '45', label: '45 días' },
+                      { value: '60', label: '60 días' },
+                      { value: '90', label: '90 días' },
+                    ]}
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>Cupo de Crédito (opcional)</label>
+                  <CurrencyInput
+                    name="creditLimit"
+                    value={form.creditLimit}
+                    onChange={(raw) => setForm((prev) => ({ ...prev, creditLimit: raw }))}
+                    placeholder="0"
+                    className={inputClass}
                   />
                 </div>
                 <div>

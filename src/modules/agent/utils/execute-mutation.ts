@@ -2,6 +2,9 @@ import { Timestamp } from 'firebase/firestore'
 import { talentService } from '@/modules/talent/services'
 import { supplierService } from '@/modules/suppliers/services'
 import { financeService, budgetService } from '@/modules/finance/services'
+import { payrollService } from '@/modules/payroll/services'
+import { generatePendingTransactions } from '@/modules/finance/recurring-generator'
+import { buildPayrollDraft } from '@/modules/agent/utils/payroll-helpers'
 import type { EmployeeFormData } from '@/modules/talent/types'
 import type { SupplierFormData } from '@/modules/suppliers/types'
 import type { TransactionFormData } from '@/modules/finance/types'
@@ -122,6 +125,39 @@ export async function executeMutation(
       budget.items.push({ category, type, amount })
       await budgetService.save(companyId, budget)
       return { success: true, message: `Item "${category}" agregado al presupuesto por $${amount.toLocaleString('es-CL')}.` }
+    }
+
+    case 'createPayrollDraft': {
+      const year = Number(args.year)
+      const month = Number(args.month)
+      const data = await buildPayrollDraft(companyId, year, month)
+      const id = await payrollService.create(companyId, data)
+      return {
+        success: true,
+        message: `Borrador de nómina "${data.periodLabel}" creado con ${data.employeeCount} empleados. Neto a pagar: $${data.totalNetPay.toLocaleString('es-CL')}.`,
+        id,
+      }
+    }
+
+    case 'executeMonthClosing': {
+      const generateRecurring = Boolean(args.generateRecurring)
+      const periodLabel = String(args.periodLabel ?? '')
+      let recurringGenerated = 0
+
+      if (generateRecurring) {
+        recurringGenerated = await generatePendingTransactions(companyId)
+      }
+
+      const parts: string[] = []
+      if (recurringGenerated > 0) {
+        parts.push(`${recurringGenerated} transacciones recurrentes generadas`)
+      }
+      parts.push(`Cierre de ${periodLabel} completado`)
+
+      return {
+        success: true,
+        message: parts.join('. ') + '.',
+      }
     }
 
     default:

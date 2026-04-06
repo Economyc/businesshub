@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Check, X, AlertTriangle, UserPlus, UserMinus, Briefcase, DollarSign, Pencil, Trash2, Wallet, PlusCircle } from 'lucide-react'
+import { Check, X, AlertTriangle, UserPlus, UserMinus, Briefcase, DollarSign, Pencil, Trash2, Wallet, PlusCircle, CalendarDays, CheckCircle2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type ActionType = 'create' | 'update' | 'delete'
@@ -21,6 +21,8 @@ const TOOL_CONFIG: Record<string, { label: string; type: ActionType; icon: typeo
   createTransaction: { label: 'Crear Transacción', type: 'create', icon: DollarSign },
   updateBudget: { label: 'Actualizar Presupuesto', type: 'update', icon: Wallet },
   addBudgetItem: { label: 'Agregar Item de Presupuesto', type: 'create', icon: PlusCircle },
+  createPayrollDraft: { label: 'Crear Borrador de Nómina', type: 'create', icon: CalendarDays },
+  executeMonthClosing: { label: 'Ejecutar Cierre de Mes', type: 'create', icon: CheckCircle2 },
 }
 
 const TYPE_STYLES: Record<ActionType, { bg: string; border: string; icon: string; button: string }> = {
@@ -67,6 +69,15 @@ function formatFieldName(key: string): string {
     type: 'Tipo',
     date: 'Fecha',
     notes: 'Notas',
+    year: 'Año',
+    month: 'Mes',
+    periodLabel: 'Periodo',
+    employeeCount: 'Empleados',
+    totalNetPay: 'Neto a Pagar',
+    totalEarnings: 'Total Devengado',
+    totalDeductions: 'Total Deducciones',
+    generateRecurring: 'Generar Recurrentes',
+    pendingRecurringCount: 'Recurrentes Pendientes',
   }
   return labels[key] ?? key
 }
@@ -75,6 +86,12 @@ function formatValue(key: string, value: unknown): string {
   if (value === null || value === undefined) return '—'
   if (key === 'salary' || key === 'amount') {
     return `$${Number(value).toLocaleString('es-CL')}`
+  }
+  if (key === 'totalNetPay' || key === 'totalEarnings' || key === 'totalDeductions') {
+    return `$${Number(value).toLocaleString('es-CL')}`
+  }
+  if (key === 'generateRecurring') {
+    return value ? 'Sí' : 'No'
   }
   if (key === 'type') {
     return value === 'income' ? 'Ingreso' : value === 'expense' ? 'Gasto' : String(value)

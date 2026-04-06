@@ -16,6 +16,8 @@ const MUTATION_TOOLS = new Set([
   'createTransaction',
   'updateBudget',
   'addBudgetItem',
+  'createPayrollDraft',
+  'executeMonthClosing',
 ])
 
 const CLIENT_RENDERED_TOOLS = new Set(['generateChart', 'exportReport'])
