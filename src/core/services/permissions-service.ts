@@ -109,7 +109,10 @@ export async function removeRole(companyId: string, roleId: string): Promise<voi
 
 // ---- Members ----
 
-/** Seed the current user if no membership exists */
+/** Seed the current user if no membership exists.
+ *  - admin@filipoblue.co → owner
+ *  - Any other authenticated user → viewer (admin can change role from UI)
+ */
 export async function seedMembershipIfNeeded(
   companyId: string,
   userId: string,
@@ -119,18 +122,7 @@ export async function seedMembershipIfNeeded(
   const existing = await fetchMember(companyId, userId)
   if (existing) return existing
 
-  let role: string | null = null
-
-  if (email === 'admin@filipoblue.co') {
-    role = 'owner'
-  } else if (email === 'lomas@bluesb.co' || email === 'manila@bluesb.co') {
-    // Find the "Líder de Punto" role by label
-    const roles = await fetchRoles(companyId)
-    const liderRole = roles.find((r) => r.label.toLowerCase().includes('lider') || r.label.toLowerCase().includes('líder'))
-    role = liderRole?.id ?? 'viewer'
-  }
-
-  if (!role) return null
+  const role = email === 'admin@filipoblue.co' ? 'owner' : 'viewer'
 
   const member: Omit<CompanyMember, 'id'> = {
     userId,
