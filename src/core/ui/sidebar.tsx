@@ -7,6 +7,7 @@ import { CompanyLogo } from '@/core/ui/company-logo'
 import { ThemeToggle } from '@/core/ui/theme-toggle'
 import { AvatarPicker } from '@/core/ui/avatar-picker'
 import { UserAvatar } from '@/core/ui/user-avatar'
+import { NotificationBell } from '@/modules/notifications/components/notification-bell'
 import { useAuth } from '@/core/hooks/use-auth'
 import { useAvatarConfig } from '@/core/hooks/use-avatar-config'
 import { useCompany } from '@/core/hooks/use-company'
@@ -318,13 +319,16 @@ export function Sidebar({ onNavClick }: SidebarProps) {
           )}
         </div>
 
-        {/* Search — inline CommandPalette dropdown */}
+        {/* Search + Notifications */}
         {!collapsed ? (
-          <div className="px-3 mb-3">
-            <CommandPalette />
+          <div className="px-3 mb-3 flex items-center gap-1.5">
+            <div className="flex-1">
+              <CommandPalette />
+            </div>
+            <NotificationBell />
           </div>
         ) : (
-          <div className="flex justify-center mb-3">
+          <div className="flex flex-col items-center gap-1 mb-3">
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
@@ -336,6 +340,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
               </TooltipTrigger>
               <TooltipContent side="right">Buscar (Ctrl K)</TooltipContent>
             </Tooltip>
+            <NotificationBell />
           </div>
         )}
 

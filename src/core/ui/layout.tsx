@@ -4,7 +4,6 @@ import { Topbar } from './topbar'
 import { Sidebar } from './sidebar'
 import { MobileNav } from './mobile-nav'
 import { Breadcrumb } from './breadcrumb'
-import { NotificationBell } from '@/modules/notifications/components/notification-bell'
 
 export function Layout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -26,12 +25,7 @@ export function Layout() {
         <MobileNav open={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
 
         <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-8">
-          <div className="flex items-center justify-between mb-0">
-            <Breadcrumb />
-            <div className="hidden md:block">
-              <NotificationBell />
-            </div>
-          </div>
+          <Breadcrumb />
           <Outlet />
         </main>
       </div>

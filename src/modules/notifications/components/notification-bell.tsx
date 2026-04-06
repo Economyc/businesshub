@@ -5,6 +5,11 @@ import { cn } from '@/lib/utils'
 import { useNotifications, useUnreadCount, useMarkAsRead, useMarkAllAsRead } from '../hooks'
 import type { AppNotification } from '../types'
 
+interface NotificationBellProps {
+  /** Where the dropdown opens. 'below-right' for topbar, 'right' for sidebar. Default: auto-detect via media query */
+  dropdownPosition?: 'below-right' | 'right'
+}
+
 const TYPE_ICONS: Record<string, typeof Bell> = {
   'weekly-report': FileText,
   'overdue-alert': AlertTriangle,
@@ -29,7 +34,7 @@ function timeAgo(date: Date): string {
   return `Hace ${days}d`
 }
 
-export function NotificationBell() {
+export function NotificationBell({ dropdownPosition }: NotificationBellProps = {}) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
@@ -74,7 +79,7 @@ export function NotificationBell() {
         onClick={() => setOpen(!open)}
         className="relative p-1.5 rounded-lg text-graphite hover:bg-bone transition-colors"
       >
-        <Bell size={20} strokeWidth={1.5} />
+        <Bell size={18} strokeWidth={1.5} />
         {unreadCount > 0 && (
           <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold px-1">
             {unreadCount > 9 ? '9+' : unreadCount}
@@ -83,7 +88,14 @@ export function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-80 bg-card-bg border border-border rounded-xl shadow-lg z-50 overflow-hidden">
+        <div className={cn(
+          'absolute w-80 bg-card-bg border border-border rounded-xl shadow-lg z-50 overflow-hidden',
+          dropdownPosition === 'right'
+            ? 'left-full top-0 ml-2'
+            : dropdownPosition === 'below-right'
+              ? 'right-0 top-full mt-2'
+              : 'md:left-full md:top-0 md:ml-2 right-0 top-full mt-2 md:right-auto md:mt-0'
+        )}>
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
             <span className="text-sm font-semibold text-dark-graphite">Notificaciones</span>
