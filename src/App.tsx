@@ -25,6 +25,9 @@ import { PayrollList, PayrollDetail } from '@/modules/payroll/routes'
 import { SettlementList, SettlementDetail } from '@/modules/prestaciones/routes'
 import { DateRangeProvider } from '@/modules/finance/context/date-range-context'
 import { AgentPage } from '@/modules/agent/routes'
+import { PermissionsProvider } from '@/core/ui/permissions-provider'
+import { PermissionRoute } from '@/core/ui/permission-route'
+import { SettingsTeam } from '@/core/ui/settings-team'
 
 function Loading() {
   return (
@@ -43,7 +46,11 @@ function Loading() {
 function ProtectedRoute() {
   const { user } = useAuth()
   if (!user) return <Navigate to="/login" replace />
-  return <Layout />
+  return (
+    <PermissionsProvider>
+      <Layout />
+    </PermissionsProvider>
+  )
 }
 
 export default function App() {
@@ -103,10 +110,13 @@ export default function App() {
               <Route path="/contracts/:id" element={<Suspense fallback={<Loading />}><ContractDetail /></Suspense>} />
               <Route path="/agent" element={<Suspense fallback={<Loading />}><AgentPage /></Suspense>} />
               <Route path="/settings" element={<Navigate to="/settings/companies" replace />} />
-              <Route path="/settings/companies" element={<Suspense fallback={<Loading />}><SettingsCompanies /></Suspense>} />
-              <Route path="/settings/categories" element={<Suspense fallback={<Loading />}><SettingsCategories /></Suspense>} />
-              <Route path="/settings/roles" element={<Suspense fallback={<Loading />}><SettingsRoles /></Suspense>} />
-              <Route path="/settings/departments" element={<Suspense fallback={<Loading />}><SettingsDepartments /></Suspense>} />
+              <Route element={<PermissionRoute module="settings" />}>
+                <Route path="/settings/companies" element={<Suspense fallback={<Loading />}><SettingsCompanies /></Suspense>} />
+                <Route path="/settings/categories" element={<Suspense fallback={<Loading />}><SettingsCategories /></Suspense>} />
+                <Route path="/settings/roles" element={<Suspense fallback={<Loading />}><SettingsRoles /></Suspense>} />
+                <Route path="/settings/departments" element={<Suspense fallback={<Loading />}><SettingsDepartments /></Suspense>} />
+                <Route path="/settings/team" element={<Suspense fallback={<Loading />}><SettingsTeam /></Suspense>} />
+              </Route>
             </Route>
           </Routes>
         </CompanyProvider>

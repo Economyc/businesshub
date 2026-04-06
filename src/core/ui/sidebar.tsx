@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
-import { BarChart3, Users, Briefcase, DollarSign, Home, Search, ChevronsLeft, Building2, Tags, BadgeCheck, Network, Handshake, ClipboardList, FileSignature, Wallet, Receipt, Gift, ChevronRight, ChevronsUpDown, Check, MapPin, LogOut, Settings, Landmark, Boxes, UserRound, Bot, List, ShoppingCart, Package, Target, Repeat, Scale, FileText } from 'lucide-react'
+import { BarChart3, Users, Briefcase, DollarSign, Home, Search, ChevronsLeft, Building2, Tags, BadgeCheck, Network, Handshake, ClipboardList, FileSignature, Wallet, Receipt, Gift, ChevronRight, ChevronsUpDown, Check, MapPin, LogOut, Settings, Landmark, Boxes, UserRound, Bot, List, ShoppingCart, Package, Target, Repeat, Scale, FileText, Shield, Lock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { CommandPalette } from '@/core/ui/command-palette'
 import { CompanyLogo } from '@/core/ui/company-logo'
@@ -11,12 +11,15 @@ import { NotificationBell } from '@/modules/notifications/components/notificatio
 import { useAuth } from '@/core/hooks/use-auth'
 import { useAvatarConfig } from '@/core/hooks/use-avatar-config'
 import { useCompany } from '@/core/hooks/use-company'
+import { usePermissions } from '@/core/hooks/use-permissions'
+import type { ModuleKey } from '@/core/types/permissions'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 interface NavItem {
   to: string
   label: string
   icon: typeof Home
+  moduleKey?: ModuleKey
 }
 
 interface NavSection {
@@ -28,41 +31,42 @@ interface NavSection {
 const NAV_SECTIONS: NavSection[] = [
   {
     items: [
-      { to: '/home', label: 'Home', icon: Home },
-      { to: '/analytics', label: 'Análisis', icon: BarChart3 },
-      { to: '/agent', label: 'Asistente AI', icon: Bot },
+      { to: '/home', label: 'Home', icon: Home, moduleKey: 'home' },
+      { to: '/analytics', label: 'Análisis', icon: BarChart3, moduleKey: 'analytics' },
+      { to: '/agent', label: 'Asistente AI', icon: Bot, moduleKey: 'agent' },
     ],
   },
   {
     title: 'Contabilidad',
     icon: Landmark,
     items: [
-      { to: '/finance', label: 'Finanzas', icon: DollarSign },
-      { to: '/cartera', label: 'Cartera', icon: Wallet },
-      { to: '/closings', label: 'Cierres de Caja', icon: ClipboardList },
-      { to: '/payroll', label: 'Nomina', icon: Receipt },
-      { to: '/prestaciones', label: 'Prestaciones', icon: Gift },
+      { to: '/finance', label: 'Finanzas', icon: DollarSign, moduleKey: 'finance' },
+      { to: '/cartera', label: 'Cartera', icon: Wallet, moduleKey: 'cartera' },
+      { to: '/closings', label: 'Cierres de Caja', icon: ClipboardList, moduleKey: 'closings' },
+      { to: '/payroll', label: 'Nomina', icon: Receipt, moduleKey: 'payroll' },
+      { to: '/prestaciones', label: 'Prestaciones', icon: Gift, moduleKey: 'prestaciones' },
     ],
   },
   {
     title: 'Gestión',
     icon: Boxes,
     items: [
-      { to: '/contracts', label: 'Contratos', icon: FileSignature },
-      { to: '/partners', label: 'Socios', icon: Handshake },
+      { to: '/contracts', label: 'Contratos', icon: FileSignature, moduleKey: 'contracts' },
+      { to: '/partners', label: 'Socios', icon: Handshake, moduleKey: 'partners' },
     ],
   },
   {
     title: 'Personas',
     icon: UserRound,
     items: [
-      { to: '/talent', label: 'Equipo', icon: Users },
-      { to: '/suppliers', label: 'Proveedores', icon: Briefcase },
+      { to: '/talent', label: 'Equipo', icon: Users, moduleKey: 'talent' },
+      { to: '/suppliers', label: 'Proveedores', icon: Briefcase, moduleKey: 'suppliers' },
     ],
   },
 ]
 
 const SETTINGS_ITEMS = [
+  { to: '/settings/team', label: 'Equipo', icon: Shield },
   { to: '/settings/companies', label: 'Compañías', icon: Building2 },
   { to: '/settings/categories', label: 'Categorías', icon: Tags },
   { to: '/settings/roles', label: 'Cargos', icon: BadgeCheck },
@@ -102,6 +106,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
   const { user, logout } = useAuth()
   const { config: avatarConfig, setConfig: setAvatarConfig } = useAvatarConfig(user?.uid)
   const { companies, selectedCompany, selectCompany } = useCompany()
+  const { can, canManageUsers, member } = usePermissions()
 
   const [openSections, setOpenSections] = useState<Set<string>>(() => getActiveSections(location.pathname))
   const [companyOpen, setCompanyOpen] = useState(false)
@@ -430,7 +435,33 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                     )}
                   >
                     <div className="overflow-hidden relative">
-                      {section.items.map(({ to, label, icon: Icon }) => {
+                      {section.items.map(({ to, label, icon: Icon, moduleKey }) => {
+                        const hasAccess = !moduleKey || can(moduleKey, 'read')
+
+                        // Locked item — show disabled with tooltip
+                        if (!hasAccess) {
+                          return (
+                            <Tooltip key={to}>
+                              <TooltipTrigger asChild>
+                                <div
+                                  className={cn(
+                                    'group/nav relative flex items-center gap-2.5 py-2.5 text-body opacity-40 cursor-not-allowed',
+                                    section.title ? 'pl-8 pr-5' : 'px-5',
+                                  )}
+                                >
+                                  {section.title && (
+                                    <div className="absolute left-[27px] top-1/2 -translate-y-1/2 w-[13px] h-[1.5px] bg-graphite/25 z-10" />
+                                  )}
+                                  <Icon size={16} strokeWidth={1.5} />
+                                  <span className="flex-1">{label}</span>
+                                  <Lock size={12} strokeWidth={1.5} className="text-mid-gray" />
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent side="right">No tienes acceso a este modulo</TooltipContent>
+                            </Tooltip>
+                          )
+                        }
+
                         if (to === '/finance') {
                           return (
                             <button
@@ -557,20 +588,24 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                     <AvatarPicker config={avatarConfig} onConfigChange={setAvatarConfig} />
                     <div className="border-t border-border/60" />
                     <ThemeToggle />
-                    <div className="border-t border-border/60" />
-                    {/* Configuración button — opens side panel */}
-                    <button
-                      onClick={handleSettingsClick}
-                      className={cn(
-                        'w-full flex items-center gap-2.5 px-4 py-3 rounded-lg text-body transition-colors duration-150',
-                        settingsOpen
-                          ? 'text-dark-graphite font-medium'
-                          : 'text-mid-gray hover:text-dark-graphite'
-                      )}
-                    >
-                      <Settings size={16} strokeWidth={1.5} />
-                      Configuración
-                    </button>
+                    {can('settings', 'read') && (
+                      <>
+                        <div className="border-t border-border/60" />
+                        {/* Configuración button — opens side panel */}
+                        <button
+                          onClick={handleSettingsClick}
+                          className={cn(
+                            'w-full flex items-center gap-2.5 px-4 py-3 rounded-lg text-body transition-colors duration-150',
+                            settingsOpen
+                              ? 'text-dark-graphite font-medium'
+                              : 'text-mid-gray hover:text-dark-graphite'
+                          )}
+                        >
+                          <Settings size={16} strokeWidth={1.5} />
+                          Configuración
+                        </button>
+                      </>
+                    )}
                   </div>
 
                   {/* Logout sub-card */}
