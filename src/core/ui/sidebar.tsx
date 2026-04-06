@@ -484,14 +484,22 @@ export function Sidebar({ onNavClick }: SidebarProps) {
             <div className="flex justify-center py-2">
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div><NotificationBell /></div>
+                  <div>
+                    <NotificationBell
+                      dropdownPosition="fixed"
+                      fixedStyle={{ bottom: 60, left: 68 }}
+                    />
+                  </div>
                 </TooltipTrigger>
                 <TooltipContent side="right">Notificaciones</TooltipContent>
               </Tooltip>
             </div>
           ) : (
             <div className="flex justify-end py-2 px-1">
-              <NotificationBell />
+              <NotificationBell
+                dropdownPosition="fixed"
+                fixedStyle={{ bottom: 60, left: 208 }}
+              />
             </div>
           )}
 
