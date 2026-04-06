@@ -428,7 +428,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                     <div className="overflow-hidden relative">
                       {/* Tree connector line */}
                       {section.title && (
-                        <div className="absolute left-[27px] top-0 bottom-[18px] w-px bg-graphite/15" />
+                        <div className="absolute left-[27px] top-0 bottom-0 w-[1.5px] bg-graphite/25" />
                       )}
                       {section.items.map(({ to, label, icon: Icon }) => {
                         if (to === '/finance') {
@@ -445,7 +445,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                               )}
                             >
                               {section.title && (
-                                <div className="absolute left-[27px] top-1/2 -translate-y-1/2 w-[13px] h-px bg-graphite/15" />
+                                <div className="absolute left-[27px] top-1/2 -translate-y-1/2 w-[13px] h-[1.5px] bg-graphite/25" />
                               )}
                               <Icon size={16} strokeWidth={1.5} />
                               {label}
@@ -468,7 +468,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                             }
                           >
                             {section.title && (
-                              <div className="absolute left-[27px] top-1/2 -translate-y-1/2 w-[13px] h-px bg-graphite/15" />
+                              <div className="absolute left-[27px] top-1/2 -translate-y-1/2 w-[13px] h-[1.5px] bg-graphite/25" />
                             )}
                             <Icon size={16} strokeWidth={1.5} />
                             {label}
