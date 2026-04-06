@@ -1,5 +1,5 @@
 import { initializeApp, getApps } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 if (getApps().length === 0) {
     initializeApp();
 }
@@ -33,5 +33,21 @@ export async function fetchSettingsDoc(companyId, settingsName) {
     if (!doc.exists)
         return null;
     return doc.data();
+}
+export async function createDocumentInCollection(companyId, collectionName, data) {
+    const ref = await db
+        .collection('companies')
+        .doc(companyId)
+        .collection(collectionName)
+        .add({ ...data, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
+    return ref.id;
+}
+export async function updateDocumentInCollection(companyId, collectionName, docId, data) {
+    await db
+        .collection('companies')
+        .doc(companyId)
+        .collection(collectionName)
+        .doc(docId)
+        .update({ ...data, updatedAt: FieldValue.serverTimestamp() });
 }
 //# sourceMappingURL=firestore.js.map

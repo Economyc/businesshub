@@ -1,4 +1,400 @@
 export declare function createAgentTools(companyId: string): {
+    generateMonthClosingPreview: import("ai").Tool<import("zod").ZodObject<{
+        year: import("zod").ZodNumber;
+        month: import("zod").ZodNumber;
+    }, "strip", import("zod").ZodTypeAny, {
+        month: number;
+        year: number;
+    }, {
+        month: number;
+        year: number;
+    }>, {
+        period: string;
+        dateRange: {
+            startDate: string;
+            endDate: string;
+        };
+        financialSummary: {
+            totalIncome: number;
+            totalExpenses: number;
+            netProfit: number;
+            netMarginPercent: number;
+            transactionCount: number;
+            topExpenseCategories: {
+                category: string;
+                total: number;
+                count: number;
+            }[];
+            topIncomeCategories: {
+                category: string;
+                total: number;
+                count: number;
+            }[];
+        };
+        budget: {
+            budgetedExpenses: number;
+            actualExpenses: number;
+            executionPercent: number | null;
+        };
+        status: {
+            overdueCount: number;
+            overdueTotal: number;
+            pendingCount: number;
+            pendingTotal: number;
+            pendingRecurringCount: number;
+            payrollStatus: string;
+            activeEmployees: number;
+        };
+        pendingActions: string[];
+        hasActionsRequired: boolean;
+    }> & {
+        execute: (args: {
+            month: number;
+            year: number;
+        }, options: import("ai").ToolExecutionOptions) => PromiseLike<{
+            period: string;
+            dateRange: {
+                startDate: string;
+                endDate: string;
+            };
+            financialSummary: {
+                totalIncome: number;
+                totalExpenses: number;
+                netProfit: number;
+                netMarginPercent: number;
+                transactionCount: number;
+                topExpenseCategories: {
+                    category: string;
+                    total: number;
+                    count: number;
+                }[];
+                topIncomeCategories: {
+                    category: string;
+                    total: number;
+                    count: number;
+                }[];
+            };
+            budget: {
+                budgetedExpenses: number;
+                actualExpenses: number;
+                executionPercent: number | null;
+            };
+            status: {
+                overdueCount: number;
+                overdueTotal: number;
+                pendingCount: number;
+                pendingTotal: number;
+                pendingRecurringCount: number;
+                payrollStatus: string;
+                activeEmployees: number;
+            };
+            pendingActions: string[];
+            hasActionsRequired: boolean;
+        }>;
+    };
+    executeMonthClosing: import("ai").Tool<import("zod").ZodObject<{
+        year: import("zod").ZodNumber;
+        month: import("zod").ZodNumber;
+        periodLabel: import("zod").ZodString;
+        generateRecurring: import("zod").ZodBoolean;
+        pendingRecurringCount: import("zod").ZodNumber;
+    }, "strip", import("zod").ZodTypeAny, {
+        month: number;
+        year: number;
+        periodLabel: string;
+        generateRecurring: boolean;
+        pendingRecurringCount: number;
+    }, {
+        month: number;
+        year: number;
+        periodLabel: string;
+        generateRecurring: boolean;
+        pendingRecurringCount: number;
+    }>, unknown> & {
+        execute: undefined;
+    };
+    getWeeklyObligations: import("ai").Tool<import("zod").ZodObject<{
+        weekStartDate: import("zod").ZodOptional<import("zod").ZodString>;
+    }, "strip", import("zod").ZodTypeAny, {
+        weekStartDate?: string | undefined;
+    }, {
+        weekStartDate?: string | undefined;
+    }>, {
+        weekRange: {
+            start: string;
+            end: string;
+        };
+        totalObligations: number;
+        totalAmount: number;
+        overdueCount: number;
+        overdueAmount: number;
+        obligations: ({
+            type: "expense";
+            id: unknown;
+            concept: string;
+            category: string;
+            amount: number;
+            date: string | null;
+            isOverdue: boolean;
+            urgency: string;
+            priority: number;
+        } | {
+            type: "recurring";
+            id: unknown;
+            concept: string;
+            category: string;
+            amount: number;
+            date: string | null;
+            isOverdue: boolean;
+            urgency: "recurring_due";
+            priority: number;
+        })[];
+        payrollStatus: {
+            exists: boolean;
+            status?: string;
+            totalNetPay?: number;
+            employeeCount?: number;
+        };
+    }> & {
+        execute: (args: {
+            weekStartDate?: string | undefined;
+        }, options: import("ai").ToolExecutionOptions) => PromiseLike<{
+            weekRange: {
+                start: string;
+                end: string;
+            };
+            totalObligations: number;
+            totalAmount: number;
+            overdueCount: number;
+            overdueAmount: number;
+            obligations: ({
+                type: "expense";
+                id: unknown;
+                concept: string;
+                category: string;
+                amount: number;
+                date: string | null;
+                isOverdue: boolean;
+                urgency: string;
+                priority: number;
+            } | {
+                type: "recurring";
+                id: unknown;
+                concept: string;
+                category: string;
+                amount: number;
+                date: string | null;
+                isOverdue: boolean;
+                urgency: "recurring_due";
+                priority: number;
+            })[];
+            payrollStatus: {
+                exists: boolean;
+                status?: string;
+                totalNetPay?: number;
+                employeeCount?: number;
+            };
+        }>;
+    };
+    getOverdueCollections: import("ai").Tool<import("zod").ZodObject<{
+        minDaysOverdue: import("zod").ZodDefault<import("zod").ZodOptional<import("zod").ZodNumber>>;
+    }, "strip", import("zod").ZodTypeAny, {
+        minDaysOverdue: number;
+    }, {
+        minDaysOverdue?: number | undefined;
+    }>, {
+        totalPending: number;
+        totalAmount: number;
+        criticalCount: number;
+        highCount: number;
+        items: {
+            id: unknown;
+            concept: string;
+            category: string;
+            amount: number;
+            date: string | null;
+            status: string;
+            daysOverdue: number;
+            urgency: string;
+        }[];
+        collectionTemplates: {
+            concept: string;
+            amount: number;
+            daysOverdue: number;
+            whatsappTemplate: string;
+            emailSubject: string;
+            emailBody: string;
+        }[];
+    }> & {
+        execute: (args: {
+            minDaysOverdue: number;
+        }, options: import("ai").ToolExecutionOptions) => PromiseLike<{
+            totalPending: number;
+            totalAmount: number;
+            criticalCount: number;
+            highCount: number;
+            items: {
+                id: unknown;
+                concept: string;
+                category: string;
+                amount: number;
+                date: string | null;
+                status: string;
+                daysOverdue: number;
+                urgency: string;
+            }[];
+            collectionTemplates: {
+                concept: string;
+                amount: number;
+                daysOverdue: number;
+                whatsappTemplate: string;
+                emailSubject: string;
+                emailBody: string;
+            }[];
+        }>;
+    };
+    generatePayrollPreview: import("ai").Tool<import("zod").ZodObject<{
+        year: import("zod").ZodNumber;
+        month: import("zod").ZodNumber;
+    }, "strip", import("zod").ZodTypeAny, {
+        month: number;
+        year: number;
+    }, {
+        month: number;
+        year: number;
+    }>, {
+        error: boolean;
+        message: string;
+        existingId: unknown;
+        existingStatus: unknown;
+        year?: undefined;
+        month?: undefined;
+        periodLabel?: undefined;
+        employeeCount?: undefined;
+        items?: undefined;
+        totals?: undefined;
+    } | {
+        error: boolean;
+        message: string;
+        existingId?: undefined;
+        existingStatus?: undefined;
+        year?: undefined;
+        month?: undefined;
+        periodLabel?: undefined;
+        employeeCount?: undefined;
+        items?: undefined;
+        totals?: undefined;
+    } | {
+        error: boolean;
+        year: number;
+        month: number;
+        periodLabel: string;
+        employeeCount: number;
+        items: {
+            employeeId: string;
+            employeeName: string;
+            employeeRole: string;
+            baseSalary: number;
+            auxilioTransporte: number;
+            healthDeduction: number;
+            pensionDeduction: number;
+            totalDeductions: number;
+            totalEarnings: number;
+            netPay: number;
+        }[];
+        totals: {
+            totalBaseSalary: number;
+            totalAuxilio: number;
+            totalDeductions: number;
+            totalEarnings: number;
+            totalNetPay: number;
+        };
+        message?: undefined;
+        existingId?: undefined;
+        existingStatus?: undefined;
+    }> & {
+        execute: (args: {
+            month: number;
+            year: number;
+        }, options: import("ai").ToolExecutionOptions) => PromiseLike<{
+            error: boolean;
+            message: string;
+            existingId: unknown;
+            existingStatus: unknown;
+            year?: undefined;
+            month?: undefined;
+            periodLabel?: undefined;
+            employeeCount?: undefined;
+            items?: undefined;
+            totals?: undefined;
+        } | {
+            error: boolean;
+            message: string;
+            existingId?: undefined;
+            existingStatus?: undefined;
+            year?: undefined;
+            month?: undefined;
+            periodLabel?: undefined;
+            employeeCount?: undefined;
+            items?: undefined;
+            totals?: undefined;
+        } | {
+            error: boolean;
+            year: number;
+            month: number;
+            periodLabel: string;
+            employeeCount: number;
+            items: {
+                employeeId: string;
+                employeeName: string;
+                employeeRole: string;
+                baseSalary: number;
+                auxilioTransporte: number;
+                healthDeduction: number;
+                pensionDeduction: number;
+                totalDeductions: number;
+                totalEarnings: number;
+                netPay: number;
+            }[];
+            totals: {
+                totalBaseSalary: number;
+                totalAuxilio: number;
+                totalDeductions: number;
+                totalEarnings: number;
+                totalNetPay: number;
+            };
+            message?: undefined;
+            existingId?: undefined;
+            existingStatus?: undefined;
+        }>;
+    };
+    createPayrollDraft: import("ai").Tool<import("zod").ZodObject<{
+        year: import("zod").ZodNumber;
+        month: import("zod").ZodNumber;
+        periodLabel: import("zod").ZodString;
+        employeeCount: import("zod").ZodNumber;
+        totalNetPay: import("zod").ZodNumber;
+        totalEarnings: import("zod").ZodNumber;
+        totalDeductions: import("zod").ZodNumber;
+    }, "strip", import("zod").ZodTypeAny, {
+        month: number;
+        year: number;
+        periodLabel: string;
+        employeeCount: number;
+        totalNetPay: number;
+        totalEarnings: number;
+        totalDeductions: number;
+    }, {
+        month: number;
+        year: number;
+        periodLabel: string;
+        employeeCount: number;
+        totalNetPay: number;
+        totalEarnings: number;
+        totalDeductions: number;
+    }>, unknown> & {
+        execute: undefined;
+    };
     exportReport: import("ai").Tool<import("zod").ZodObject<{
         format: import("zod").ZodEnum<["pdf", "excel"]>;
         title: import("zod").ZodString;
