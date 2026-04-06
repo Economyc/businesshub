@@ -396,7 +396,11 @@ export function Sidebar({ onNavClick }: SidebarProps) {
             NAV_SECTIONS.map((section, sIdx) => {
               const isOpen = !section.title || openSections.has(section.title)
               return (
-                <div key={section.title ?? sIdx}>
+                <div key={section.title ?? sIdx} className={section.title ? 'relative' : ''}>
+                  {/* Tree connector line — spans from title icon to last item */}
+                  {section.title && isOpen && (
+                    <div className="absolute left-[27px] top-[18px] bottom-[18px] w-[1.5px] bg-graphite/25" />
+                  )}
                   {section.title && (
                     <button
                       onClick={() => toggleSection(section.title!)}
@@ -426,10 +430,6 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                     )}
                   >
                     <div className="overflow-hidden relative">
-                      {/* Tree connector line */}
-                      {section.title && (
-                        <div className="absolute left-[27px] top-0 bottom-0 w-[1.5px] bg-graphite/25" />
-                      )}
                       {section.items.map(({ to, label, icon: Icon }) => {
                         if (to === '/finance') {
                           return (
