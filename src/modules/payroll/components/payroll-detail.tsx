@@ -6,6 +6,7 @@ import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 import { formatCurrency } from '@/core/utils/format'
 import { TableSkeleton } from '@/core/ui/skeleton'
 import { useCompany } from '@/core/hooks/use-company'
+import { usePermissions } from '@/core/hooks/use-permissions'
 import { usePayroll, usePayrollMutation, usePayrollDelete } from '../hooks'
 import { syncPayrollTransaction } from '../transaction-generator'
 import { exportPayrollSlip } from './payroll-pdf'
@@ -27,6 +28,8 @@ export function PayrollDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { selectedCompany } = useCompany()
+  const { can } = usePermissions()
+  const canEdit = can('payroll', 'create')
   const { data: payroll, loading } = usePayroll(id)
   const updateMutation = usePayrollMutation()
   const deleteMutation = usePayrollDelete()
@@ -104,35 +107,37 @@ export function PayrollDetail() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {payroll.status === 'draft' && (
+        {canEdit && (
+          <div className="flex items-center gap-2">
+            {payroll.status === 'draft' && (
+              <button
+                onClick={handleApprove}
+                disabled={updateMutation.isPending}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] border border-blue-200 text-blue-700 text-body font-medium transition-all hover:bg-blue-50"
+              >
+                <CheckCircle2 size={14} strokeWidth={1.5} />
+                Aprobar
+              </button>
+            )}
+            {payroll.status === 'approved' && (
+              <button
+                onClick={handleMarkPaid}
+                disabled={updateMutation.isPending}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] btn-primary text-body font-medium transition-all hover:-translate-y-px hover:shadow-md"
+              >
+                <CheckCircle2 size={14} strokeWidth={1.5} />
+                Marcar Pagada
+              </button>
+            )}
             <button
-              onClick={handleApprove}
-              disabled={updateMutation.isPending}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] border border-blue-200 text-blue-700 text-body font-medium transition-all hover:bg-blue-50"
+              onClick={() => setDeleteOpen(true)}
+              className="p-2 rounded-lg text-mid-gray hover:text-red-500 hover:bg-red-50 transition-all"
+              title="Eliminar"
             >
-              <CheckCircle2 size={14} strokeWidth={1.5} />
-              Aprobar
+              <Trash2 size={15} strokeWidth={1.5} />
             </button>
-          )}
-          {payroll.status === 'approved' && (
-            <button
-              onClick={handleMarkPaid}
-              disabled={updateMutation.isPending}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] btn-primary text-body font-medium transition-all hover:-translate-y-px hover:shadow-md"
-            >
-              <CheckCircle2 size={14} strokeWidth={1.5} />
-              Marcar Pagada
-            </button>
-          )}
-          <button
-            onClick={() => setDeleteOpen(true)}
-            className="p-2 rounded-lg text-mid-gray hover:text-red-500 hover:bg-red-50 transition-all"
-            title="Eliminar"
-          >
-            <Trash2 size={15} strokeWidth={1.5} />
-          </button>
-        </div>
+          </div>
+        )}
       </div>
 
       {/* KPIs */}

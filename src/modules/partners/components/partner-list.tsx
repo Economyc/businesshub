@@ -10,12 +10,15 @@ import { EmptyState } from '@/core/ui/empty-state'
 import { formatCurrency } from '@/core/utils/format'
 import { TableSkeleton } from '@/core/ui/skeleton'
 import { LoadMoreButton } from '@/core/ui/load-more-button'
+import { usePermissions } from '@/core/hooks/use-permissions'
 import { usePaginatedPartners } from '../hooks'
 import { PartnerForm } from './partner-form'
 import type { Partner } from '../types'
 
 export function PartnerList() {
   const { data: partners, loading, loadingMore, hasMore, totalCount, loadMore, refetch } = usePaginatedPartners()
+  const { can } = usePermissions()
+  const canEdit = can('partners', 'create')
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [showForm, setShowForm] = useState(false)
@@ -83,13 +86,15 @@ export function PartnerList() {
   return (
     <PageTransition>
       <PageHeader title="Socios">
-        <button
-          onClick={() => setShowForm(true)}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md"
-        >
-          <Plus size={15} strokeWidth={2} />
-          Nuevo
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => setShowForm(true)}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md"
+          >
+            <Plus size={15} strokeWidth={2} />
+            Nuevo
+          </button>
+        )}
       </PageHeader>
 
       <PartnerForm

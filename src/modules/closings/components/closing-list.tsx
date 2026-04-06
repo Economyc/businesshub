@@ -13,6 +13,7 @@ import { formatCurrency } from '@/core/utils/format'
 import { useDateRange } from '@/modules/finance/context/date-range-context'
 import { DateRangePicker } from '@/modules/finance/components/date-range-picker'
 import { useCompany } from '@/core/hooks/use-company'
+import { usePermissions } from '@/core/hooks/use-permissions'
 import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { usePaginatedClosings } from '../hooks'
 import { closingService } from '../services'
@@ -33,27 +34,29 @@ function formatShortDate(dateStr: string): string {
   return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short' }).toUpperCase()
 }
 
-function ClosingCard({ closing, onEdit, onDelete, onClick }: { closing: Closing; onEdit: () => void; onDelete: () => void; onClick: () => void }) {
+function ClosingCard({ closing, onEdit, onDelete, onClick, canEdit }: { closing: Closing; onEdit: () => void; onDelete: () => void; onClick: () => void; canEdit: boolean }) {
   return (
     <article
       onClick={onClick}
       className="bg-surface rounded-xl card-elevated p-4 relative cursor-pointer active:bg-bone/50 transition-colors"
     >
       {/* Edit button */}
-      <div className="absolute top-3 right-3 flex gap-1">
-        <button
-          onClick={(e) => { e.stopPropagation(); onEdit() }}
-          className="w-8 h-8 rounded-full bg-bone flex items-center justify-center text-graphite active:bg-border transition-colors"
-        >
-          <SquarePen size={14} strokeWidth={1.5} />
-        </button>
-        <button
-          onClick={(e) => { e.stopPropagation(); onDelete() }}
-          className="w-8 h-8 rounded-full bg-bone flex items-center justify-center text-mid-gray active:bg-red-100 active:text-red-500 transition-colors"
-        >
-          <Trash2 size={14} strokeWidth={1.5} />
-        </button>
-      </div>
+      {canEdit && (
+        <div className="absolute top-3 right-3 flex gap-1">
+          <button
+            onClick={(e) => { e.stopPropagation(); onEdit() }}
+            className="w-8 h-8 rounded-full bg-bone flex items-center justify-center text-graphite active:bg-border transition-colors"
+          >
+            <SquarePen size={14} strokeWidth={1.5} />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onDelete() }}
+            className="w-8 h-8 rounded-full bg-bone flex items-center justify-center text-mid-gray active:bg-red-100 active:text-red-500 transition-colors"
+          >
+            <Trash2 size={14} strokeWidth={1.5} />
+          </button>
+        </div>
+      )}
 
       {/* Header: date badge + responsable */}
       <div className="border-b border-bone pb-3 mb-3 pr-20">
@@ -101,6 +104,8 @@ const CLOSING_TABS = [
 
 export function ClosingList() {
   const { selectedCompany } = useCompany()
+  const { can } = usePermissions()
+  const canEdit = can('closings', 'create')
   const { data: closings, loading, loadingMore, hasMore, totalCount, loadMore } = usePaginatedClosings()
 
   const deleteMutation = useFirestoreMutation(
@@ -108,7 +113,7 @@ export function ClosingList() {
     (companyId, id: string) => closingService.remove(companyId, id),
     { optimisticDelete: true, invalidate: ['transactions'] },
   )
-  const [tab, setTab] = useState<Tab>('form')
+  const [tab, setTab] = useState<Tab>(canEdit ? 'form' : 'history')
   const [search, setSearch] = useState('')
   const [deleteTarget, setDeleteTarget] = useState<Closing | null>(null)
   const [editingClosing, setEditingClosing] = useState<Closing | null>(null)
@@ -193,7 +198,7 @@ export function ClosingList() {
       key: 'actions',
       header: '',
       width: '80px',
-      render: (c: Closing) => (
+      render: (c: Closing) => canEdit ? (
         <div className="flex items-center gap-1">
           <button
             onClick={(e) => { e.stopPropagation(); setEditingClosing(c); setTab('form') }}
@@ -210,7 +215,7 @@ export function ClosingList() {
             <Trash2 size={14} strokeWidth={1.5} />
           </button>
         </div>
-      ),
+      ) : null,
     },
   ]
 
@@ -220,7 +225,7 @@ export function ClosingList() {
 
       {/* Tabs */}
       <UnderlineButtonTabs
-        tabs={CLOSING_TABS}
+        tabs={canEdit ? CLOSING_TABS : CLOSING_TABS.filter((t) => t.value !== 'form')}
         active={tab}
         onChange={(v) => setTab(v as Tab)}
       />
@@ -267,6 +272,7 @@ export function ClosingList() {
                   <ClosingCard
                     key={c.id}
                     closing={c}
+                    canEdit={canEdit}
                     onEdit={() => { setEditingClosing(c); setTab('form') }}
                     onDelete={() => setDeleteTarget(c)}
                     onClick={() => setReceiptClosing(c)}

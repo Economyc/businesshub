@@ -14,6 +14,7 @@ import { LoadMoreButton } from '@/core/ui/load-more-button'
 import { formatCurrency } from '@/core/utils/format'
 import { parseCategory } from '@/core/utils/categories'
 import { useCompany } from '@/core/hooks/use-company'
+import { usePermissions } from '@/core/hooks/use-permissions'
 import { usePaginatedTransactions, useRecurringGenerator } from '../hooks'
 import { useDateRange } from '../context/date-range-context'
 import { FinanceSummary } from './finance-summary'
@@ -42,6 +43,8 @@ export function TransactionList() {
   useRecurringGenerator()
   const { startDate, endDate } = useDateRange()
   const { categories: categoryItems } = useCompany()
+  const { can } = usePermissions()
+  const canEdit = can('finance', 'create')
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
@@ -112,20 +115,24 @@ export function TransactionList() {
     <PageTransition>
       <PageHeader title="Monitor Financiero">
         <DateRangePicker />
-        <button
-          onClick={() => { setEditingId(null); setFormOpen(true) }}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md"
-        >
-          <Plus size={15} strokeWidth={2} />
-          Nueva
-        </button>
-        <button
-          onClick={() => navigate('/finance/import')}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
-        >
-          <Upload size={15} strokeWidth={1.5} />
-          Importar
-        </button>
+        {canEdit && (
+          <>
+            <button
+              onClick={() => { setEditingId(null); setFormOpen(true) }}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md"
+            >
+              <Plus size={15} strokeWidth={2} />
+              Nueva
+            </button>
+            <button
+              onClick={() => navigate('/finance/import')}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
+            >
+              <Upload size={15} strokeWidth={1.5} />
+              Importar
+            </button>
+          </>
+        )}
       </PageHeader>
 
       <FinanceSummary />

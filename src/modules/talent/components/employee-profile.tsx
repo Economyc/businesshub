@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Edit, Trash2, User, FileText } from 'lucide-react'
+import { usePermissions } from '@/core/hooks/use-permissions'
 import { Timestamp } from 'firebase/firestore'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
@@ -39,6 +40,8 @@ export function EmployeeProfile() {
   const { id } = useParams<{ id: string }>()
   const { selectedCompany } = useCompany()
   const { data: employee, loading, error } = useEmployee(id)
+  const { can } = usePermissions()
+  const canEdit = can('talent', 'create')
 
   const [activeTab, setActiveTab] = useState('info')
   const [editing, setEditing] = useState(false)
@@ -165,7 +168,7 @@ export function EmployeeProfile() {
       </div>
 
       <PageHeader title={editing ? 'Editar Empleado' : displayed.name}>
-        {!editing && (
+        {!editing && canEdit && (
           <>
             <button
               onClick={startEditing}

@@ -8,6 +8,7 @@ import { DataTable } from '@/core/ui/data-table'
 import { EmptyState } from '@/core/ui/empty-state'
 import { TableSkeleton } from '@/core/ui/skeleton'
 import { formatCurrency } from '@/core/utils/format'
+import { usePermissions } from '@/core/hooks/use-permissions'
 import { usePayrolls } from '../hooks'
 import { PayrollForm } from './payroll-form'
 import type { PayrollRecord, PayrollStatus } from '../types'
@@ -27,6 +28,8 @@ const STATUS_COLORS: Record<PayrollStatus, string> = {
 export function PayrollList() {
   const { data: payrolls, loading, refetch } = usePayrolls()
   const navigate = useNavigate()
+  const { can } = usePermissions()
+  const canEdit = can('payroll', 'create')
   const [showForm, setShowForm] = useState(false)
   const [search, setSearch] = useState('')
 
@@ -90,13 +93,15 @@ export function PayrollList() {
   return (
     <PageTransition>
       <PageHeader title="Liquidacion de Nomina">
-        <button
-          onClick={() => setShowForm(true)}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md"
-        >
-          <Plus size={15} strokeWidth={2} />
-          Nueva Nomina
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => setShowForm(true)}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md"
+          >
+            <Plus size={15} strokeWidth={2} />
+            Nueva Nomina
+          </button>
+        )}
       </PageHeader>
 
       <PayrollForm

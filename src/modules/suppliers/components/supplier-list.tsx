@@ -15,6 +15,7 @@ import { ImportDialog } from '@/core/ui/import-dialog'
 import { usePaginatedSuppliers } from '../hooks'
 import { supplierService } from '../services'
 import { useCompany } from '@/core/hooks/use-company'
+import { usePermissions } from '@/core/hooks/use-permissions'
 import { SupplierForm } from './supplier-form'
 import { supplierFields } from '../utils/field-schema'
 import type { Supplier, SupplierFormData } from '../types'
@@ -23,6 +24,8 @@ import type { Supplier, SupplierFormData } from '../types'
 export function SupplierList() {
   const navigate = useNavigate()
   const { selectedCompany } = useCompany()
+  const { can } = usePermissions()
+  const canEdit = can('suppliers', 'create')
   const { data: suppliers, loading, loadingMore, hasMore, totalCount, loadMore, refetch } = usePaginatedSuppliers()
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
@@ -105,20 +108,24 @@ export function SupplierList() {
     <PageTransition>
       <PageHeader title="Central de Proveedores">
         <ExportButton data={filtered} fields={supplierFields} filenameBase="proveedores" />
-        <button
-          onClick={() => setShowImport(true)}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone hover:-translate-y-px"
-        >
-          <FileUp size={15} strokeWidth={2} />
-          Importar
-        </button>
-        <button
-          onClick={() => setShowForm(true)}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md"
-        >
-          <Plus size={15} strokeWidth={2} />
-          Nuevo
-        </button>
+        {canEdit && (
+          <>
+            <button
+              onClick={() => setShowImport(true)}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone hover:-translate-y-px"
+            >
+              <FileUp size={15} strokeWidth={2} />
+              Importar
+            </button>
+            <button
+              onClick={() => setShowForm(true)}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md"
+            >
+              <Plus size={15} strokeWidth={2} />
+              Nuevo
+            </button>
+          </>
+        )}
       </PageHeader>
 
       <SupplierForm open={showForm} onClose={() => { setShowForm(false); refetch() }} />

@@ -11,6 +11,7 @@ import { EmptyState } from '@/core/ui/empty-state'
 import { TableSkeleton } from '@/core/ui/skeleton'
 import { LoadMoreButton } from '@/core/ui/load-more-button'
 import { formatCurrency } from '@/core/utils/format'
+import { usePermissions } from '@/core/hooks/use-permissions'
 import { usePaginatedPurchases } from '../hooks'
 
 import { DateRangePicker } from '@/modules/finance/components/date-range-picker'
@@ -43,6 +44,8 @@ const STATUS_LABELS: Record<PurchaseStatus, string> = {
 export function PurchaseList() {
   const navigate = useNavigate()
   const { data: purchases, loading, loadingMore, hasMore, totalCount, loadMore } = usePaginatedPurchases()
+  const { can } = usePermissions()
+  const canEdit = can('finance', 'create')
   const [search, setSearch] = useState('')
   const [supplierFilter, setSupplierFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
@@ -125,13 +128,15 @@ export function PurchaseList() {
     <PageTransition>
       <PageHeader title="Monitor Financiero">
         <DateRangePicker />
-        <button
-          onClick={() => navigate('/finance/purchases/new')}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md"
-        >
-          <Plus size={15} strokeWidth={2} />
-          Nueva Compra
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => navigate('/finance/purchases/new')}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md"
+          >
+            <Plus size={15} strokeWidth={2} />
+            Nueva Compra
+          </button>
+        )}
       </PageHeader>
       <div className="flex gap-3 mb-5">
         <div className="flex-1">

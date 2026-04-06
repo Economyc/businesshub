@@ -8,6 +8,7 @@ import { StatusBadge } from '@/core/ui/status-badge'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 import { formatCurrency } from '@/core/utils/format'
 import { Skeleton } from '@/core/ui/skeleton'
+import { usePermissions } from '@/core/hooks/use-permissions'
 import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { usePurchase } from '../hooks'
 import { purchaseService } from '../services'
@@ -43,6 +44,8 @@ export function PurchaseDetail() {
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
   const { data: purchase, loading, error } = usePurchase(id)
+  const { can } = usePermissions()
+  const canEdit = can('finance', 'create')
 
   const [editing, setEditing] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
@@ -118,7 +121,7 @@ export function PurchaseDetail() {
       </div>
 
       <PageHeader title={`Compra — ${displayed.supplierName}`}>
-        {!editing && (
+        {!editing && canEdit && (
           <>
             <button
               onClick={startEditing}

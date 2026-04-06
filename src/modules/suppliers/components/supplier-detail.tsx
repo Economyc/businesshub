@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Edit, Trash2, AlertTriangle, Info, ShoppingCart, Package } from 'lucide-react'
+import { usePermissions } from '@/core/hooks/use-permissions'
 import { Timestamp } from 'firebase/firestore'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
@@ -51,6 +52,8 @@ export function SupplierDetail() {
   const { id } = useParams<{ id: string }>()
   const { selectedCompany } = useCompany()
   const { data: supplier, loading, error } = useSupplier(id)
+  const { can } = usePermissions()
+  const canEdit = can('suppliers', 'create')
 
   const [editing, setEditing] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
@@ -198,7 +201,7 @@ export function SupplierDetail() {
       )}
 
       <PageHeader title={editing ? 'Editar Proveedor' : displayed.name}>
-        {!editing && (
+        {!editing && canEdit && (
           <>
             <button
               onClick={startEditing}

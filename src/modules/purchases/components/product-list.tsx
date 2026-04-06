@@ -10,6 +10,7 @@ import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 import { EmptyState } from '@/core/ui/empty-state'
 import { TableSkeleton } from '@/core/ui/skeleton'
 import { formatCurrency } from '@/core/utils/format'
+import { usePermissions } from '@/core/hooks/use-permissions'
 import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { useProducts } from '../hooks'
 import { productService } from '../services'
@@ -20,6 +21,8 @@ import type { Product } from '../types'
 
 export function ProductList() {
   const { data: products, loading } = useProducts()
+  const { can } = usePermissions()
+  const canEdit = can('finance', 'create')
 
   const deleteMutation = useFirestoreMutation(
     'products',
@@ -93,7 +96,7 @@ export function ProductList() {
       key: 'actions',
       header: '',
       width: '80px',
-      render: (p: Product) => (
+      render: (p: Product) => canEdit ? (
         <div className="flex items-center gap-1">
           <button
             onClick={(e) => { e.stopPropagation(); handleEdit(p) }}
@@ -110,7 +113,7 @@ export function ProductList() {
             <Trash2 size={14} strokeWidth={1.5} />
           </button>
         </div>
-      ),
+      ) : null,
     },
   ]
 
@@ -138,13 +141,15 @@ export function ProductList() {
     <PageTransition>
       <PageHeader title="Monitor Financiero">
         <DateRangePicker />
-        <button
-          onClick={() => { setEditingProduct(null); setShowForm(true) }}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md"
-        >
-          <Plus size={15} strokeWidth={2} />
-          Nuevo
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => { setEditingProduct(null); setShowForm(true) }}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md"
+          >
+            <Plus size={15} strokeWidth={2} />
+            Nuevo
+          </button>
+        )}
       </PageHeader>
       <ProductForm open={showForm} onClose={handleCloseForm} product={editingProduct} />
 

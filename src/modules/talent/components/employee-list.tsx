@@ -16,6 +16,7 @@ import { ImportDialog } from '@/core/ui/import-dialog'
 import { usePaginatedEmployees } from '../hooks'
 import { talentService } from '../services'
 import { useCompany } from '@/core/hooks/use-company'
+import { usePermissions } from '@/core/hooks/use-permissions'
 import { EmployeeForm } from './employee-form'
 import { employeeFields } from '../utils/field-schema'
 import type { Employee, EmployeeFormData } from '../types'
@@ -23,6 +24,8 @@ import type { Employee, EmployeeFormData } from '../types'
 export function EmployeeList() {
   const navigate = useNavigate()
   const { selectedCompany } = useCompany()
+  const { can } = usePermissions()
+  const canEdit = can('talent', 'create')
   const { data: employees, loading, loadingMore, hasMore, totalCount, loadMore, refetch } = usePaginatedEmployees()
   const [search, setSearch] = useState('')
   const [departmentFilter, setDepartmentFilter] = useState('')
@@ -113,20 +116,24 @@ export function EmployeeList() {
     <PageTransition>
       <PageHeader title="Directorio de Talento">
         <ExportButton data={filtered} fields={employeeFields} filenameBase="empleados" />
-        <button
-          onClick={() => setShowImport(true)}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone hover:-translate-y-px"
-        >
-          <FileUp size={15} strokeWidth={2} />
-          Importar
-        </button>
-        <button
-          onClick={() => setShowForm(true)}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md"
-        >
-          <Plus size={15} strokeWidth={2} />
-          Nuevo
-        </button>
+        {canEdit && (
+          <>
+            <button
+              onClick={() => setShowImport(true)}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone hover:-translate-y-px"
+            >
+              <FileUp size={15} strokeWidth={2} />
+              Importar
+            </button>
+            <button
+              onClick={() => setShowForm(true)}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md"
+            >
+              <Plus size={15} strokeWidth={2} />
+              Nuevo
+            </button>
+          </>
+        )}
       </PageHeader>
 
       <EmployeeForm

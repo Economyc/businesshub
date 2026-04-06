@@ -9,6 +9,7 @@ import { StatusBadge } from '@/core/ui/status-badge'
 import { EmptyState } from '@/core/ui/empty-state'
 import { TableSkeleton } from '@/core/ui/skeleton'
 import { useCompany } from '@/core/hooks/use-company'
+import { usePermissions } from '@/core/hooks/use-permissions'
 import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { useTemplates } from '../hooks'
 import { templateService } from '../services'
@@ -27,6 +28,8 @@ const CONTRACT_TYPE_LABELS: Record<string, string> = {
 
 export function TemplateList() {
   const { selectedCompany } = useCompany()
+  const { can } = usePermissions()
+  const canEdit = can('contracts', 'create')
   const { data: templates, loading } = useTemplates()
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
@@ -99,13 +102,15 @@ export function TemplateList() {
   return (
     <PageTransition>
       <PageHeader title="Contratos">
-        <button
-          onClick={() => setShowForm(true)}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md"
-        >
-          <Plus size={15} strokeWidth={2} />
-          Nueva Plantilla
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => setShowForm(true)}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md"
+          >
+            <Plus size={15} strokeWidth={2} />
+            Nueva Plantilla
+          </button>
+        )}
       </PageHeader>
 
       <ContractsTabs />

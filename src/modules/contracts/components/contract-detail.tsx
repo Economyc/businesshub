@@ -8,6 +8,7 @@ import { StatusBadge } from '@/core/ui/status-badge'
 import { SelectInput } from '@/core/ui/select-input'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 import { useCompany } from '@/core/hooks/use-company'
+import { usePermissions } from '@/core/hooks/use-permissions'
 import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { useContract } from '../hooks'
 import { contractService } from '../services'
@@ -52,6 +53,8 @@ export function ContractDetail() {
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
   const { selectedCompany } = useCompany()
+  const { can } = usePermissions()
+  const canEdit = can('contracts', 'create')
   const { data: contract, loading, error } = useContract(id)
 
   const [editing, setEditing] = useState(false)
@@ -185,42 +188,48 @@ export function ContractDetail() {
 
         {/* Actions */}
         <div className="flex items-center gap-3 mb-5">
-          {!editing ? (
-            <button
-              onClick={startEditing}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
-            >
-              <Edit3 size={14} strokeWidth={1.5} />
-              Editar cláusulas
-            </button>
-          ) : (
+          {canEdit && (
             <>
-              <button
-                onClick={handleSaveClauses}
-                disabled={updateMutation.isPending}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-60"
-              >
-                <Save size={14} strokeWidth={1.5} />
-                {updateMutation.isPending ? 'Guardando...' : 'Guardar'}
-              </button>
-              <button
-                onClick={() => setEditing(false)}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
-              >
-                <X size={14} strokeWidth={1.5} />
-                Cancelar
-              </button>
+              {!editing ? (
+                <button
+                  onClick={startEditing}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
+                >
+                  <Edit3 size={14} strokeWidth={1.5} />
+                  Editar cláusulas
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={handleSaveClauses}
+                    disabled={updateMutation.isPending}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-60"
+                  >
+                    <Save size={14} strokeWidth={1.5} />
+                    {updateMutation.isPending ? 'Guardando...' : 'Guardar'}
+                  </button>
+                  <button
+                    onClick={() => setEditing(false)}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
+                  >
+                    <X size={14} strokeWidth={1.5} />
+                    Cancelar
+                  </button>
+                </>
+              )}
             </>
           )}
 
           <div className="flex items-center gap-2 ml-auto">
-            <div className="w-40">
-              <SelectInput
-                value={contract.status}
-                onChange={handleStatusChange}
-                options={Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label }))}
-              />
-            </div>
+            {canEdit && (
+              <div className="w-40">
+                <SelectInput
+                  value={contract.status}
+                  onChange={handleStatusChange}
+                  options={Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label }))}
+                />
+              </div>
+            )}
             <ContractExport
               clauses={contract.clauses}
               title={contract.templateName}
@@ -233,13 +242,15 @@ export function ContractDetail() {
               <Printer size={14} strokeWidth={1.5} />
               Imprimir
             </button>
-            <button
-              onClick={() => setDeleteOpen(true)}
-              className="p-2 rounded-lg text-mid-gray hover:text-red-500 hover:bg-red-50 transition-all duration-150"
-              title="Eliminar contrato"
-            >
-              <Trash2 size={15} strokeWidth={1.5} />
-            </button>
+            {canEdit && (
+              <button
+                onClick={() => setDeleteOpen(true)}
+                className="p-2 rounded-lg text-mid-gray hover:text-red-500 hover:bg-red-50 transition-all duration-150"
+                title="Eliminar contrato"
+              >
+                <Trash2 size={15} strokeWidth={1.5} />
+              </button>
+            )}
           </div>
         </div>
       </div>

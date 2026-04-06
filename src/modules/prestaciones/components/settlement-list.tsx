@@ -8,6 +8,7 @@ import { DataTable } from '@/core/ui/data-table'
 import { EmptyState } from '@/core/ui/empty-state'
 import { TableSkeleton } from '@/core/ui/skeleton'
 import { formatCurrency } from '@/core/utils/format'
+import { usePermissions } from '@/core/hooks/use-permissions'
 import { useSettlements } from '../hooks'
 import { SettlementForm } from './settlement-form'
 import { SETTLEMENT_STATUS_LABELS, SETTLEMENT_STATUS_COLORS, type SettlementRecord, type SettlementStatus } from '../types'
@@ -15,6 +16,8 @@ import { SETTLEMENT_STATUS_LABELS, SETTLEMENT_STATUS_COLORS, type SettlementReco
 export function SettlementList() {
   const { data: settlements, loading, refetch } = useSettlements()
   const navigate = useNavigate()
+  const { can } = usePermissions()
+  const canEdit = can('prestaciones', 'create')
   const [showForm, setShowForm] = useState(false)
   const [search, setSearch] = useState('')
 
@@ -74,13 +77,15 @@ export function SettlementList() {
   return (
     <PageTransition>
       <PageHeader title="Prestaciones Sociales">
-        <button
-          onClick={() => setShowForm(true)}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md"
-        >
-          <Plus size={15} strokeWidth={2} />
-          Nueva Liquidacion
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => setShowForm(true)}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md"
+          >
+            <Plus size={15} strokeWidth={2} />
+            Nueva Liquidacion
+          </button>
+        )}
       </PageHeader>
 
       <SettlementForm

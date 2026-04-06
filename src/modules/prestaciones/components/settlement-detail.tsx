@@ -6,6 +6,7 @@ import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 import { formatCurrency } from '@/core/utils/format'
 import { TableSkeleton } from '@/core/ui/skeleton'
 import { useCompany } from '@/core/hooks/use-company'
+import { usePermissions } from '@/core/hooks/use-permissions'
 import { useSettlement, useSettlementMutation, useSettlementDelete } from '../hooks'
 import { exportSettlementSlip } from './settlement-pdf'
 import { SETTLEMENT_STATUS_LABELS, SETTLEMENT_STATUS_COLORS, type SettlementItem, type SettlementStatus } from '../types'
@@ -14,6 +15,8 @@ export function SettlementDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { selectedCompany } = useCompany()
+  const { can } = usePermissions()
+  const canEdit = can('prestaciones', 'create')
   const { data: settlement, loading } = useSettlement(id)
   const updateMutation = useSettlementMutation()
   const deleteMutation = useSettlementDelete()
@@ -88,35 +91,37 @@ export function SettlementDetail() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {settlement.status === 'draft' && (
+        {canEdit && (
+          <div className="flex items-center gap-2">
+            {settlement.status === 'draft' && (
+              <button
+                onClick={handleApprove}
+                disabled={updateMutation.isPending}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] border border-blue-200 text-blue-700 text-body font-medium transition-all hover:bg-blue-50"
+              >
+                <CheckCircle2 size={14} strokeWidth={1.5} />
+                Aprobar
+              </button>
+            )}
+            {settlement.status === 'approved' && (
+              <button
+                onClick={handleMarkPaid}
+                disabled={updateMutation.isPending}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] btn-primary text-body font-medium transition-all hover:-translate-y-px hover:shadow-md"
+              >
+                <CheckCircle2 size={14} strokeWidth={1.5} />
+                Marcar Pagada
+              </button>
+            )}
             <button
-              onClick={handleApprove}
-              disabled={updateMutation.isPending}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] border border-blue-200 text-blue-700 text-body font-medium transition-all hover:bg-blue-50"
+              onClick={() => setDeleteOpen(true)}
+              className="p-2 rounded-lg text-mid-gray hover:text-red-500 hover:bg-red-50 transition-all"
+              title="Eliminar"
             >
-              <CheckCircle2 size={14} strokeWidth={1.5} />
-              Aprobar
+              <Trash2 size={15} strokeWidth={1.5} />
             </button>
-          )}
-          {settlement.status === 'approved' && (
-            <button
-              onClick={handleMarkPaid}
-              disabled={updateMutation.isPending}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] btn-primary text-body font-medium transition-all hover:-translate-y-px hover:shadow-md"
-            >
-              <CheckCircle2 size={14} strokeWidth={1.5} />
-              Marcar Pagada
-            </button>
-          )}
-          <button
-            onClick={() => setDeleteOpen(true)}
-            className="p-2 rounded-lg text-mid-gray hover:text-red-500 hover:bg-red-50 transition-all"
-            title="Eliminar"
-          >
-            <Trash2 size={15} strokeWidth={1.5} />
-          </button>
-        </div>
+          </div>
+        )}
       </div>
 
       {/* KPIs */}
