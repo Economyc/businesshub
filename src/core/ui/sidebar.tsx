@@ -399,7 +399,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                 <div key={section.title ?? sIdx} className={section.title ? 'relative' : ''}>
                   {/* Tree connector line — spans from title icon to last item */}
                   {section.title && isOpen && (
-                    <div className="absolute left-[27px] top-[18px] bottom-[18px] w-[1.5px] bg-graphite/25" />
+                    <div className="absolute left-[27px] top-[28px] bottom-[18px] w-[1.5px] bg-graphite/25" />
                   )}
                   {section.title && (
                     <button
