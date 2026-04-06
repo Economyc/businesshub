@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Users } from 'lucide-react'
+import { Plus, Users, FileUp } from 'lucide-react'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
 import { SearchInput } from '@/core/ui/search-input'
@@ -11,17 +11,40 @@ import { EmptyState } from '@/core/ui/empty-state'
 import { formatCurrency } from '@/core/utils/format'
 import { TableSkeleton } from '@/core/ui/skeleton'
 import { LoadMoreButton } from '@/core/ui/load-more-button'
+import { ExportButton } from '@/core/ui/export-button'
+import { ImportDialog } from '@/core/ui/import-dialog'
 import { usePaginatedEmployees } from '../hooks'
+import { talentService } from '../services'
+import { useCompany } from '@/core/hooks/use-company'
 import { EmployeeForm } from './employee-form'
-import type { Employee } from '../types'
+import { employeeFields } from '../utils/field-schema'
+import type { Employee, EmployeeFormData } from '../types'
 
 export function EmployeeList() {
   const navigate = useNavigate()
+  const { selectedCompany } = useCompany()
   const { data: employees, loading, loadingMore, hasMore, totalCount, loadMore, refetch } = usePaginatedEmployees()
   const [search, setSearch] = useState('')
   const [departmentFilter, setDepartmentFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [showForm, setShowForm] = useState(false)
+  const [showImport, setShowImport] = useState(false)
+
+  async function handleImport(records: EmployeeFormData[]) {
+    if (!selectedCompany) return { success: 0, failed: records.length }
+    let success = 0
+    let failed = 0
+    for (const record of records) {
+      try {
+        await talentService.create(selectedCompany.id, record)
+        success++
+      } catch {
+        failed++
+      }
+    }
+    refetch()
+    return { success, failed }
+  }
 
   const departments = useMemo(() => {
     const set = new Set(employees.map((e) => e.department).filter(Boolean))
@@ -89,6 +112,14 @@ export function EmployeeList() {
   return (
     <PageTransition>
       <PageHeader title="Directorio de Talento">
+        <ExportButton data={filtered} fields={employeeFields} filenameBase="empleados" />
+        <button
+          onClick={() => setShowImport(true)}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone hover:-translate-y-px"
+        >
+          <FileUp size={15} strokeWidth={2} />
+          Importar
+        </button>
         <button
           onClick={() => setShowForm(true)}
           className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md"
@@ -102,6 +133,14 @@ export function EmployeeList() {
         open={showForm}
         employee={null}
         onClose={() => { setShowForm(false); refetch() }}
+      />
+      <ImportDialog
+        open={showImport}
+        onClose={() => setShowImport(false)}
+        title="Importar Empleados"
+        fields={employeeFields}
+        filenameBase="empleados"
+        onImport={handleImport}
       />
 
       <div className="mb-4 text-caption text-mid-gray">

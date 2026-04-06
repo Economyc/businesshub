@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Briefcase } from 'lucide-react'
+import { Plus, Briefcase, FileUp } from 'lucide-react'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
 import { SearchInput } from '@/core/ui/search-input'
@@ -10,18 +10,41 @@ import { StatusBadge } from '@/core/ui/status-badge'
 import { EmptyState } from '@/core/ui/empty-state'
 import { TableSkeleton } from '@/core/ui/skeleton'
 import { LoadMoreButton } from '@/core/ui/load-more-button'
+import { ExportButton } from '@/core/ui/export-button'
+import { ImportDialog } from '@/core/ui/import-dialog'
 import { usePaginatedSuppliers } from '../hooks'
+import { supplierService } from '../services'
+import { useCompany } from '@/core/hooks/use-company'
 import { SupplierForm } from './supplier-form'
-import type { Supplier } from '../types'
+import { supplierFields } from '../utils/field-schema'
+import type { Supplier, SupplierFormData } from '../types'
 
 
 export function SupplierList() {
   const navigate = useNavigate()
+  const { selectedCompany } = useCompany()
   const { data: suppliers, loading, loadingMore, hasMore, totalCount, loadMore, refetch } = usePaginatedSuppliers()
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [showForm, setShowForm] = useState(false)
+  const [showImport, setShowImport] = useState(false)
+
+  async function handleImport(records: SupplierFormData[]) {
+    if (!selectedCompany) return { success: 0, failed: records.length }
+    let success = 0
+    let failed = 0
+    for (const record of records) {
+      try {
+        await supplierService.create(selectedCompany.id, record)
+        success++
+      } catch {
+        failed++
+      }
+    }
+    refetch()
+    return { success, failed }
+  }
 
   const categories = useMemo(() => {
     const set = new Set(suppliers.map((s) => s.category).filter(Boolean))
@@ -81,6 +104,14 @@ export function SupplierList() {
   return (
     <PageTransition>
       <PageHeader title="Central de Proveedores">
+        <ExportButton data={filtered} fields={supplierFields} filenameBase="proveedores" />
+        <button
+          onClick={() => setShowImport(true)}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone hover:-translate-y-px"
+        >
+          <FileUp size={15} strokeWidth={2} />
+          Importar
+        </button>
         <button
           onClick={() => setShowForm(true)}
           className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md"
@@ -91,6 +122,14 @@ export function SupplierList() {
       </PageHeader>
 
       <SupplierForm open={showForm} onClose={() => { setShowForm(false); refetch() }} />
+      <ImportDialog
+        open={showImport}
+        onClose={() => setShowImport(false)}
+        title="Importar Proveedores"
+        fields={supplierFields}
+        filenameBase="proveedores"
+        onImport={handleImport}
+      />
 
       <div className="flex gap-3 mb-5">
         <div className="flex-1">
