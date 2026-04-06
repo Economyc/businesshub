@@ -319,16 +319,13 @@ export function Sidebar({ onNavClick }: SidebarProps) {
           )}
         </div>
 
-        {/* Search + Notifications */}
+        {/* Search — inline CommandPalette dropdown */}
         {!collapsed ? (
-          <div className="px-3 mb-3 flex items-center gap-1.5">
-            <div className="flex-1">
-              <CommandPalette />
-            </div>
-            <NotificationBell />
+          <div className="px-3 mb-3">
+            <CommandPalette />
           </div>
         ) : (
-          <div className="flex flex-col items-center gap-1 mb-3">
+          <div className="flex justify-center mb-3">
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
@@ -340,7 +337,6 @@ export function Sidebar({ onNavClick }: SidebarProps) {
               </TooltipTrigger>
               <TooltipContent side="right">Buscar (Ctrl K)</TooltipContent>
             </Tooltip>
-            <NotificationBell />
           </div>
         )}
 
@@ -481,8 +477,25 @@ export function Sidebar({ onNavClick }: SidebarProps) {
           )}
         </div>
 
-        {/* Bottom — User menu */}
+        {/* Bottom — Notifications + User menu */}
         <div className={cn('border-t border-border', collapsed ? 'mx-3 pt-1' : 'mx-4 pt-1')}>
+          {/* Notification bell */}
+          {collapsed ? (
+            <div className="flex justify-center py-1">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div><NotificationBell /></div>
+                </TooltipTrigger>
+                <TooltipContent side="right">Notificaciones</TooltipContent>
+              </Tooltip>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between px-1 py-1.5">
+              <span className="text-[10px] font-medium uppercase tracking-wider text-mid-gray/50 pl-1.5">Notificaciones</span>
+              <NotificationBell />
+            </div>
+          )}
+
           <div className="relative" ref={userMenuRef}>
             {collapsed ? (
               <Tooltip>
