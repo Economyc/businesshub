@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Shield, Eye, Pencil, Trash2, ChevronRight, X, Plus, Loader2 } from 'lucide-react'
+import { Shield, Trash2, ChevronRight, X, Plus, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useCompany } from '@/core/hooks/use-company'
 import { usePermissions } from '@/core/hooks/use-permissions'
@@ -8,55 +8,69 @@ import { ConfirmDialog } from './confirm-dialog'
 import type { RoleDefinition, ModuleKey, PermissionAction } from '@/core/types/permissions'
 import { motion, AnimatePresence } from 'framer-motion'
 
-const MODULE_GROUPS: { title: string; modules: { key: ModuleKey; label: string }[] }[] = [
+const ALL_ACTIONS: PermissionAction[] = ['read', 'create', 'update', 'delete']
+
+const MODULE_GROUPS: { title: string; modules: { key: ModuleKey; label: string; description: string }[] }[] = [
   {
     title: 'General',
     modules: [
-      { key: 'home', label: 'Home' },
-      { key: 'analytics', label: 'Analisis' },
-      { key: 'agent', label: 'Asistente AI' },
+      { key: 'home', label: 'Home', description: 'Panel principal con resumen general' },
+      { key: 'analytics', label: 'Analisis', description: 'Dashboards, reportes y metricas' },
+      { key: 'agent', label: 'Asistente AI', description: 'Chat con el asistente inteligente' },
     ],
   },
   {
     title: 'Contabilidad',
     modules: [
-      { key: 'finance', label: 'Finanzas' },
-      { key: 'cartera', label: 'Cartera' },
-      { key: 'closings', label: 'Cierres de Caja' },
-      { key: 'payroll', label: 'Nomina' },
-      { key: 'prestaciones', label: 'Prestaciones' },
+      { key: 'finance', label: 'Finanzas', description: 'Transacciones, flujo de caja, presupuesto, conciliacion' },
+      { key: 'cartera', label: 'Cartera', description: 'Cuentas por cobrar y por pagar' },
+      { key: 'closings', label: 'Cierres de Caja', description: 'Cierres diarios y descuentos' },
+      { key: 'payroll', label: 'Nomina', description: 'Calculo y gestion de nomina' },
+      { key: 'prestaciones', label: 'Prestaciones', description: 'Liquidaciones y beneficios laborales' },
     ],
   },
   {
     title: 'Gestion',
     modules: [
-      { key: 'contracts', label: 'Contratos' },
-      { key: 'partners', label: 'Socios' },
+      { key: 'contracts', label: 'Contratos', description: 'Contratos laborales y plantillas' },
+      { key: 'partners', label: 'Socios', description: 'Socios y participacion accionaria' },
     ],
   },
   {
     title: 'Personas',
     modules: [
-      { key: 'talent', label: 'Equipo' },
-      { key: 'suppliers', label: 'Proveedores' },
+      { key: 'talent', label: 'Equipo', description: 'Empleados, documentos y perfiles' },
+      { key: 'suppliers', label: 'Proveedores', description: 'Proveedores y contactos' },
     ],
   },
   {
     title: 'Sistema',
     modules: [
-      { key: 'settings', label: 'Configuracion' },
+      { key: 'settings', label: 'Configuracion', description: 'Compañias, categorias, cargos, departamentos y equipo' },
     ],
   },
 ]
 
-const ACTION_LABELS = [
-  { key: 'read' as PermissionAction, label: 'Ver', icon: Eye },
-  { key: 'create' as PermissionAction, label: 'Crear', icon: Pencil },
-  { key: 'update' as PermissionAction, label: 'Editar', icon: Pencil },
-  { key: 'delete' as PermissionAction, label: 'Borrar', icon: Trash2 },
-]
-
 const ROLE_COLORS = ['#1a1a2e', '#7c3aed', '#0891b2', '#059669', '#d97706', '#dc2626', '#6b7280', '#ec4899']
+
+function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: () => void; disabled?: boolean }) {
+  return (
+    <button
+      onClick={disabled ? undefined : onChange}
+      disabled={disabled}
+      className={cn(
+        'relative w-10 h-6 rounded-full transition-colors duration-200 shrink-0',
+        checked ? 'bg-green-500' : 'bg-smoke',
+        disabled && 'opacity-60 cursor-not-allowed',
+      )}
+    >
+      <div className={cn(
+        'absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200',
+        checked ? 'translate-x-[18px]' : 'translate-x-0.5',
+      )} />
+    </button>
+  )
+}
 
 function RolePermissionSheet({
   role,
@@ -74,7 +88,7 @@ function RolePermissionSheet({
   const isOwnerRole = role.id === 'owner'
   const hasChanges = JSON.stringify(draft) !== JSON.stringify(role)
 
-  function toggleAction(moduleKey: ModuleKey, action: PermissionAction) {
+  function toggleModule(moduleKey: ModuleKey) {
     if (isOwnerRole) return
 
     setDraft((prev) => {
@@ -82,36 +96,32 @@ function RolePermissionSheet({
       const idx = perms.findIndex((p) => p.module === moduleKey)
 
       if (idx === -1) {
-        // Module not in permissions — add it with just this action
-        // If toggling on a non-read action, also add read
-        const actions: PermissionAction[] = action === 'read' ? ['read'] : ['read', action]
-        perms.push({ module: moduleKey, actions })
+        // Enable: grant full access
+        perms.push({ module: moduleKey, actions: [...ALL_ACTIONS] })
       } else {
-        const perm = { ...perms[idx], actions: [...perms[idx].actions] }
-        if (perm.actions.includes(action)) {
-          // Removing action
-          if (action === 'read') {
-            // Removing read removes everything
-            perms.splice(idx, 1)
-            return { ...prev, permissions: perms }
-          }
-          perm.actions = perm.actions.filter((a) => a !== action)
-        } else {
-          // Adding action — also ensure read is included
-          perm.actions.push(action)
-          if (!perm.actions.includes('read')) perm.actions.push('read')
-        }
-        perms[idx] = perm
+        // Disable: remove entirely
+        perms.splice(idx, 1)
       }
 
       return { ...prev, permissions: perms }
     })
   }
 
+  function hasModule(moduleKey: ModuleKey) {
+    return draft.permissions.some((p) => p.module === moduleKey)
+  }
+
   async function handleSave() {
     setSaving(true)
     try {
-      await onSave(draft)
+      // Sync canManageUsers/canManageCompany with settings access
+      const hasSettings = draft.permissions.some((p) => p.module === 'settings')
+      const updated = {
+        ...draft,
+        canManageUsers: hasSettings,
+        canManageCompany: hasSettings,
+      }
+      await onSave(updated)
       onClose()
     } finally {
       setSaving(false)
@@ -171,7 +181,7 @@ function RolePermissionSheet({
         {!isOwnerRole && (
           <div>
             <h4 className="text-caption uppercase tracking-wider text-mid-gray font-medium mb-2">Color</h4>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               {ROLE_COLORS.map((c) => (
                 <button
                   key={c}
@@ -187,99 +197,26 @@ function RolePermissionSheet({
           </div>
         )}
 
-        {/* Management permissions */}
-        <div className="bg-bone/50 rounded-xl p-4 space-y-3">
-          <h4 className="text-caption uppercase tracking-wider text-mid-gray font-medium">
-            Permisos de gestion
-          </h4>
-          <div className="flex items-center justify-between">
-            <span className="text-body text-graphite">Gestionar usuarios</span>
-            <button
-              onClick={() => !isOwnerRole && setDraft((p) => ({ ...p, canManageUsers: !p.canManageUsers }))}
-              disabled={isOwnerRole}
-              className={cn(
-                'relative w-10 h-6 rounded-full transition-colors duration-200',
-                draft.canManageUsers ? 'bg-green-500' : 'bg-smoke',
-                isOwnerRole && 'opacity-60 cursor-not-allowed',
-              )}
-            >
-              <div className={cn(
-                'absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200',
-                draft.canManageUsers ? 'translate-x-[18px]' : 'translate-x-0.5',
-              )} />
-            </button>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-body text-graphite">Gestionar empresa</span>
-            <button
-              onClick={() => !isOwnerRole && setDraft((p) => ({ ...p, canManageCompany: !p.canManageCompany }))}
-              disabled={isOwnerRole}
-              className={cn(
-                'relative w-10 h-6 rounded-full transition-colors duration-200',
-                draft.canManageCompany ? 'bg-green-500' : 'bg-smoke',
-                isOwnerRole && 'opacity-60 cursor-not-allowed',
-              )}
-            >
-              <div className={cn(
-                'absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200',
-                draft.canManageCompany ? 'translate-x-[18px]' : 'translate-x-0.5',
-              )} />
-            </button>
-          </div>
-        </div>
-
-        {/* Module permissions */}
+        {/* Module access toggles */}
         {MODULE_GROUPS.map((group) => (
           <div key={group.title}>
             <h4 className="text-caption uppercase tracking-wider text-mid-gray font-medium mb-3">
               {group.title}
             </h4>
-            <div className="rounded-xl bg-bone/50 overflow-hidden">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-border/50">
-                    <th className="text-left text-caption text-mid-gray font-medium px-3 py-2">
-                      Modulo
-                    </th>
-                    {ACTION_LABELS.map(({ key, label }) => (
-                      <th key={key} className="text-center text-caption text-mid-gray font-medium px-2 py-2 w-14">
-                        {label}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {group.modules.map((mod) => {
-                    const perm = draft.permissions.find((p) => p.module === mod.key)
-                    return (
-                      <tr key={mod.key} className="border-b border-border/30 last:border-b-0">
-                        <td className="px-3 py-2.5 text-body text-graphite">{mod.label}</td>
-                        {ACTION_LABELS.map(({ key }) => {
-                          const has = perm?.actions.includes(key) ?? false
-                          return (
-                            <td key={key} className="px-2 py-2.5 text-center">
-                              <button
-                                onClick={() => toggleAction(mod.key, key)}
-                                disabled={isOwnerRole}
-                                className={cn(
-                                  'w-6 h-6 rounded-full mx-auto flex items-center justify-center text-[10px] font-bold transition-all duration-150',
-                                  has
-                                    ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                                    : 'bg-smoke text-mid-gray/40 hover:bg-smoke/80',
-                                  isOwnerRole && 'cursor-not-allowed',
-                                  !isOwnerRole && 'cursor-pointer',
-                                )}
-                              >
-                                {has ? '✓' : '—'}
-                              </button>
-                            </td>
-                          )
-                        })}
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+            <div className="rounded-xl bg-bone/50 overflow-hidden divide-y divide-border/30">
+              {group.modules.map((mod) => (
+                <div key={mod.key} className="flex items-center justify-between px-4 py-3">
+                  <div className="min-w-0 flex-1 mr-3">
+                    <div className="text-body font-medium text-dark-graphite">{mod.label}</div>
+                    <div className="text-caption text-mid-gray">{mod.description}</div>
+                  </div>
+                  <Toggle
+                    checked={hasModule(mod.key)}
+                    onChange={() => toggleModule(mod.key)}
+                    disabled={isOwnerRole}
+                  />
+                </div>
+              ))}
             </div>
           </div>
         ))}
@@ -347,7 +284,7 @@ export function SettingsTeamRoles() {
       description: 'Descripcion del rol',
       color: '#6b7280',
       isSystem: false,
-      permissions: [{ module: 'home', actions: ['read'] }],
+      permissions: [{ module: 'home', actions: [...ALL_ACTIONS] }],
       canManageUsers: false,
       canManageCompany: false,
     }
@@ -385,7 +322,8 @@ export function SettingsTeamRoles() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {roles.map((role) => {
           const moduleCount = role.permissions.length
-          const hasFullAccess = role.permissions.length === 13 && role.permissions.every((p) => p.actions.length === 4)
+          const totalModules = 13
+          const hasFullAccess = moduleCount === totalModules
 
           return (
             <div
@@ -418,7 +356,7 @@ export function SettingsTeamRoles() {
                   {role.description}
                 </p>
                 <div className="text-caption text-mid-gray/80">
-                  {hasFullAccess ? 'Acceso completo' : `${moduleCount} modulos`}
+                  {hasFullAccess ? 'Acceso a todos los modulos' : `Acceso a ${moduleCount} de ${totalModules} modulos`}
                 </div>
               </button>
 
