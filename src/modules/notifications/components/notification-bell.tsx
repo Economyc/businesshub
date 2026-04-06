@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bell, Check, CheckCheck, AlertTriangle, FileText, CalendarClock } from 'lucide-react'
+import { Bell, Check, CheckCheck, AlertTriangle, FileText, CalendarClock, TrendingUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useNotifications, useUnreadCount, useMarkAsRead, useMarkAllAsRead } from '../hooks'
 import type { AppNotification } from '../types'
@@ -16,12 +16,14 @@ const TYPE_ICONS: Record<string, typeof Bell> = {
   'weekly-report': FileText,
   'overdue-alert': AlertTriangle,
   'closing-reminder': CalendarClock,
+  'price-increase': TrendingUp,
 }
 
 const TYPE_COLORS: Record<string, string> = {
   'weekly-report': 'text-blue-500',
   'overdue-alert': 'text-amber-500',
   'closing-reminder': 'text-emerald-500',
+  'price-increase': 'text-red-500',
 }
 
 function timeAgo(date: Date): string {
@@ -71,6 +73,7 @@ export function NotificationBell({ dropdownPosition = 'below-right', fixedStyle 
       'weekly-report': 'Muestra el resumen ejecutivo de esta semana',
       'overdue-alert': 'Cobra las facturas vencidas',
       'closing-reminder': '¿Qué debo pagar esta semana?',
+      'price-increase': 'Analiza los insumos que subieron de precio recientemente',
     }
     const prompt = prompts[notification.type]
     if (prompt) {

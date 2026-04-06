@@ -1,7 +1,7 @@
 import type { Timestamp } from 'firebase/firestore'
 import type { BaseEntity } from '@/core/types'
 
-export type NotificationType = 'weekly-report' | 'overdue-alert' | 'closing-reminder'
+export type NotificationType = 'weekly-report' | 'overdue-alert' | 'closing-reminder' | 'price-increase'
 
 export interface AppNotification extends BaseEntity {
   type: NotificationType
