@@ -9,7 +9,8 @@ import {
   Timestamp,
 } from 'firebase/firestore'
 import { db } from '@/core/firebase/config'
-import type { CompanyMember } from '@/core/types/permissions'
+import type { CompanyMember, RoleDefinition } from '@/core/types/permissions'
+import { DEFAULT_ROLES } from '@/core/config/default-roles'
 
 function membersCollection(companyId: string) {
   return collection(db, 'companies', companyId, 'members')
@@ -53,6 +54,60 @@ export async function updateMember(
 export async function removeMember(companyId: string, userId: string): Promise<void> {
   await deleteDoc(memberDoc(companyId, userId))
 }
+
+// ---- Roles CRUD ----
+
+function rolesCollection(companyId: string) {
+  return collection(db, 'companies', companyId, 'roles')
+}
+
+function roleDoc(companyId: string, roleId: string) {
+  return doc(db, 'companies', companyId, 'roles', roleId)
+}
+
+/** Fetch all roles for a company. Seeds defaults if none exist. */
+export async function fetchRoles(companyId: string): Promise<RoleDefinition[]> {
+  const snapshot = await getDocs(rolesCollection(companyId))
+  if (snapshot.empty) {
+    // Seed default roles
+    for (const role of DEFAULT_ROLES) {
+      await setDoc(roleDoc(companyId, role.id), {
+        label: role.label,
+        description: role.description,
+        color: role.color,
+        isSystem: role.isSystem,
+        permissions: role.permissions,
+        canManageUsers: role.canManageUsers,
+        canManageCompany: role.canManageCompany,
+      })
+    }
+    return [...DEFAULT_ROLES]
+  }
+  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as RoleDefinition)
+}
+
+export async function createRole(companyId: string, role: RoleDefinition): Promise<void> {
+  await setDoc(roleDoc(companyId, role.id), {
+    label: role.label,
+    description: role.description,
+    color: role.color,
+    isSystem: role.isSystem,
+    permissions: role.permissions,
+    canManageUsers: role.canManageUsers,
+    canManageCompany: role.canManageCompany,
+  })
+}
+
+export async function updateRole(companyId: string, roleId: string, data: Partial<RoleDefinition>): Promise<void> {
+  const { id, ...rest } = data as RoleDefinition & { id?: string }
+  await updateDoc(roleDoc(companyId, roleId), rest)
+}
+
+export async function removeRole(companyId: string, roleId: string): Promise<void> {
+  await deleteDoc(roleDoc(companyId, roleId))
+}
+
+// ---- Members ----
 
 /** Seed the current user as owner if no membership exists */
 export async function seedMembershipIfNeeded(

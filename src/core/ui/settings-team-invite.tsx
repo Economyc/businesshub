@@ -6,7 +6,6 @@ import { modalVariants } from '@/core/animations/variants'
 import { useCompany } from '@/core/hooks/use-company'
 import { usePermissions } from '@/core/hooks/use-permissions'
 import { createMember } from '@/core/services/permissions-service'
-import { DEFAULT_ROLES } from '@/core/config/default-roles'
 
 interface Props {
   open: boolean
@@ -16,7 +15,7 @@ interface Props {
 
 export function SettingsTeamInvite({ open, onClose, onInvited }: Props) {
   const { selectedCompany } = useCompany()
-  const { member } = usePermissions()
+  const { member, roles } = usePermissions()
   const [email, setEmail] = useState('')
   const [role, setRole] = useState('viewer')
   const [loading, setLoading] = useState(false)
@@ -111,7 +110,7 @@ export function SettingsTeamInvite({ open, onClose, onInvited }: Props) {
                   className="w-full px-3 py-2.5 rounded-[10px] border border-input-border bg-input-bg text-body text-graphite focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200"
                   disabled={loading}
                 >
-                  {DEFAULT_ROLES.filter((r) => r.id !== 'owner').map((r) => (
+                  {roles.filter((r) => r.id !== 'owner').map((r) => (
                     <option key={r.id} value={r.id}>
                       {r.label} — {r.description}
                     </option>

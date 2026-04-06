@@ -4,7 +4,6 @@ import { cn } from '@/lib/utils'
 import { useCompany } from '@/core/hooks/use-company'
 import { usePermissions } from '@/core/hooks/use-permissions'
 import { fetchMembers, updateMember, removeMember } from '@/core/services/permissions-service'
-import { DEFAULT_ROLES, getRoleById } from '@/core/config/default-roles'
 import { ConfirmDialog } from './confirm-dialog'
 import { SettingsTeamInvite } from './settings-team-invite'
 import { UserAvatar } from './user-avatar'
@@ -12,7 +11,7 @@ import type { CompanyMember } from '@/core/types/permissions'
 
 export function SettingsTeamMembers() {
   const { selectedCompany } = useCompany()
-  const { member: currentMember, canManageUsers, refetch } = usePermissions()
+  const { member: currentMember, canManageUsers, roles, refetch } = usePermissions()
   const [members, setMembers] = useState<CompanyMember[]>([])
   const [loading, setLoading] = useState(true)
   const [inviteOpen, setInviteOpen] = useState(false)
@@ -57,7 +56,7 @@ export function SettingsTeamMembers() {
   }
 
   function getRoleBadge(roleId: string) {
-    const role = getRoleById(roleId)
+    const role = roles.find((r) => r.id === roleId)
     if (!role) return { label: roleId, color: '#6b7280' }
     return { label: role.label, color: role.color }
   }
@@ -154,7 +153,7 @@ export function SettingsTeamMembers() {
                         autoFocus
                         className="text-body rounded-md border border-input-border bg-input-bg px-2 py-1 outline-none focus:border-input-focus"
                       >
-                        {DEFAULT_ROLES.map((r) => (
+                        {roles.map((r) => (
                           <option key={r.id} value={r.id}>
                             {r.label}
                           </option>
