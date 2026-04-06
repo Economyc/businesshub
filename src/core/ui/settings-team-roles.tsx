@@ -53,22 +53,37 @@ const MODULE_GROUPS: { title: string; modules: { key: ModuleKey; label: string; 
 
 const ROLE_COLORS = ['#1a1a2e', '#7c3aed', '#0891b2', '#059669', '#d97706', '#dc2626', '#6b7280', '#ec4899']
 
-function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: () => void; disabled?: boolean }) {
+type AccessLevel = 'none' | 'view' | 'full'
+
+const ACCESS_OPTIONS: { value: AccessLevel; label: string }[] = [
+  { value: 'none', label: 'Sin acceso' },
+  { value: 'view', label: 'Solo ver' },
+  { value: 'full', label: 'Completo' },
+]
+
+function AccessSelector({ value, onChange, disabled }: { value: AccessLevel; onChange: (v: AccessLevel) => void; disabled?: boolean }) {
   return (
-    <button
-      onClick={disabled ? undefined : onChange}
-      disabled={disabled}
-      className={cn(
-        'relative w-10 h-6 rounded-full transition-colors duration-200 shrink-0',
-        checked ? 'bg-green-500' : 'bg-smoke',
-        disabled && 'opacity-60 cursor-not-allowed',
-      )}
-    >
-      <div className={cn(
-        'absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200',
-        checked ? 'translate-x-[18px]' : 'translate-x-0.5',
-      )} />
-    </button>
+    <div className={cn('flex rounded-lg overflow-hidden border border-border/50 shrink-0', disabled && 'opacity-60 cursor-not-allowed')}>
+      {ACCESS_OPTIONS.map((opt) => (
+        <button
+          key={opt.value}
+          onClick={() => !disabled && onChange(opt.value)}
+          disabled={disabled}
+          className={cn(
+            'px-2.5 py-1 text-caption font-medium transition-all duration-150',
+            value === opt.value
+              ? opt.value === 'none'
+                ? 'bg-smoke text-mid-gray'
+                : opt.value === 'view'
+                  ? 'bg-blue-50 text-blue-700'
+                  : 'bg-green-50 text-green-700'
+              : 'text-mid-gray/50 hover:text-mid-gray',
+          )}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
   )
 }
 
@@ -88,38 +103,40 @@ function RolePermissionSheet({
   const isOwnerRole = role.id === 'owner'
   const hasChanges = JSON.stringify(draft) !== JSON.stringify(role)
 
-  function toggleModule(moduleKey: ModuleKey) {
+  function getAccessLevel(moduleKey: ModuleKey): AccessLevel {
+    const perm = draft.permissions.find((p) => p.module === moduleKey)
+    if (!perm) return 'none'
+    if (perm.actions.length === 1 && perm.actions[0] === 'read') return 'view'
+    return 'full'
+  }
+
+  function setAccessLevel(moduleKey: ModuleKey, level: AccessLevel) {
     if (isOwnerRole) return
 
     setDraft((prev) => {
-      const perms = [...prev.permissions]
-      const idx = perms.findIndex((p) => p.module === moduleKey)
+      const perms = prev.permissions.filter((p) => p.module !== moduleKey)
 
-      if (idx === -1) {
-        // Enable: grant full access
+      if (level === 'view') {
+        perms.push({ module: moduleKey, actions: ['read'] })
+      } else if (level === 'full') {
         perms.push({ module: moduleKey, actions: [...ALL_ACTIONS] })
-      } else {
-        // Disable: remove entirely
-        perms.splice(idx, 1)
       }
+      // 'none' = no entry
 
       return { ...prev, permissions: perms }
     })
   }
 
-  function hasModule(moduleKey: ModuleKey) {
-    return draft.permissions.some((p) => p.module === moduleKey)
-  }
-
   async function handleSave() {
     setSaving(true)
     try {
-      // Sync canManageUsers/canManageCompany with settings access
-      const hasSettings = draft.permissions.some((p) => p.module === 'settings')
+      // Only full settings access grants user/company management
+      const settingsPerm = draft.permissions.find((p) => p.module === 'settings')
+      const hasFullSettings = settingsPerm?.actions.length === ALL_ACTIONS.length
       const updated = {
         ...draft,
-        canManageUsers: hasSettings,
-        canManageCompany: hasSettings,
+        canManageUsers: hasFullSettings ?? false,
+        canManageCompany: hasFullSettings ?? false,
       }
       await onSave(updated)
       onClose()
@@ -205,14 +222,14 @@ function RolePermissionSheet({
             </h4>
             <div className="rounded-xl bg-bone/50 overflow-hidden divide-y divide-border/30">
               {group.modules.map((mod) => (
-                <div key={mod.key} className="flex items-center justify-between px-4 py-3">
-                  <div className="min-w-0 flex-1 mr-3">
+                <div key={mod.key} className="flex items-center justify-between px-4 py-3 gap-3">
+                  <div className="min-w-0 flex-1">
                     <div className="text-body font-medium text-dark-graphite">{mod.label}</div>
                     <div className="text-caption text-mid-gray">{mod.description}</div>
                   </div>
-                  <Toggle
-                    checked={hasModule(mod.key)}
-                    onChange={() => toggleModule(mod.key)}
+                  <AccessSelector
+                    value={getAccessLevel(mod.key)}
+                    onChange={(level) => setAccessLevel(mod.key, level)}
                     disabled={isOwnerRole}
                   />
                 </div>
@@ -321,9 +338,11 @@ export function SettingsTeamRoles() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {roles.map((role) => {
-          const moduleCount = role.permissions.length
+          const viewOnly = role.permissions.filter((p) => p.actions.length === 1 && p.actions[0] === 'read').length
+          const fullAccess = role.permissions.filter((p) => p.actions.length > 1).length
+          const totalWithAccess = viewOnly + fullAccess
           const totalModules = 13
-          const hasFullAccess = moduleCount === totalModules
+          const hasAllModules = totalWithAccess === totalModules
 
           return (
             <div
@@ -356,7 +375,11 @@ export function SettingsTeamRoles() {
                   {role.description}
                 </p>
                 <div className="text-caption text-mid-gray/80">
-                  {hasFullAccess ? 'Acceso a todos los modulos' : `Acceso a ${moduleCount} de ${totalModules} modulos`}
+                  {hasAllModules && viewOnly === 0
+                    ? 'Acceso completo a todo'
+                    : hasAllModules
+                      ? `Todos los modulos (${viewOnly} solo vista)`
+                      : `${totalWithAccess} de ${totalModules} modulos`}
                 </div>
               </button>
 
