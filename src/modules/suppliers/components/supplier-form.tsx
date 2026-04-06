@@ -73,8 +73,8 @@ export function SupplierForm({ open, onClose }: SupplierFormProps) {
       contactName: form.contactName,
       email: form.email,
       phone: form.phone,
-      contractStart: Timestamp.fromDate(new Date(form.contractStart)),
-      contractEnd: Timestamp.fromDate(new Date(form.contractEnd)),
+      contractStart: form.contractStart ? Timestamp.fromDate(new Date(form.contractStart)) : undefined,
+      contractEnd: form.contractEnd ? Timestamp.fromDate(new Date(form.contractEnd)) : undefined,
       status: form.status,
       paymentTerms: Number(form.paymentTerms),
       creditLimit: form.creditLimit ? Number(form.creditLimit) : undefined,
@@ -229,11 +229,17 @@ export function SupplierForm({ open, onClose }: SupplierFormProps) {
                   />
                 </div>
                 <div>
-                  <label className={labelClass}>Inicio de Contrato</label>
+                  <label className={labelClass}>Inicio de Contrato (opcional)</label>
                   <DateInput
                     value={form.contractStart}
                     onChange={(v) => setForm((prev) => ({ ...prev, contractStart: v }))}
-                    required
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>Fin de Contrato (opcional)</label>
+                  <DateInput
+                    value={form.contractEnd}
+                    onChange={(v) => setForm((prev) => ({ ...prev, contractEnd: v }))}
                   />
                 </div>
               </div>

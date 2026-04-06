@@ -132,8 +132,8 @@ export function SupplierDetail() {
       contactName: editForm.contactName,
       email: editForm.email,
       phone: editForm.phone,
-      contractStart: Timestamp.fromDate(new Date(editForm.contractStart)),
-      contractEnd: Timestamp.fromDate(new Date(editForm.contractEnd)),
+      contractStart: editForm.contractStart ? Timestamp.fromDate(new Date(editForm.contractStart)) : undefined,
+      contractEnd: editForm.contractEnd ? Timestamp.fromDate(new Date(editForm.contractEnd)) : undefined,
       status: editForm.status,
       paymentTerms: Number(editForm.paymentTerms),
       creditLimit: editForm.creditLimit ? Number(editForm.creditLimit) : undefined,
@@ -266,14 +266,14 @@ export function SupplierDetail() {
               />
             </div>
             <div>
-              <label className={labelClass}>Inicio de Contrato</label>
+              <label className={labelClass}>Inicio de Contrato (opcional)</label>
               <DateInput
                 value={editForm.contractStart}
                 onChange={(v) => setEditForm((prev) => ({ ...prev, contractStart: v }))}
               />
             </div>
             <div>
-              <label className={labelClass}>Fin de Contrato</label>
+              <label className={labelClass}>Fin de Contrato (opcional)</label>
               <DateInput
                 value={editForm.contractEnd}
                 onChange={(v) => setEditForm((prev) => ({ ...prev, contractEnd: v }))}
@@ -331,14 +331,18 @@ export function SupplierDetail() {
               <p className={labelClass}>Teléfono</p>
               <p className="text-body text-graphite">{displayed.phone}</p>
             </div>
-            <div>
-              <p className={labelClass}>Inicio de Contrato</p>
-              <p className="text-body text-graphite">{formatDate(displayed.contractStart)}</p>
-            </div>
-            <div>
-              <p className={labelClass}>Fin de Contrato</p>
-              <p className="text-body text-graphite">{formatDate(displayed.contractEnd)}</p>
-            </div>
+            {displayed.contractStart && (
+              <div>
+                <p className={labelClass}>Inicio de Contrato</p>
+                <p className="text-body text-graphite">{formatDate(displayed.contractStart)}</p>
+              </div>
+            )}
+            {displayed.contractEnd && (
+              <div>
+                <p className={labelClass}>Fin de Contrato</p>
+                <p className="text-body text-graphite">{formatDate(displayed.contractEnd)}</p>
+              </div>
+            )}
             <div>
               <p className={labelClass}>Estado</p>
               <StatusBadge variant={displayed.status} />

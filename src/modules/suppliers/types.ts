@@ -8,8 +8,8 @@ export interface Supplier extends BaseEntity {
   contactName: string
   email: string
   phone: string
-  contractStart: Timestamp
-  contractEnd: Timestamp
+  contractStart?: Timestamp
+  contractEnd?: Timestamp
   status: SupplierStatus
   paymentTerms?: number    // 0=contado, 30, 60, 90 días
   creditLimit?: number     // Cupo de crédito máximo en COP
