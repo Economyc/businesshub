@@ -481,7 +481,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
         <div className={cn('border-t border-border', collapsed ? 'mx-3 pt-1' : 'mx-4 pt-1')}>
           {/* Notification bell */}
           {collapsed ? (
-            <div className="flex justify-center py-1">
+            <div className="flex justify-center py-2">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div><NotificationBell /></div>
@@ -490,8 +490,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
               </Tooltip>
             </div>
           ) : (
-            <div className="flex items-center justify-between px-1 py-1.5">
-              <span className="text-[10px] font-medium uppercase tracking-wider text-mid-gray/50 pl-1.5">Notificaciones</span>
+            <div className="flex justify-end py-2 px-1">
               <NotificationBell />
             </div>
           )}
