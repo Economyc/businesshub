@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
-import { BarChart3, Users, Briefcase, DollarSign, Home, Search, ChevronsLeft, Building2, Tags, BadgeCheck, Network, Handshake, ClipboardList, FileSignature, Wallet, Receipt, Gift, ChevronRight, ChevronsUpDown, Check, MapPin, LogOut, Settings, Landmark, Boxes, UserRound, Bot, List, ShoppingCart, Package, Target, Repeat, Scale, FileText, Shield } from 'lucide-react'
+import { BarChart3, Users, Briefcase, DollarSign, Home, Search, ChevronsLeft, Building2, Tags, BadgeCheck, Network, Handshake, ClipboardList, FileSignature, Wallet, Receipt, Gift, ChevronRight, ChevronsUpDown, Check, MapPin, LogOut, Settings, Landmark, Boxes, UserRound, Bot, List, ShoppingCart, Package, Target, Scale, FileText, Shield } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { CommandPalette } from '@/core/ui/command-palette'
 import { CompanyLogo } from '@/core/ui/company-logo'
@@ -75,7 +75,6 @@ const SETTINGS_ITEMS = [
 
 const FINANCE_ITEMS: (NavItem & { end?: boolean })[] = [
   { to: '/finance', label: 'Transacciones', icon: List, end: true },
-  { to: '/finance/recurring', label: 'Recurrentes', icon: Repeat },
   { to: '/finance/purchases', label: 'Compras', icon: ShoppingCart, end: true },
   { to: '/finance/purchases/products', label: 'Insumos', icon: Package },
   { to: '/finance/cash-flow', label: 'Flujo de Caja', icon: Wallet },

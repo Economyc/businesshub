@@ -1,6 +1,8 @@
 import { useState, useMemo } from 'react'
 import { Plus, Repeat, Pause, Play } from 'lucide-react'
 import { RecurringForm } from './recurring-form'
+import { FinanceSummary } from './finance-summary'
+import { FinanceTabs } from './finance-tabs'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
 import { EmptyState } from '@/core/ui/empty-state'
@@ -76,6 +78,9 @@ export function RecurringList() {
           Nueva
         </button>
       </PageHeader>
+
+      <FinanceSummary />
+      <FinanceTabs />
 
       <div className="flex gap-3 mb-5">
         <div className="flex-1 min-w-0 sm:min-w-[180px]">
