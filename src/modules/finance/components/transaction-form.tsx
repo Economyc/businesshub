@@ -146,7 +146,7 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
               initial="initial"
               animate="animate"
               exit="exit"
-              className="relative bg-surface-elevated rounded-xl shadow-xl border border-border w-full max-w-lg max-h-[85vh] overflow-y-auto z-10"
+              className="relative bg-surface-elevated rounded-xl shadow-xl border border-border w-full max-w-lg max-h-[min(90vh,fit-content)] overflow-y-auto z-10"
             >
               {/* Header */}
               <div className="flex items-center justify-between px-6 pt-5 pb-3">
