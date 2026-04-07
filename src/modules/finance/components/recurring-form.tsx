@@ -134,7 +134,7 @@ export function RecurringForm({ open, recurringId, onClose, onSaved }: Recurring
     <>
       <AnimatePresence>
         {open && (
-          <div className="fixed inset-0 z-50 flex items-start justify-center pt-[5vh] md:pt-[8vh] p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
