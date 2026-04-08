@@ -219,7 +219,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
     <div className="flex flex-shrink-0 group/sidebar">
       <nav
         className={cn(
-          'bg-bone border-r border-border py-5 flex-shrink-0 flex flex-col transition-all duration-300 ease-in-out relative z-10',
+          'bg-bone py-5 flex-shrink-0 flex flex-col transition-all duration-300 ease-in-out relative',
           settingsOpen && 'shadow-[4px_0_12px_-2px_rgba(0,0,0,0.08)]',
           collapsed ? 'w-[60px]' : 'w-[200px]'
         )}
@@ -463,7 +463,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                             >
                               {section.title && (
                                 <>
-                                  <div className="absolute left-[27px] top-0 h-1/2 w-[14px] border-l-[1.5px] border-b-[1.5px] border-graphite/20 rounded-bl-[6px]" />
+                                  <div className="absolute left-[27px] top-0 h-1/2 w-[6px] border-l-[1.5px] border-b-[1.5px] border-graphite/20 rounded-bl-[5px]" />
                                   {!isLastItem && <div className="absolute left-[27px] top-1/2 bottom-0 w-[1.5px] bg-graphite/20" />}
                                 </>
                               )}
@@ -489,7 +489,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                           >
                             {section.title && (
                               <>
-                                <div className="absolute left-[27px] top-0 h-1/2 w-[14px] border-l-[1.5px] border-b-[1.5px] border-graphite/20 rounded-bl-[6px]" />
+                                <div className="absolute left-[27px] top-0 h-1/2 w-[6px] border-l-[1.5px] border-b-[1.5px] border-graphite/20 rounded-bl-[5px]" />
                                 {!isLastItem && <div className="absolute left-[27px] top-1/2 bottom-0 w-[1.5px] bg-graphite/20" />}
                               </>
                             )}
