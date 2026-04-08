@@ -415,10 +415,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
               const isOpen = !section.title || openSections.has(section.title)
               return (
                 <div key={section.title ?? sIdx} className={section.title ? 'relative' : ''}>
-                  {/* Tree connector line — spans from title icon to last item */}
-                  {section.title && isOpen && (
-                    <div className="absolute left-[27px] top-[28px] bottom-[18px] w-[1.5px] bg-graphite/25 z-10" />
-                  )}
+                  {/* Tree connector lines are now per-item (curved) */}
                   {section.title && (
                     <button
                       onClick={() => toggleSection(section.title!)}
@@ -448,9 +445,8 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                     )}
                   >
                     <div className="overflow-hidden relative">
-                      {section.items.map(({ to, label, icon: Icon, moduleKey }) => {
-                        const hasAccess = !moduleKey || can(moduleKey, 'read')
-                        if (!hasAccess) return null
+                      {visibleItems.map(({ to, label, icon: Icon, moduleKey }, itemIdx) => {
+                        const isLastItem = itemIdx === visibleItems.length - 1
 
                         if (to === '/finance') {
                           return (
@@ -466,7 +462,10 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                               )}
                             >
                               {section.title && (
-                                <div className="absolute left-[27px] top-1/2 -translate-y-1/2 w-[13px] h-[1.5px] bg-graphite/25 z-10" />
+                                <>
+                                  <div className="absolute left-[27px] top-0 h-1/2 w-[14px] border-l-[1.5px] border-b-[1.5px] border-graphite/20 rounded-bl-[6px]" />
+                                  {!isLastItem && <div className="absolute left-[27px] top-1/2 bottom-0 w-[1.5px] bg-graphite/20" />}
+                                </>
                               )}
                               <Icon size={16} strokeWidth={1.5} />
                               {label}
@@ -489,7 +488,10 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                             }
                           >
                             {section.title && (
-                              <div className="absolute left-[27px] top-1/2 -translate-y-1/2 w-[13px] h-[1.5px] bg-graphite/25 z-10" />
+                              <>
+                                <div className="absolute left-[27px] top-0 h-1/2 w-[14px] border-l-[1.5px] border-b-[1.5px] border-graphite/20 rounded-bl-[6px]" />
+                                {!isLastItem && <div className="absolute left-[27px] top-1/2 bottom-0 w-[1.5px] bg-graphite/20" />}
+                              </>
                             )}
                             <Icon size={16} strokeWidth={1.5} />
                             {label}

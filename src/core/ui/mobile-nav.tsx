@@ -258,14 +258,18 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
                           transition={{ duration: 0.2 }}
                           className="overflow-hidden relative"
                         >
-                          {/* Tree connector line */}
-                          {section.title && (
-                            <div className="absolute left-[30px] top-0 bottom-0 w-px bg-border" />
-                          )}
-                          {section.items.map(({ to, label, icon: Icon }) => {
+                          {/* Tree connector lines — per-item curved */}
+                          {section.items.map(({ to, label, icon: Icon }, itemIdx) => {
+                            const isLastItem = itemIdx === section.items.length - 1
                             if (to === '/finance') {
                               return (
-                                <div key={to}>
+                                <div key={to} className={section.title ? 'relative' : ''}>
+                                  {section.title && (
+                                    <>
+                                      <div className="absolute left-[30px] top-0 h-[24px] w-[14px] border-l-[1.5px] border-b-[1.5px] border-border rounded-bl-[6px]" />
+                                      {!isLastItem && <div className="absolute left-[30px] top-[24px] bottom-0 w-[1.5px] bg-border" />}
+                                    </>
+                                  )}
                                   <button
                                     onClick={() => setFinanceExpanded(!financeExpanded)}
                                     className={cn(
@@ -317,22 +321,29 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
                               )
                             }
                             return (
-                              <NavLink
-                                key={to}
-                                to={to}
-                                onClick={handleNav}
-                                className={({ isActive }) =>
-                                  cn(
-                                    'flex items-center gap-3 mx-3 px-3 py-3 rounded-xl text-[15px] transition-all duration-150',
-                                    isActive
-                                      ? 'text-dark-graphite font-medium bg-bone'
-                                      : 'text-graphite/70 active:bg-bone/50'
-                                  )
-                                }
-                              >
-                                <Icon size={20} strokeWidth={1.5} />
-                                {label}
-                              </NavLink>
+                              <div key={to} className={section.title ? 'relative' : ''}>
+                                {section.title && (
+                                  <>
+                                    <div className="absolute left-[30px] top-0 h-1/2 w-[14px] border-l-[1.5px] border-b-[1.5px] border-border rounded-bl-[6px]" />
+                                    {!isLastItem && <div className="absolute left-[30px] top-1/2 bottom-0 w-[1.5px] bg-border" />}
+                                  </>
+                                )}
+                                <NavLink
+                                  to={to}
+                                  onClick={handleNav}
+                                  className={({ isActive }) =>
+                                    cn(
+                                      'flex items-center gap-3 mx-3 px-3 py-3 rounded-xl text-[15px] transition-all duration-150',
+                                      isActive
+                                        ? 'text-dark-graphite font-medium bg-bone'
+                                        : 'text-graphite/70 active:bg-bone/50'
+                                    )
+                                  }
+                                >
+                                  <Icon size={20} strokeWidth={1.5} />
+                                  {label}
+                                </NavLink>
+                              </div>
                             )
                           })}
                         </motion.div>
