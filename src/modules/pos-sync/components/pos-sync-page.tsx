@@ -15,7 +15,7 @@ const TABS = [
 export function PosSyncPage() {
   const [activeTab, setActiveTab] = useState('ventas')
   const { locales, loading: loadingLocales, error: localesError } = usePosLocales()
-  const [selectedLocal, setSelectedLocal] = useState<number | null>(null)
+  const [selectedLocal, setSelectedLocal] = useState<string | null>(null)
 
   // Auto-select first local when loaded
   if (!selectedLocal && locales.length > 0) {
@@ -44,12 +44,12 @@ export function PosSyncPage() {
             <label className="text-body font-medium text-graphite">Local:</label>
             <select
               value={selectedLocal ?? ''}
-              onChange={(e) => setSelectedLocal(Number(e.target.value))}
+              onChange={(e) => setSelectedLocal(e.target.value)}
               className="text-body bg-surface border border-border rounded-lg px-3 py-2 text-graphite"
             >
               {locales.map((l) => (
                 <option key={l.local_id} value={l.local_id}>
-                  {l.local_nombre}
+                  {l.local_descripcion}
                 </option>
               ))}
             </select>
@@ -59,8 +59,8 @@ export function PosSyncPage() {
 
       <UnderlineButtonTabs tabs={TABS} active={activeTab} onChange={setActiveTab} />
 
-      {selectedLocal && activeTab === 'ventas' && <VentasTab localId={selectedLocal} />}
-      {selectedLocal && activeTab === 'catalogo' && <CatalogoTab localId={selectedLocal} />}
+      {selectedLocal && activeTab === 'ventas' && <VentasTab localId={Number(selectedLocal)} />}
+      {selectedLocal && activeTab === 'catalogo' && <CatalogoTab localId={Number(selectedLocal)} />}
     </PageTransition>
   )
 }

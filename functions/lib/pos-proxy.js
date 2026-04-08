@@ -3,16 +3,13 @@ import { defineSecret } from 'firebase-functions/params';
 const posToken = defineSecret('POS_TOKEN');
 const POS_BASE_URL = 'http://api.restaurant.pe/restaurant';
 const POS_DOMAIN_ID = '8267';
-function buildHeaders(token) {
-    return {
-        'Authorization': `Token token='${token}'`,
-        'Content-Type': 'application/json',
-    };
+function buildUrl(path, token) {
+    return `${POS_BASE_URL}${path}?token=${token.trim()}`;
 }
-async function fetchPosApi(url, token, method = 'GET', body) {
+async function fetchPosApi(url, method = 'GET', body) {
     const opts = {
         method,
-        headers: buildHeaders(token),
+        headers: { 'Content-Type': 'application/json' },
     };
     if (body && method === 'POST') {
         opts.body = JSON.stringify(body);
@@ -44,8 +41,8 @@ export const posProxy = onRequest({
         let data;
         switch (action) {
             case 'dominio': {
-                const url = `${POS_BASE_URL}/readonly/rest/delivery/obtenerInformacionDominio/${POS_DOMAIN_ID}`;
-                data = await fetchPosApi(url, token);
+                const url = buildUrl(`/readonly/rest/delivery/obtenerInformacionDominio/${POS_DOMAIN_ID}`, token);
+                data = await fetchPosApi(url);
                 break;
             }
             case 'ventas': {
@@ -53,8 +50,8 @@ export const posProxy = onRequest({
                     res.status(400).json({ error: 'ventas requires local_id, f1, f2' });
                     return;
                 }
-                const url = `${POS_BASE_URL}/readonly/rest/venta/obtenerVentasPorIntegracion/${POS_DOMAIN_ID}`;
-                data = await fetchPosApi(url, token, 'POST', {
+                const url = buildUrl(`/readonly/rest/venta/obtenerVentasPorIntegracion/${POS_DOMAIN_ID}`, token);
+                data = await fetchPosApi(url, 'POST', {
                     pagina: params.pagina ?? 1,
                     local_id: params.local_id,
                     f1: params.f1,
@@ -67,8 +64,8 @@ export const posProxy = onRequest({
                     res.status(400).json({ error: 'catalogo requires local_id' });
                     return;
                 }
-                const url = `${POS_BASE_URL}/readonly/rest/delivery/obtenerCartaPorLocal/${POS_DOMAIN_ID}/${params.local_id}`;
-                data = await fetchPosApi(url, token);
+                const url = buildUrl(`/readonly/rest/delivery/obtenerCartaPorLocal/${POS_DOMAIN_ID}/${params.local_id}`, token);
+                data = await fetchPosApi(url);
                 break;
             }
             default:

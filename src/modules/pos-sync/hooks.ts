@@ -12,7 +12,7 @@ export function usePosLocales() {
     setLoading(true)
     posService.getDominio()
       .then((data) => {
-        if (!cancelled) setLocales(data.locales ?? [])
+        if (!cancelled) setLocales(data?.locales ?? [])
       })
       .catch((err) => {
         if (!cancelled) setError(err.message)
@@ -36,7 +36,7 @@ export function usePosVentas() {
     setError(null)
     try {
       const data = await posService.getVentas(localId, f1, f2)
-      setVentas(Array.isArray(data) ? data : [])
+      setVentas(data)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Error desconocido')
       setVentas([])
@@ -58,7 +58,7 @@ export function usePosCatalogo() {
     setError(null)
     try {
       const data = await posService.getCatalogo(localId)
-      setProductos(Array.isArray(data) ? data : [])
+      setProductos(data)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Error desconocido')
       setProductos([])

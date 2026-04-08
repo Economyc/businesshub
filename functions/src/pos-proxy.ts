@@ -18,17 +18,14 @@ interface PosProxyRequest {
   }
 }
 
-function buildHeaders(token: string): Record<string, string> {
-  return {
-    'Authorization': `Token token='${token}'`,
-    'Content-Type': 'application/json',
-  }
+function buildUrl(path: string, token: string): string {
+  return `${POS_BASE_URL}${path}?token=${token.trim()}`
 }
 
-async function fetchPosApi(url: string, token: string, method: 'GET' | 'POST' = 'GET', body?: unknown): Promise<unknown> {
+async function fetchPosApi(url: string, method: 'GET' | 'POST' = 'GET', body?: unknown): Promise<unknown> {
   const opts: RequestInit = {
     method,
-    headers: buildHeaders(token),
+    headers: { 'Content-Type': 'application/json' },
   }
   if (body && method === 'POST') {
     opts.body = JSON.stringify(body)
@@ -67,8 +64,8 @@ export const posProxy = onRequest(
 
       switch (action) {
         case 'dominio': {
-          const url = `${POS_BASE_URL}/readonly/rest/delivery/obtenerInformacionDominio/${POS_DOMAIN_ID}`
-          data = await fetchPosApi(url, token)
+          const url = buildUrl(`/readonly/rest/delivery/obtenerInformacionDominio/${POS_DOMAIN_ID}`, token)
+          data = await fetchPosApi(url)
           break
         }
 
@@ -77,8 +74,8 @@ export const posProxy = onRequest(
             res.status(400).json({ error: 'ventas requires local_id, f1, f2' })
             return
           }
-          const url = `${POS_BASE_URL}/readonly/rest/venta/obtenerVentasPorIntegracion/${POS_DOMAIN_ID}`
-          data = await fetchPosApi(url, token, 'POST', {
+          const url = buildUrl(`/readonly/rest/venta/obtenerVentasPorIntegracion/${POS_DOMAIN_ID}`, token)
+          data = await fetchPosApi(url, 'POST', {
             pagina: params.pagina ?? 1,
             local_id: params.local_id,
             f1: params.f1,
@@ -92,8 +89,8 @@ export const posProxy = onRequest(
             res.status(400).json({ error: 'catalogo requires local_id' })
             return
           }
-          const url = `${POS_BASE_URL}/readonly/rest/delivery/obtenerCartaPorLocal/${POS_DOMAIN_ID}/${params.local_id}`
-          data = await fetchPosApi(url, token)
+          const url = buildUrl(`/readonly/rest/delivery/obtenerCartaPorLocal/${POS_DOMAIN_ID}/${params.local_id}`, token)
+          data = await fetchPosApi(url)
           break
         }
 

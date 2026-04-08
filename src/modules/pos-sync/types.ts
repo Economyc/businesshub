@@ -1,78 +1,98 @@
 // --- API Response wrapper ---
 export interface PosApiResponse<T> {
-  tipo: number
+  tipo: number | string
   data: T
   mensajes: string[]
 }
 
 // --- Dominio (locales, métodos de pago) ---
 export interface PosLocal {
-  local_id: number
-  local_nombre: string
-  local_direccion?: string
+  local_id: string
+  local_descripcion: string
+  local_aceptadelivery?: string
   almacenes?: PosAlmacen[]
 }
 
 export interface PosAlmacen {
-  almacen_id: number
-  almacen_nombre: string
+  almacen_id: string
+  almacen_descripcion: string
 }
 
 export interface PosDominioData {
   locales: PosLocal[]
-  tarjetas: PosTarjeta[]
+  tarjetas: unknown[]
   motorizados: unknown[]
+  usuarios: unknown[]
   node?: unknown
 }
 
-export interface PosTarjeta {
-  tarjeta_id: number
-  tarjeta_nombre: string
-}
-
-// --- Ventas ---
+// --- Ventas (estructura real de la API) ---
 export interface PosVenta {
-  venta_id: number
-  venta_serie: string
-  venta_correlativo: string
-  venta_fecha: string
-  venta_subtotal: number
-  venta_impuesto: number
-  venta_total: number
-  venta_tipopago: number // 1=efectivo, 2=tarjeta, 5=online, 7=deposito, 8=YAPE, 9=PLIN
-  venta_tipocomprobante: number // 1=boleta, 2=factura
-  venta_estado: number
-  venta_descuento?: number
-  cliente_nombres?: string
-  cliente_apellidos?: string
-  cliente_dniruc?: string
-  detalle?: PosVentaItem[]
+  ID: string
+  serie: string
+  correlativo: string
+  documento: string
+  fecha: string
+  tipo_pago: string
+  id_local: number
+  subtotal: string
+  descuento: string
+  impuestos: string
+  total: string
+  estado: string
+  estado_txt: string
+  canalventa: string
+  nombre_canaldelivery: string
+  venta_observaciones: string | null
+  tipo_documento: string // F=Factura, B=Boleta
+  suma_impuestos: string
+  costoenvio: string
+  lista_propinas: PosPropina[]
+  detalle: PosVentaItem[]
+  pagosList: PosPago[]
+  cliente: PosCliente | null
   [key: string]: unknown
 }
 
 export interface PosVentaItem {
-  pedido_productoid: number
-  pedido_descripcion: string
-  pedido_cantidad: number
-  pedido_precio: number
-  pedido_descuento: number
-  pedido_subtotal: number
+  id_detalle: string
+  id_producto: string
+  nombre_producto: string
+  cantidad_vendida: string
+  precio_unitario: string
+  descuento_unitario: string
+  venta_total: string
+  categoria_descripcion: string
   [key: string]: unknown
 }
 
-export interface PosVentasResponse {
-  ventas: PosVenta[]
-  total_registros?: number
-  pagina_actual?: number
-  total_paginas?: number
+export interface PosPropina {
+  montoConIgv: string
+  montoSinIgv: string
+  tipoPago: string
+  tipoTarjeta: string
+}
+
+export interface PosPago {
+  tipoPago?: string
+  monto?: string
+  [key: string]: unknown
+}
+
+export interface PosCliente {
+  cliente_nombres?: string
+  cliente_apellidos?: string
+  cliente_dniruc?: string
+  cliente_email?: string
+  [key: string]: unknown
 }
 
 // --- Catálogo de productos ---
 export interface PosProducto {
-  producto_id: number
+  producto_id: number | string
   producto_descripcion: string
-  producto_precio: number
-  producto_estado: number
+  producto_precio: number | string
+  producto_estado: number | string
   categoria_nombre?: string
   presentaciones?: PosPresentacion[]
   modificadores?: PosModificador[]
@@ -80,32 +100,17 @@ export interface PosProducto {
 }
 
 export interface PosPresentacion {
-  presentacion_id: number
+  presentacion_id: number | string
   presentacion_descripcion: string
-  presentacion_precio: number
+  presentacion_precio: number | string
 }
 
 export interface PosModificador {
-  modificador_id: number
+  modificador_id: number | string
   modificador_nombre: string
   selecciones?: {
-    modificadorseleccion_id: number
+    modificadorseleccion_id: number | string
     modificadorseleccion_nombre: string
-    modificadorseleccion_precio: number
+    modificadorseleccion_precio: number | string
   }[]
-}
-
-// --- Mapeo tipos de pago ---
-export const TIPO_PAGO_MAP: Record<number, string> = {
-  1: 'Efectivo',
-  2: 'Tarjeta',
-  5: 'Online',
-  7: 'Depósito',
-  8: 'YAPE',
-  9: 'PLIN',
-}
-
-export const TIPO_COMPROBANTE_MAP: Record<number, string> = {
-  1: 'Boleta',
-  2: 'Factura',
 }

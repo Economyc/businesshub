@@ -4,10 +4,14 @@ import { DataTable, type Column } from '@/core/ui/data-table'
 import { EmptyState } from '@/core/ui/empty-state'
 import { formatCurrency } from '@/core/utils/format'
 import { usePosVentas } from '../hooks'
-import { TIPO_PAGO_MAP, TIPO_COMPROBANTE_MAP, type PosVenta } from '../types'
+import type { PosVenta } from '../types'
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10)
+}
+
+function num(val: string | number | undefined): number {
+  return Number(val) || 0
 }
 
 interface VentasTabProps {
@@ -27,8 +31,8 @@ export function VentasTab({ localId }: VentasTabProps) {
     {
       key: 'fecha',
       header: 'Fecha',
-      width: '130px',
-      render: (v) => <span className="text-body">{v.venta_fecha?.slice(0, 10) ?? '—'}</span>,
+      width: '140px',
+      render: (v) => <span className="text-body">{v.fecha?.slice(0, 16) ?? '—'}</span>,
     },
     {
       key: 'comprobante',
@@ -37,19 +41,19 @@ export function VentasTab({ localId }: VentasTabProps) {
       hideOnMobile: true,
       render: (v) => (
         <span className="text-body">
-          {TIPO_COMPROBANTE_MAP[v.venta_tipocomprobante] ?? '—'}{' '}
-          <span className="text-mid-gray">{v.venta_serie}-{v.venta_correlativo}</span>
+          {v.documento}{' '}
+          <span className="text-mid-gray">{v.serie}-{v.correlativo}</span>
         </span>
       ),
     },
     {
-      key: 'cliente',
-      header: 'Cliente',
-      width: '1fr',
+      key: 'canal',
+      header: 'Canal',
+      width: '120px',
       hideOnMobile: true,
       render: (v) => (
-        <span className="text-body truncate">
-          {[v.cliente_nombres, v.cliente_apellidos].filter(Boolean).join(' ') || '—'}
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-caption bg-bone text-graphite">
+          {v.canalventa || v.nombre_canaldelivery || '—'}
         </span>
       ),
     },
@@ -59,7 +63,7 @@ export function VentasTab({ localId }: VentasTabProps) {
       width: '100px',
       render: (v) => (
         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-caption bg-bone text-graphite">
-          {TIPO_PAGO_MAP[v.venta_tipopago] ?? `Tipo ${v.venta_tipopago}`}
+          {v.tipo_pago || '—'}
         </span>
       ),
     },
@@ -68,16 +72,17 @@ export function VentasTab({ localId }: VentasTabProps) {
       header: 'Total',
       width: '120px',
       primary: true,
-      render: (v) => <span className="font-semibold text-dark-graphite">{formatCurrency(v.venta_total ?? 0)}</span>,
+      render: (v) => <span className="font-semibold text-dark-graphite">{formatCurrency(num(v.total))}</span>,
     },
   ]
 
   // Add id field for DataTable
-  const data = ventas.map((v) => ({ ...v, id: String(v.venta_id ?? Math.random()) }))
+  const data = ventas.map((v) => ({ ...v, id: v.ID ?? String(Math.random()) }))
 
   // Summary totals
-  const totalVentas = ventas.reduce((sum, v) => sum + (v.venta_total ?? 0), 0)
-  const totalImpuesto = ventas.reduce((sum, v) => sum + (v.venta_impuesto ?? 0), 0)
+  const totalVentas = ventas.reduce((sum, v) => sum + num(v.total), 0)
+  const totalImpuesto = ventas.reduce((sum, v) => sum + num(v.impuestos), 0)
+  const totalPropinas = ventas.reduce((sum, v) => sum + v.lista_propinas?.reduce((s, p) => s + num(p.montoConIgv), 0) ?? 0, 0)
 
   return (
     <div>
@@ -130,7 +135,7 @@ export function VentasTab({ localId }: VentasTabProps) {
       {data.length > 0 && (
         <>
           {/* Summary cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
             <div className="bg-surface rounded-xl card-elevated p-4">
               <span className="block text-caption text-mid-gray mb-1">Registros</span>
               <span className="text-subheading font-bold text-dark-graphite">{ventas.length}</span>
@@ -140,8 +145,12 @@ export function VentasTab({ localId }: VentasTabProps) {
               <span className="text-subheading font-bold text-emerald-700">{formatCurrency(totalVentas)}</span>
             </div>
             <div className="bg-surface rounded-xl card-elevated p-4">
-              <span className="block text-caption text-mid-gray mb-1">Total Impuesto</span>
+              <span className="block text-caption text-mid-gray mb-1">Impuestos</span>
               <span className="text-subheading font-bold text-dark-graphite">{formatCurrency(totalImpuesto)}</span>
+            </div>
+            <div className="bg-surface rounded-xl card-elevated p-4">
+              <span className="block text-caption text-mid-gray mb-1">Propinas</span>
+              <span className="text-subheading font-bold text-dark-graphite">{formatCurrency(totalPropinas)}</span>
             </div>
           </div>
 
