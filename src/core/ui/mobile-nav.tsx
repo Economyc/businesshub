@@ -266,7 +266,7 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
                                 <div key={to} className={section.title ? 'relative' : ''}>
                                   {section.title && (
                                     <>
-                                      <div className="absolute left-[30px] top-0 h-[24px] w-[6px] border-l-[1.5px] border-b-[1.5px] border-border rounded-bl-[5px]" />
+                                      <div className="absolute left-[30px] top-0 h-[24px] w-[4px] border-l-[1.5px] border-b-[1.5px] border-border rounded-bl-[4px]" />
                                       {!isLastItem && <div className="absolute left-[30px] top-[24px] bottom-0 w-[1.5px] bg-border" />}
                                     </>
                                   )}
@@ -324,7 +324,7 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
                               <div key={to} className={section.title ? 'relative' : ''}>
                                 {section.title && (
                                   <>
-                                    <div className="absolute left-[30px] top-0 h-1/2 w-[6px] border-l-[1.5px] border-b-[1.5px] border-border rounded-bl-[5px]" />
+                                    <div className="absolute left-[30px] top-0 h-1/2 w-[4px] border-l-[1.5px] border-b-[1.5px] border-border rounded-bl-[4px]" />
                                     {!isLastItem && <div className="absolute left-[30px] top-1/2 bottom-0 w-[1.5px] bg-border" />}
                                   </>
                                 )}

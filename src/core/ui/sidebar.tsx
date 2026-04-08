@@ -463,7 +463,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                             >
                               {section.title && (
                                 <>
-                                  <div className="absolute left-[27px] top-0 h-1/2 w-[6px] border-l-[1.5px] border-b-[1.5px] border-graphite/20 rounded-bl-[5px]" />
+                                  <div className="absolute left-[27px] top-0 h-1/2 w-[4px] border-l-[1.5px] border-b-[1.5px] border-graphite/20 rounded-bl-[4px]" />
                                   {!isLastItem && <div className="absolute left-[27px] top-1/2 bottom-0 w-[1.5px] bg-graphite/20" />}
                                 </>
                               )}
@@ -489,7 +489,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                           >
                             {section.title && (
                               <>
-                                <div className="absolute left-[27px] top-0 h-1/2 w-[6px] border-l-[1.5px] border-b-[1.5px] border-graphite/20 rounded-bl-[5px]" />
+                                <div className="absolute left-[27px] top-0 h-1/2 w-[4px] border-l-[1.5px] border-b-[1.5px] border-graphite/20 rounded-bl-[4px]" />
                                 {!isLastItem && <div className="absolute left-[27px] top-1/2 bottom-0 w-[1.5px] bg-graphite/20" />}
                               </>
                             )}
