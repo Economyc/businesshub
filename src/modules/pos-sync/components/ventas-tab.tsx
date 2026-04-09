@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { Search, Loader2, MapPin, FileText, DollarSign, Receipt, Heart } from 'lucide-react'
+import { useMemo, useState, useEffect } from 'react'
+import { Search, RefreshCw, Loader2, MapPin, FileText, DollarSign, Receipt, Heart, Clock } from 'lucide-react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { DataTable, type Column } from '@/core/ui/data-table'
 import { EmptyState } from '@/core/ui/empty-state'
@@ -101,7 +101,7 @@ function calcTotals(list: PosVenta[]) {
 
 export function VentasTab({ localIds, allLocalIds, locales }: VentasTabProps) {
   const { startDate, endDate } = useDateRange()
-  const { ventas, loading, error, fetch } = usePosVentas()
+  const { ventas, loading, error, rateLimited, lastUpdated, fromCache, fetch, hasFetched } = usePosVentas()
   const prefersReducedMotion = useReducedMotion()
   const [docFilter, setDocFilter] = useState<DocType | 'todos'>('todos')
   const isMultiLocal = localIds.length > 1
@@ -110,6 +110,14 @@ export function VentasTab({ localIds, allLocalIds, locales }: VentasTabProps) {
     // Always fetch ALL locals so switching pills filters in-memory without re-fetching
     fetch(allLocalIds, `${toDateStr(startDate)} 00:00:00`, `${toDateStr(endDate)} 23:59:59`)
   }
+
+  // Auto-fetch on mount when locales are ready
+  useEffect(() => {
+    if (allLocalIds.length > 0 && !hasFetched.current) {
+      hasFetched.current = true
+      fetch(allLocalIds, `${toDateStr(startDate)} 00:00:00`, `${toDateStr(endDate)} 23:59:59`)
+    }
+  }, [allLocalIds.length])
 
   const localNameMap = useMemo(() => {
     const map = new Map<number, string>()
@@ -214,13 +222,13 @@ export function VentasTab({ localIds, allLocalIds, locales }: VentasTabProps) {
 
   return (
     <div>
-      {/* Consultar button */}
-      <div className="mb-5">
+      {/* Refresh button + status */}
+      <div className="flex items-center gap-3 mb-5">
         <button
           onClick={handleConsultar}
           disabled={loading}
           className="flex items-center gap-2 h-10 px-5 bg-dark-graphite text-white rounded-[10px] text-body font-medium hover:bg-graphite transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-          aria-label="Consultar ventas"
+          aria-label="Actualizar ventas"
         >
           {loading ? (
             <>
@@ -229,11 +237,18 @@ export function VentasTab({ localIds, allLocalIds, locales }: VentasTabProps) {
             </>
           ) : (
             <>
-              <Search size={16} />
-              Consultar
+              <RefreshCw size={16} />
+              Actualizar
             </>
           )}
         </button>
+        {lastUpdated && (
+          <span className="flex items-center gap-1 text-caption text-mid-gray">
+            <Clock size={12} />
+            {lastUpdated.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}
+            {fromCache && ' (cache)'}
+          </span>
+        )}
       </div>
 
       {/* Doc type filter */}
@@ -262,6 +277,14 @@ export function VentasTab({ localIds, allLocalIds, locales }: VentasTabProps) {
         </div>
       )}
 
+      {/* Rate limit warning */}
+      {rateLimited && ventas.length > 0 && (
+        <div className="bg-warning-bg text-warning-text rounded-lg px-4 py-3 text-body mb-4 flex items-center gap-2">
+          <Clock size={16} className="shrink-0" />
+          La API del POS está procesando otra solicitud. Mostrando última consulta disponible.
+        </div>
+      )}
+
       {/* Error */}
       {error && (
         <div className="bg-red-50 text-red-700 rounded-lg px-4 py-3 text-body mb-4">{error}</div>
@@ -272,7 +295,7 @@ export function VentasTab({ localIds, allLocalIds, locales }: VentasTabProps) {
         <EmptyState
           icon={Search}
           title="Sin resultados"
-          description="Selecciona un rango de fechas y presiona Consultar para ver las ventas del POS."
+          description="Las ventas se cargan automáticamente. Presiona Actualizar si necesitas refrescar."
         />
       )}
 

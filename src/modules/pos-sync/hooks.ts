@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
-import { posService } from './services'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { posService, PosRateLimitError } from './services'
 import type { PosLocal, PosVenta, PosProducto } from './types'
 
 export function usePosLocales() {
@@ -26,28 +26,82 @@ export function usePosLocales() {
   return { locales, loading, error }
 }
 
+// --- Cache helpers ---
+const CACHE_TTL = 10 * 60 * 1000 // 10 minutes
+
+interface CachedData {
+  ventas: PosVenta[]
+  timestamp: number
+}
+
+function cacheKey(localIds: number[], f1: string, f2: string): string {
+  return `pos-ventas-${[...localIds].sort().join(',')}-${f1}-${f2}`
+}
+
+function getCached(key: string): CachedData | null {
+  try {
+    const raw = sessionStorage.getItem(key)
+    if (!raw) return null
+    return JSON.parse(raw) as CachedData
+  } catch { return null }
+}
+
+function setCache(key: string, ventas: PosVenta[]): void {
+  try {
+    sessionStorage.setItem(key, JSON.stringify({ ventas, timestamp: Date.now() }))
+  } catch { /* storage full, ignore */ }
+}
+
 export function usePosVentas() {
   const [ventas, setVentas] = useState<PosVenta[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [rateLimited, setRateLimited] = useState(false)
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [fromCache, setFromCache] = useState(false)
+  const hasFetched = useRef(false)
 
   const fetch = useCallback(async (localIds: number[], f1: string, f2: string) => {
+    const key = cacheKey(localIds, f1, f2)
+
+    // Load cache immediately if available
+    const cached = getCached(key)
+    if (cached) {
+      setVentas(cached.ventas)
+      setLastUpdated(new Date(cached.timestamp))
+      setFromCache(true)
+    }
+
     setLoading(true)
     setError(null)
+    setRateLimited(false)
     try {
       const results = await Promise.all(
         localIds.map((id) => posService.getVentas(id, f1, f2))
       )
-      setVentas(results.flat())
+      const allVentas = results.flat()
+      setVentas(allVentas)
+      setLastUpdated(new Date())
+      setFromCache(false)
+      setCache(key, allVentas)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Error desconocido')
-      setVentas([])
+      if (err instanceof PosRateLimitError) {
+        setRateLimited(true)
+        // Keep existing ventas (from cache or previous fetch), don't clear them
+        if (!cached && ventas.length === 0) {
+          setError('La API del POS está en espera. Intenta en unos minutos.')
+        }
+      } else {
+        setError(err instanceof Error ? err.message : 'Error desconocido')
+        // Only clear ventas if there's no cache to fall back on
+        if (!cached) setVentas([])
+      }
     } finally {
       setLoading(false)
     }
   }, [])
 
-  return { ventas, loading, error, fetch }
+  return { ventas, loading, error, rateLimited, lastUpdated, fromCache, fetch, hasFetched }
 }
 
 export function usePosCatalogo() {

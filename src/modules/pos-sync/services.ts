@@ -12,6 +12,13 @@ interface ProxyResponse<T> {
   error?: string
 }
 
+export class PosRateLimitError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'PosRateLimitError'
+  }
+}
+
 async function callProxy<T>(action: string, params?: Record<string, unknown>): Promise<{ data: T; mensajes: string[] }> {
   const res = await fetch(PROXY_URL, {
     method: 'POST',
@@ -30,7 +37,11 @@ async function callProxy<T>(action: string, params?: Record<string, unknown>): P
   // Check POS API-level errors (tipo !== 1)
   const tipo = Number(json.data.tipo)
   if (tipo !== 1) {
-    throw new Error(json.data.mensajes?.join(', ') || `POS error tipo ${tipo}`)
+    const msg = json.data.mensajes?.join(', ') || `POS error tipo ${tipo}`
+    if (msg.toLowerCase().includes('solicitud en ejecuci') || msg.toLowerCase().includes('espere')) {
+      throw new PosRateLimitError(msg)
+    }
+    throw new Error(msg)
   }
 
   return { data: json.data.data, mensajes: json.data.mensajes }
