@@ -6,7 +6,7 @@ const posToken = defineSecret('POS_TOKEN')
 const POS_BASE_URL = 'http://api.restaurant.pe/restaurant'
 const POS_DOMAIN_ID = '8267'
 
-type PosAction = 'ventas' | 'ventas-batch' | 'catalogo' | 'dominio'
+type PosAction = 'ventas' | 'ventas-batch' | 'catalogo' | 'dominio' | 'probe'
 
 interface PosProxyRequest {
   action: PosAction
@@ -16,6 +16,7 @@ interface PosProxyRequest {
     f1?: string
     f2?: string
     pagina?: number
+    endpoint_path?: string
   }
 }
 
@@ -111,46 +112,82 @@ async function fetchAllPagesForLocal(
   return { ventas, rateLimited: false, requestCount }
 }
 
+// Try multiple candidate endpoints to find one that returns Notas de Venta
+const VENTA_ENDPOINTS = [
+  { path: `/readonly/rest/venta/obtenerVentas/${POS_DOMAIN_ID}`, name: 'obtenerVentas' },
+  { path: `/readonly/rest/venta/obtenerVentasPorFecha/${POS_DOMAIN_ID}`, name: 'obtenerVentasPorFecha' },
+  { path: `/readonly/rest/venta/obtenerVentasPorLocal/${POS_DOMAIN_ID}`, name: 'obtenerVentasPorLocal' },
+  { path: `/readonly/rest/venta/listarVentas/${POS_DOMAIN_ID}`, name: 'listarVentas' },
+  { path: `/readonly/rest/venta/obtenerVentasTodas/${POS_DOMAIN_ID}`, name: 'obtenerVentasTodas' },
+]
+
+async function probeEndpoints(
+  token: string,
+  localId: number,
+  f1: string,
+  f2: string
+): Promise<{ path: string; name: string } | null> {
+  for (const ep of VENTA_ENDPOINTS) {
+    try {
+      const url = buildUrl(ep.path, token)
+      const response = (await fetchPosApi(url, 'POST', {
+        local_id: localId, f1, f2, pagina: 1,
+      })) as PosApiResponse
+      const tipo = Number(response.tipo)
+      if (tipo === 1) {
+        const ventas = extractVentas(response)
+        // Log what document types this endpoint returns
+        const tipos = ventas.map((v: any) => v.tipo_documento).filter(Boolean)
+        const uniqueTipos = [...new Set(tipos)]
+        console.log(`[PROBE] ${ep.name} => SUCCESS, ${ventas.length} ventas, tipos: [${uniqueTipos.join(', ')}]`)
+        return ep
+      }
+      if (isRateLimited(response)) {
+        console.log(`[PROBE] ${ep.name} => RATE LIMITED`)
+        return null // can't probe further, stop
+      }
+      console.log(`[PROBE] ${ep.name} => tipo=${tipo}, msgs: ${(response.mensajes || []).join(', ')}`)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      console.log(`[PROBE] ${ep.name} => FAILED: ${msg}`)
+    }
+  }
+  return null
+}
+
 async function fetchVentasBatch(
   token: string,
   localIds: number[],
   f1: string,
   f2: string
 ): Promise<{ ventas: unknown[]; rateLimited: boolean; endpoint: string }> {
-  const primaryPath = `/readonly/rest/venta/obtenerVentasPorLocal/${POS_DOMAIN_ID}`
-  const fallbackPath = `/readonly/rest/venta/obtenerVentasPorIntegracion/${POS_DOMAIN_ID}`
+  const integrationPath = `/readonly/rest/venta/obtenerVentasPorIntegracion/${POS_DOMAIN_ID}`
 
-  // Determine which endpoint to use by testing the first local
-  let endpointPath = primaryPath
-  let endpointUsed = 'obtenerVentasPorLocal'
+  // Probe alternative endpoints to find one with Notas de Venta
+  console.log('[BATCH] Probing alternative endpoints...')
+  const found = await probeEndpoints(token, localIds[0], f1, f2)
 
-  try {
-    const firstResult = await fetchAllPagesForLocal(token, primaryPath, localIds[0], f1, f2, false)
-    if (firstResult.rateLimited) {
-      return { ventas: firstResult.ventas, rateLimited: true, endpoint: endpointUsed }
-    }
+  let endpointPath: string
+  let endpointUsed: string
 
-    // Primary worked — continue with remaining locals
-    const allVentas = [...firstResult.ventas]
-    for (let i = 1; i < localIds.length; i++) {
-      const result = await fetchAllPagesForLocal(token, primaryPath, localIds[i], f1, f2, true)
-      allVentas.push(...result.ventas)
-      if (result.rateLimited) {
-        return { ventas: allVentas, rateLimited: true, endpoint: endpointUsed }
-      }
-    }
-    return { ventas: allVentas, rateLimited: false, endpoint: endpointUsed }
-  } catch {
-    // Primary endpoint failed on first request — switch to fallback
-    console.warn('Primary endpoint failed, falling back to obtenerVentasPorIntegracion')
-    endpointPath = fallbackPath
+  if (found) {
+    endpointPath = found.path
+    endpointUsed = found.name
+    console.log(`[BATCH] Using discovered endpoint: ${endpointUsed}`)
+    // First local was already fetched during probe, but we re-fetch for consistency
+    // (probe only fetched page 1; we need all pages)
+  } else {
+    endpointPath = integrationPath
     endpointUsed = 'obtenerVentasPorIntegracion'
+    console.log(`[BATCH] No alternative found, using: ${endpointUsed}`)
   }
 
-  // Fallback path: process all locals with the integration endpoint
+  // Now fetch all locals with the chosen endpoint
+  // If we probed (used a request), add delay before next request
   const allVentas: unknown[] = []
   for (let i = 0; i < localIds.length; i++) {
-    const result = await fetchAllPagesForLocal(token, endpointPath, localIds[i], f1, f2, i > 0)
+    const needsDelay = i > 0 || found !== null // delay if not first, or if probe already made requests
+    const result = await fetchAllPagesForLocal(token, endpointPath, localIds[i], f1, f2, needsDelay)
     allVentas.push(...result.ventas)
     if (result.rateLimited) {
       return { ventas: allVentas, rateLimited: true, endpoint: endpointUsed }
@@ -212,6 +249,43 @@ export const posProxy = onRequest(
           }
           const batchResult = await fetchVentasBatch(token, params.local_ids, params.f1, params.f2)
           res.json({ success: true, data: batchResult })
+          return
+        }
+
+        case 'probe': {
+          // Test a single endpoint and return raw response for debugging
+          if (!params?.endpoint_path || !params?.local_id || !params?.f1 || !params?.f2) {
+            res.status(400).json({ error: 'probe requires endpoint_path, local_id, f1, f2' })
+            return
+          }
+          try {
+            const url = buildUrl(params.endpoint_path, token)
+            const rawResponse = await fetchPosApi(url, 'POST', {
+              local_id: params.local_id, f1: params.f1, f2: params.f2, pagina: params.pagina ?? 1,
+            })
+            const posResp = rawResponse as PosApiResponse
+            const ventas = extractVentas(posResp)
+            const tipos = ventas.map((v: any) => v.tipo_documento).filter(Boolean)
+            const uniqueTipos = [...new Set(tipos)]
+            const docs = ventas.slice(0, 5).map((v: any) => ({
+              documento: v.documento, tipo_documento: v.tipo_documento, total: v.total, fecha: v.fecha
+            }))
+            res.json({
+              success: true,
+              endpoint: params.endpoint_path,
+              tipo: posResp.tipo,
+              mensajes: posResp.mensajes,
+              ventasCount: ventas.length,
+              uniqueTipos,
+              sampleDocs: docs,
+            })
+          } catch (err: unknown) {
+            res.json({
+              success: false,
+              endpoint: params.endpoint_path,
+              error: err instanceof Error ? err.message : String(err),
+            })
+          }
           return
         }
 

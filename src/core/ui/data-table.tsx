@@ -23,7 +23,7 @@ const CARD_HEIGHT = 88
 const OVERSCAN = 5
 
 export function DataTable<T extends { id: string }>({ columns, data, onRowClick }: DataTableProps<T>) {
-  const gridCols = columns.map((c) => c.width ?? '1fr').join(' ')
+  const gridCols = columns.map((c) => c.width ? `minmax(${c.width}, 1fr)` : '1fr').join(' ')
   const visibleMobileCols = columns.filter((c) => c.key !== 'actions' && !c.hideOnMobile)
   const primaryCol = visibleMobileCols.find((c) => c.primary)
   const detailCols = visibleMobileCols.filter((c) => c !== primaryCol)
