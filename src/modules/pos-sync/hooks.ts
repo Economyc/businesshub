@@ -76,11 +76,12 @@ export function usePosVentas() {
     setError(null)
     setRateLimited(false)
     try {
-      // Serialize requests (one local at a time) to avoid triggering API rate-limit
+      // Serialize requests (one local at a time) with delay to respect API cooldown
       const allVentas: PosVenta[] = []
-      for (const id of localIds) {
+      for (let i = 0; i < localIds.length; i++) {
+        if (i > 0) await new Promise((r) => setTimeout(r, 6000))
         try {
-          const localVentas = await posService.getVentas(id, f1, f2)
+          const localVentas = await posService.getVentas(localIds[i], f1, f2)
           allVentas.push(...localVentas)
         } catch (err: unknown) {
           if (err instanceof PosRateLimitError) {

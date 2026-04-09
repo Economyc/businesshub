@@ -47,6 +47,12 @@ async function callProxy<T>(action: string, params?: Record<string, unknown>): P
   return { data: json.data.data, mensajes: json.data.mensajes }
 }
 
+const API_DELAY = 6000 // 6s between requests (API requires 5s cooldown)
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
 export const posService = {
   getDominio: async () => {
     const { data } = await callProxy<PosDominioData>('dominio')
@@ -57,6 +63,7 @@ export const posService = {
     let pagina = 1
     const allVentas: PosVenta[] = []
     while (true) {
+      if (pagina > 1) await wait(API_DELAY)
       const { data } = await callProxy<Record<string, PosVenta> | PosVenta[]>('ventas', {
         local_id: localId, f1, f2, pagina,
       })
