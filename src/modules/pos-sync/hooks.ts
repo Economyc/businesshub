@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { posService, PosRateLimitError } from './services'
+import { posService } from './services'
 import type { PosLocal, PosVenta, PosProducto } from './types'
 
 export function usePosLocales() {
@@ -76,33 +76,14 @@ export function usePosVentas() {
     setError(null)
     setRateLimited(false)
     try {
-      // Serialize requests (one local at a time) with delay to respect API cooldown
-      const allVentas: PosVenta[] = []
-      for (let i = 0; i < localIds.length; i++) {
-        if (i > 0) await new Promise((r) => setTimeout(r, 6000))
-        try {
-          const localVentas = await posService.getVentas(localIds[i], f1, f2)
-          allVentas.push(...localVentas)
-        } catch (err: unknown) {
-          if (err instanceof PosRateLimitError) {
-            // Keep what we got so far + cache/previous data
-            if (allVentas.length > 0) {
-              setVentas(allVentas)
-              setLastUpdated(new Date())
-              setFromCache(false)
-              setCache(key, allVentas)
-            }
-            setRateLimited(true)
-            setLoading(false)
-            return
-          }
-          throw err
-        }
-      }
-      setVentas(allVentas)
+      const result = await posService.getVentasBatch(localIds, f1, f2)
+      setVentas(result.ventas)
       setLastUpdated(new Date())
       setFromCache(false)
-      setCache(key, allVentas)
+      setCache(key, result.ventas)
+      if (result.rateLimited) {
+        setRateLimited(true)
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Error desconocido')
       if (!cached) setVentas([])

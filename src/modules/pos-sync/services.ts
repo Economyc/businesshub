@@ -75,6 +75,34 @@ export const posService = {
     return allVentas
   },
 
+  getVentasBatch: async (localIds: number[], f1: string, f2: string) => {
+    const res = await fetch(PROXY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'ventas-batch', params: { local_ids: localIds, f1, f2 } }),
+    })
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: res.statusText }))
+      throw new Error(err.error || `HTTP ${res.status}`)
+    }
+
+    const json = (await res.json()) as {
+      success: boolean
+      data: { ventas: PosVenta[]; rateLimited: boolean; endpoint: string }
+      error?: string
+    }
+    if (!json.success) {
+      const msg = json.error || 'POS API error'
+      if (msg.toLowerCase().includes('solicitud en ejecuci') || msg.toLowerCase().includes('espere')) {
+        throw new PosRateLimitError(msg)
+      }
+      throw new Error(msg)
+    }
+
+    return json.data
+  },
+
   getCatalogo: async (localId: number) => {
     const { data } = await callProxy<PosProducto[]>('catalogo', { local_id: localId })
     return Array.isArray(data) ? data : Object.values(data)
