@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ShoppingBag, Package } from 'lucide-react'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
 import { UnderlineButtonTabs } from '@/core/ui/underline-tabs'
 import { DateRangePicker } from '@/modules/finance/components/date-range-picker'
+import { useDateRange } from '@/modules/finance/context/date-range-context'
 import { usePosLocales } from '../hooks'
 import { VentasTab } from './ventas-tab'
 import { CatalogoTab } from './catalogo-tab'
@@ -17,6 +18,9 @@ export function PosSyncPage() {
   const [activeTab, setActiveTab] = useState('ventas')
   const { locales, loading: loadingLocales, error: localesError } = usePosLocales()
   const [selectedLocal, setSelectedLocal] = useState<string>('all')
+  const { setPreset } = useDateRange()
+
+  useEffect(() => { setPreset('today') }, [setPreset])
 
   return (
     <PageTransition>
