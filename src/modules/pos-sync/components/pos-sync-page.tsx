@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { RefreshCw, ShoppingBag, Package } from 'lucide-react'
+import { ShoppingBag, Package } from 'lucide-react'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
 import { UnderlineButtonTabs } from '@/core/ui/underline-tabs'
@@ -18,44 +18,53 @@ export function PosSyncPage() {
   const { locales, loading: loadingLocales, error: localesError } = usePosLocales()
   const [selectedLocal, setSelectedLocal] = useState<string>('all')
 
-  // Auto-select "all" once locales are loaded (no change needed, default is 'all')
-
   return (
     <PageTransition>
       <PageHeader title="POS Sync">
         <div className="flex items-center gap-3">
+          <ConnectionBadge error={localesError} />
           <DateRangePicker />
-          <div className="flex items-center gap-2">
-            <RefreshCw size={16} className="text-mid-gray" />
-            <span className="text-caption text-mid-gray">Restaurant.pe</span>
-          </div>
         </div>
       </PageHeader>
 
-      {/* Local selector */}
-      <div className="mb-4">
+      {/* Local selector pills */}
+      <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide mb-5">
         {loadingLocales ? (
-          <div className="text-body text-mid-gray">Cargando locales...</div>
-        ) : localesError ? (
-          <div className="bg-red-50 text-red-700 rounded-lg px-4 py-3 text-body">
-            Error conectando al POS: {localesError}
-          </div>
+          <>
+            <div className="bg-bone rounded-full h-8 w-20 animate-pulse shrink-0" />
+            <div className="bg-bone rounded-full h-8 w-20 animate-pulse shrink-0" />
+            <div className="bg-bone rounded-full h-8 w-20 animate-pulse shrink-0" />
+          </>
         ) : (
-          <div className="flex items-center gap-3">
-            <label className="text-body font-medium text-graphite">Local:</label>
-            <select
-              value={selectedLocal}
-              onChange={(e) => setSelectedLocal(e.target.value)}
-              className="text-body bg-surface border border-border rounded-lg px-3 py-2 text-graphite"
-            >
-              <option value="all">Todos los locales</option>
-              {locales.map((l) => (
-                <option key={l.local_id} value={l.local_id}>
-                  {l.local_descripcion}
-                </option>
-              ))}
-            </select>
-          </div>
+          <>
+            {locales.length > 1 && (
+              <button
+                onClick={() => setSelectedLocal('all')}
+                className={`h-8 px-3 rounded-full text-caption font-medium transition-colors duration-200 whitespace-nowrap shrink-0 ${
+                  selectedLocal === 'all'
+                    ? 'bg-dark-graphite text-white'
+                    : 'bg-bone text-graphite hover:bg-smoke'
+                }`}
+                aria-label="Seleccionar todos los locales"
+              >
+                Todos
+              </button>
+            )}
+            {locales.map((l) => (
+              <button
+                key={l.local_id}
+                onClick={() => setSelectedLocal(l.local_id)}
+                className={`h-8 px-3 rounded-full text-caption font-medium transition-colors duration-200 whitespace-nowrap shrink-0 ${
+                  selectedLocal === l.local_id
+                    ? 'bg-dark-graphite text-white'
+                    : 'bg-bone text-graphite hover:bg-smoke'
+                }`}
+                aria-label={`Seleccionar local ${l.local_descripcion}`}
+              >
+                {l.local_descripcion}
+              </button>
+            ))}
+          </>
         )}
       </div>
 
@@ -76,5 +85,23 @@ export function PosSyncPage() {
         </div>
       )}
     </PageTransition>
+  )
+}
+
+function ConnectionBadge({ error }: { error: string | null }) {
+  if (error) {
+    return (
+      <div className="flex items-center gap-1.5 bg-negative-bg px-2.5 h-7 rounded-full">
+        <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
+        <span className="text-caption text-negative-text">Restaurant.pe</span>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex items-center gap-1.5 bg-positive-bg px-2.5 h-7 rounded-full">
+      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+      <span className="text-caption text-mid-gray">Restaurant.pe</span>
+    </div>
   )
 }

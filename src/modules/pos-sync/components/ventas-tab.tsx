@@ -1,11 +1,13 @@
 import { useMemo } from 'react'
-import { Search, Loader2, MapPin } from 'lucide-react'
+import { Search, Loader2, MapPin, FileText, DollarSign, Receipt, Heart } from 'lucide-react'
+import { motion, useReducedMotion } from 'framer-motion'
 import { DataTable, type Column } from '@/core/ui/data-table'
 import { EmptyState } from '@/core/ui/empty-state'
 import { formatCurrency } from '@/core/utils/format'
 import { useDateRange } from '@/modules/finance/context/date-range-context'
 import { usePosVentas } from '../hooks'
 import type { PosVenta, PosLocal } from '../types'
+import type { LucideIcon } from 'lucide-react'
 
 function num(val: string | number | undefined): number {
   return Number(val) || 0
@@ -23,9 +25,65 @@ interface VentasTabProps {
   locales: PosLocal[]
 }
 
+const cardVariants = {
+  hidden: { opacity: 0, y: 8 },
+  visible: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    transition: { delay: i * 0.05, duration: 0.3, ease: 'easeOut' },
+  }),
+}
+
+interface CardConfig {
+  label: string
+  icon: LucideIcon
+  colorClass: string
+  format: (stats: ReturnType<typeof calcTotals>) => string
+}
+
+const CARDS_CONFIG: CardConfig[] = [
+  {
+    label: 'Registros',
+    icon: FileText,
+    colorClass: 'text-dark-graphite',
+    format: (s) => String(s.count),
+  },
+  {
+    label: 'Total Ventas',
+    icon: DollarSign,
+    colorClass: 'text-positive-text',
+    format: (s) => formatCurrency(s.ventas),
+  },
+  {
+    label: 'Impuestos',
+    icon: Receipt,
+    colorClass: 'text-info-text',
+    format: (s) => formatCurrency(s.impuestos),
+  },
+  {
+    label: 'Propinas',
+    icon: Heart,
+    colorClass: 'text-warning-text',
+    format: (s) => formatCurrency(s.propinas),
+  },
+]
+
+function calcTotals(list: PosVenta[]) {
+  return {
+    count: list.length,
+    ventas: list.reduce((sum, v) => sum + num(v.total), 0),
+    impuestos: list.reduce((sum, v) => sum + num(v.impuestos), 0),
+    propinas: list.reduce(
+      (sum, v) => sum + (v.lista_propinas?.reduce((s, p) => s + num(p.montoConIgv), 0) ?? 0),
+      0
+    ),
+  }
+}
+
 export function VentasTab({ localIds, locales }: VentasTabProps) {
   const { startDate, endDate } = useDateRange()
   const { ventas, loading, error, fetch } = usePosVentas()
+  const prefersReducedMotion = useReducedMotion()
   const isMultiLocal = localIds.length > 1
 
   function handleConsultar() {
@@ -64,7 +122,9 @@ export function VentasTab({ localIds, locales }: VentasTabProps) {
       render: (v) => (
         <span className="text-body">
           {v.documento}{' '}
-          <span className="text-mid-gray">{v.serie}-{v.correlativo}</span>
+          <span className="text-mid-gray">
+            {v.serie}-{v.correlativo}
+          </span>
         </span>
       ),
     },
@@ -94,21 +154,14 @@ export function VentasTab({ localIds, locales }: VentasTabProps) {
       header: 'Total',
       width: '120px',
       primary: true,
-      render: (v) => <span className="font-semibold text-dark-graphite">{formatCurrency(num(v.total))}</span>,
+      render: (v) => (
+        <span className="font-semibold text-dark-graphite">{formatCurrency(num(v.total))}</span>
+      ),
     },
   ]
 
   function addId(list: PosVenta[]) {
     return list.map((v) => ({ ...v, id: v.ID ?? String(Math.random()) }))
-  }
-
-  function calcTotals(list: PosVenta[]) {
-    return {
-      count: list.length,
-      ventas: list.reduce((sum, v) => sum + num(v.total), 0),
-      impuestos: list.reduce((sum, v) => sum + num(v.impuestos), 0),
-      propinas: list.reduce((sum, v) => sum + (v.lista_propinas?.reduce((s, p) => s + num(p.montoConIgv), 0) ?? 0), 0),
-    }
   }
 
   const totalStats = calcTotals(ventas)
@@ -120,18 +173,26 @@ export function VentasTab({ localIds, locales }: VentasTabProps) {
         <button
           onClick={handleConsultar}
           disabled={loading}
-          className="flex items-center gap-2 px-4 py-2 bg-dark-graphite text-white rounded-lg text-body font-medium hover:bg-graphite transition-colors disabled:opacity-50"
+          className="flex items-center gap-2 h-10 px-5 bg-dark-graphite text-white rounded-[10px] text-body font-medium hover:bg-graphite transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          aria-label="Consultar ventas"
         >
-          {loading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
-          Consultar
+          {loading ? (
+            <>
+              <Loader2 size={16} className="animate-spin" />
+              Consultando...
+            </>
+          ) : (
+            <>
+              <Search size={16} />
+              Consultar
+            </>
+          )}
         </button>
       </div>
 
       {/* Error */}
       {error && (
-        <div className="bg-red-50 text-red-700 rounded-lg px-4 py-3 text-body mb-4">
-          {error}
-        </div>
+        <div className="bg-red-50 text-red-700 rounded-lg px-4 py-3 text-body mb-4">{error}</div>
       )}
 
       {/* Results */}
@@ -145,8 +206,8 @@ export function VentasTab({ localIds, locales }: VentasTabProps) {
 
       {ventas.length > 0 && (
         <>
-          {/* Combined summary cards */}
-          <SummaryCards stats={totalStats} />
+          {/* Summary cards with icons and semantic colors */}
+          <SummaryCards stats={totalStats} prefersReducedMotion={prefersReducedMotion} />
 
           {/* Grouped by local or single table */}
           {isMultiLocal && ventasByLocal ? (
@@ -183,25 +244,39 @@ export function VentasTab({ localIds, locales }: VentasTabProps) {
   )
 }
 
-function SummaryCards({ stats }: { stats: { count: number; ventas: number; impuestos: number; propinas: number } }) {
+function SummaryCards({
+  stats,
+  prefersReducedMotion,
+}: {
+  stats: ReturnType<typeof calcTotals>
+  prefersReducedMotion: boolean | null
+}) {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
-      <div className="bg-surface rounded-xl card-elevated p-4">
-        <span className="block text-caption text-mid-gray mb-1">Registros</span>
-        <span className="text-subheading font-bold text-dark-graphite">{stats.count}</span>
-      </div>
-      <div className="bg-surface rounded-xl card-elevated p-4">
-        <span className="block text-caption text-mid-gray mb-1">Total Ventas</span>
-        <span className="text-subheading font-bold text-emerald-700">{formatCurrency(stats.ventas)}</span>
-      </div>
-      <div className="bg-surface rounded-xl card-elevated p-4">
-        <span className="block text-caption text-mid-gray mb-1">Impuestos</span>
-        <span className="text-subheading font-bold text-dark-graphite">{formatCurrency(stats.impuestos)}</span>
-      </div>
-      <div className="bg-surface rounded-xl card-elevated p-4">
-        <span className="block text-caption text-mid-gray mb-1">Propinas</span>
-        <span className="text-subheading font-bold text-dark-graphite">{formatCurrency(stats.propinas)}</span>
-      </div>
-    </div>
+    <motion.div
+      className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5"
+      aria-live="polite"
+      initial="hidden"
+      animate="visible"
+    >
+      {CARDS_CONFIG.map((card, i) => {
+        const Icon = card.icon
+        return (
+          <motion.div
+            key={card.label}
+            className="bg-surface rounded-xl card-elevated p-4"
+            custom={i}
+            variants={prefersReducedMotion ? undefined : cardVariants}
+            initial={prefersReducedMotion ? undefined : 'hidden'}
+            animate={prefersReducedMotion ? undefined : 'visible'}
+          >
+            <div className="flex items-center gap-1.5 mb-1">
+              <Icon size={16} className={card.colorClass} />
+              <span className="text-caption text-mid-gray">{card.label}</span>
+            </div>
+            <span className={`text-kpi font-bold ${card.colorClass}`}>{card.format(stats)}</span>
+          </motion.div>
+        )
+      })}
+    </motion.div>
   )
 }

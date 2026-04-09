@@ -1,6 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
-import { Package, Loader2, Search } from 'lucide-react'
-import { DataTable, type Column } from '@/core/ui/data-table'
+import { Package, Loader2 } from 'lucide-react'
 import { EmptyState } from '@/core/ui/empty-state'
 import { SearchInput } from '@/core/ui/search-input'
 import { formatCurrency } from '@/core/utils/format'
@@ -20,7 +19,6 @@ export function CatalogoTab({ localId }: CatalogoTabProps) {
     fetch(localId)
   }, [localId, fetch])
 
-  // Extract unique categories
   const categorias = useMemo(() => {
     const set = new Set<string>()
     productos.forEach((p) => {
@@ -29,7 +27,6 @@ export function CatalogoTab({ localId }: CatalogoTabProps) {
     return Array.from(set).sort()
   }, [productos])
 
-  // Filter products
   const filtered = useMemo(() => {
     let result = productos
     if (categoriaFilter !== 'all') {
@@ -41,52 +38,6 @@ export function CatalogoTab({ localId }: CatalogoTabProps) {
     }
     return result
   }, [productos, categoriaFilter, search])
-
-  const columns: Column<PosProducto & { id: string }>[] = [
-    {
-      key: 'nombre',
-      header: 'Producto',
-      width: '1fr',
-      render: (p) => <span className="font-medium text-dark-graphite">{p.producto_descripcion}</span>,
-    },
-    {
-      key: 'categoria',
-      header: 'Categoría',
-      width: '160px',
-      hideOnMobile: true,
-      render: (p) => (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-caption bg-bone text-graphite">
-          {p.categoria_nombre ?? '—'}
-        </span>
-      ),
-    },
-    {
-      key: 'precio',
-      header: 'Precio',
-      width: '120px',
-      primary: true,
-      render: (p) => <span className="font-semibold text-dark-graphite">{formatCurrency(p.producto_precio ?? 0)}</span>,
-    },
-    {
-      key: 'presentaciones',
-      header: 'Variantes',
-      width: '100px',
-      hideOnMobile: true,
-      render: (p) => <span className="text-body text-mid-gray">{p.presentaciones?.length ?? 0}</span>,
-    },
-    {
-      key: 'estado',
-      header: 'Estado',
-      width: '100px',
-      render: (p) => (
-        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-caption ${
-          p.producto_estado === 1 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'
-        }`}>
-          {p.producto_estado === 1 ? 'Activo' : 'Inactivo'}
-        </span>
-      ),
-    },
-  ]
 
   const data = filtered.map((p) => ({ ...p, id: String(p.producto_id ?? Math.random()) }))
 
@@ -102,10 +53,13 @@ export function CatalogoTab({ localId }: CatalogoTabProps) {
             value={categoriaFilter}
             onChange={(e) => setCategoriaFilter(e.target.value)}
             className="text-body bg-surface border border-border rounded-lg px-3 py-2 text-graphite"
+            aria-label="Filtrar por categoría"
           >
             <option value="all">Todas las categorías</option>
             {categorias.map((c) => (
-              <option key={c} value={c}>{c}</option>
+              <option key={c} value={c}>
+                {c}
+              </option>
             ))}
           </select>
         )}
@@ -113,9 +67,7 @@ export function CatalogoTab({ localId }: CatalogoTabProps) {
 
       {/* Error */}
       {error && (
-        <div className="bg-red-50 text-red-700 rounded-lg px-4 py-3 text-body mb-4">
-          {error}
-        </div>
+        <div className="bg-red-50 text-red-700 rounded-lg px-4 py-3 text-body mb-4">{error}</div>
       )}
 
       {/* Loading */}
@@ -149,7 +101,52 @@ export function CatalogoTab({ localId }: CatalogoTabProps) {
         </div>
       )}
 
-      {data.length > 0 && <DataTable columns={columns} data={data} />}
+      {/* Product card grid */}
+      {data.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+          {data.map((p) => (
+            <ProductCard key={p.id} product={p} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ProductCard({ product }: { product: PosProducto }) {
+  const variantCount = product.presentaciones?.length ?? 0
+
+  return (
+    <div className="bg-surface rounded-xl card-elevated p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <span className="text-body font-medium text-dark-graphite">
+            {product.producto_descripcion}
+          </span>
+          {product.categoria_nombre && (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-caption bg-bone text-graphite mt-1 block w-fit">
+              {product.categoria_nombre}
+            </span>
+          )}
+        </div>
+        <span className="text-subheading font-bold text-dark-graphite shrink-0">
+          {formatCurrency(Number(product.producto_precio) || 0)}
+        </span>
+      </div>
+      <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
+        <span className="text-caption text-mid-gray">
+          {variantCount} variante{variantCount !== 1 ? 's' : ''}
+        </span>
+        <span
+          className={`inline-flex items-center px-2 py-0.5 rounded-full text-caption ${
+            Number(product.producto_estado) === 1
+              ? 'bg-emerald-50 text-emerald-700'
+              : 'bg-red-50 text-red-700'
+          }`}
+        >
+          {Number(product.producto_estado) === 1 ? 'Activo' : 'Inactivo'}
+        </span>
+      </div>
     </div>
   )
 }
