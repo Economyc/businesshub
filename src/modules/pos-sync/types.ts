@@ -44,7 +44,7 @@ export interface PosVenta {
   canalventa: string
   nombre_canaldelivery: string
   venta_observaciones: string | null
-  tipo_documento: string // F=Factura, B=Boleta
+  tipo_documento: string // F=Factura, B=Boleta, NV=Nota de Venta
   suma_impuestos: string
   costoenvio: string
   lista_propinas: PosPropina[]

@@ -42,12 +42,19 @@ export const posService = {
     return data
   },
 
-  getVentas: async (localId: number, f1: string, f2: string, pagina = 1) => {
-    const { data } = await callProxy<Record<string, PosVenta> | PosVenta[]>('ventas', {
-      local_id: localId, f1, f2, pagina,
-    })
-    // API returns an object with numeric keys, convert to array
-    return Array.isArray(data) ? data : Object.values(data)
+  getVentas: async (localId: number, f1: string, f2: string) => {
+    let pagina = 1
+    const allVentas: PosVenta[] = []
+    while (true) {
+      const { data } = await callProxy<Record<string, PosVenta> | PosVenta[]>('ventas', {
+        local_id: localId, f1, f2, pagina,
+      })
+      const page = Array.isArray(data) ? data : Object.values(data)
+      if (page.length === 0) break
+      allVentas.push(...page)
+      pagina++
+    }
+    return allVentas
   },
 
   getCatalogo: async (localId: number) => {

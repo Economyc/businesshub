@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Search, Loader2, MapPin, FileText, DollarSign, Receipt, Heart } from 'lucide-react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { DataTable, type Column } from '@/core/ui/data-table'
@@ -11,6 +11,24 @@ import type { LucideIcon } from 'lucide-react'
 
 function num(val: string | number | undefined): number {
   return Number(val) || 0
+}
+
+type DocType = 'factura' | 'boleta' | 'nota' | 'otro'
+
+function getDocType(v: PosVenta): DocType {
+  const td = v.tipo_documento?.toUpperCase()
+  if (td === 'F') return 'factura'
+  if (td === 'B') return 'boleta'
+  // Check documento field for "Nota de Venta" text
+  if (td === 'NV' || v.documento?.toLowerCase().includes('nota')) return 'nota'
+  return 'otro'
+}
+
+const DOC_TYPE_LABELS: Record<DocType, string> = {
+  factura: 'Factura',
+  boleta: 'Boleta',
+  nota: 'Nota',
+  otro: 'Otro',
 }
 
 function toDateStr(d: Date): string {
@@ -84,6 +102,7 @@ export function VentasTab({ localIds, locales }: VentasTabProps) {
   const { startDate, endDate } = useDateRange()
   const { ventas, loading, error, fetch } = usePosVentas()
   const prefersReducedMotion = useReducedMotion()
+  const [docFilter, setDocFilter] = useState<DocType | 'todos'>('todos')
   const isMultiLocal = localIds.length > 1
 
   function handleConsultar() {
@@ -96,16 +115,21 @@ export function VentasTab({ localIds, locales }: VentasTabProps) {
     return map
   }, [locales])
 
+  const filteredVentas = useMemo(() => {
+    if (docFilter === 'todos') return ventas
+    return ventas.filter((v) => getDocType(v) === docFilter)
+  }, [ventas, docFilter])
+
   const ventasByLocal = useMemo(() => {
     if (!isMultiLocal) return null
     const groups = new Map<number, PosVenta[]>()
-    for (const v of ventas) {
+    for (const v of filteredVentas) {
       const lid = v.id_local
       if (!groups.has(lid)) groups.set(lid, [])
       groups.get(lid)!.push(v)
     }
     return groups
-  }, [ventas, isMultiLocal])
+  }, [filteredVentas, isMultiLocal])
 
   const columns: Column<PosVenta & { id: string }>[] = [
     {
@@ -113,6 +137,20 @@ export function VentasTab({ localIds, locales }: VentasTabProps) {
       header: 'Fecha',
       width: '140px',
       render: (v) => <span className="text-body">{v.fecha?.slice(0, 16) ?? '—'}</span>,
+    },
+    {
+      key: 'tipo',
+      header: 'Tipo',
+      width: '100px',
+      hideOnMobile: true,
+      render: (v) => {
+        const docType = getDocType(v)
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-caption bg-bone text-graphite">
+            {DOC_TYPE_LABELS[docType]}
+          </span>
+        )
+      },
     },
     {
       key: 'comprobante',
@@ -164,7 +202,7 @@ export function VentasTab({ localIds, locales }: VentasTabProps) {
     return list.map((v) => ({ ...v, id: v.ID ?? String(Math.random()) }))
   }
 
-  const totalStats = calcTotals(ventas)
+  const totalStats = calcTotals(filteredVentas)
 
   return (
     <div>
@@ -189,6 +227,32 @@ export function VentasTab({ localIds, locales }: VentasTabProps) {
           )}
         </button>
       </div>
+
+      {/* Doc type filter */}
+      {ventas.length > 0 && (
+        <div className="flex items-center gap-2 mb-4 flex-wrap">
+          <span className="text-caption text-mid-gray">Tipo:</span>
+          {(['todos', 'factura', 'boleta', 'nota', 'otro'] as const).map((type) => {
+            const count = type === 'todos'
+              ? ventas.length
+              : ventas.filter((v) => getDocType(v) === type).length
+            if (type !== 'todos' && count === 0) return null
+            return (
+              <button
+                key={type}
+                onClick={() => setDocFilter(type)}
+                className={`px-3 py-1 rounded-full text-caption transition-colors ${
+                  docFilter === type
+                    ? 'bg-dark-graphite text-white'
+                    : 'bg-bone text-graphite hover:bg-mid-gray/20'
+                }`}
+              >
+                {type === 'todos' ? 'Todos' : DOC_TYPE_LABELS[type]} ({count})
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {/* Error */}
       {error && (
@@ -229,7 +293,7 @@ export function VentasTab({ localIds, locales }: VentasTabProps) {
               )
             })
           ) : (
-            <DataTable columns={columns} data={addId(ventas)} />
+            <DataTable columns={columns} data={addId(filteredVentas)} />
           )}
         </>
       )}
