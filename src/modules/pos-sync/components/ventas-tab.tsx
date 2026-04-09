@@ -222,35 +222,6 @@ export function VentasTab({ localIds, allLocalIds, locales }: VentasTabProps) {
 
   return (
     <div>
-      {/* Refresh button + status */}
-      <div className="flex items-center gap-3 mb-5">
-        <button
-          onClick={handleConsultar}
-          disabled={loading}
-          className="flex items-center gap-2 h-10 px-5 bg-dark-graphite text-white rounded-[10px] text-body font-medium hover:bg-graphite transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-          aria-label="Actualizar ventas"
-        >
-          {loading ? (
-            <>
-              <Loader2 size={16} className="animate-spin" />
-              Consultando...
-            </>
-          ) : (
-            <>
-              <RefreshCw size={16} />
-              Actualizar
-            </>
-          )}
-        </button>
-        {lastUpdated && (
-          <span className="flex items-center gap-1 text-caption text-mid-gray">
-            <Clock size={12} />
-            {lastUpdated.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}
-            {fromCache && ' (cache)'}
-          </span>
-        )}
-      </div>
-
       {/* Doc type filter */}
       {ventas.length > 0 && (
         <div className="flex items-center gap-2 mb-4 flex-wrap">
@@ -292,17 +263,46 @@ export function VentasTab({ localIds, allLocalIds, locales }: VentasTabProps) {
 
       {/* Results */}
       {!loading && ventas.length === 0 && !error && (
-        <EmptyState
-          icon={Search}
-          title="Sin resultados"
-          description="Las ventas se cargan automáticamente. Presiona Actualizar si necesitas refrescar."
-        />
+        <div className="flex flex-col items-center">
+          <EmptyState
+            icon={Search}
+            title="Sin resultados"
+            description="Las ventas se cargan automáticamente. Presiona Consultar si necesitas refrescar."
+          />
+          <button
+            onClick={handleConsultar}
+            className="mt-2 flex items-center gap-2 h-9 px-4 bg-dark-graphite text-white rounded-[10px] text-caption font-medium hover:bg-graphite transition-colors"
+          >
+            <RefreshCw size={14} />
+            Consultar
+          </button>
+        </div>
       )}
 
       {ventas.length > 0 && (
         <>
           {/* Summary cards with icons and semantic colors */}
           <SummaryCards stats={totalStats} prefersReducedMotion={prefersReducedMotion} />
+
+          {/* Last updated + refresh */}
+          <div className="flex items-center gap-2 mb-4">
+            {lastUpdated && (
+              <span className="flex items-center gap-1 text-caption text-mid-gray">
+                <Clock size={12} />
+                {lastUpdated.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}
+                {fromCache && ' (cache)'}
+              </span>
+            )}
+            <button
+              onClick={handleConsultar}
+              disabled={loading}
+              className="flex items-center gap-1 text-caption text-mid-gray hover:text-dark-graphite transition-colors disabled:opacity-50"
+              aria-label="Actualizar ventas"
+            >
+              {loading ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+              Actualizar
+            </button>
+          </div>
 
           {/* Grouped by local or single table */}
           {isMultiLocal && ventasByLocal ? (
