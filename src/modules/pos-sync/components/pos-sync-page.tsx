@@ -73,6 +73,7 @@ export function PosSyncPage() {
       {locales.length > 0 && activeTab === 'ventas' && (
         <VentasTab
           localIds={selectedLocal === 'all' ? locales.map((l) => Number(l.local_id)) : [Number(selectedLocal)]}
+          allLocalIds={locales.map((l) => Number(l.local_id))}
           locales={locales}
         />
       )}

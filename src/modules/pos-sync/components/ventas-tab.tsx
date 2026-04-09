@@ -40,6 +40,7 @@ function toDateStr(d: Date): string {
 
 interface VentasTabProps {
   localIds: number[]
+  allLocalIds: number[]
   locales: PosLocal[]
 }
 
@@ -98,7 +99,7 @@ function calcTotals(list: PosVenta[]) {
   }
 }
 
-export function VentasTab({ localIds, locales }: VentasTabProps) {
+export function VentasTab({ localIds, allLocalIds, locales }: VentasTabProps) {
   const { startDate, endDate } = useDateRange()
   const { ventas, loading, error, fetch } = usePosVentas()
   const prefersReducedMotion = useReducedMotion()
@@ -106,7 +107,8 @@ export function VentasTab({ localIds, locales }: VentasTabProps) {
   const isMultiLocal = localIds.length > 1
 
   function handleConsultar() {
-    fetch(localIds, `${toDateStr(startDate)} 00:00:00`, `${toDateStr(endDate)} 23:59:59`)
+    // Always fetch ALL locals so switching pills filters in-memory without re-fetching
+    fetch(allLocalIds, `${toDateStr(startDate)} 00:00:00`, `${toDateStr(endDate)} 23:59:59`)
   }
 
   const localNameMap = useMemo(() => {
@@ -116,9 +118,15 @@ export function VentasTab({ localIds, locales }: VentasTabProps) {
   }, [locales])
 
   const filteredVentas = useMemo(() => {
-    if (docFilter === 'todos') return ventas
-    return ventas.filter((v) => getDocType(v) === docFilter)
-  }, [ventas, docFilter])
+    let result = ventas
+    // Filter by selected local(s) — allows switching pills without re-fetching
+    const localSet = new Set(localIds)
+    result = result.filter((v) => localSet.has(v.id_local))
+    if (docFilter !== 'todos') {
+      result = result.filter((v) => getDocType(v) === docFilter)
+    }
+    return result
+  }, [ventas, localIds, docFilter])
 
   const ventasByLocal = useMemo(() => {
     if (!isMultiLocal) return null
