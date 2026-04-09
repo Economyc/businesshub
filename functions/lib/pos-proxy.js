@@ -193,11 +193,13 @@ export const posProxy = onRequest({
                     res.status(400).json({ error: 'probe requires endpoint_path, local_id, f1, f2' });
                     return;
                 }
+                const { endpoint_path: _ep, ...extraParams } = params;
                 try {
                     const url = buildUrl(params.endpoint_path, token);
-                    const rawResponse = await fetchPosApi(url, 'POST', {
-                        local_id: params.local_id, f1: params.f1, f2: params.f2, pagina: params.pagina ?? 1,
-                    });
+                    const body = { local_id: params.local_id, f1: params.f1, f2: params.f2, pagina: params.pagina ?? 1, ...extraParams };
+                    delete body.endpoint_path;
+                    delete body.local_ids;
+                    const rawResponse = await fetchPosApi(url, 'POST', body);
                     const posResp = rawResponse;
                     const ventas = extractVentas(posResp);
                     const tipos = ventas.map((v) => v.tipo_documento).filter(Boolean);
