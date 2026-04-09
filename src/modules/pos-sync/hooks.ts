@@ -76,26 +76,35 @@ export function usePosVentas() {
     setError(null)
     setRateLimited(false)
     try {
-      const results = await Promise.all(
-        localIds.map((id) => posService.getVentas(id, f1, f2))
-      )
-      const allVentas = results.flat()
+      // Serialize requests (one local at a time) to avoid triggering API rate-limit
+      const allVentas: PosVenta[] = []
+      for (const id of localIds) {
+        try {
+          const localVentas = await posService.getVentas(id, f1, f2)
+          allVentas.push(...localVentas)
+        } catch (err: unknown) {
+          if (err instanceof PosRateLimitError) {
+            // Keep what we got so far + cache/previous data
+            if (allVentas.length > 0) {
+              setVentas(allVentas)
+              setLastUpdated(new Date())
+              setFromCache(false)
+              setCache(key, allVentas)
+            }
+            setRateLimited(true)
+            setLoading(false)
+            return
+          }
+          throw err
+        }
+      }
       setVentas(allVentas)
       setLastUpdated(new Date())
       setFromCache(false)
       setCache(key, allVentas)
     } catch (err: unknown) {
-      if (err instanceof PosRateLimitError) {
-        setRateLimited(true)
-        // Keep existing ventas (from cache or previous fetch), don't clear them
-        if (!cached && ventas.length === 0) {
-          setError('La API del POS está en espera. Intenta en unos minutos.')
-        }
-      } else {
-        setError(err instanceof Error ? err.message : 'Error desconocido')
-        // Only clear ventas if there's no cache to fall back on
-        if (!cached) setVentas([])
-      }
+      setError(err instanceof Error ? err.message : 'Error desconocido')
+      if (!cached) setVentas([])
     } finally {
       setLoading(false)
     }
