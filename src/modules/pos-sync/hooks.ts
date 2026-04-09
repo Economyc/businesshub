@@ -31,12 +31,14 @@ export function usePosVentas() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const fetch = useCallback(async (localId: number, f1: string, f2: string) => {
+  const fetch = useCallback(async (localIds: number[], f1: string, f2: string) => {
     setLoading(true)
     setError(null)
     try {
-      const data = await posService.getVentas(localId, f1, f2)
-      setVentas(data)
+      const results = await Promise.all(
+        localIds.map((id) => posService.getVentas(id, f1, f2))
+      )
+      setVentas(results.flat())
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Error desconocido')
       setVentas([])
