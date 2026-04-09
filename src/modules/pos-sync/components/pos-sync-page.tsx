@@ -20,7 +20,10 @@ export function PosSyncPage() {
   const [selectedLocal, setSelectedLocal] = useState<string>('all')
   const { setPreset } = useDateRange()
 
-  useEffect(() => { setPreset('today') }, [setPreset])
+  useEffect(() => {
+    setPreset('today')
+    return () => { setPreset('thisMonth') }
+  }, [setPreset])
 
   return (
     <PageTransition>
