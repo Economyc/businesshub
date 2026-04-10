@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useCompany } from '@/core/hooks/use-company'
 import { posService } from './services'
+import { getCachedVentas, saveVentasToCache, enumerateDates, getTodayStr } from './cache-service'
 import type { PosLocal, PosVenta, PosProducto } from './types'
 
 export function usePosLocales() {
@@ -26,33 +28,9 @@ export function usePosLocales() {
   return { locales, loading, error }
 }
 
-// --- Cache helpers ---
-const CACHE_TTL = 10 * 60 * 1000 // 10 minutes
-
-interface CachedData {
-  ventas: PosVenta[]
-  timestamp: number
-}
-
-function cacheKey(localIds: number[], f1: string, f2: string): string {
-  return `pos-ventas-${[...localIds].sort().join(',')}-${f1}-${f2}`
-}
-
-function getCached(key: string): CachedData | null {
-  try {
-    const raw = sessionStorage.getItem(key)
-    if (!raw) return null
-    return JSON.parse(raw) as CachedData
-  } catch { return null }
-}
-
-function setCache(key: string, ventas: PosVenta[]): void {
-  try {
-    sessionStorage.setItem(key, JSON.stringify({ ventas, timestamp: Date.now() }))
-  } catch { /* storage full, ignore */ }
-}
-
 export function usePosVentas() {
+  const { selectedCompany } = useCompany()
+  const companyId = selectedCompany?.id
   const [ventas, setVentas] = useState<PosVenta[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -62,35 +40,81 @@ export function usePosVentas() {
   const hasFetched = useRef(false)
 
   const fetch = useCallback(async (localIds: number[], f1: string, f2: string) => {
-    const key = cacheKey(localIds, f1, f2)
-
-    // Load cache immediately if available
-    const cached = getCached(key)
-    if (cached) {
-      setVentas(cached.ventas)
-      setLastUpdated(new Date(cached.timestamp))
-      setFromCache(true)
-    }
+    const startDate = f1.slice(0, 10)
+    const endDate = f2.slice(0, 10)
+    const today = getTodayStr()
 
     setLoading(true)
     setError(null)
     setRateLimited(false)
+
+    // --- Step 1: Try Firestore cache ---
+    let cachedVentas: PosVenta[] = []
+    let rangeFullyCached = false
+
+    if (companyId) {
+      try {
+        const entries = await getCachedVentas(companyId, startDate, endDate)
+
+        if (entries.length > 0) {
+          // Build ventas from cache (only requested locals)
+          const localIdSet = new Set(localIds)
+          cachedVentas = entries
+            .filter((e) => localIdSet.has(e.localId))
+            .flatMap((e) => e.ventas)
+
+          // Check if the entire range is "frozen" (all dates older than today)
+          // AND all date+local combos are cached
+          if (endDate < today) {
+            const allDates = enumerateDates(startDate, endDate)
+            const cachedKeys = new Set(entries.map((e) => `${e.date}_${e.localId}`))
+            rangeFullyCached = allDates.every((date) =>
+              localIds.every((lid) => cachedKeys.has(`${date}_${lid}`))
+            )
+          }
+        }
+      } catch {
+        // Cache read failed, continue with API fetch
+      }
+    }
+
+    // --- Step 2: If fully cached (all dates in the past), return immediately ---
+    if (rangeFullyCached) {
+      setVentas(cachedVentas)
+      setFromCache(true)
+      setLastUpdated(new Date())
+      setLoading(false)
+      return
+    }
+
+    // --- Step 3: Show cached preview while API loads ---
+    if (cachedVentas.length > 0) {
+      setVentas(cachedVentas)
+      setFromCache(true)
+    }
+
+    // --- Step 4: Fetch from API ---
     try {
       const result = await posService.getVentasBatch(localIds, f1, f2)
       setVentas(result.ventas)
       setLastUpdated(new Date())
       setFromCache(false)
-      setCache(key, result.ventas)
       if (result.rateLimited) {
         setRateLimited(true)
       }
+
+      // --- Step 5: Save to Firestore cache (fire and forget) ---
+      if (companyId) {
+        saveVentasToCache(companyId, result.ventas, localIds, startDate, endDate).catch(() => {})
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Error desconocido')
-      if (!cached) setVentas([])
+      // If we had cached data, keep showing it
+      if (cachedVentas.length === 0) setVentas([])
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [companyId])
 
   return { ventas, loading, error, rateLimited, lastUpdated, fromCache, fetch, hasFetched }
 }
