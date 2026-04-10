@@ -95,6 +95,36 @@ export function usePosVentas() {
   return { ventas, loading, error, rateLimited, lastUpdated, fromCache, fetch, hasFetched }
 }
 
+export function useAutoRefresh(callback: () => void, intervalMs: number, enabled: boolean) {
+  const callbackRef = useRef(callback)
+  useEffect(() => {
+    callbackRef.current = callback
+  })
+
+  useEffect(() => {
+    if (!enabled) return
+
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        callbackRef.current()
+      }
+    }, intervalMs)
+
+    function onVisibilityChange() {
+      if (document.visibilityState === 'visible') {
+        callbackRef.current()
+      }
+    }
+
+    document.addEventListener('visibilitychange', onVisibilityChange)
+
+    return () => {
+      clearInterval(id)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+    }
+  }, [intervalMs, enabled])
+}
+
 export function usePosCatalogo() {
   const [productos, setProductos] = useState<PosProducto[]>([])
   const [loading, setLoading] = useState(false)

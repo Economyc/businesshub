@@ -41,7 +41,7 @@ async function fetchPosApi(url: string, method: 'GET' | 'POST' = 'GET', body?: u
   return res.json()
 }
 
-const BATCH_DELAY = 6000 // 6s between API requests (5s cooldown)
+const BATCH_DELAY = 5000 // 5s between API requests (matches API cooldown)
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
@@ -65,45 +65,60 @@ function extractVentas(response: PosApiResponse): unknown[] {
   return []
 }
 
+const MAX_RETRIES = 3
+
 async function fetchAllPagesForLocal(
   token: string,
   endpointPath: string,
   localId: number,
   f1: string,
-  f2: string,
-  needsDelay: boolean
+  f2: string
 ): Promise<{ ventas: unknown[]; rateLimited: boolean; requestCount: number }> {
   const ventas: unknown[] = []
   let pagina = 1
   let requestCount = 0
 
   while (true) {
-    if (needsDelay || pagina > 1) {
-      await delay(BATCH_DELAY)
+    let response: PosApiResponse | null = null
+    let succeeded = false
+
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      if (attempt > 0) {
+        await delay(BATCH_DELAY)
+      }
+
+      const url = buildUrl(endpointPath, token)
+      response = (await fetchPosApi(url, 'POST', {
+        local_id: localId, f1, f2, pagina, incluirNotasVenta: 1,
+      })) as PosApiResponse
+      requestCount++
+
+      if (isRateLimited(response)) {
+        continue // retry after delay
+      }
+
+      succeeded = true
+      break
     }
 
-    const url = buildUrl(endpointPath, token)
-    const response = (await fetchPosApi(url, 'POST', {
-      local_id: localId, f1, f2, pagina, incluirNotasVenta: 1,
-    })) as PosApiResponse
-    requestCount++
+    if (!succeeded) {
+      // Max retries exceeded due to rate limiting
+      return { ventas, rateLimited: true, requestCount }
+    }
 
-    const tipo = Number(response.tipo)
+    const tipo = Number(response!.tipo)
 
     if (tipo !== 1) {
-      if (isRateLimited(response)) {
-        return { ventas, rateLimited: true, requestCount }
-      }
       // Non-rate-limit error on first page: propagate so caller can decide to fallback
       if (pagina === 1) {
-        const msg = (response.mensajes || []).join(', ') || `POS error tipo ${tipo}`
+        const msg = (response!.mensajes || []).join(', ') || `POS error tipo ${tipo}`
         throw new Error(msg)
       }
       // Error on later pages: stop pagination for this local, keep what we have
       break
     }
 
-    const pageVentas = extractVentas(response)
+    const pageVentas = extractVentas(response!)
     if (pageVentas.length === 0) break
 
     ventas.push(...pageVentas)
@@ -123,7 +138,7 @@ async function fetchVentasBatch(
 
   const allVentas: unknown[] = []
   for (let i = 0; i < localIds.length; i++) {
-    const result = await fetchAllPagesForLocal(token, endpointPath, localIds[i], f1, f2, i > 0)
+    const result = await fetchAllPagesForLocal(token, endpointPath, localIds[i], f1, f2)
     allVentas.push(...result.ventas)
     if (result.rateLimited) {
       return { ventas: allVentas, rateLimited: true, endpoint: 'obtenerVentasPorIntegracion' }

@@ -21,7 +21,7 @@ async function fetchPosApi(url, method = 'GET', body) {
     }
     return res.json();
 }
-const BATCH_DELAY = 6000; // 6s between API requests (5s cooldown)
+const BATCH_DELAY = 5000; // 5s between API requests (matches API cooldown)
 function delay(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -37,24 +37,35 @@ function extractVentas(response) {
         return Object.values(d);
     return [];
 }
-async function fetchAllPagesForLocal(token, endpointPath, localId, f1, f2, needsDelay) {
+const MAX_RETRIES = 3;
+async function fetchAllPagesForLocal(token, endpointPath, localId, f1, f2) {
     const ventas = [];
     let pagina = 1;
     let requestCount = 0;
     while (true) {
-        if (needsDelay || pagina > 1) {
-            await delay(BATCH_DELAY);
+        let response = null;
+        let succeeded = false;
+        for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+            if (attempt > 0) {
+                await delay(BATCH_DELAY);
+            }
+            const url = buildUrl(endpointPath, token);
+            response = (await fetchPosApi(url, 'POST', {
+                local_id: localId, f1, f2, pagina, incluirNotasVenta: 1,
+            }));
+            requestCount++;
+            if (isRateLimited(response)) {
+                continue; // retry after delay
+            }
+            succeeded = true;
+            break;
         }
-        const url = buildUrl(endpointPath, token);
-        const response = (await fetchPosApi(url, 'POST', {
-            local_id: localId, f1, f2, pagina, incluirNotasVenta: 1,
-        }));
-        requestCount++;
+        if (!succeeded) {
+            // Max retries exceeded due to rate limiting
+            return { ventas, rateLimited: true, requestCount };
+        }
         const tipo = Number(response.tipo);
         if (tipo !== 1) {
-            if (isRateLimited(response)) {
-                return { ventas, rateLimited: true, requestCount };
-            }
             // Non-rate-limit error on first page: propagate so caller can decide to fallback
             if (pagina === 1) {
                 const msg = (response.mensajes || []).join(', ') || `POS error tipo ${tipo}`;
@@ -75,7 +86,7 @@ async function fetchVentasBatch(token, localIds, f1, f2) {
     const endpointPath = `/readonly/rest/venta/obtenerVentasPorIntegracion/${POS_DOMAIN_ID}`;
     const allVentas = [];
     for (let i = 0; i < localIds.length; i++) {
-        const result = await fetchAllPagesForLocal(token, endpointPath, localIds[i], f1, f2, i > 0);
+        const result = await fetchAllPagesForLocal(token, endpointPath, localIds[i], f1, f2);
         allVentas.push(...result.ventas);
         if (result.rateLimited) {
             return { ventas: allVentas, rateLimited: true, endpoint: 'obtenerVentasPorIntegracion' };

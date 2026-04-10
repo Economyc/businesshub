@@ -5,7 +5,7 @@ import { DataTable, type Column } from '@/core/ui/data-table'
 import { EmptyState } from '@/core/ui/empty-state'
 import { formatCurrency } from '@/core/utils/format'
 import { useDateRange } from '@/modules/finance/context/date-range-context'
-import { usePosVentas } from '../hooks'
+import { usePosVentas, useAutoRefresh } from '../hooks'
 import type { PosVenta, PosLocal } from '../types'
 import type { LucideIcon } from 'lucide-react'
 
@@ -118,6 +118,8 @@ export function VentasTab({ localIds, allLocalIds, locales }: VentasTabProps) {
       fetch(allLocalIds, `${toDateStr(startDate)} 00:00:00`, `${toDateStr(endDate)} 23:59:59`)
     }
   }, [allLocalIds.length])
+
+  useAutoRefresh(handleConsultar, 5 * 60 * 1000, allLocalIds.length > 0 && !loading)
 
   const localNameMap = useMemo(() => {
     const map = new Map<number, string>()
