@@ -37,8 +37,6 @@ export function usePosVentas() {
   const [rateLimited, setRateLimited] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [fromCache, setFromCache] = useState(false)
-  const hasFetched = useRef(false)
-
   const fetch = useCallback(async (localIds: number[], f1: string, f2: string) => {
     const startDate = f1.slice(0, 10)
     const endDate = f2.slice(0, 10)
@@ -116,7 +114,7 @@ export function usePosVentas() {
     }
   }, [companyId])
 
-  return { ventas, loading, error, rateLimited, lastUpdated, fromCache, fetch, hasFetched }
+  return { ventas, loading, error, rateLimited, lastUpdated, fromCache, fetch }
 }
 
 export function useAutoRefresh(callback: () => void, intervalMs: number, enabled: boolean) {

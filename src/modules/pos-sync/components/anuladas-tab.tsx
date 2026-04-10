@@ -27,19 +27,18 @@ interface AnuladasTabProps {
 export function AnuladasTab({ localIds, allLocalIds, locales }: AnuladasTabProps) {
   const [selectedVenta, setSelectedVenta] = useState<PosVenta | null>(null)
   const { startDate, endDate } = useDateRange()
-  const { ventas, loading, error, rateLimited, lastUpdated, fromCache, fetch, hasFetched } = usePosVentas()
+  const { ventas, loading, error, rateLimited, lastUpdated, fromCache, fetch } = usePosVentas()
 
   function handleConsultar() {
     fetch(allLocalIds, `${toDateStr(startDate)} 00:00:00`, `${toDateStr(endDate)} 23:59:59`)
   }
 
-  // Auto-fetch on mount when locales are ready
+  // Auto-fetch on mount and when date range changes
   useEffect(() => {
-    if (allLocalIds.length > 0 && !hasFetched.current) {
-      hasFetched.current = true
+    if (allLocalIds.length > 0) {
       fetch(allLocalIds, `${toDateStr(startDate)} 00:00:00`, `${toDateStr(endDate)} 23:59:59`)
     }
-  }, [allLocalIds.length])
+  }, [allLocalIds.length, startDate, endDate])
 
   useAutoRefresh(handleConsultar, 5 * 60 * 1000, allLocalIds.length > 0 && !loading)
 
