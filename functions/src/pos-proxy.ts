@@ -84,7 +84,7 @@ async function fetchAllPagesForLocal(
 
     const url = buildUrl(endpointPath, token)
     const response = (await fetchPosApi(url, 'POST', {
-      local_id: localId, f1, f2, pagina,
+      local_id: localId, f1, f2, pagina, incluirNotasVenta: 1,
     })) as PosApiResponse
     requestCount++
 
@@ -174,6 +174,7 @@ export const posProxy = onRequest(
             local_id: params.local_id,
             f1: params.f1,
             f2: params.f2,
+            incluirNotasVenta: 1,
           })
           break
         }
