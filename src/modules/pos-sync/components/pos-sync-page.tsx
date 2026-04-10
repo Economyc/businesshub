@@ -1,14 +1,17 @@
-import { useState, useEffect } from 'react'
-import { ShoppingBag, Package, XCircle } from 'lucide-react'
+import { useState, useEffect, useMemo } from 'react'
+import { ShoppingBag, Package, XCircle, MapPin } from 'lucide-react'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
 import { UnderlineButtonTabs } from '@/core/ui/underline-tabs'
 import { DateRangePicker } from '@/modules/finance/components/date-range-picker'
 import { useDateRange } from '@/modules/finance/context/date-range-context'
+import { useCompany } from '@/core/hooks/use-company'
 import { usePosLocales } from '../hooks'
 import { VentasTab } from './ventas-tab'
 import { CatalogoTab } from './catalogo-tab'
 import { AnuladasTab } from './anuladas-tab'
+import type { PosLocal } from '../types'
+import type { Company } from '@/core/types'
 
 const TABS = [
   { value: 'ventas', label: 'Ventas', icon: ShoppingBag },
@@ -16,10 +19,35 @@ const TABS = [
   { value: 'anuladas', label: 'Anuladas', icon: XCircle },
 ]
 
+function normalize(s: string): string {
+  return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
+}
+
+function findMatchingLocal(locales: PosLocal[], company: Company | null): PosLocal | null {
+  if (!company || !company.location || locales.length === 0) return null
+
+  const companyNorm = normalize(`${company.name} ${company.location}`)
+  const locationNorm = normalize(company.location)
+
+  // Exact match: "Blue Smash Manila" === "Blue Smash Manila"
+  const exact = locales.find((l) => normalize(l.local_descripcion) === companyNorm)
+  if (exact) return exact
+
+  // Partial: local contains company name + location
+  const partial = locales.find((l) => normalize(l.local_descripcion).includes(companyNorm))
+  if (partial) return partial
+
+  // Fallback: local contains just the location
+  const locMatch = locales.find((l) => normalize(l.local_descripcion).includes(locationNorm))
+  if (locMatch) return locMatch
+
+  return null
+}
+
 export function PosSyncPage() {
   const [activeTab, setActiveTab] = useState('ventas')
   const { locales, loading: loadingLocales, error: localesError } = usePosLocales()
-  const [selectedLocal, setSelectedLocal] = useState<string>('all')
+  const { selectedCompany } = useCompany()
   const { setPreset } = useDateRange()
 
   useEffect(() => {
@@ -27,90 +55,81 @@ export function PosSyncPage() {
     return () => { setPreset('thisMonth') }
   }, [setPreset])
 
+  const matchedLocal = useMemo(
+    () => findMatchingLocal(locales, selectedCompany),
+    [locales, selectedCompany]
+  )
+
+  const activeLocalIds = useMemo(() => {
+    if (matchedLocal) return [Number(matchedLocal.local_id)]
+    return locales.map((l) => Number(l.local_id))
+  }, [matchedLocal, locales])
+
+  const localName = matchedLocal?.local_descripcion ?? null
+
   return (
     <PageTransition>
-      <PageHeader title="POS Sync">
+      <PageHeader title="Punto de Venta">
         <div className="flex items-center gap-3">
-          <ConnectionBadge error={localesError} />
+          <ConnectionBadge error={localesError} loading={loadingLocales} />
           <DateRangePicker />
         </div>
       </PageHeader>
 
-      {/* Local selector pills */}
-      <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide mb-5">
-        {loadingLocales ? (
-          <>
-            <div className="bg-bone rounded-full h-8 w-20 animate-pulse shrink-0" />
-            <div className="bg-bone rounded-full h-8 w-20 animate-pulse shrink-0" />
-            <div className="bg-bone rounded-full h-8 w-20 animate-pulse shrink-0" />
-          </>
-        ) : (
-          <>
-            {locales.length > 1 && (
-              <button
-                onClick={() => setSelectedLocal('all')}
-                className={`h-8 px-3 rounded-full text-caption font-medium transition-colors duration-200 whitespace-nowrap shrink-0 ${
-                  selectedLocal === 'all'
-                    ? 'bg-dark-graphite text-white'
-                    : 'bg-bone text-graphite hover:bg-smoke'
-                }`}
-                aria-label="Seleccionar todos los locales"
-              >
-                Todos
-              </button>
-            )}
-            {locales.map((l) => (
-              <button
-                key={l.local_id}
-                onClick={() => setSelectedLocal(l.local_id)}
-                className={`h-8 px-3 rounded-full text-caption font-medium transition-colors duration-200 whitespace-nowrap shrink-0 ${
-                  selectedLocal === l.local_id
-                    ? 'bg-dark-graphite text-white'
-                    : 'bg-bone text-graphite hover:bg-smoke'
-                }`}
-                aria-label={`Seleccionar local ${l.local_descripcion}`}
-              >
-                {l.local_descripcion}
-              </button>
-            ))}
-          </>
-        )}
-      </div>
+      {/* Local info bar */}
+      {!loadingLocales && locales.length > 0 && (
+        <div className="flex items-center gap-2 mb-5">
+          <MapPin size={14} className="text-mid-gray shrink-0" />
+          {localName ? (
+            <span className="text-caption text-mid-gray">
+              Mostrando datos de <span className="font-medium text-graphite">{localName}</span>
+            </span>
+          ) : (
+            <span className="text-caption text-mid-gray">
+              Mostrando datos de <span className="font-medium text-graphite">{locales.length} locales</span>
+            </span>
+          )}
+        </div>
+      )}
 
       <UnderlineButtonTabs tabs={TABS} active={activeTab} onChange={setActiveTab} />
 
       {locales.length > 0 && activeTab === 'ventas' && (
         <VentasTab
-          localIds={selectedLocal === 'all' ? locales.map((l) => Number(l.local_id)) : [Number(selectedLocal)]}
-          allLocalIds={locales.map((l) => Number(l.local_id))}
+          localIds={activeLocalIds}
+          allLocalIds={activeLocalIds}
           locales={locales}
         />
       )}
-      {locales.length > 0 && activeTab === 'catalogo' && selectedLocal !== 'all' && (
-        <CatalogoTab localId={Number(selectedLocal)} />
+      {locales.length > 0 && activeTab === 'catalogo' && (
+        <CatalogoTab localId={activeLocalIds[0]} />
       )}
       {locales.length > 0 && activeTab === 'anuladas' && (
         <AnuladasTab
-          localIds={selectedLocal === 'all' ? locales.map((l) => Number(l.local_id)) : [Number(selectedLocal)]}
-          allLocalIds={locales.map((l) => Number(l.local_id))}
+          localIds={activeLocalIds}
+          allLocalIds={activeLocalIds}
           locales={locales}
         />
-      )}
-      {activeTab === 'catalogo' && selectedLocal === 'all' && (
-        <div className="text-body text-mid-gray py-8 text-center">
-          Selecciona un local específico para ver el catálogo.
-        </div>
       )}
     </PageTransition>
   )
 }
 
-function ConnectionBadge({ error }: { error: string | null }) {
+function ConnectionBadge({ error, loading }: { error: string | null; loading: boolean }) {
+  if (loading) {
+    return (
+      <div className="flex items-center gap-1.5 bg-bone px-2.5 h-7 rounded-full">
+        <span className="w-1.5 h-1.5 rounded-full bg-mid-gray animate-pulse shrink-0" />
+        <span className="text-caption text-mid-gray">Conectando...</span>
+      </div>
+    )
+  }
+
   if (error) {
     return (
       <div className="flex items-center gap-1.5 bg-negative-bg px-2.5 h-7 rounded-full">
         <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
-        <span className="text-caption text-negative-text">Restaurant.pe</span>
+        <span className="text-caption text-negative-text">Desconectado</span>
       </div>
     )
   }
@@ -118,7 +137,7 @@ function ConnectionBadge({ error }: { error: string | null }) {
   return (
     <div className="flex items-center gap-1.5 bg-positive-bg px-2.5 h-7 rounded-full">
       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-      <span className="text-caption text-mid-gray">Restaurant.pe</span>
+      <span className="text-caption text-positive-text">Conectado</span>
     </div>
   )
 }
