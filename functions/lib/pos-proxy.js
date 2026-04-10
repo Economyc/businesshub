@@ -47,7 +47,7 @@ async function fetchAllPagesForLocal(token, endpointPath, localId, f1, f2, needs
         }
         const url = buildUrl(endpointPath, token);
         const response = (await fetchPosApi(url, 'POST', {
-            local_id: localId, f1, f2, pagina,
+            local_id: localId, f1, f2, pagina, incluirNotasVenta: 1,
         }));
         requestCount++;
         const tipo = Number(response.tipo);
@@ -71,74 +71,17 @@ async function fetchAllPagesForLocal(token, endpointPath, localId, f1, f2, needs
     }
     return { ventas, rateLimited: false, requestCount };
 }
-// Try multiple candidate endpoints to find one that returns Notas de Venta
-const VENTA_ENDPOINTS = [
-    { path: `/readonly/rest/venta/obtenerVentas/${POS_DOMAIN_ID}`, name: 'obtenerVentas' },
-    { path: `/readonly/rest/venta/obtenerVentasPorFecha/${POS_DOMAIN_ID}`, name: 'obtenerVentasPorFecha' },
-    { path: `/readonly/rest/venta/obtenerVentasPorLocal/${POS_DOMAIN_ID}`, name: 'obtenerVentasPorLocal' },
-    { path: `/readonly/rest/venta/listarVentas/${POS_DOMAIN_ID}`, name: 'listarVentas' },
-    { path: `/readonly/rest/venta/obtenerVentasTodas/${POS_DOMAIN_ID}`, name: 'obtenerVentasTodas' },
-];
-async function probeEndpoints(token, localId, f1, f2) {
-    for (const ep of VENTA_ENDPOINTS) {
-        try {
-            const url = buildUrl(ep.path, token);
-            const response = (await fetchPosApi(url, 'POST', {
-                local_id: localId, f1, f2, pagina: 1,
-            }));
-            const tipo = Number(response.tipo);
-            if (tipo === 1) {
-                const ventas = extractVentas(response);
-                // Log what document types this endpoint returns
-                const tipos = ventas.map((v) => v.tipo_documento).filter(Boolean);
-                const uniqueTipos = [...new Set(tipos)];
-                console.log(`[PROBE] ${ep.name} => SUCCESS, ${ventas.length} ventas, tipos: [${uniqueTipos.join(', ')}]`);
-                return ep;
-            }
-            if (isRateLimited(response)) {
-                console.log(`[PROBE] ${ep.name} => RATE LIMITED`);
-                return null; // can't probe further, stop
-            }
-            console.log(`[PROBE] ${ep.name} => tipo=${tipo}, msgs: ${(response.mensajes || []).join(', ')}`);
-        }
-        catch (err) {
-            const msg = err instanceof Error ? err.message : String(err);
-            console.log(`[PROBE] ${ep.name} => FAILED: ${msg}`);
-        }
-    }
-    return null;
-}
 async function fetchVentasBatch(token, localIds, f1, f2) {
-    const integrationPath = `/readonly/rest/venta/obtenerVentasPorIntegracion/${POS_DOMAIN_ID}`;
-    // Probe alternative endpoints to find one with Notas de Venta
-    console.log('[BATCH] Probing alternative endpoints...');
-    const found = await probeEndpoints(token, localIds[0], f1, f2);
-    let endpointPath;
-    let endpointUsed;
-    if (found) {
-        endpointPath = found.path;
-        endpointUsed = found.name;
-        console.log(`[BATCH] Using discovered endpoint: ${endpointUsed}`);
-        // First local was already fetched during probe, but we re-fetch for consistency
-        // (probe only fetched page 1; we need all pages)
-    }
-    else {
-        endpointPath = integrationPath;
-        endpointUsed = 'obtenerVentasPorIntegracion';
-        console.log(`[BATCH] No alternative found, using: ${endpointUsed}`);
-    }
-    // Now fetch all locals with the chosen endpoint
-    // If we probed (used a request), add delay before next request
+    const endpointPath = `/readonly/rest/venta/obtenerVentasPorIntegracion/${POS_DOMAIN_ID}`;
     const allVentas = [];
     for (let i = 0; i < localIds.length; i++) {
-        const needsDelay = i > 0 || found !== null; // delay if not first, or if probe already made requests
-        const result = await fetchAllPagesForLocal(token, endpointPath, localIds[i], f1, f2, needsDelay);
+        const result = await fetchAllPagesForLocal(token, endpointPath, localIds[i], f1, f2, i > 0);
         allVentas.push(...result.ventas);
         if (result.rateLimited) {
-            return { ventas: allVentas, rateLimited: true, endpoint: endpointUsed };
+            return { ventas: allVentas, rateLimited: true, endpoint: 'obtenerVentasPorIntegracion' };
         }
     }
-    return { ventas: allVentas, rateLimited: false, endpoint: endpointUsed };
+    return { ventas: allVentas, rateLimited: false, endpoint: 'obtenerVentasPorIntegracion' };
 }
 export const posProxy = onRequest({
     cors: true,
@@ -175,6 +118,7 @@ export const posProxy = onRequest({
                     local_id: params.local_id,
                     f1: params.f1,
                     f2: params.f2,
+                    incluirNotasVenta: 1,
                 });
                 break;
             }
