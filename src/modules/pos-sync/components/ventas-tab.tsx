@@ -196,6 +196,17 @@ export function VentasTab({ localIds, allLocalIds, locales }: VentasTabProps) {
       ),
     },
     {
+      key: 'estado',
+      header: 'Estado',
+      width: '100px',
+      hideOnMobile: true,
+      render: (v) => (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-caption bg-bone text-graphite">
+          {v.estado_txt || v.estado || '—'}
+        </span>
+      ),
+    },
+    {
       key: 'tipoPago',
       header: 'Pago',
       width: '100px',
