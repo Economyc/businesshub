@@ -102,7 +102,7 @@ function calcTotals(list: PosVenta[]) {
 
 export function VentasTab({ localIds, allLocalIds, locales }: VentasTabProps) {
   const { startDate, endDate } = useDateRange()
-  const { ventas, loading, error, rateLimited, lastUpdated, fromCache, fetch } = usePosVentas()
+  const { ventas, loading, error, rateLimited, lastUpdated, fromCache, fetch, progress } = usePosVentas()
   const prefersReducedMotion = useReducedMotion()
   const [docFilter, setDocFilter] = useState<DocType | 'todos'>('todos')
   const [selectedVenta, setSelectedVenta] = useState<PosVenta | null>(null)
@@ -348,7 +348,11 @@ export function VentasTab({ localIds, allLocalIds, locales }: VentasTabProps) {
       {loading && (
         <div className="flex items-center justify-center py-12">
           <Loader2 size={24} className="animate-spin text-mid-gray" />
-          <span className="ml-2 text-body text-mid-gray">Consultando ventas del POS...</span>
+          <span className="ml-2 text-body text-mid-gray">
+            {progress
+              ? `Sincronizando periodo ${progress.current} de ${progress.total}...`
+              : 'Consultando ventas del POS...'}
+          </span>
         </div>
       )}
 

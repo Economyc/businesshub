@@ -1,8 +1,40 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useCompany } from '@/core/hooks/use-company'
-import { posService } from './services'
+import { posService, PosRateLimitError } from './services'
 import { getCachedVentas, saveVentasToCache, enumerateDates, getTodayStr } from './cache-service'
 import type { PosLocal, PosVenta, PosProducto } from './types'
+
+const MAX_DAYS = 33
+
+export interface FetchProgress {
+  current: number
+  total: number
+}
+
+function splitIntoChunks(startDate: string, endDate: string): { start: string; end: string }[] {
+  const chunks: { start: string; end: string }[] = []
+  const end = new Date(endDate + 'T12:00:00')
+  let cursor = new Date(startDate + 'T12:00:00')
+
+  while (cursor <= end) {
+    const chunkEnd = new Date(cursor)
+    chunkEnd.setDate(chunkEnd.getDate() + MAX_DAYS - 1)
+    if (chunkEnd > end) chunkEnd.setTime(end.getTime())
+
+    const fmt = (d: Date) => {
+      const y = d.getFullYear()
+      const m = String(d.getMonth() + 1).padStart(2, '0')
+      const day = String(d.getDate()).padStart(2, '0')
+      return `${y}-${m}-${day}`
+    }
+
+    chunks.push({ start: fmt(cursor), end: fmt(chunkEnd) })
+    cursor = new Date(chunkEnd)
+    cursor.setDate(cursor.getDate() + 1)
+  }
+
+  return chunks
+}
 
 export function usePosLocales() {
   const [locales, setLocales] = useState<PosLocal[]>([])
@@ -37,6 +69,8 @@ export function usePosVentas() {
   const [rateLimited, setRateLimited] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [fromCache, setFromCache] = useState(false)
+  const [progress, setProgress] = useState<FetchProgress | null>(null)
+
   const fetch = useCallback(async (localIds: number[], f1: string, f2: string) => {
     const startDate = f1.slice(0, 10)
     const endDate = f2.slice(0, 10)
@@ -45,27 +79,27 @@ export function usePosVentas() {
     setLoading(true)
     setError(null)
     setRateLimited(false)
+    setProgress(null)
 
-    // --- Step 1: Try Firestore cache ---
+    // --- Step 1: Try Firestore cache for full range ---
     let cachedVentas: PosVenta[] = []
     let rangeFullyCached = false
+    let cachedKeys = new Set<string>()
 
     if (companyId) {
       try {
         const entries = await getCachedVentas(companyId, startDate, endDate)
 
         if (entries.length > 0) {
-          // Build ventas from cache (only requested locals)
           const localIdSet = new Set(localIds)
           cachedVentas = entries
             .filter((e) => localIdSet.has(e.localId))
             .flatMap((e) => e.ventas)
 
-          // Check if the entire range is "frozen" (all dates older than today)
-          // AND all date+local combos are cached
+          cachedKeys = new Set(entries.map((e) => `${e.date}_${e.localId}`))
+
           if (endDate < today) {
             const allDates = enumerateDates(startDate, endDate)
-            const cachedKeys = new Set(entries.map((e) => `${e.date}_${e.localId}`))
             rangeFullyCached = allDates.every((date) =>
               localIds.every((lid) => cachedKeys.has(`${date}_${lid}`))
             )
@@ -76,7 +110,7 @@ export function usePosVentas() {
       }
     }
 
-    // --- Step 2: If fully cached (all dates in the past), return immediately ---
+    // --- Step 2: If fully cached, return immediately ---
     if (rangeFullyCached) {
       setVentas(cachedVentas)
       setFromCache(true)
@@ -91,30 +125,93 @@ export function usePosVentas() {
       setFromCache(true)
     }
 
-    // --- Step 4: Fetch from API ---
-    try {
-      const result = await posService.getVentasBatch(localIds, f1, f2)
-      setVentas(result.ventas)
+    // --- Step 4: Split into chunks and fetch only uncached ones ---
+    const chunks = splitIntoChunks(startDate, endDate)
+
+    // Determine which chunks need API calls
+    const uncachedChunks = chunks.filter((chunk) => {
+      // If chunk ends in the past AND all dates are cached, skip it
+      if (chunk.end < today) {
+        const chunkDates = enumerateDates(chunk.start, chunk.end)
+        const fullyCached = chunkDates.every((date) =>
+          localIds.every((lid) => cachedKeys.has(`${date}_${lid}`))
+        )
+        if (fullyCached) return false
+      }
+      return true
+    })
+
+    if (uncachedChunks.length === 0) {
+      // All chunks cached — shouldn't happen (rangeFullyCached would've caught it)
+      // but handle gracefully
+      setVentas(cachedVentas)
+      setFromCache(true)
       setLastUpdated(new Date())
-      setFromCache(false)
-      if (result.rateLimited) {
-        setRateLimited(true)
+      setLoading(false)
+      return
+    }
+
+    // --- Step 5: Fetch uncached chunks sequentially ---
+    const allApiVentas: PosVenta[] = [...cachedVentas]
+    // Remove ventas that belong to chunks we're about to re-fetch
+    const uncachedRanges = new Set<string>()
+    for (const chunk of uncachedChunks) {
+      for (const date of enumerateDates(chunk.start, chunk.end)) {
+        uncachedRanges.add(date)
+      }
+    }
+    const keptCachedVentas = allApiVentas.filter(
+      (v) => !uncachedRanges.has(v.fecha?.slice(0, 10) ?? '')
+    )
+    allApiVentas.length = 0
+    allApiVentas.push(...keptCachedVentas)
+
+    const showProgress = uncachedChunks.length > 1
+    let hitRateLimit = false
+
+    try {
+      for (let i = 0; i < uncachedChunks.length; i++) {
+        const chunk = uncachedChunks[i]
+        if (showProgress) setProgress({ current: i + 1, total: uncachedChunks.length })
+
+        const chunkF1 = `${chunk.start} 00:00:00`
+        const chunkF2 = `${chunk.end} 23:59:59`
+
+        try {
+          const result = await posService.getVentasBatch(localIds, chunkF1, chunkF2)
+          allApiVentas.push(...result.ventas)
+          setVentas([...allApiVentas])
+          setFromCache(false)
+
+          if (result.rateLimited) hitRateLimit = true
+
+          // Save chunk to cache (fire and forget)
+          if (companyId) {
+            saveVentasToCache(companyId, result.ventas, localIds, chunk.start, chunk.end).catch(() => {})
+          }
+        } catch (err: unknown) {
+          if (err instanceof PosRateLimitError) {
+            hitRateLimit = true
+            // Show what we have so far and stop
+            break
+          }
+          throw err
+        }
       }
 
-      // --- Step 5: Save to Firestore cache (fire and forget) ---
-      if (companyId) {
-        saveVentasToCache(companyId, result.ventas, localIds, startDate, endDate).catch(() => {})
-      }
+      setLastUpdated(new Date())
+      if (hitRateLimit) setRateLimited(true)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Error desconocido')
-      // If we had cached data, keep showing it
-      if (cachedVentas.length === 0) setVentas([])
+      // If we had accumulated data, keep showing it
+      if (allApiVentas.length === 0) setVentas([])
     } finally {
       setLoading(false)
+      setProgress(null)
     }
   }, [companyId])
 
-  return { ventas, loading, error, rateLimited, lastUpdated, fromCache, fetch }
+  return { ventas, loading, error, rateLimited, lastUpdated, fromCache, fetch, progress }
 }
 
 export function useAutoRefresh(callback: () => void, intervalMs: number, enabled: boolean) {

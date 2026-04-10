@@ -27,7 +27,7 @@ interface AnuladasTabProps {
 export function AnuladasTab({ localIds, allLocalIds, locales }: AnuladasTabProps) {
   const [selectedVenta, setSelectedVenta] = useState<PosVenta | null>(null)
   const { startDate, endDate } = useDateRange()
-  const { ventas, loading, error, rateLimited, lastUpdated, fromCache, fetch } = usePosVentas()
+  const { ventas, loading, error, rateLimited, lastUpdated, fromCache, fetch, progress } = usePosVentas()
 
   function handleConsultar() {
     fetch(allLocalIds, `${toDateStr(startDate)} 00:00:00`, `${toDateStr(endDate)} 23:59:59`)
@@ -168,7 +168,11 @@ export function AnuladasTab({ localIds, allLocalIds, locales }: AnuladasTabProps
       {loading && (
         <div className="flex items-center justify-center py-12">
           <Loader2 size={24} className="animate-spin text-mid-gray" />
-          <span className="ml-2 text-body text-mid-gray">Consultando ventas del POS...</span>
+          <span className="ml-2 text-body text-mid-gray">
+            {progress
+              ? `Sincronizando periodo ${progress.current} de ${progress.total}...`
+              : 'Consultando ventas del POS...'}
+          </span>
         </div>
       )}
 
