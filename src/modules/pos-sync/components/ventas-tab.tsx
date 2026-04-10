@@ -129,6 +129,8 @@ export function VentasTab({ localIds, allLocalIds, locales }: VentasTabProps) {
 
   const filteredVentas = useMemo(() => {
     let result = ventas
+    // Exclude anuladas — they have their own tab
+    result = result.filter((v) => v.estado_txt?.toLowerCase() !== 'comprobante anulado')
     // Filter by selected local(s) — allows switching pills without re-fetching
     const localSet = new Set(localIds)
     result = result.filter((v) => localSet.has(v.id_local))

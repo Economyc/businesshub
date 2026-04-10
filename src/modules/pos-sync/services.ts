@@ -38,7 +38,7 @@ async function callProxy<T>(action: string, params?: Record<string, unknown>): P
   const tipo = Number(json.data.tipo)
   if (tipo !== 1) {
     const msg = json.data.mensajes?.join(', ') || `POS error tipo ${tipo}`
-    if (msg.toLowerCase().includes('solicitud en ejecuci') || msg.toLowerCase().includes('espere')) {
+    if (msg.toLowerCase().includes('solicitud en ejecuci') || msg.toLowerCase().includes('esper')) {
       throw new PosRateLimitError(msg)
     }
     throw new Error(msg)
@@ -94,7 +94,7 @@ export const posService = {
     }
     if (!json.success) {
       const msg = json.error || 'POS API error'
-      if (msg.toLowerCase().includes('solicitud en ejecuci') || msg.toLowerCase().includes('espere')) {
+      if (msg.toLowerCase().includes('solicitud en ejecuci') || msg.toLowerCase().includes('esper')) {
         throw new PosRateLimitError(msg)
       }
       throw new Error(msg)

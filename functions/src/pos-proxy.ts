@@ -55,7 +55,7 @@ interface PosApiResponse {
 
 function isRateLimited(response: PosApiResponse): boolean {
   const msg = (response.mensajes || []).join(' ').toLowerCase()
-  return msg.includes('solicitud en ejecuci') || msg.includes('espere')
+  return msg.includes('solicitud en ejecuci') || msg.includes('esper')
 }
 
 function extractVentas(response: PosApiResponse): unknown[] {

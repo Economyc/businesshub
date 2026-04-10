@@ -27,7 +27,7 @@ function delay(ms) {
 }
 function isRateLimited(response) {
     const msg = (response.mensajes || []).join(' ').toLowerCase();
-    return msg.includes('solicitud en ejecuci') || msg.includes('espere');
+    return msg.includes('solicitud en ejecuci') || msg.includes('esper');
 }
 function extractVentas(response) {
     const d = response.data;

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ShoppingBag, Package } from 'lucide-react'
+import { ShoppingBag, Package, XCircle } from 'lucide-react'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
 import { UnderlineButtonTabs } from '@/core/ui/underline-tabs'
@@ -8,10 +8,12 @@ import { useDateRange } from '@/modules/finance/context/date-range-context'
 import { usePosLocales } from '../hooks'
 import { VentasTab } from './ventas-tab'
 import { CatalogoTab } from './catalogo-tab'
+import { AnuladasTab } from './anuladas-tab'
 
 const TABS = [
   { value: 'ventas', label: 'Ventas', icon: ShoppingBag },
   { value: 'catalogo', label: 'Catálogo', icon: Package },
+  { value: 'anuladas', label: 'Anuladas', icon: XCircle },
 ]
 
 export function PosSyncPage() {
@@ -86,6 +88,13 @@ export function PosSyncPage() {
       )}
       {locales.length > 0 && activeTab === 'catalogo' && selectedLocal !== 'all' && (
         <CatalogoTab localId={Number(selectedLocal)} />
+      )}
+      {locales.length > 0 && activeTab === 'anuladas' && (
+        <AnuladasTab
+          localIds={selectedLocal === 'all' ? locales.map((l) => Number(l.local_id)) : [Number(selectedLocal)]}
+          allLocalIds={locales.map((l) => Number(l.local_id))}
+          locales={locales}
+        />
       )}
       {activeTab === 'catalogo' && selectedLocal === 'all' && (
         <div className="text-body text-mid-gray py-8 text-center">
