@@ -1,9 +1,10 @@
-import { useMemo, useEffect } from 'react'
+import { useMemo, useEffect, useState } from 'react'
 import { RefreshCw, Loader2, Clock } from 'lucide-react'
 import { DataTable, type Column } from '@/core/ui/data-table'
 import { formatCurrency } from '@/core/utils/format'
 import { useDateRange } from '@/modules/finance/context/date-range-context'
 import { usePosVentas, useAutoRefresh } from '../hooks'
+import { VentaDetailDrawer } from './venta-detail-drawer'
 import type { PosVenta, PosLocal } from '../types'
 
 function num(val: string | number | undefined): number {
@@ -24,6 +25,7 @@ interface AnuladasTabProps {
 }
 
 export function AnuladasTab({ localIds, allLocalIds, locales }: AnuladasTabProps) {
+  const [selectedVenta, setSelectedVenta] = useState<PosVenta | null>(null)
   const { startDate, endDate } = useDateRange()
   const { ventas, loading, error, rateLimited, lastUpdated, fromCache, fetch, hasFetched } = usePosVentas()
 
@@ -160,7 +162,7 @@ export function AnuladasTab({ localIds, allLocalIds, locales }: AnuladasTabProps
             </button>
           </div>
 
-          <DataTable columns={columns} data={addId(anuladas)} />
+          <DataTable columns={columns} data={addId(anuladas)} onRowClick={setSelectedVenta} />
         </>
       )}
 
@@ -170,6 +172,8 @@ export function AnuladasTab({ localIds, allLocalIds, locales }: AnuladasTabProps
           <span className="ml-2 text-body text-mid-gray">Consultando ventas del POS...</span>
         </div>
       )}
+
+      <VentaDetailDrawer venta={selectedVenta} onClose={() => setSelectedVenta(null)} />
     </div>
   )
 }

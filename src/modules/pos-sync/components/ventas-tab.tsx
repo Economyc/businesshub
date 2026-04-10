@@ -6,6 +6,7 @@ import { EmptyState } from '@/core/ui/empty-state'
 import { formatCurrency } from '@/core/utils/format'
 import { useDateRange } from '@/modules/finance/context/date-range-context'
 import { usePosVentas, useAutoRefresh } from '../hooks'
+import { VentaDetailDrawer } from './venta-detail-drawer'
 import type { PosVenta, PosLocal } from '../types'
 import type { LucideIcon } from 'lucide-react'
 
@@ -104,6 +105,7 @@ export function VentasTab({ localIds, allLocalIds, locales }: VentasTabProps) {
   const { ventas, loading, error, rateLimited, lastUpdated, fromCache, fetch, hasFetched } = usePosVentas()
   const prefersReducedMotion = useReducedMotion()
   const [docFilter, setDocFilter] = useState<DocType | 'todos'>('todos')
+  const [selectedVenta, setSelectedVenta] = useState<PosVenta | null>(null)
   const isMultiLocal = localIds.length > 1
 
   function handleConsultar() {
@@ -334,12 +336,12 @@ export function VentasTab({ localIds, allLocalIds, locales }: VentasTabProps) {
                       {localStats.count} registros · {formatCurrency(localStats.ventas)}
                     </span>
                   </div>
-                  <DataTable columns={columns} data={addId(localVentas)} />
+                  <DataTable columns={columns} data={addId(localVentas)} onRowClick={setSelectedVenta} />
                 </div>
               )
             })
           ) : (
-            <DataTable columns={columns} data={addId(filteredVentas)} />
+            <DataTable columns={columns} data={addId(filteredVentas)} onRowClick={setSelectedVenta} />
           )}
         </>
       )}
@@ -350,6 +352,8 @@ export function VentasTab({ localIds, allLocalIds, locales }: VentasTabProps) {
           <span className="ml-2 text-body text-mid-gray">Consultando ventas del POS...</span>
         </div>
       )}
+
+      <VentaDetailDrawer venta={selectedVenta} onClose={() => setSelectedVenta(null)} />
     </div>
   )
 }
