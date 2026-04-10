@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Trash2, Plus } from 'lucide-react'
 import { Timestamp } from 'firebase/firestore'
-import { SelectInput } from '@/core/ui/select-input'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 import { useCompany } from '@/core/hooks/use-company'
 import { useFirestoreMutation } from '@/core/query/use-mutation'
@@ -298,14 +297,14 @@ export function InfluencerForm({ open, onClose, visit }: InfluencerFormProps) {
                   {/* Estado */}
                   <div>
                     <label className={labelClass}>Estado</label>
-                    <SelectInput
+                    <select
                       value={form.status}
-                      onChange={(v) => setForm((prev) => ({ ...prev, status: v as 'pending' | 'completed' }))}
-                      options={[
-                        { value: 'pending', label: 'Pendiente' },
-                        { value: 'completed', label: 'Completado' },
-                      ]}
-                    />
+                      onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value as 'pending' | 'completed' }))}
+                      className={inputClass}
+                    >
+                      <option value="pending">Pendiente</option>
+                      <option value="completed">Completado</option>
+                    </select>
                   </div>
 
                   {/* Pedido asociado */}
