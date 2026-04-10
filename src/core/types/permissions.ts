@@ -13,6 +13,7 @@ export type ModuleKey =
   | 'partners'
   | 'talent'
   | 'suppliers'
+  | 'marketing'
   | 'settings'
 
 export type PermissionAction = 'read' | 'create' | 'update' | 'delete'
@@ -59,5 +60,6 @@ export const ROUTE_MODULE_MAP: Record<string, ModuleKey> = {
   '/partners': 'partners',
   '/talent': 'talent',
   '/suppliers': 'suppliers',
+  '/marketing/influencers': 'marketing',
   '/settings': 'settings',
 }

@@ -26,6 +26,7 @@ import { SettlementList, SettlementDetail } from '@/modules/prestaciones/routes'
 import { DateRangeProvider } from '@/modules/finance/context/date-range-context'
 import { AgentPage } from '@/modules/agent/routes'
 import { PosSyncPage } from '@/modules/pos-sync/routes'
+import { InfluencerList } from '@/modules/marketing/influencers/routes'
 import { PermissionsProvider } from '@/core/ui/permissions-provider'
 import { PermissionRoute } from '@/core/ui/permission-route'
 import { SettingsTeam } from '@/core/ui/settings-team'
@@ -110,6 +111,7 @@ export default function App() {
               <Route path="/contracts/new" element={<Suspense fallback={<Loading />}><ContractGenerate /></Suspense>} />
               <Route path="/contracts/:id" element={<Suspense fallback={<Loading />}><ContractDetail /></Suspense>} />
               <Route path="/agent" element={<Suspense fallback={<Loading />}><AgentPage /></Suspense>} />
+              <Route path="/marketing/influencers" element={<Suspense fallback={<Loading />}><InfluencerList /></Suspense>} />
               <Route element={<DateRangeProvider><Outlet /></DateRangeProvider>}>
                 <Route path="/pos-sync" element={<Suspense fallback={<Loading />}><PosSyncPage /></Suspense>} />
               </Route>
