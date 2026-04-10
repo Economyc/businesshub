@@ -44,6 +44,12 @@ const MODULE_GROUPS: { title: string; modules: { key: ModuleKey; label: string; 
     ],
   },
   {
+    title: 'Mercadeo',
+    modules: [
+      { key: 'marketing', label: 'Mercadeo', description: 'Influencers, seguimiento de visitas y contenido' },
+    ],
+  },
+  {
     title: 'Sistema',
     modules: [
       { key: 'settings', label: 'Configuracion', description: 'Compañias, categorias, cargos, departamentos y equipo' },
@@ -341,7 +347,7 @@ export function SettingsTeamRoles() {
           const viewOnly = role.permissions.filter((p) => p.actions.length === 1 && p.actions[0] === 'read').length
           const fullAccess = role.permissions.filter((p) => p.actions.length > 1).length
           const totalWithAccess = viewOnly + fullAccess
-          const totalModules = 13
+          const totalModules = 14
           const hasAllModules = totalWithAccess === totalModules
 
           return (

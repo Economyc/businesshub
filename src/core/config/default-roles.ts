@@ -2,7 +2,7 @@ import type { RoleDefinition, ModuleKey, PermissionAction } from '@/core/types/p
 
 const ALL_MODULES: ModuleKey[] = [
   'home', 'analytics', 'agent', 'finance', 'cartera', 'closings',
-  'payroll', 'prestaciones', 'contracts', 'partners', 'talent', 'suppliers', 'settings',
+  'payroll', 'prestaciones', 'contracts', 'partners', 'talent', 'suppliers', 'marketing', 'settings',
 ]
 
 const ALL_ACTIONS: PermissionAction[] = ['read', 'create', 'update', 'delete']
