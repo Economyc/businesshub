@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
-import { Plus, Megaphone, Instagram, Video, Image, BookOpen } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { Plus, Megaphone, DollarSign, Image } from 'lucide-react'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
 import { SearchInput } from '@/core/ui/search-input'
@@ -12,6 +13,10 @@ import { TableSkeleton } from '@/core/ui/skeleton'
 import { LoadMoreButton } from '@/core/ui/load-more-button'
 import { usePermissions } from '@/core/hooks/use-permissions'
 import { SelectInput } from '@/core/ui/select-input'
+import { KPICard } from '@/core/ui/kpi-card'
+import { staggerContainer } from '@/core/animations/variants'
+import { DateRangePicker } from '@/modules/finance/components/date-range-picker'
+import { useDateRange } from '@/modules/finance/context/date-range-context'
 import { usePaginatedInfluencerVisits } from '../hooks'
 import { InfluencerForm } from './influencer-form'
 import type { InfluencerVisit, SocialPlatform } from '../types'
@@ -64,6 +69,7 @@ function ContentDots({ content }: { content: InfluencerVisit['content'] }) {
 
 export function InfluencerList() {
   const { data: visits, loading, loadingMore, hasMore, totalCount, loadMore, refetch } = usePaginatedInfluencerVisits()
+  const { startDate, endDate } = useDateRange()
   const { can } = usePermissions()
   const canEdit = can('marketing', 'create')
   const [search, setSearch] = useState('')
@@ -78,9 +84,11 @@ export function InfluencerList() {
         v.name.toLowerCase().includes(search.toLowerCase()) ||
         v.socialNetworks?.some((s) => s.handle.toLowerCase().includes(search.toLowerCase()))
       const matchesStatus = statusFilter === '' || v.status === statusFilter
-      return matchesSearch && matchesStatus
+      const visitDate = v.visitDate?.toDate()
+      const matchesDate = !visitDate || (visitDate >= startDate && visitDate <= endDate)
+      return matchesSearch && matchesStatus && matchesDate
     })
-  }, [visits, search, statusFilter])
+  }, [visits, search, statusFilter, startDate, endDate])
 
   const totalVisits = filtered.length
   const withContent = useMemo(() => {
@@ -165,25 +173,39 @@ export function InfluencerList() {
         onClose={() => { setShowForm(false); setEditingVisit(null); refetch() }}
       />
 
-      <div className="flex gap-4 mb-4 text-caption text-mid-gray">
-        <span>
-          Visitas:{' '}
-          <span className="font-medium text-graphite">{totalVisits}</span>
-        </span>
-        <span>
-          Con contenido:{' '}
-          <span className="font-medium text-graphite">{contentPercent}%</span>
-        </span>
-        <span>
-          Costo total:{' '}
-          <span className="font-medium text-graphite">{formatCurrency(totalCost)}</span>
-        </span>
-      </div>
+      <motion.div
+        variants={staggerContainer}
+        initial="initial"
+        animate="animate"
+        className="grid grid-cols-3 gap-4 mb-5"
+      >
+        <KPICard
+          label="Gasto total"
+          value={totalCost}
+          format="currency"
+          icon={DollarSign}
+        />
+        <KPICard
+          label="Con contenido"
+          value={withContent}
+          format="number"
+          change={`${contentPercent}% del total`}
+          trend={contentPercent >= 50 ? 'up' : contentPercent > 0 ? 'neutral' : 'down'}
+          icon={Image}
+        />
+        <KPICard
+          label="Total visitas"
+          value={totalVisits}
+          format="number"
+          icon={Megaphone}
+        />
+      </motion.div>
 
       <div className="flex gap-3 mb-5">
         <div className="flex-1">
           <SearchInput value={search} onChange={setSearch} placeholder="Buscar influencer..." />
         </div>
+        <DateRangePicker />
         <FilterPopover
           activeCount={[statusFilter].filter(Boolean).length}
           onClear={() => setStatusFilter('')}
