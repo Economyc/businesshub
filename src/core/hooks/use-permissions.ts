@@ -73,6 +73,7 @@ export function usePermissionsLoader(): PermissionsContextValue {
   const can = useCallback(
     (module: ModuleKey, action: PermissionAction = 'read') => {
       if (!role) return false
+      if (role.id === 'owner' || role.id === 'admin') return true
       const perm = role.permissions.find((p) => p.module === module)
       if (!perm) return false
       return perm.actions.includes(action)
