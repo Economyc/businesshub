@@ -11,9 +11,16 @@ import { formatCurrency } from '@/core/utils/format'
 import { TableSkeleton } from '@/core/ui/skeleton'
 import { LoadMoreButton } from '@/core/ui/load-more-button'
 import { usePermissions } from '@/core/hooks/use-permissions'
+import { SelectInput } from '@/core/ui/select-input'
 import { usePaginatedInfluencerVisits } from '../hooks'
 import { InfluencerForm } from './influencer-form'
 import type { InfluencerVisit, SocialPlatform } from '../types'
+
+const FILTER_STATUS_OPTIONS = [
+  { value: '', label: 'Todos los estados' },
+  { value: 'pending', label: 'Pendiente' },
+  { value: 'completed', label: 'Completado' },
+]
 
 const PLATFORM_LABELS: Record<SocialPlatform, string> = {
   instagram: 'IG',
@@ -183,15 +190,12 @@ export function InfluencerList() {
         >
           <div>
             <label className="block text-caption text-mid-gray mb-1">Estado</label>
-            <select
+            <SelectInput
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-[10px] border border-input-border bg-input-bg text-body text-graphite focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200"
-            >
-              <option value="">Todos los estados</option>
-              <option value="pending">Pendiente</option>
-              <option value="completed">Completado</option>
-            </select>
+              onChange={setStatusFilter}
+              options={FILTER_STATUS_OPTIONS}
+              placeholder="Todos los estados"
+            />
           </div>
         </FilterPopover>
       </div>

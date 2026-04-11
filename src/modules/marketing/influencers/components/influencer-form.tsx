@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Trash2, Plus } from 'lucide-react'
 import { Timestamp } from 'firebase/firestore'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
+import { DateInput } from '@/core/ui/date-input'
+import { SelectInput } from '@/core/ui/select-input'
 import { useCompany } from '@/core/hooks/use-company'
 import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { modalVariants } from '@/core/animations/variants'
@@ -22,6 +24,11 @@ const PLATFORM_OPTIONS = [
   { value: 'facebook', label: 'Facebook' },
   { value: 'twitter', label: 'X / Twitter' },
   { value: 'other', label: 'Otra' },
+]
+
+const STATUS_OPTIONS = [
+  { value: 'pending', label: 'Pendiente' },
+  { value: 'completed', label: 'Completado' },
 ]
 
 interface InfluencerFormProps {
@@ -71,6 +78,18 @@ export function InfluencerForm({ open, onClose, visit }: InfluencerFormProps) {
     notes: '',
     status: 'pending' as 'pending' | 'completed',
   })
+
+  const orderOptions = useMemo(() => {
+    const opts = [{ value: '', label: 'Sin pedido asociado' }]
+    for (const o of orders) {
+      const items = o.items.slice(0, 3).join(', ') + (o.items.length > 3 ? '...' : '')
+      opts.push({
+        value: o.documento,
+        label: `Factura ${o.documento} — ${formatCurrency(o.total)} (${items})`,
+      })
+    }
+    return opts
+  }, [orders])
 
   useEffect(() => {
     if (open && visit) {
@@ -245,15 +264,12 @@ export function InfluencerForm({ open, onClose, visit }: InfluencerFormProps) {
                     <div className="space-y-2">
                       {form.socialNetworks.map((network, i) => (
                         <div key={i} className="flex items-center gap-2">
-                          <select
+                          <SelectInput
                             value={network.platform}
-                            onChange={(e) => updateNetwork(i, 'platform', e.target.value)}
-                            className={`${inputClass} !w-36 shrink-0`}
-                          >
-                            {PLATFORM_OPTIONS.map((opt) => (
-                              <option key={opt.value} value={opt.value}>{opt.label}</option>
-                            ))}
-                          </select>
+                            onChange={(val) => updateNetwork(i, 'platform', val)}
+                            options={PLATFORM_OPTIONS}
+                            className="!w-36 shrink-0"
+                          />
                           <input
                             value={network.handle}
                             onChange={(e) => updateNetwork(i, 'handle', e.target.value)}
@@ -285,26 +301,21 @@ export function InfluencerForm({ open, onClose, visit }: InfluencerFormProps) {
                   {/* Fecha de visita */}
                   <div>
                     <label className={labelClass}>Fecha de visita</label>
-                    <input
-                      type="date"
+                    <DateInput
                       value={form.visitDate}
-                      onChange={(e) => handleDateChange(e.target.value)}
+                      onChange={handleDateChange}
                       required
-                      className={inputClass}
                     />
                   </div>
 
                   {/* Estado */}
                   <div>
                     <label className={labelClass}>Estado</label>
-                    <select
+                    <SelectInput
                       value={form.status}
-                      onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value as 'pending' | 'completed' }))}
-                      className={inputClass}
-                    >
-                      <option value="pending">Pendiente</option>
-                      <option value="completed">Completado</option>
-                    </select>
+                      onChange={(val) => setForm((prev) => ({ ...prev, status: val as 'pending' | 'completed' }))}
+                      options={STATUS_OPTIONS}
+                    />
                   </div>
 
                   {/* Pedido asociado */}
@@ -317,18 +328,12 @@ export function InfluencerForm({ open, onClose, visit }: InfluencerFormProps) {
                     ) : orders.length === 0 ? (
                       <p className="text-caption text-mid-gray py-2.5">No hay pedidos para esta fecha</p>
                     ) : (
-                      <select
+                      <SelectInput
                         value={form.selectedOrderId}
-                        onChange={(e) => setForm((prev) => ({ ...prev, selectedOrderId: e.target.value }))}
-                        className={inputClass}
-                      >
-                        <option value="">Sin pedido asociado</option>
-                        {orders.map((o) => (
-                          <option key={o.ID} value={o.documento}>
-                            {o.documento} — {formatCurrency(o.total)} ({o.items.slice(0, 3).join(', ')}{o.items.length > 3 ? '...' : ''})
-                          </option>
-                        ))}
-                      </select>
+                        onChange={(val) => setForm((prev) => ({ ...prev, selectedOrderId: val }))}
+                        options={orderOptions}
+                        placeholder="Sin pedido asociado"
+                      />
                     )}
                   </div>
 
