@@ -261,6 +261,24 @@ export function VentasTab({ localIds, allLocalIds, locales }: VentasTabProps) {
               </button>
             )
           })}
+          <div className="ml-auto flex items-center gap-2">
+            {lastUpdated && (
+              <span className="flex items-center gap-1 text-caption text-mid-gray">
+                <Clock size={12} />
+                {lastUpdated.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}
+                {fromCache && ' (cache)'}
+              </span>
+            )}
+            <button
+              onClick={handleConsultar}
+              disabled={loading}
+              className="flex items-center gap-1 text-caption text-mid-gray hover:text-dark-graphite transition-colors disabled:opacity-50"
+              aria-label="Actualizar ventas"
+            >
+              {loading ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+              Actualizar
+            </button>
+          </div>
         </div>
       )}
 
@@ -297,28 +315,8 @@ export function VentasTab({ localIds, allLocalIds, locales }: VentasTabProps) {
 
       {ventas.length > 0 && (
         <>
-          {/* Summary cards with last-updated + refresh positioned top-right */}
-          <div className="relative">
-            <div className="absolute -top-1 right-0 flex items-center gap-2 z-10">
-              {lastUpdated && (
-                <span className="flex items-center gap-1 text-caption text-mid-gray">
-                  <Clock size={12} />
-                  {lastUpdated.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}
-                  {fromCache && ' (cache)'}
-                </span>
-              )}
-              <button
-                onClick={handleConsultar}
-                disabled={loading}
-                className="flex items-center gap-1 text-caption text-mid-gray hover:text-dark-graphite transition-colors disabled:opacity-50"
-                aria-label="Actualizar ventas"
-              >
-                {loading ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
-                Actualizar
-              </button>
-            </div>
-            <SummaryCards stats={totalStats} prefersReducedMotion={prefersReducedMotion} />
-          </div>
+          {/* Summary cards */}
+          <SummaryCards stats={totalStats} prefersReducedMotion={prefersReducedMotion} />
 
           {/* Grouped by local or single table */}
           {isMultiLocal && ventasByLocal ? (
