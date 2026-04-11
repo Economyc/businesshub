@@ -12,6 +12,8 @@ export function usePaginatedInfluencerVisits() {
 export interface PosOrderOption {
   ID: string
   documento: string
+  serie: string
+  correlativo: string
   total: number
   fecha: string
   items: string[]
@@ -38,6 +40,8 @@ export function usePosOrderSearch() {
         valid.map((v) => ({
           ID: v.ID,
           documento: v.documento,
+          serie: v.serie,
+          correlativo: v.correlativo,
           total: Number(v.total),
           fecha: v.fecha,
           items: v.detalle?.map((d) => d.nombre_producto) ?? [],

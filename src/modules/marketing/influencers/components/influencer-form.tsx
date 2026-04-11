@@ -84,8 +84,8 @@ export function InfluencerForm({ open, onClose, visit }: InfluencerFormProps) {
     for (const o of orders) {
       const items = o.items.slice(0, 3).join(', ') + (o.items.length > 3 ? '...' : '')
       opts.push({
-        value: o.documento,
-        label: `Factura ${o.documento} — ${formatCurrency(o.total)} (${items})`,
+        value: o.ID,
+        label: `${o.documento} ${o.serie}-${o.correlativo} — ${formatCurrency(o.total)} (${items})`,
       })
     }
     return opts
@@ -100,7 +100,7 @@ export function InfluencerForm({ open, onClose, visit }: InfluencerFormProps) {
           ? visit.socialNetworks
           : [{ platform: 'instagram', handle: '' }],
         visitDate: dateStr,
-        selectedOrderId: visit.order?.documento ?? '',
+        selectedOrderId: visit.order?.id ?? visit.order?.documento ?? '',
         story: visit.content?.story ?? false,
         post: visit.content?.post ?? false,
         reel: visit.content?.reel ?? false,
@@ -160,7 +160,7 @@ export function InfluencerForm({ open, onClose, visit }: InfluencerFormProps) {
     if (!selectedCompany) return
 
     const validNetworks = form.socialNetworks.filter((n) => n.handle.trim())
-    const selectedOrder = orders.find((o) => o.documento === form.selectedOrderId)
+    const selectedOrder = orders.find((o) => o.ID === form.selectedOrderId)
 
     const data: any = {
       name: form.name,
@@ -175,12 +175,13 @@ export function InfluencerForm({ open, onClose, visit }: InfluencerFormProps) {
 
     if (selectedOrder) {
       data.order = {
-        documento: selectedOrder.documento,
+        id: selectedOrder.ID,
+        documento: `${selectedOrder.documento} ${selectedOrder.serie}-${selectedOrder.correlativo}`,
         total: selectedOrder.total,
         fecha: selectedOrder.fecha,
         items: selectedOrder.items,
       }
-    } else if (visit?.order && form.selectedOrderId === visit.order.documento) {
+    } else if (visit?.order && form.selectedOrderId === visit.order.id) {
       data.order = visit.order
     }
 

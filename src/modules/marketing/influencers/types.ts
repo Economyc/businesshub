@@ -15,6 +15,7 @@ export interface ContentChecklist {
 }
 
 export interface LinkedOrder {
+  id?: string
   documento: string
   total: number
   fecha: string
