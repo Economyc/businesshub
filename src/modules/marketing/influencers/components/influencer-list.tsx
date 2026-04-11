@@ -4,7 +4,6 @@ import { Plus, Megaphone, DollarSign, Image } from 'lucide-react'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
 import { SearchInput } from '@/core/ui/search-input'
-import { FilterPopover } from '@/core/ui/filter-popover'
 import { DataTable } from '@/core/ui/data-table'
 import { StatusBadge } from '@/core/ui/status-badge'
 import { EmptyState } from '@/core/ui/empty-state'
@@ -12,7 +11,6 @@ import { formatCurrency } from '@/core/utils/format'
 import { TableSkeleton } from '@/core/ui/skeleton'
 import { LoadMoreButton } from '@/core/ui/load-more-button'
 import { usePermissions } from '@/core/hooks/use-permissions'
-import { SelectInput } from '@/core/ui/select-input'
 import { KPICard } from '@/core/ui/kpi-card'
 import { staggerContainer } from '@/core/animations/variants'
 import { DateRangePicker } from '@/modules/finance/components/date-range-picker'
@@ -20,12 +18,6 @@ import { useDateRange } from '@/modules/finance/context/date-range-context'
 import { usePaginatedInfluencerVisits } from '../hooks'
 import { InfluencerForm } from './influencer-form'
 import type { InfluencerVisit, SocialPlatform } from '../types'
-
-const FILTER_STATUS_OPTIONS = [
-  { value: '', label: 'Todos los estados' },
-  { value: 'pending', label: 'Pendiente' },
-  { value: 'completed', label: 'Completado' },
-]
 
 const PLATFORM_LABELS: Record<SocialPlatform, string> = {
   instagram: 'IG',
@@ -73,7 +65,6 @@ export function InfluencerList() {
   const { can } = usePermissions()
   const canEdit = can('marketing', 'create')
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [editingVisit, setEditingVisit] = useState<InfluencerVisit | null>(null)
 
@@ -83,12 +74,11 @@ export function InfluencerList() {
         search === '' ||
         v.name.toLowerCase().includes(search.toLowerCase()) ||
         v.socialNetworks?.some((s) => s.handle.toLowerCase().includes(search.toLowerCase()))
-      const matchesStatus = statusFilter === '' || v.status === statusFilter
       const visitDate = v.visitDate?.toDate()
       const matchesDate = !visitDate || (visitDate >= startDate && visitDate <= endDate)
-      return matchesSearch && matchesStatus && matchesDate
+      return matchesSearch && matchesDate
     })
-  }, [visits, search, statusFilter, startDate, endDate])
+  }, [visits, search, startDate, endDate])
 
   const totalVisits = filtered.length
   const withContent = useMemo(() => {
@@ -206,20 +196,6 @@ export function InfluencerList() {
           <SearchInput value={search} onChange={setSearch} placeholder="Buscar influencer..." />
         </div>
         <DateRangePicker />
-        <FilterPopover
-          activeCount={[statusFilter].filter(Boolean).length}
-          onClear={() => setStatusFilter('')}
-        >
-          <div>
-            <label className="block text-caption text-mid-gray mb-1">Estado</label>
-            <SelectInput
-              value={statusFilter}
-              onChange={setStatusFilter}
-              options={FILTER_STATUS_OPTIONS}
-              placeholder="Todos los estados"
-            />
-          </div>
-        </FilterPopover>
       </div>
 
       {loading ? (
