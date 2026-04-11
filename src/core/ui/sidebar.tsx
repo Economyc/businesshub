@@ -239,7 +239,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
           <ChevronsLeft size={13} strokeWidth={1.5} className={cn('transition-transform duration-300', collapsed && 'rotate-180')} />
         </button>
         {/* Company selector */}
-        <div className={cn('mb-3', collapsed ? 'px-2' : 'px-3')} ref={companyRef}>
+        <div className={cn('mb-3', collapsed ? 'px-0' : 'px-3')} ref={companyRef}>
           {!collapsed ? (
             <div className="relative">
               <button
@@ -539,7 +539,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
             </div>
           )}
 
-          <div className="relative" ref={userMenuRef}>
+          <div className={cn("relative", collapsed && "flex justify-center")} ref={userMenuRef}>
             {collapsed ? (
               <Tooltip>
                 <TooltipTrigger asChild>
