@@ -359,7 +359,10 @@ export function Sidebar({ onNavClick }: SidebarProps) {
         )}
 
         {/* Nav items */}
-        <div className="flex-1 overflow-y-auto">
+        <div
+          className="flex-1 overflow-y-auto"
+          style={{ scrollbarGutter: 'stable both-edges' }}
+        >
           {collapsed ? (
             /* Collapsed: flat list of all item icons, no section headers */
             <div className="flex flex-col">
