@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { ShoppingBag, Package, XCircle, MapPin } from 'lucide-react'
+import { ShoppingBag, Package, XCircle } from 'lucide-react'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
 import { UnderlineButtonTabs } from '@/core/ui/underline-tabs'
@@ -29,15 +29,12 @@ function findMatchingLocal(locales: PosLocal[], company: Company | null): PosLoc
   const companyNorm = normalize(`${company.name} ${company.location}`)
   const locationNorm = normalize(company.location)
 
-  // Exact match: "Blue Smash Manila" === "Blue Smash Manila"
   const exact = locales.find((l) => normalize(l.local_descripcion) === companyNorm)
   if (exact) return exact
 
-  // Partial: local contains company name + location
   const partial = locales.find((l) => normalize(l.local_descripcion).includes(companyNorm))
   if (partial) return partial
 
-  // Fallback: local contains just the location
   const locMatch = locales.find((l) => normalize(l.local_descripcion).includes(locationNorm))
   if (locMatch) return locMatch
 
@@ -66,6 +63,7 @@ export function PosSyncPage() {
   }, [matchedLocal, locales])
 
   const localName = matchedLocal?.local_descripcion ?? null
+  const localLabel = localName ?? (locales.length > 0 ? `${locales.length} locales` : null)
 
   return (
     <PageTransition>
@@ -76,22 +74,6 @@ export function PosSyncPage() {
         </div>
       </PageHeader>
 
-      {/* Local info bar */}
-      {!loadingLocales && locales.length > 0 && (
-        <div className="flex items-center gap-2 mb-5">
-          <MapPin size={14} className="text-mid-gray shrink-0" />
-          {localName ? (
-            <span className="text-caption text-mid-gray">
-              Mostrando datos de <span className="font-medium text-graphite">{localName}</span>
-            </span>
-          ) : (
-            <span className="text-caption text-mid-gray">
-              Mostrando datos de <span className="font-medium text-graphite">{locales.length} locales</span>
-            </span>
-          )}
-        </div>
-      )}
-
       <UnderlineButtonTabs tabs={TABS} active={activeTab} onChange={setActiveTab} />
 
       {locales.length > 0 && activeTab === 'ventas' && (
@@ -99,16 +81,18 @@ export function PosSyncPage() {
           localIds={activeLocalIds}
           allLocalIds={activeLocalIds}
           locales={locales}
+          localLabel={localLabel}
         />
       )}
       {locales.length > 0 && activeTab === 'catalogo' && (
-        <CatalogoTab localId={activeLocalIds[0]} />
+        <CatalogoTab localId={activeLocalIds[0]} localLabel={localLabel} />
       )}
       {locales.length > 0 && activeTab === 'anuladas' && (
         <AnuladasTab
           localIds={activeLocalIds}
           allLocalIds={activeLocalIds}
           locales={locales}
+          localLabel={localLabel}
         />
       )}
     </PageTransition>
@@ -136,8 +120,11 @@ function ConnectionBadge({ error, loading }: { error: string | null; loading: bo
 
   return (
     <div className="flex items-center gap-1.5 bg-positive-bg px-2.5 h-7 rounded-full">
-      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-      <span className="text-caption text-positive-text">Conectado</span>
+      <span className="relative flex h-1.5 w-1.5 shrink-0">
+        <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 animate-ping" />
+        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+      </span>
+      <span className="text-caption text-positive-text">En vivo</span>
     </div>
   )
 }

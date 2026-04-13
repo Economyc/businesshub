@@ -1,8 +1,9 @@
-import { useMemo, useState, useEffect } from 'react'
-import { Search, RefreshCw, Loader2, MapPin, FileText, DollarSign, Receipt, Heart, Clock } from 'lucide-react'
-import { motion, useReducedMotion } from 'framer-motion'
+import { useMemo, useState, useEffect, useRef } from 'react'
+import { Search, RefreshCw, Loader2, MapPin, Receipt, Heart, Clock, TrendingUp } from 'lucide-react'
+import { motion, useReducedMotion, useMotionValue, useTransform, animate } from 'framer-motion'
 import { DataTable, type Column } from '@/core/ui/data-table'
 import { EmptyState } from '@/core/ui/empty-state'
+import { FilterPillGroup, type FilterPillOption } from '@/core/ui/filter-pill-group'
 import { formatCurrency } from '@/core/utils/format'
 import { useDateRange } from '@/modules/finance/context/date-range-context'
 import { usePosVentas, useAutoRefresh } from '../hooks'
@@ -20,7 +21,6 @@ function getDocType(v: PosVenta): DocType {
   const td = v.tipo_documento?.toUpperCase()
   if (td === 'F') return 'factura'
   if (td === 'B') return 'boleta'
-  // Check documento field for "Nota de Venta" text
   if (td === 'NV' || v.documento?.toLowerCase().includes('nota')) return 'nota'
   return 'otro'
 }
@@ -43,64 +43,46 @@ interface VentasTabProps {
   localIds: number[]
   allLocalIds: number[]
   locales: PosLocal[]
+  localLabel: string | null
 }
-
-const cardVariants = {
-  hidden: { opacity: 0, y: 8 },
-  visible: (i: number) => ({
-    opacity: 1,
-    y: 0,
-    transition: { delay: i * 0.05, duration: 0.3, ease: 'easeOut' },
-  }),
-}
-
-interface CardConfig {
-  label: string
-  icon: LucideIcon
-  colorClass: string
-  format: (stats: ReturnType<typeof calcTotals>) => string
-}
-
-const CARDS_CONFIG: CardConfig[] = [
-  {
-    label: 'Registros',
-    icon: FileText,
-    colorClass: 'text-dark-graphite',
-    format: (s) => String(s.count),
-  },
-  {
-    label: 'Total Ventas',
-    icon: DollarSign,
-    colorClass: 'text-positive-text',
-    format: (s) => formatCurrency(s.ventas),
-  },
-  {
-    label: 'Impuestos',
-    icon: Receipt,
-    colorClass: 'text-info-text',
-    format: (s) => formatCurrency(s.impuestos),
-  },
-  {
-    label: 'Propinas',
-    icon: Heart,
-    colorClass: 'text-warning-text',
-    format: (s) => formatCurrency(s.propinas),
-  },
-]
 
 function calcTotals(list: PosVenta[]) {
+  const ventas = list.reduce((sum, v) => sum + num(v.total), 0)
   return {
     count: list.length,
-    ventas: list.reduce((sum, v) => sum + num(v.total), 0),
+    ventas,
     impuestos: list.reduce((sum, v) => sum + num(v.impuestos), 0),
     propinas: list.reduce(
       (sum, v) => sum + (v.lista_propinas?.reduce((s, p) => s + num(p.montoConIgv), 0) ?? 0),
       0
     ),
+    ticket: list.length > 0 ? ventas / list.length : 0,
   }
 }
 
-export function VentasTab({ localIds, allLocalIds, locales }: VentasTabProps) {
+function getEstadoTone(estado: string | undefined): 'positive' | 'warning' | 'neutral' {
+  const e = (estado ?? '').toLowerCase()
+  if (!e || e === '—') return 'neutral'
+  if (e.includes('anulado') || e.includes('pendiente')) return 'warning'
+  if (e.includes('pagado') || e.includes('aceptado') || e.includes('emitido')) return 'positive'
+  return 'neutral'
+}
+
+function getCanalTone(canal: string | undefined): 'info' | 'neutral' {
+  const c = (canal ?? '').toLowerCase()
+  if (!c) return 'neutral'
+  if (c.includes('delivery') || c.includes('rappi') || c.includes('pedidos') || c.includes('didi') || c.includes('uber')) return 'info'
+  return 'neutral'
+}
+
+const TONE_CLASSES: Record<string, string> = {
+  positive: 'bg-positive-bg text-positive-text',
+  warning: 'bg-warning-bg text-warning-text',
+  info: 'bg-info-bg text-info-text',
+  neutral: 'bg-bone text-graphite',
+}
+
+export function VentasTab({ localIds, allLocalIds, locales, localLabel }: VentasTabProps) {
   const { startDate, endDate } = useDateRange()
   const { ventas, loading, error, rateLimited, lastUpdated, fromCache, fetch, progress } = usePosVentas()
   const prefersReducedMotion = useReducedMotion()
@@ -110,11 +92,9 @@ export function VentasTab({ localIds, allLocalIds, locales }: VentasTabProps) {
   const isMultiLocal = localIds.length > 1
 
   function handleConsultar() {
-    // Always fetch ALL locals so switching pills filters in-memory without re-fetching
     fetch(allLocalIds, `${toDateStr(startDate)} 00:00:00`, `${toDateStr(endDate)} 23:59:59`)
   }
 
-  // Auto-fetch on mount and when date range changes
   useEffect(() => {
     if (allLocalIds.length > 0) {
       fetch(allLocalIds, `${toDateStr(startDate)} 00:00:00`, `${toDateStr(endDate)} 23:59:59`)
@@ -131,9 +111,7 @@ export function VentasTab({ localIds, allLocalIds, locales }: VentasTabProps) {
 
   const filteredVentas = useMemo(() => {
     let result = ventas
-    // Exclude anuladas — they have their own tab
     result = result.filter((v) => v.estado_txt?.toLowerCase() !== 'comprobante anulado')
-    // Filter by selected local(s) — allows switching pills without re-fetching
     const localSet = new Set(localIds)
     result = result.filter((v) => localSet.has(v.id_local))
     if (docFilter !== 'todos') {
@@ -145,7 +123,6 @@ export function VentasTab({ localIds, allLocalIds, locales }: VentasTabProps) {
     return result
   }, [ventas, localIds, docFilter, cajaFilter])
 
-  // Cajas disponibles según local(es) seleccionado(s) y filtro de tipo
   const cajasDisponibles = useMemo(() => {
     const localSet = new Set(localIds)
     const counts = new Map<string, number>()
@@ -159,7 +136,6 @@ export function VentasTab({ localIds, allLocalIds, locales }: VentasTabProps) {
     return Array.from(counts.entries()).sort((a, b) => Number(a[0]) - Number(b[0]))
   }, [ventas, localIds, docFilter])
 
-  // Reset caja filter si la caja seleccionada ya no existe
   useEffect(() => {
     if (cajaFilter === 'todas') return
     if (!cajasDisponibles.some(([k]) => k === cajaFilter)) setCajaFilter('todas')
@@ -176,26 +152,37 @@ export function VentasTab({ localIds, allLocalIds, locales }: VentasTabProps) {
     return groups
   }, [filteredVentas, isMultiLocal])
 
+  const docCounts = useMemo(() => {
+    const localSet = new Set(localIds)
+    const base = ventas.filter(
+      (v) => v.estado_txt?.toLowerCase() !== 'comprobante anulado' && localSet.has(v.id_local)
+    )
+    return {
+      todos: base.length,
+      factura: base.filter((v) => getDocType(v) === 'factura').length,
+      boleta: base.filter((v) => getDocType(v) === 'boleta').length,
+      nota: base.filter((v) => getDocType(v) === 'nota').length,
+      otro: base.filter((v) => getDocType(v) === 'otro').length,
+    }
+  }, [ventas, localIds])
+
   const columns: Column<PosVenta & { id: string }>[] = [
     {
       key: 'fecha',
       header: 'Fecha',
       width: '140px',
-      render: (v) => <span className="text-body">{v.fecha?.slice(0, 16) ?? '—'}</span>,
+      render: (v) => <span className="text-body tabular-nums">{v.fecha?.slice(0, 16) ?? '—'}</span>,
     },
     {
       key: 'tipo',
       header: 'Tipo',
       width: '100px',
       hideOnMobile: true,
-      render: (v) => {
-        const docType = getDocType(v)
-        return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-caption bg-bone text-graphite">
-            {DOC_TYPE_LABELS[docType]}
-          </span>
-        )
-      },
+      render: (v) => (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-caption bg-bone text-graphite">
+          {DOC_TYPE_LABELS[getDocType(v)]}
+        </span>
+      ),
     },
     {
       key: 'comprobante',
@@ -205,7 +192,7 @@ export function VentasTab({ localIds, allLocalIds, locales }: VentasTabProps) {
       render: (v) => (
         <span className="text-body">
           {v.documento}{' '}
-          <span className="text-mid-gray">
+          <span className="text-mid-gray tabular-nums">
             {v.serie}-{v.correlativo}
           </span>
         </span>
@@ -216,22 +203,31 @@ export function VentasTab({ localIds, allLocalIds, locales }: VentasTabProps) {
       header: 'Canal',
       width: '120px',
       hideOnMobile: true,
-      render: (v) => (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-caption bg-bone text-graphite">
-          {v.canalventa || v.nombre_canaldelivery || '—'}
-        </span>
-      ),
+      render: (v) => {
+        const canal = v.canalventa || v.nombre_canaldelivery || '—'
+        const tone = getCanalTone(v.canalventa || v.nombre_canaldelivery)
+        return (
+          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-caption ${TONE_CLASSES[tone]}`}>
+            {canal}
+          </span>
+        )
+      },
     },
     {
       key: 'estado',
       header: 'Estado',
-      width: '100px',
+      width: '110px',
       hideOnMobile: true,
-      render: (v) => (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-caption bg-bone text-graphite">
-          {v.estado_txt || v.estado || '—'}
-        </span>
-      ),
+      render: (v) => {
+        const tone = getEstadoTone(v.estado_txt || v.estado)
+        return (
+          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-caption ${TONE_CLASSES[tone]}`}>
+            {tone === 'positive' && <span className="w-1 h-1 rounded-full bg-emerald-500" />}
+            {tone === 'warning' && <span className="w-1 h-1 rounded-full bg-amber-500" />}
+            {v.estado_txt || v.estado || '—'}
+          </span>
+        )
+      },
     },
     {
       key: 'caja',
@@ -239,7 +235,7 @@ export function VentasTab({ localIds, allLocalIds, locales }: VentasTabProps) {
       width: '80px',
       hideOnMobile: true,
       render: (v) => (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-caption bg-bone text-graphite">
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-caption bg-bone text-graphite tabular-nums">
           {v.caja_id ?? '—'}
         </span>
       ),
@@ -260,7 +256,7 @@ export function VentasTab({ localIds, allLocalIds, locales }: VentasTabProps) {
       width: '120px',
       primary: true,
       render: (v) => (
-        <span className="font-semibold text-dark-graphite">{formatCurrency(num(v.total))}</span>
+        <span className="font-semibold text-dark-graphite tabular-nums">{formatCurrency(num(v.total))}</span>
       ),
     },
   ]
@@ -270,98 +266,78 @@ export function VentasTab({ localIds, allLocalIds, locales }: VentasTabProps) {
   }
 
   const totalStats = calcTotals(filteredVentas)
+  const hasData = ventas.length > 0
+
+  const docOptions: FilterPillOption<DocType | 'todos'>[] = [
+    { value: 'todos', label: 'Todos', count: docCounts.todos },
+    { value: 'factura', label: 'Factura', count: docCounts.factura },
+    { value: 'boleta', label: 'Boleta', count: docCounts.boleta },
+    { value: 'nota', label: 'Nota', count: docCounts.nota },
+    { value: 'otro', label: 'Otro', count: docCounts.otro },
+  ]
+
+  const cajaOptions: FilterPillOption<string>[] = [
+    { value: 'todas', label: 'Todas', count: cajasDisponibles.reduce((s, [, c]) => s + c, 0) },
+    ...cajasDisponibles.map(([id, count]) => ({ value: id, label: `Caja ${id}`, count })),
+  ]
 
   return (
     <div>
-      {/* Doc type filter */}
-      {ventas.length > 0 && (
-        <div className="flex items-center gap-2 mb-4 flex-wrap">
-          <span className="text-caption text-mid-gray">Tipo:</span>
-          {(['todos', 'factura', 'boleta', 'nota', 'otro'] as const).map((type) => {
-            const count = type === 'todos'
-              ? ventas.length
-              : ventas.filter((v) => getDocType(v) === type).length
-            if (type !== 'todos' && count === 0) return null
-            return (
-              <button
-                key={type}
-                onClick={() => setDocFilter(type)}
-                className={`px-3 py-1 rounded-full text-caption transition-colors ${
-                  docFilter === type
-                    ? 'bg-dark-graphite text-white'
-                    : 'bg-bone text-graphite hover:bg-mid-gray/20'
-                }`}
-              >
-                {type === 'todos' ? 'Todos' : DOC_TYPE_LABELS[type]} ({count})
-              </button>
-            )
-          })}
-          <div className="ml-auto flex items-center gap-2">
-            {lastUpdated && (
-              <span className="flex items-center gap-1 text-caption text-mid-gray">
-                <Clock size={12} />
-                {lastUpdated.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}
-                {fromCache && ' (cache)'}
-              </span>
-            )}
-            <button
-              onClick={handleConsultar}
-              disabled={loading}
-              className="flex items-center gap-1 text-caption text-mid-gray hover:text-dark-graphite transition-colors disabled:opacity-50"
-              aria-label="Actualizar ventas"
-            >
-              {loading ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
-              Actualizar
-            </button>
-          </div>
+      {/* Hero — dashboard en vivo */}
+      <HeroPanel
+        localLabel={localLabel}
+        stats={totalStats}
+        loading={loading}
+        lastUpdated={lastUpdated}
+        fromCache={fromCache}
+        onRefresh={handleConsultar}
+        prefersReducedMotion={prefersReducedMotion}
+        hasData={hasData}
+      />
+
+      {/* Toolbar unificado */}
+      {hasData && (
+        <div className="flex items-center gap-x-3 gap-y-2 mb-4 flex-wrap">
+          <FilterPillGroup
+            label="Tipo:"
+            options={docOptions}
+            value={docFilter}
+            onChange={setDocFilter}
+            hideZeroCount
+          />
+          {cajasDisponibles.length > 1 && (
+            <>
+              <span className="h-5 w-px bg-bone hidden md:inline-block" />
+              <FilterPillGroup
+                label="Caja:"
+                options={cajaOptions}
+                value={cajaFilter}
+                onChange={setCajaFilter}
+              />
+            </>
+          )}
         </div>
       )}
 
-      {/* Caja filter */}
-      {ventas.length > 0 && cajasDisponibles.length > 1 && (
-        <div className="flex items-center gap-2 mb-4 flex-wrap">
-          <span className="text-caption text-mid-gray">Caja:</span>
-          <button
-            onClick={() => setCajaFilter('todas')}
-            className={`px-3 py-1 rounded-full text-caption transition-colors ${
-              cajaFilter === 'todas'
-                ? 'bg-dark-graphite text-white'
-                : 'bg-bone text-graphite hover:bg-mid-gray/20'
-            }`}
-          >
-            Todas ({cajasDisponibles.reduce((s, [, c]) => s + c, 0)})
-          </button>
-          {cajasDisponibles.map(([id, count]) => (
-            <button
-              key={id}
-              onClick={() => setCajaFilter(id)}
-              className={`px-3 py-1 rounded-full text-caption transition-colors ${
-                cajaFilter === id
-                  ? 'bg-dark-graphite text-white'
-                  : 'bg-bone text-graphite hover:bg-mid-gray/20'
-              }`}
-            >
-              Caja {id} ({count})
-            </button>
-          ))}
-        </div>
+      {/* KPI cards secundarios */}
+      {hasData && (
+        <SummaryCards stats={totalStats} prefersReducedMotion={prefersReducedMotion} />
       )}
 
       {/* Rate limit warning */}
-      {rateLimited && ventas.length > 0 && (
-        <div className="bg-warning-bg text-warning-text rounded-lg px-4 py-3 text-body mb-4 flex items-center gap-2">
+      {rateLimited && hasData && (
+        <div className="bg-warning-bg text-warning-text rounded-xl px-4 py-3 text-body mb-4 flex items-center gap-2">
           <Clock size={16} className="shrink-0" />
           La API del POS está procesando otra solicitud. Mostrando última consulta disponible.
         </div>
       )}
 
-      {/* Error */}
       {error && (
-        <div className="bg-red-50 text-red-700 rounded-lg px-4 py-3 text-body mb-4">{error}</div>
+        <div className="bg-negative-bg text-negative-text rounded-xl px-4 py-3 text-body mb-4">{error}</div>
       )}
 
-      {/* Results */}
-      {!loading && ventas.length === 0 && !error && (
+      {/* Empty */}
+      {!loading && !hasData && !error && (
         <div className="flex flex-col items-center">
           <EmptyState
             icon={Search}
@@ -378,25 +354,24 @@ export function VentasTab({ localIds, allLocalIds, locales }: VentasTabProps) {
         </div>
       )}
 
-      {ventas.length > 0 && (
+      {/* Results */}
+      {hasData && (
         <>
-          {/* Summary cards */}
-          <SummaryCards stats={totalStats} prefersReducedMotion={prefersReducedMotion} />
-
-          {/* Grouped by local or single table */}
           {isMultiLocal && ventasByLocal ? (
             Array.from(ventasByLocal.entries()).map(([lid, localVentas]) => {
               const localStats = calcTotals(localVentas)
               return (
                 <div key={lid} className="mb-6">
-                  <div className="flex items-center gap-2 mb-3">
-                    <MapPin size={16} className="text-mid-gray" />
+                  <div className="flex items-center gap-3 mb-2 px-4 py-2.5 bg-bone/50 rounded-xl">
+                    <MapPin size={14} className="text-mid-gray shrink-0" />
                     <h3 className="text-body font-semibold text-dark-graphite">
                       {localNameMap.get(lid) ?? `Local ${lid}`}
                     </h3>
-                    <span className="text-caption text-mid-gray">
-                      {localStats.count} registros · {formatCurrency(localStats.ventas)}
-                    </span>
+                    <div className="ml-auto flex items-center gap-4 text-caption text-mid-gray tabular-nums">
+                      <span>{localStats.count} reg.</span>
+                      <span className="text-dark-graphite font-semibold">{formatCurrency(localStats.ventas)}</span>
+                      <span className="hidden md:inline">ticket {formatCurrency(localStats.ticket)}</span>
+                    </div>
                   </div>
                   <DataTable columns={columns} data={addId(localVentas)} onRowClick={setSelectedVenta} />
                 </div>
@@ -424,6 +399,163 @@ export function VentasTab({ localIds, allLocalIds, locales }: VentasTabProps) {
   )
 }
 
+/* ---------- Hero ---------- */
+
+interface HeroPanelProps {
+  localLabel: string | null
+  stats: ReturnType<typeof calcTotals>
+  loading: boolean
+  lastUpdated: Date | null
+  fromCache: boolean
+  onRefresh: () => void
+  prefersReducedMotion: boolean | null
+  hasData: boolean
+}
+
+function HeroPanel({
+  localLabel,
+  stats,
+  loading,
+  lastUpdated,
+  fromCache,
+  onRefresh,
+  prefersReducedMotion,
+  hasData,
+}: HeroPanelProps) {
+  return (
+    <div className="relative bg-surface rounded-2xl card-elevated border border-bone/60 p-5 md:p-6 mb-4 overflow-hidden">
+      {/* Top row — local + sync */}
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <div className="flex items-center gap-2 min-w-0">
+          <MapPin size={14} className="text-mid-gray shrink-0" />
+          <span className="text-caption uppercase tracking-wider text-mid-gray">Local</span>
+          <span className="text-caption font-semibold text-dark-graphite truncate">
+            {localLabel ?? '—'}
+          </span>
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
+          {lastUpdated && (
+            <span className="flex items-center gap-1 text-caption text-mid-gray tabular-nums">
+              <Clock size={12} />
+              {lastUpdated.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}
+              {fromCache && <span className="ml-1">(cache)</span>}
+            </span>
+          )}
+          <button
+            onClick={onRefresh}
+            disabled={loading}
+            className="flex items-center gap-1 text-caption text-mid-gray hover:text-dark-graphite transition-colors disabled:opacity-50"
+            aria-label="Actualizar ventas"
+          >
+            {loading ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+            Actualizar
+          </button>
+        </div>
+      </div>
+
+      {/* KPI display */}
+      <div className="flex items-end justify-between gap-4 flex-wrap">
+        <div className="min-w-0">
+          <div className="text-caption uppercase tracking-wider text-mid-gray mb-1">
+            Total ventas
+          </div>
+          <div className="text-[44px] md:text-[52px] leading-none font-bold text-dark-graphite tabular-nums">
+            <CountUp value={stats.ventas} format={formatCurrency} disabled={!!prefersReducedMotion} />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-right">
+          <div>
+            <div className="text-caption text-mid-gray">Registros</div>
+            <div className="text-body font-semibold text-dark-graphite tabular-nums">
+              {hasData ? stats.count : '—'}
+            </div>
+          </div>
+          <div>
+            <div className="text-caption text-mid-gray">Ticket prom.</div>
+            <div className="text-body font-semibold text-dark-graphite tabular-nums">
+              {hasData ? formatCurrency(stats.ticket) : '—'}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Sutil gradiente decorativo */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -top-10 -right-10 w-40 h-40 rounded-full opacity-[0.07]"
+        style={{ background: 'radial-gradient(circle, var(--color-dark-graphite, #1a1a1a), transparent 70%)' }}
+      />
+    </div>
+  )
+}
+
+function CountUp({ value, format, disabled }: { value: number; format: (n: number) => string; disabled: boolean }) {
+  const mv = useMotionValue(disabled ? value : 0)
+  const rendered = useTransform(mv, (latest) => format(latest))
+  const prevRef = useRef(value)
+
+  useEffect(() => {
+    if (disabled) {
+      mv.set(value)
+      prevRef.current = value
+      return
+    }
+    const controls = animate(mv, value, {
+      duration: 0.6,
+      ease: 'easeOut',
+    })
+    prevRef.current = value
+    return controls.stop
+  }, [value, disabled, mv])
+
+  return <motion.span>{rendered}</motion.span>
+}
+
+/* ---------- KPI cards secundarios ---------- */
+
+interface CardConfig {
+  label: string
+  icon: LucideIcon
+  tone: 'info' | 'warning' | 'neutral'
+  format: (stats: ReturnType<typeof calcTotals>) => string
+}
+
+const CARDS_CONFIG: CardConfig[] = [
+  {
+    label: 'Impuestos',
+    icon: Receipt,
+    tone: 'info',
+    format: (s) => formatCurrency(s.impuestos),
+  },
+  {
+    label: 'Propinas',
+    icon: Heart,
+    tone: 'warning',
+    format: (s) => formatCurrency(s.propinas),
+  },
+  {
+    label: 'Ticket promedio',
+    icon: TrendingUp,
+    tone: 'neutral',
+    format: (s) => formatCurrency(s.ticket),
+  },
+]
+
+const TONE_ICON: Record<string, string> = {
+  info: 'text-info-text bg-info-bg',
+  warning: 'text-warning-text bg-warning-bg',
+  neutral: 'text-dark-graphite bg-bone',
+}
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 6 },
+  visible: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    transition: { delay: i * 0.05, duration: 0.3, ease: 'easeOut' },
+  }),
+}
+
 function SummaryCards({
   stats,
   prefersReducedMotion,
@@ -433,7 +565,7 @@ function SummaryCards({
 }) {
   return (
     <motion.div
-      className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5"
+      className="grid grid-cols-3 gap-3 mb-5"
       aria-live="polite"
       initial="hidden"
       animate="visible"
@@ -443,17 +575,21 @@ function SummaryCards({
         return (
           <motion.div
             key={card.label}
-            className="bg-surface rounded-xl card-elevated p-4"
+            className="bg-surface rounded-xl border border-bone p-4 flex items-center gap-3"
             custom={i}
             variants={prefersReducedMotion ? undefined : cardVariants}
             initial={prefersReducedMotion ? undefined : 'hidden'}
             animate={prefersReducedMotion ? undefined : 'visible'}
           >
-            <div className="flex items-center gap-1.5 mb-1">
-              <Icon size={16} className={card.colorClass} />
-              <span className="text-caption text-mid-gray">{card.label}</span>
+            <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${TONE_ICON[card.tone]}`}>
+              <Icon size={16} />
             </div>
-            <span className={`text-kpi font-bold ${card.colorClass}`}>{card.format(stats)}</span>
+            <div className="min-w-0">
+              <div className="text-caption text-mid-gray truncate">{card.label}</div>
+              <div className="text-body font-bold text-dark-graphite tabular-nums">
+                {card.format(stats)}
+              </div>
+            </div>
           </motion.div>
         )
       })}

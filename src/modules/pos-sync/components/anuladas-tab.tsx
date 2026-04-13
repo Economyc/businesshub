@@ -1,5 +1,5 @@
 import { useMemo, useEffect, useState } from 'react'
-import { RefreshCw, Loader2, Clock } from 'lucide-react'
+import { RefreshCw, Loader2, Clock, MapPin, XCircle } from 'lucide-react'
 import { DataTable, type Column } from '@/core/ui/data-table'
 import { formatCurrency } from '@/core/utils/format'
 import { useDateRange } from '@/modules/finance/context/date-range-context'
@@ -22,9 +22,10 @@ interface AnuladasTabProps {
   localIds: number[]
   allLocalIds: number[]
   locales: PosLocal[]
+  localLabel: string | null
 }
 
-export function AnuladasTab({ localIds, allLocalIds, locales }: AnuladasTabProps) {
+export function AnuladasTab({ localIds, allLocalIds, locales, localLabel }: AnuladasTabProps) {
   const [selectedVenta, setSelectedVenta] = useState<PosVenta | null>(null)
   const { startDate, endDate } = useDateRange()
   const { ventas, loading, error, rateLimited, lastUpdated, fromCache, fetch, progress } = usePosVentas()
@@ -33,7 +34,6 @@ export function AnuladasTab({ localIds, allLocalIds, locales }: AnuladasTabProps
     fetch(allLocalIds, `${toDateStr(startDate)} 00:00:00`, `${toDateStr(endDate)} 23:59:59`)
   }
 
-  // Auto-fetch on mount and when date range changes
   useEffect(() => {
     if (allLocalIds.length > 0) {
       fetch(allLocalIds, `${toDateStr(startDate)} 00:00:00`, `${toDateStr(endDate)} 23:59:59`)
@@ -64,7 +64,7 @@ export function AnuladasTab({ localIds, allLocalIds, locales }: AnuladasTabProps
       key: 'fecha',
       header: 'Fecha',
       width: '140px',
-      render: (v) => <span className="text-body">{v.fecha?.slice(0, 16) ?? '—'}</span>,
+      render: (v) => <span className="text-body tabular-nums">{v.fecha?.slice(0, 16) ?? '—'}</span>,
     },
     {
       key: 'tipo',
@@ -85,7 +85,7 @@ export function AnuladasTab({ localIds, allLocalIds, locales }: AnuladasTabProps
       render: (v) => (
         <span className="text-body">
           {v.documento}{' '}
-          <span className="text-mid-gray">
+          <span className="text-mid-gray tabular-nums">
             {v.serie}-{v.correlativo}
           </span>
         </span>
@@ -106,7 +106,7 @@ export function AnuladasTab({ localIds, allLocalIds, locales }: AnuladasTabProps
       width: '120px',
       primary: true,
       render: (v) => (
-        <span className="font-semibold text-dark-graphite">{formatCurrency(num(v.total))}</span>
+        <span className="font-semibold text-dark-graphite tabular-nums">{formatCurrency(num(v.total))}</span>
       ),
     },
   ]
@@ -117,37 +117,22 @@ export function AnuladasTab({ localIds, allLocalIds, locales }: AnuladasTabProps
 
   return (
     <div>
-      {/* Rate limit warning */}
-      {rateLimited && ventas.length > 0 && (
-        <div className="bg-warning-bg text-warning-text rounded-lg px-4 py-3 text-body mb-4 flex items-center gap-2">
-          <Clock size={16} className="shrink-0" />
-          La API del POS está procesando otra solicitud. Mostrando última consulta disponible.
-        </div>
-      )}
-
-      {/* Error */}
-      {error && (
-        <div className="bg-red-50 text-red-700 rounded-lg px-4 py-3 text-body mb-4">{error}</div>
-      )}
-
-      {!loading && anuladas.length === 0 && !error && (
-        <div className="text-body text-mid-gray py-8 text-center">
-          No hay comprobantes anulados en el rango seleccionado.
-        </div>
-      )}
-
-      {anuladas.length > 0 && (
-        <>
-          {/* Summary line */}
-          <div className="flex items-center gap-2 mb-4">
-            <span className="text-body text-dark-graphite font-medium">
-              {anuladas.length} documentos anulados · {formatCurrency(total)}
+      {/* Hero */}
+      <div className="relative bg-surface rounded-2xl card-elevated border border-bone/60 p-5 md:p-6 mb-4 overflow-hidden">
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <div className="flex items-center gap-2 min-w-0">
+            <MapPin size={14} className="text-mid-gray shrink-0" />
+            <span className="text-caption uppercase tracking-wider text-mid-gray">Local</span>
+            <span className="text-caption font-semibold text-dark-graphite truncate">
+              {localLabel ?? '—'}
             </span>
+          </div>
+          <div className="flex items-center gap-3 shrink-0">
             {lastUpdated && (
-              <span className="flex items-center gap-1 text-caption text-mid-gray ml-auto">
+              <span className="flex items-center gap-1 text-caption text-mid-gray tabular-nums">
                 <Clock size={12} />
                 {lastUpdated.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}
-                {fromCache && ' (cache)'}
+                {fromCache && <span className="ml-1">(cache)</span>}
               </span>
             )}
             <button
@@ -160,9 +145,53 @@ export function AnuladasTab({ localIds, allLocalIds, locales }: AnuladasTabProps
               Actualizar
             </button>
           </div>
+        </div>
 
-          <DataTable columns={columns} data={addId(anuladas)} onRowClick={setSelectedVenta} />
-        </>
+        <div className="flex items-end justify-between gap-4 flex-wrap">
+          <div>
+            <div className="text-caption uppercase tracking-wider text-mid-gray mb-1">
+              Documentos anulados
+            </div>
+            <div className="text-[44px] md:text-[52px] leading-none font-bold text-dark-graphite tabular-nums">
+              {anuladas.length}
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="text-caption text-mid-gray">Monto anulado</div>
+            <div className="text-body font-semibold text-dark-graphite tabular-nums">
+              {formatCurrency(total)}
+            </div>
+          </div>
+        </div>
+
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -top-10 -right-10 w-40 h-40 rounded-full opacity-[0.07]"
+          style={{ background: 'radial-gradient(circle, var(--color-dark-graphite, #1a1a1a), transparent 70%)' }}
+        />
+      </div>
+
+      {/* Rate limit warning */}
+      {rateLimited && ventas.length > 0 && (
+        <div className="bg-warning-bg text-warning-text rounded-xl px-4 py-3 text-body mb-4 flex items-center gap-2">
+          <Clock size={16} className="shrink-0" />
+          La API del POS está procesando otra solicitud. Mostrando última consulta disponible.
+        </div>
+      )}
+
+      {error && (
+        <div className="bg-negative-bg text-negative-text rounded-xl px-4 py-3 text-body mb-4">{error}</div>
+      )}
+
+      {!loading && anuladas.length === 0 && !error && (
+        <div className="flex flex-col items-center gap-2 py-8 text-mid-gray">
+          <XCircle size={24} className="opacity-50" />
+          <span className="text-body">No hay comprobantes anulados en el rango seleccionado.</span>
+        </div>
+      )}
+
+      {anuladas.length > 0 && (
+        <DataTable columns={columns} data={addId(anuladas)} onRowClick={setSelectedVenta} />
       )}
 
       {loading && (

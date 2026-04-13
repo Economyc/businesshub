@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
-import { Package, Loader2 } from 'lucide-react'
+import { Package, Loader2, MapPin } from 'lucide-react'
 import { EmptyState } from '@/core/ui/empty-state'
 import { SearchInput } from '@/core/ui/search-input'
 import { formatCurrency } from '@/core/utils/format'
@@ -8,9 +8,10 @@ import type { PosProducto } from '../types'
 
 interface CatalogoTabProps {
   localId: number
+  localLabel?: string | null
 }
 
-export function CatalogoTab({ localId }: CatalogoTabProps) {
+export function CatalogoTab({ localId, localLabel }: CatalogoTabProps) {
   const { productos, loading, error, fetch } = usePosCatalogo()
   const [search, setSearch] = useState('')
   const [categoriaFilter, setCategoriaFilter] = useState<string>('all')
@@ -43,6 +44,31 @@ export function CatalogoTab({ localId }: CatalogoTabProps) {
 
   return (
     <div>
+      {/* Hero compacto */}
+      <div className="relative bg-surface rounded-2xl card-elevated border border-bone/60 p-5 mb-4 overflow-hidden">
+        <div className="flex items-center gap-2 mb-3">
+          <MapPin size={14} className="text-mid-gray shrink-0" />
+          <span className="text-caption uppercase tracking-wider text-mid-gray">Local</span>
+          <span className="text-caption font-semibold text-dark-graphite truncate">
+            {localLabel ?? '—'}
+          </span>
+        </div>
+        <div className="flex items-end gap-6 flex-wrap">
+          <div>
+            <div className="text-caption uppercase tracking-wider text-mid-gray mb-1">Productos</div>
+            <div className="text-[36px] md:text-[44px] leading-none font-bold text-dark-graphite tabular-nums">
+              {productos.length}
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="text-caption text-mid-gray">Categorías</div>
+            <div className="text-body font-semibold text-dark-graphite tabular-nums">
+              {categorias.length}
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Filters */}
       <div className="flex flex-wrap items-end gap-3 mb-5">
         <div className="flex-1 min-w-[200px] max-w-sm">
