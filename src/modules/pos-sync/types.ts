@@ -35,6 +35,8 @@ export interface PosVenta {
   fecha: string
   tipo_pago: string
   id_local: number
+  caja_id: number | string
+  turno_id?: number | string
   subtotal: string
   descuento: string
   impuestos: string

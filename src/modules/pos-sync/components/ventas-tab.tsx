@@ -105,6 +105,7 @@ export function VentasTab({ localIds, allLocalIds, locales }: VentasTabProps) {
   const { ventas, loading, error, rateLimited, lastUpdated, fromCache, fetch, progress } = usePosVentas()
   const prefersReducedMotion = useReducedMotion()
   const [docFilter, setDocFilter] = useState<DocType | 'todos'>('todos')
+  const [cajaFilter, setCajaFilter] = useState<string>('todas')
   const [selectedVenta, setSelectedVenta] = useState<PosVenta | null>(null)
   const isMultiLocal = localIds.length > 1
 
@@ -138,8 +139,31 @@ export function VentasTab({ localIds, allLocalIds, locales }: VentasTabProps) {
     if (docFilter !== 'todos') {
       result = result.filter((v) => getDocType(v) === docFilter)
     }
+    if (cajaFilter !== 'todas') {
+      result = result.filter((v) => String(v.caja_id) === cajaFilter)
+    }
     return result
+  }, [ventas, localIds, docFilter, cajaFilter])
+
+  // Cajas disponibles según local(es) seleccionado(s) y filtro de tipo
+  const cajasDisponibles = useMemo(() => {
+    const localSet = new Set(localIds)
+    const counts = new Map<string, number>()
+    for (const v of ventas) {
+      if (v.estado_txt?.toLowerCase() === 'comprobante anulado') continue
+      if (!localSet.has(v.id_local)) continue
+      if (docFilter !== 'todos' && getDocType(v) !== docFilter) continue
+      const k = String(v.caja_id ?? '?')
+      counts.set(k, (counts.get(k) ?? 0) + 1)
+    }
+    return Array.from(counts.entries()).sort((a, b) => Number(a[0]) - Number(b[0]))
   }, [ventas, localIds, docFilter])
+
+  // Reset caja filter si la caja seleccionada ya no existe
+  useEffect(() => {
+    if (cajaFilter === 'todas') return
+    if (!cajasDisponibles.some(([k]) => k === cajaFilter)) setCajaFilter('todas')
+  }, [cajasDisponibles, cajaFilter])
 
   const ventasByLocal = useMemo(() => {
     if (!isMultiLocal) return null
@@ -206,6 +230,17 @@ export function VentasTab({ localIds, allLocalIds, locales }: VentasTabProps) {
       render: (v) => (
         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-caption bg-bone text-graphite">
           {v.estado_txt || v.estado || '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'caja',
+      header: 'Caja',
+      width: '80px',
+      hideOnMobile: true,
+      render: (v) => (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-caption bg-bone text-graphite">
+          {v.caja_id ?? '—'}
         </span>
       ),
     },
@@ -279,6 +314,36 @@ export function VentasTab({ localIds, allLocalIds, locales }: VentasTabProps) {
               Actualizar
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Caja filter */}
+      {ventas.length > 0 && cajasDisponibles.length > 1 && (
+        <div className="flex items-center gap-2 mb-4 flex-wrap">
+          <span className="text-caption text-mid-gray">Caja:</span>
+          <button
+            onClick={() => setCajaFilter('todas')}
+            className={`px-3 py-1 rounded-full text-caption transition-colors ${
+              cajaFilter === 'todas'
+                ? 'bg-dark-graphite text-white'
+                : 'bg-bone text-graphite hover:bg-mid-gray/20'
+            }`}
+          >
+            Todas ({cajasDisponibles.reduce((s, [, c]) => s + c, 0)})
+          </button>
+          {cajasDisponibles.map(([id, count]) => (
+            <button
+              key={id}
+              onClick={() => setCajaFilter(id)}
+              className={`px-3 py-1 rounded-full text-caption transition-colors ${
+                cajaFilter === id
+                  ? 'bg-dark-graphite text-white'
+                  : 'bg-bone text-graphite hover:bg-mid-gray/20'
+              }`}
+            >
+              Caja {id} ({count})
+            </button>
+          ))}
         </div>
       )}
 
