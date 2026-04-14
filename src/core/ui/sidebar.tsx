@@ -146,16 +146,26 @@ export function Sidebar({ onNavClick }: SidebarProps) {
     else setFinanceOpen(false)
   }, [isFinanceRoute])
 
-  // Auto-expand section when navigating to a route within it
+  // Auto-expand section of active route; collapse previous route's section when switching categories
+  const previousPathnameRef = useRef<string | null>(null)
   useEffect(() => {
-    const active = getActiveSections(location.pathname)
-    if (active.size > 0) {
-      setOpenSections(prev => {
-        const next = new Set(prev)
-        active.forEach(s => next.add(s))
-        return next
-      })
-    }
+    const currentPathname = location.pathname
+    const currentSections = getActiveSections(currentPathname)
+    const previousPathname = previousPathnameRef.current
+
+    setOpenSections(prev => {
+      const next = new Set(prev)
+      if (previousPathname && previousPathname !== currentPathname) {
+        const previousSections = getActiveSections(previousPathname)
+        previousSections.forEach(s => {
+          if (!currentSections.has(s)) next.delete(s)
+        })
+      }
+      currentSections.forEach(s => next.add(s))
+      return next
+    })
+
+    previousPathnameRef.current = currentPathname
   }, [location.pathname])
 
   function toggleSection(title: string) {
