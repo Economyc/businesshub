@@ -26,14 +26,14 @@ const SIZES = {
 } as const
 
 interface UserAvatarProps {
-  config: AvatarConfig | null
+  config?: AvatarConfig | null
   displayName?: string | null
   email?: string | null
   size: 'sm' | 'md' | 'lg'
   className?: string
 }
 
-export const UserAvatar = memo(function UserAvatar({ config, displayName, email, size, className }: UserAvatarProps) {
+export const UserAvatar = memo(function UserAvatar({ config = null, displayName, email, size, className }: UserAvatarProps) {
   const s = SIZES[size]
 
   if (!config) {

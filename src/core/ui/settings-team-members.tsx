@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { MoreHorizontal, Plus, Trash2, Shield } from 'lucide-react'
+import { Plus, Trash2, Shield } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useCompany } from '@/core/hooks/use-company'
 import { usePermissions } from '@/core/hooks/use-permissions'

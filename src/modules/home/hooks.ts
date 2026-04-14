@@ -5,12 +5,8 @@ import { useClosings } from '@/modules/closings/hooks'
 import { useCarteraItems, useCarteraSummary } from '@/modules/cartera/hooks'
 import { useBudgetComparison } from '@/modules/finance/hooks'
 import { useDateRange } from '@/modules/finance/context/date-range-context'
-import type { Transaction } from '@/modules/finance/types'
-import type { Closing } from '@/modules/closings/types'
 import type { Supplier } from '@/modules/suppliers/types'
 import type { Contract } from '@/modules/contracts/types'
-import type { CarteraItem } from '@/modules/cartera/types'
-import type { BudgetComparisonRow } from '@/modules/finance/hooks'
 
 // ─── Types ──────────────────────────────────────────────────────────
 

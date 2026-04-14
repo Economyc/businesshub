@@ -14,7 +14,6 @@ import {
   RECONCILIATION_STATUS_LABELS,
   RECONCILIATION_STATUS_COLORS,
   type BankEntry,
-  type Transaction,
 } from '../types'
 
 type FilterTab = 'all' | 'matched' | 'unmatched'
@@ -368,7 +367,6 @@ export function ReconciliationDetail() {
         <DiscrepancyReport
           statement={statement}
           transactions={transactions}
-          txMap={txMap}
           onCreateTransaction={handleCreateTransaction}
         />
       </div>

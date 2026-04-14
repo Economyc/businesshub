@@ -290,7 +290,7 @@ export function TransactionList() {
                       )
                     })}
                     {/* Mobile card view for expanded transactions */}
-                    {group.transactions.map((t, ti) => {
+                    {group.transactions.map((t) => {
                       const typePill = getTypePill(t)
                       const catPill = getCategoryPill(t, categoryItems)
                       return (

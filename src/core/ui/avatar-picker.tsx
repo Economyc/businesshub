@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import {
-  Palette, ChevronRight, Check,
+  Palette, ChevronRight,
   CircleUser, User, UserRound, Smile, Heart,
   Star, Zap, Crown, Gem, Shield,
   Flame, Rocket, Coffee, Music,

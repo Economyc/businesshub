@@ -11,7 +11,7 @@ import { formatCurrency } from '@/core/utils/format'
 import { usePermissions } from '@/core/hooks/use-permissions'
 import { useSettlements } from '../hooks'
 import { SettlementForm } from './settlement-form'
-import { SETTLEMENT_STATUS_LABELS, SETTLEMENT_STATUS_COLORS, type SettlementRecord, type SettlementStatus } from '../types'
+import { SETTLEMENT_STATUS_LABELS, SETTLEMENT_STATUS_COLORS, type SettlementRecord } from '../types'
 
 export function SettlementList() {
   const { data: settlements, loading, refetch } = useSettlements()

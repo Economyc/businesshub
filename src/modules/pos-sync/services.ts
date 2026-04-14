@@ -105,6 +105,6 @@ export const posService = {
 
   getCatalogo: async (localId: number) => {
     const { data } = await callProxy<PosProducto[]>('catalogo', { local_id: localId })
-    return Array.isArray(data) ? data : Object.values(data)
+    return (Array.isArray(data) ? data : Object.values(data)) as PosProducto[]
   },
 }

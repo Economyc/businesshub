@@ -119,7 +119,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
   const { user, logout } = useAuth()
   const { config: avatarConfig, setConfig: setAvatarConfig } = useAvatarConfig(user?.uid)
   const { companies, selectedCompany, selectCompany } = useCompany()
-  const { can, canManageUsers, member } = usePermissions()
+  const { can } = usePermissions()
 
   const [openSections, setOpenSections] = useState<Set<string>>(() => getActiveSections(location.pathname))
   const [companyOpen, setCompanyOpen] = useState(false)
@@ -465,7 +465,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                     )}
                   >
                     <div className="overflow-hidden relative">
-                      {visibleItems.map(({ to, label, icon: Icon, moduleKey }, itemIdx) => {
+                      {visibleItems.map(({ to, label, icon: Icon }, itemIdx) => {
                         const isLastItem = itemIdx === visibleItems.length - 1
 
                         if (to === '/finance') {

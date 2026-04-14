@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bell, Check, CheckCheck, AlertTriangle, FileText, CalendarClock, TrendingUp } from 'lucide-react'
+import { Bell, CheckCheck, AlertTriangle, FileText, CalendarClock, TrendingUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useNotifications, useUnreadCount, useMarkAsRead, useMarkAllAsRead } from '../hooks'
 import type { AppNotification } from '../types'

@@ -58,7 +58,7 @@ export function SupplierDetail() {
   const [editing, setEditing] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [activeTab, setActiveTab] = useState('info')
-  const { supplierData, loading: purchasesLoading } = useSupplierPurchases(id)
+  const { supplierData } = useSupplierPurchases(id)
 
   const updateMutation = useFirestoreMutation(
     'suppliers',

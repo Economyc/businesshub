@@ -15,7 +15,6 @@ export async function exportPayrollSlip(
 
   const pageW = pdf.internal.pageSize.getWidth()
   const marginX = 20
-  const contentW = pageW - marginX * 2
   let y = 25
 
   // ─── Header ───

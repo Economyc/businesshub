@@ -3,7 +3,8 @@ import { useCompany } from '@/core/hooks/use-company'
 import { notificationService } from './services'
 
 export function useNotifications() {
-  const { companyId } = useCompany()
+  const { selectedCompany } = useCompany()
+  const companyId = selectedCompany?.id
 
   return useQuery({
     queryKey: ['firestore', companyId, 'notifications'],
@@ -19,7 +20,8 @@ export function useUnreadCount() {
 }
 
 export function useMarkAsRead() {
-  const { companyId } = useCompany()
+  const { selectedCompany } = useCompany()
+  const companyId = selectedCompany?.id
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -31,7 +33,8 @@ export function useMarkAsRead() {
 }
 
 export function useMarkAllAsRead() {
-  const { companyId } = useCompany()
+  const { selectedCompany } = useCompany()
+  const companyId = selectedCompany?.id
   const queryClient = useQueryClient()
 
   return useMutation({

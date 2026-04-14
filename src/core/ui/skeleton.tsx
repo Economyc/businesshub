@@ -1,7 +1,8 @@
+import type { CSSProperties } from 'react'
 import { cn } from '@/lib/utils'
 
-export function Skeleton({ className }: { className?: string }) {
-  return <div className={cn('animate-pulse rounded-md bg-bone/80', className)} />
+export function Skeleton({ className, style }: { className?: string; style?: CSSProperties }) {
+  return <div className={cn('animate-pulse rounded-md bg-bone/80', className)} style={style} />
 }
 
 export function TableSkeleton({ rows = 5, columns = 4 }: { rows?: number; columns?: number }) {

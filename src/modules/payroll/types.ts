@@ -1,4 +1,3 @@
-import type { Timestamp } from 'firebase/firestore'
 import type { BaseEntity } from '@/core/types'
 
 /* ─── Constantes colombianas 2026 ─── */

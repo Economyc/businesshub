@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, type Variants } from 'framer-motion'
 import { X, User, ShoppingBag, CreditCard, Receipt, MessageSquare } from 'lucide-react'
 import { formatCurrency } from '@/core/utils/format'
 import type { PosVenta } from '../types'
@@ -14,7 +14,7 @@ const DOC_TYPE_LABELS: Record<string, string> = {
   NV: 'Nota de Venta',
 }
 
-const drawerVariants = {
+const drawerVariants: Variants = {
   initial: { x: '100%' },
   animate: { x: 0, transition: { type: 'spring', damping: 25, stiffness: 300 } },
   exit: { x: '100%', transition: { duration: 0.2 } },

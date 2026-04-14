@@ -9,7 +9,7 @@ interface ContractExportProps {
 }
 
 /* ─── PDF generation (returns blob for reuse) ─── */
-export async function generatePDFBlob(clauses: ContractClause[], title: string, employeeName: string): Promise<Blob> {
+export async function generatePDFBlob(clauses: ContractClause[], title: string, _employeeName: string): Promise<Blob> {
   const { default: jsPDF } = await import('jspdf')
 
   const pdf = new jsPDF({ unit: 'mm', format: 'letter' })

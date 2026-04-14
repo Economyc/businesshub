@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect, useRef } from 'react'
 import { Search, RefreshCw, Loader2, MapPin, Receipt, Heart, Clock, TrendingUp } from 'lucide-react'
-import { motion, useReducedMotion, useMotionValue, useTransform, animate } from 'framer-motion'
+import { motion, useReducedMotion, useMotionValue, useTransform, animate, type Variants } from 'framer-motion'
 import { DataTable, type Column } from '@/core/ui/data-table'
 import { EmptyState } from '@/core/ui/empty-state'
 import { FilterPillGroup, type FilterPillOption } from '@/core/ui/filter-pill-group'
@@ -547,7 +547,7 @@ const TONE_ICON: Record<string, string> = {
   neutral: 'text-dark-graphite bg-bone',
 }
 
-const cardVariants = {
+const cardVariants: Variants = {
   hidden: { opacity: 0, y: 6 },
   visible: (i: number) => ({
     opacity: 1,

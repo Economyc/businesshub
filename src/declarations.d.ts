@@ -1,15 +1,3 @@
-// lucide-react v0.577 ships without .d.ts files.
-// Declare as wildcard module so all named imports resolve.
-declare module 'lucide-react' {
-  import type { FC, SVGProps } from 'react'
-  type IconProps = SVGProps<SVGSVGElement> & { size?: number | string; strokeWidth?: number | string }
-  type LucideIcon = FC<IconProps>
-  export type { LucideIcon, IconProps }
-  // Every named export is an icon component
-  const icons: { [key: string]: LucideIcon }
-  export = icons
-}
-
 // @base-ui/react submodules — namespace-style exports with .Root, .Popup, etc.
 declare module '@base-ui/react/button' {
   const Button: any

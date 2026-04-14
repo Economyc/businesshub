@@ -6,11 +6,10 @@ import type { BankStatement, BankEntry, Transaction } from '../types'
 interface Props {
   statement: BankStatement
   transactions: Transaction[]
-  txMap: Map<string, Transaction>
   onCreateTransaction?: (entry: BankEntry) => void
 }
 
-export function DiscrepancyReport({ statement, transactions, txMap, onCreateTransaction }: Props) {
+export function DiscrepancyReport({ statement, transactions, onCreateTransaction }: Props) {
   const [bankOpen, setBankOpen] = useState(true)
   const [txOpen, setTxOpen] = useState(true)
 
@@ -22,9 +21,6 @@ export function DiscrepancyReport({ statement, transactions, txMap, onCreateTran
 
   // Totals
   const bankTotal = statement.entries.reduce((s, e) => s + (e.type === 'credit' ? e.amount : -e.amount), 0)
-  const matchedBankTotal = statement.entries
-    .filter((e) => matchedBankIds.has(e.id))
-    .reduce((s, e) => s + (e.type === 'credit' ? e.amount : -e.amount), 0)
   const unmatchedBankTotal = unmatchedEntries.reduce((s, e) => s + (e.type === 'credit' ? e.amount : -e.amount), 0)
 
   // Period transactions for comparison

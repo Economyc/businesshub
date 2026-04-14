@@ -71,7 +71,7 @@ export function MessageList({ messages, isLoading, onSuggestionClick, onToolConf
         <div key={message.id}>
           {message.parts.map((part, i) => {
             if (part.type === 'file' && 'url' in part) {
-              const filePart = part as { type: 'file'; url: string; mediaType: string; filename?: string }
+              const filePart = part as unknown as { type: 'file'; url: string; mediaType: string; filename?: string }
               if (filePart.mediaType?.startsWith('image/')) {
                 return (
                   <div key={`${message.id}-file-${i}`} className="px-4 py-1 flex justify-end">
@@ -86,6 +86,7 @@ export function MessageList({ messages, isLoading, onSuggestionClick, onToolConf
               return null
             }
             if (part.type === 'text' && part.text.trim()) {
+              if (message.role !== 'user' && message.role !== 'assistant') return null
               return (
                 <MessageBubble
                   key={`${message.id}-text-${i}`}
