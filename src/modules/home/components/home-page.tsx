@@ -1,9 +1,7 @@
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
 import { DashboardSkeleton } from '@/core/ui/skeleton'
-import { useCompany } from '@/core/hooks/use-company'
 import { useAuth } from '@/core/hooks/use-auth'
-import { CompanyLogo } from '@/core/ui/company-logo'
 import { DateRangePicker } from '@/modules/finance/components/date-range-picker'
 import { useDateRange } from '@/modules/finance/context/date-range-context'
 import { useDashboardData } from '../hooks'
@@ -31,7 +29,6 @@ function DashboardContent() {
 }
 
 export function HomePage() {
-  const { selectedCompany } = useCompany()
   const { user } = useAuth()
 
   const firstName = user?.displayName?.split(' ')[0] ?? user?.email?.split('@')[0] ?? 'Usuario'
@@ -54,15 +51,7 @@ export function HomePage() {
       {/* Desktop PageHeader */}
       <div className="hidden sm:block">
         <PageHeader title="Dashboard">
-          <div className="flex flex-wrap items-center gap-3">
-            {selectedCompany && (
-              <div className="flex items-center gap-2">
-                <CompanyLogo company={selectedCompany} size="sm" />
-                <span className="text-body text-graphite hidden sm:inline">{selectedCompany.name}</span>
-              </div>
-            )}
-            <DateRangePicker />
-          </div>
+          <DateRangePicker />
         </PageHeader>
       </div>
       <DashboardContent />
