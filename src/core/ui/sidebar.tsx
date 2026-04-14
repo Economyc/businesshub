@@ -119,7 +119,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
   const { user, logout } = useAuth()
   const { config: avatarConfig, setConfig: setAvatarConfig } = useAvatarConfig(user?.uid)
   const { companies, selectedCompany, selectCompany } = useCompany()
-  const { can } = usePermissions()
+  const { can, loading: permissionsLoading } = usePermissions()
 
   const [openSections, setOpenSections] = useState<Set<string>>(() => getActiveSections(location.pathname))
   const [companyOpen, setCompanyOpen] = useState(false)
@@ -373,7 +373,29 @@ export function Sidebar({ onNavClick }: SidebarProps) {
           className="flex-1 overflow-y-auto"
           style={{ scrollbarGutter: 'stable both-edges' }}
         >
-          {collapsed ? (
+          {permissionsLoading ? (
+            /* Skeleton while permissions load — prevents lone module flash */
+            collapsed ? (
+              <div className="flex flex-col gap-1 py-1">
+                {Array.from({ length: 10 }).map((_, i) => (
+                  <div key={i} className="mx-auto w-5 h-5 rounded-md bg-smoke animate-pulse" />
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col gap-1">
+                {[3, 5, 2, 2, 1, 1].map((count, sIdx) => (
+                  <div key={sIdx} className="flex flex-col gap-1 mb-2">
+                    {sIdx > 0 && (
+                      <div className="h-8 mx-5 my-1 rounded-md bg-smoke animate-pulse" />
+                    )}
+                    {Array.from({ length: count }).map((_, i) => (
+                      <div key={i} className="h-7 mx-5 rounded-md bg-smoke/70 animate-pulse" />
+                    ))}
+                  </div>
+                ))}
+              </div>
+            )
+          ) : collapsed ? (
             /* Collapsed: flat list of all item icons, no section headers */
             <div className="flex flex-col">
               {NAV_SECTIONS.flatMap((section) =>
