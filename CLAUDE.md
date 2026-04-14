@@ -6,6 +6,28 @@ Proyecto: plataforma interna multi-tenant de Bukz. Este archivo define stack, co
 
 ---
 
+## 0. Design System — LEER ANTES DE CUALQUIER UI
+
+**Obligatorio.** Antes de crear o modificar cualquier UI (componente, página, refactor visual), leer **`DESIGN_SYSTEM.md`** en la raíz del repo. Es la fuente única de verdad visual.
+
+Aplica a:
+- Código escrito por Claude en cualquier módulo
+- Skills que generan o auditan UI: `/frontend-design`, `/aidesigner`, `/prompt-architect`, `/gsd:ui-phase`, `/gsd:ui-review`
+- Subagentes (`Agent` tool) que toquen componentes, páginas o estilos
+- Cualquier plantilla o generador automático
+
+**Precedencia:** si una skill o agente trae sus propias convenciones (tipografía, escalas, paletas) y contradicen `DESIGN_SYSTEM.md`, **gana `DESIGN_SYSTEM.md`**.
+
+Reglas duras (resumen; detalle completo en el doc):
+- Tipografía en escalas fijas `text-caption/body/subheading/heading/kpi`. Nunca `text-2xl+` ni `font-bold`.
+- Colores solo vía tokens (`bg-bone`, `text-graphite`, `bg-positive-bg`, etc.). Nunca hex hardcodeado.
+- Spacing múltiplos de 4 (`gap-2/4/6`, `p-4/6`). Radius solo `rounded-lg/xl/2xl/full`.
+- Elevación solo `card-elevated` o `border-border/60`. Nada de `shadow-lg+` ni gradientes.
+- Charts usan `src/core/ui/chart-colors.ts`.
+- Antes de crear un componente nuevo, buscar primero en `src/components/ui/` y `src/core/ui/`.
+
+---
+
 ## 1. Stack técnico
 
 - **Frontend:** Vite + React 18.3 (SPA) + React Router v7
@@ -100,8 +122,4 @@ Usar el skill `/deploy-oracle`. Hace push a GitHub + build + deploy a Oracle Clo
 - Sidebar agrupado en secciones: **Finanzas**, **Operaciones**, **Personas**
 
 ### Design System
-- **Antes de crear o modificar cualquier UI, leer `DESIGN_SYSTEM.md`** (raíz del repo).
-- Aplica a todo código nuevo, refactors y skills (`/frontend-design`, `/gsd:ui-phase`, `/aidesigner`).
-- Reglas no negociables: tipografía en escalas `text-caption/body/subheading/heading/kpi` (nunca `text-2xl+`), colores sólo vía tokens (nunca hex hardcodeado), spacing múltiplos de 4, radius `rounded-lg/xl/2xl/full`, elevación sólo con `card-elevated` o `border-border/60`.
-- Antes de crear un componente buscar en `src/components/ui/` y `src/core/ui/`.
-- Charts deben usar `src/core/ui/chart-colors.ts` — nunca hex.
+- Ver sección **0** al inicio de este archivo y `DESIGN_SYSTEM.md` en la raíz.

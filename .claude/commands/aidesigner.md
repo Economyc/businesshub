@@ -1,7 +1,10 @@
 Use AIDesigner for the request in $ARGUMENTS.
 
+**BusinessHub — Pre-requisito obligatorio:** antes de cualquier paso, lee `DESIGN_SYSTEM.md` en la raíz del repo. Es la fuente única de verdad visual del proyecto y tiene prioridad absoluta. Incorpora sus reglas (tipografía en escalas `text-caption/body/subheading/heading/kpi`, tokens de color, spacing múltiplos de 4, radius permitidos) al brief que pases a AIDesigner. Si AIDesigner genera algo que contradice `DESIGN_SYSTEM.md`, refínalo o adáptalo tú al integrar al repo — nunca comprometer el sistema.
+
 Workflow:
 1. Gather design context before spending credits:
+   - **OBLIGATORIO:** read `DESIGN_SYSTEM.md` at repo root first (BusinessHub convention — supersedes all other design files).
    - Read `DESIGN.md`, `.aidesigner/DESIGN.md`, or `docs/design.md` if present
    - Inspect theme files, tokens, fonts, shared components, and the target route/page
 2. Write a compact internal design brief from that repo context:

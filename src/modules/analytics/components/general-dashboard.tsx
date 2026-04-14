@@ -46,7 +46,7 @@ export function GeneralDashboard() {
         <DashboardSkeleton kpiCount={5} charts={2} />
       ) : (
         <div ref={dashboardRef} className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
             <div className="lg:col-span-2">
               <KPIHero
                 eyebrow="Indicador principal"
@@ -64,7 +64,7 @@ export function GeneralDashboard() {
               variants={staggerContainer}
               initial="initial"
               animate="animate"
-              className="lg:col-span-3 grid grid-cols-2 gap-4 content-start"
+              className="lg:col-span-2 grid grid-cols-2 gap-4 content-start"
             >
               <KPICard label="Ingresos" value={kpis.totalIncome} format="currency" change={kpis.incomeChange} trend={kpis.incomeChange.startsWith('+') ? 'up' : 'down'} icon={TrendingUp} />
               <KPICard label="Gastos" value={kpis.totalExpenses} format="currency" change={kpis.expenseChange} trend={kpis.expenseChange.startsWith('+') ? 'down' : 'up'} icon={TrendingDown} />
