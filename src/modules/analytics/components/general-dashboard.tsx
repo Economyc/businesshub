@@ -126,7 +126,7 @@ export function GeneralDashboard() {
                     <CartesianGrid strokeDasharray="3 3" stroke={CHART_SEMANTIC.grid} vertical={false} />
                     <XAxis dataKey="month" tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} />
                     <YAxis tickFormatter={(v) => formatCurrency(v)} tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} width={54} />
-                    <Tooltip content={<ChartTooltip />} cursor={{ fill: '#f5f4f2' }} />
+                    <Tooltip content={<ChartTooltip />} cursor={{ fill: CHART_SEMANTIC.muted }} />
                     <Bar dataKey="income" name="Ingresos" fill={CHART_SEMANTIC.income} radius={[4, 4, 0, 0]} barSize={18} />
                     <Bar dataKey="expenses" name="Gastos" fill={CHART_SEMANTIC.expense} radius={[4, 4, 0, 0]} barSize={18} />
                   </BarChart>

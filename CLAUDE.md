@@ -98,3 +98,10 @@ Usar el skill `/deploy-oracle`. Hace push a GitHub + build + deploy a Oracle Clo
 
 ### Navegación
 - Sidebar agrupado en secciones: **Finanzas**, **Operaciones**, **Personas**
+
+### Design System
+- **Antes de crear o modificar cualquier UI, leer `DESIGN_SYSTEM.md`** (raíz del repo).
+- Aplica a todo código nuevo, refactors y skills (`/frontend-design`, `/gsd:ui-phase`, `/aidesigner`).
+- Reglas no negociables: tipografía en escalas `text-caption/body/subheading/heading/kpi` (nunca `text-2xl+`), colores sólo vía tokens (nunca hex hardcodeado), spacing múltiplos de 4, radius `rounded-lg/xl/2xl/full`, elevación sólo con `card-elevated` o `border-border/60`.
+- Antes de crear un componente buscar en `src/components/ui/` y `src/core/ui/`.
+- Charts deben usar `src/core/ui/chart-colors.ts` — nunca hex.

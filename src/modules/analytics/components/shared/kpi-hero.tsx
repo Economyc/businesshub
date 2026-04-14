@@ -4,6 +4,7 @@ import { ChevronUp, ChevronDown, Minus } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Area, AreaChart, ResponsiveContainer } from 'recharts'
 import { formatCurrency } from '@/core/utils/format'
+import { chartColors } from '@/core/ui/chart-colors'
 
 interface KPIHeroProps {
   eyebrow?: string
@@ -42,7 +43,7 @@ export function KPIHero({
   trend = 'neutral',
   icon: Icon,
   sparkline,
-  sparkColor = '#5a7a5a',
+  sparkColor = chartColors.positive,
   caption,
 }: KPIHeroProps) {
   const animated = useCountUp(value)
@@ -68,18 +69,18 @@ export function KPIHero({
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-      className="relative overflow-hidden bg-surface rounded-2xl card-elevated p-6 sm:p-7"
+      className="relative overflow-hidden bg-surface rounded-xl card-elevated p-6"
     >
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="text-[10px] uppercase tracking-[0.2em] text-mid-gray font-medium">
+          <p className="text-caption uppercase tracking-wider text-mid-gray font-medium">
             {eyebrow}
           </p>
           <h3 className="text-body font-medium text-graphite mt-1">{label}</h3>
-          <div className="mt-3 text-[44px] sm:text-[52px] leading-[1.05] font-extrabold tracking-tight text-dark-graphite tabular-nums">
+          <div className="mt-2 text-kpi font-semibold text-dark-graphite tabular-nums">
             {formatted}
           </div>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
+          <div className="mt-2 flex flex-wrap items-center gap-2">
             {change && (
               <span
                 className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-caption font-medium ${trendBg}`}

@@ -21,9 +21,9 @@ import { useCostStructure } from '../hooks'
 import type { CategoryCost, CostGroup } from '../types'
 
 const GROUP_BADGE_STYLES: Record<CostGroup, string> = {
-  operativo: 'bg-[#5a7a5a]/10 text-[#5a7a5a]',
-  obligaciones: 'bg-[#9a8a5a]/10 text-[#9a8a5a]',
-  otros: 'bg-[#8a8a8a]/10 text-[#6a6a6a]',
+  operativo: 'bg-positive-bg text-positive-text',
+  obligaciones: 'bg-warning-bg text-warning-text',
+  otros: 'bg-smoke text-mid-gray',
 }
 
 export function CostsDashboard() {
@@ -197,7 +197,7 @@ export function CostsDashboard() {
                       <GroupSection label="Obligaciones" color={CHART_SEMANTIC.obligaciones} rows={obligationCategories} />
                     )}
                     {otherCategories.length > 0 && (
-                      <GroupSection label="Otros Gastos" color="#6a6a6a" rows={otherCategories} />
+                      <GroupSection label="Otros Gastos" color={CHART_SEMANTIC.otros} rows={otherCategories} />
                     )}
                   </tbody>
                 </table>

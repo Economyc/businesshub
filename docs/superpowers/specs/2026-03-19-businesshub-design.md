@@ -1,5 +1,7 @@
 # BusinessHub — Design Specification
 
+> ⚠️ **DEPRECADO (2026-04-13).** La fuente única de verdad visual es ahora **`/DESIGN_SYSTEM.md`** en la raíz del repo. Este archivo se conserva como contexto histórico; puede contener reglas obsoletas (ej. menciona Inter, la fuente real es Google Sans). No seguirlo para decisiones de diseño.
+
 > Centro de mando unificado para el control ejecutivo de cuatro compañías independientes.
 
 ## 1. Overview

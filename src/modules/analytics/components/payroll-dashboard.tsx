@@ -132,7 +132,7 @@ export function PayrollDashboard() {
                           extraLine={(p) => (p?.count != null ? `${p.count} personas` : null)}
                         />
                       }
-                      cursor={{ fill: '#f5f4f2' }}
+                      cursor={{ fill: CHART_SEMANTIC.muted }}
                     />
                     <Bar dataKey="total" name="Nómina" barSize={20} radius={[0, 6, 6, 0]}>
                       {departments.map((_, i) => (

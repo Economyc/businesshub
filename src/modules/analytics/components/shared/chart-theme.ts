@@ -1,28 +1,33 @@
-export const CHART_PALETTE = [
-  '#5a7a5a',
-  '#9a6a6a',
-  '#6a7a9a',
-  '#9a8a5a',
-  '#7a5a8a',
-  '#5a9a8a',
-  '#8a6a5a',
-  '#6a8a5a',
-  '#5a6a9a',
-  '#9a5a7a',
+import { chartColors } from '@/core/ui/chart-colors'
+
+// Paleta para series con identidad semántica.
+// Todos los valores son CSS vars → reaccionan a dark mode automáticamente.
+// Ver DESIGN_SYSTEM.md §7.
+export const CHART_PALETTE: string[] = [
+  chartColors.positive,
+  chartColors.negative,
+  chartColors.info,
+  chartColors.warning,
+  chartColors.neutral,
+  chartColors.positiveBg,
+  chartColors.negativeBg,
+  chartColors.infoBg,
+  chartColors.warningBg,
+  chartColors.muted,
 ]
 
 export const CHART_SEMANTIC = {
-  income: '#5a7a5a',
-  expense: '#9a6a6a',
-  purchases: '#6a7a9a',
-  payroll: '#9a6a6a',
-  operativo: '#5a7a5a',
-  obligaciones: '#9a8a5a',
-  otros: '#8a8a8a',
-  neutral: '#8a8a8a',
-  grid: '#eeece9',
-  axis: '#8a8a8a',
-  muted: '#eeece9',
+  income: chartColors.positive,
+  expense: chartColors.negative,
+  purchases: chartColors.info,
+  payroll: chartColors.negative,
+  operativo: chartColors.positive,
+  obligaciones: chartColors.warning,
+  otros: chartColors.neutral,
+  neutral: chartColors.neutral,
+  grid: chartColors.grid,
+  axis: chartColors.text,
+  muted: chartColors.muted,
 } as const
 
 export const CHART_AXIS_TICK = { fontSize: 11, fill: CHART_SEMANTIC.axis }

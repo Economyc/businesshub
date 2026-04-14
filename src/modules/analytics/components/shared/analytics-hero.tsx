@@ -32,24 +32,24 @@ export function AnalyticsHero({
         className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"
       >
         <div className="min-w-0">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-[10px] uppercase tracking-[0.22em] text-mid-gray font-semibold">
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="text-caption uppercase tracking-wider text-mid-gray font-medium">
               {eyebrow}
             </span>
             <LiveBadge />
           </div>
-          <h1 className="text-[32px] sm:text-[40px] leading-[1.05] font-bold tracking-tight text-dark-graphite">
+          <h1 className="text-heading font-medium text-dark-graphite">
             {title}
           </h1>
           {description && (
-            <p className="text-body text-graphite mt-2 max-w-2xl">{description}</p>
+            <p className="text-caption text-mid-gray mt-1 max-w-2xl">{description}</p>
           )}
         </div>
       </motion.header>
 
-      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-4">
         <div className="flex items-center gap-2 text-caption">
-          <span className="text-mid-gray uppercase tracking-wider text-[10px]">Periodo</span>
+          <span className="text-mid-gray uppercase tracking-wider">Periodo</span>
           <span className="text-dark-graphite font-medium">{presetLabel}</span>
           <span className="text-mid-gray">·</span>
           <span className="text-graphite tabular-nums">{rangeCaption}</span>
@@ -67,10 +67,10 @@ function LiveBadge() {
   return (
     <span className="inline-flex items-center gap-1.5 bg-positive-bg px-2 h-5 rounded-full">
       <span className="relative flex h-1.5 w-1.5">
-        <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 animate-ping" />
-        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+        <span className="absolute inline-flex h-full w-full rounded-full bg-positive-text opacity-60 animate-ping" />
+        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-positive-text" />
       </span>
-      <span className="text-[10px] uppercase tracking-wider text-positive-text font-medium">
+      <span className="text-caption uppercase tracking-wider text-positive-text font-medium">
         Datos al día
       </span>
     </span>
