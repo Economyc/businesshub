@@ -47,7 +47,7 @@ export function GeneralDashboard() {
       ) : (
         <div ref={dashboardRef} className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-            <div className="lg:col-span-2">
+            <div className="lg:col-span-2 flex">
               <KPIHero
                 eyebrow="Indicador principal"
                 label="Utilidad Neta"

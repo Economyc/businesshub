@@ -69,7 +69,7 @@ export function KPIHero({
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-      className="relative overflow-hidden bg-surface rounded-xl card-elevated p-6"
+      className="relative overflow-hidden bg-surface rounded-xl card-elevated p-6 h-full flex flex-col"
     >
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
@@ -102,7 +102,7 @@ export function KPIHero({
       </div>
 
       {sparkline && sparkline.length > 1 && (
-        <div className="mt-5 -mx-1 h-16 opacity-90">
+        <div className="mt-auto pt-5 -mx-1 flex-1 min-h-[64px] opacity-90">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={sparkline} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
               <defs>
