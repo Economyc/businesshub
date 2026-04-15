@@ -383,7 +383,7 @@ export function CommandPalette() {
     <div ref={containerRef} className="relative">
       {/* Search trigger — input-like button */}
       <button
-        onClick={() => setOpen(true)}
+        onClick={() => setOpen((prev) => !prev)}
         className={cn(
           'w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-caption transition-all duration-150 cursor-pointer',
           open
