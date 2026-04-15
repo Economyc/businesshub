@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
@@ -109,6 +110,8 @@ export function CommandPalette() {
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const [position, setPosition] = useState<{ top: number; left: number; width: number } | null>(null)
   const navigate = useNavigate()
 
   // Entity data
@@ -141,16 +144,46 @@ export function CommandPalette() {
     }
   }, [open])
 
-  // Close on click outside
+  // Close on click outside (container OR dropdown portal)
   useEffect(() => {
     if (!open) return
     function handleClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      const target = e.target as Node
+      const inContainer = containerRef.current?.contains(target)
+      const inDropdown = dropdownRef.current?.contains(target)
+      if (!inContainer && !inDropdown) {
         setOpen(false)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [open])
+
+  // Compute + track portal position (right of the sidebar trigger)
+  useEffect(() => {
+    if (!open) return
+    const DESIRED_WIDTH = 420
+    const MARGIN = 8
+
+    function updatePosition() {
+      const el = containerRef.current
+      if (!el) return
+      const rect = el.getBoundingClientRect()
+      const viewportW = window.innerWidth
+      let left = rect.right + MARGIN
+      const maxLeft = viewportW - DESIRED_WIDTH - MARGIN
+      if (left > maxLeft) left = Math.max(MARGIN, maxLeft)
+      const width = Math.min(DESIRED_WIDTH, viewportW - left - MARGIN)
+      setPosition({ top: rect.top, left, width })
+    }
+
+    updatePosition()
+    window.addEventListener('resize', updatePosition, { passive: true })
+    window.addEventListener('scroll', updatePosition, { passive: true, capture: true })
+    return () => {
+      window.removeEventListener('resize', updatePosition)
+      window.removeEventListener('scroll', updatePosition, { capture: true } as EventListenerOptions)
+    }
   }, [open])
 
   // Build entity results from data
@@ -363,15 +396,18 @@ export function CommandPalette() {
         </kbd>
       </button>
 
-      {/* Dropdown */}
-      <AnimatePresence>
-        {open && (
+      {/* Dropdown — portaled so it escapes the sidebar width */}
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {open && position && (
           <motion.div
+            ref={dropdownRef}
             initial={{ opacity: 0, y: -4 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.12, ease: [0.16, 1, 0.3, 1] }}
-            className="absolute left-0 right-0 top-full mt-1.5 z-50"
+            style={{ top: position.top, left: position.left, width: position.width }}
+            className="fixed z-[60]"
           >
             <div className="overflow-hidden rounded-xl border border-border bg-surface-elevated shadow-lg">
               {/* Search input */}
@@ -465,8 +501,10 @@ export function CommandPalette() {
               </div>
             </div>
           </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+        </AnimatePresence>,
+        document.body,
+      )}
     </div>
   )
 }
