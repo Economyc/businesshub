@@ -36,6 +36,7 @@
   }
   html {
     @apply font-sans;
+    zoom: 0.9;
   }
   /* Scrollbar styling */
   * {
