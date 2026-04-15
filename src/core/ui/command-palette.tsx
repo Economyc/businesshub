@@ -169,8 +169,10 @@ export function CommandPalette() {
       const el = containerRef.current
       if (!el) return
       const rect = el.getBoundingClientRect()
+      const sidebar = el.closest('nav')
+      const anchorRight = sidebar ? sidebar.getBoundingClientRect().right : rect.right + MARGIN
       const viewportW = window.innerWidth
-      let left = rect.right + MARGIN
+      let left = anchorRight
       const maxLeft = viewportW - DESIRED_WIDTH - MARGIN
       if (left > maxLeft) left = Math.max(MARGIN, maxLeft)
       const width = Math.min(DESIRED_WIDTH, viewportW - left - MARGIN)
