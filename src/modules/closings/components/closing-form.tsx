@@ -168,8 +168,8 @@ export function ClosingForm({ onSaved, editing, onCancelEdit }: ClosingFormProps
         <div className="mt-4 p-4 rounded-xl bg-emerald-50 border border-emerald-200">
           <span className="block text-[11px] font-bold text-emerald-700 uppercase mb-1">Venta Total</span>
           <div className="flex items-baseline gap-1">
-            <span className="text-emerald-800 text-lg font-bold">$</span>
-            <span className="text-emerald-900 text-2xl sm:text-3xl font-extrabold tracking-tight">{ventaTotal.toLocaleString('es-CO')}</span>
+            <span className="text-emerald-800 text-subheading font-semibold">$</span>
+            <span className="text-emerald-900 text-kpi font-semibold tracking-tight">{ventaTotal.toLocaleString('es-CO')}</span>
           </div>
         </div>
       </div>
