@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { useCompany } from '@/core/hooks/use-company'
 import { posService, PosRateLimitError } from './services'
 import {
@@ -9,6 +9,7 @@ import {
   saveCatalogoToCache,
   enumerateDates,
   getTodayStr,
+  isLikelyPartialResponse,
 } from './cache-service'
 import type { PosLocal, PosVenta, PosProducto } from './types'
 
@@ -124,8 +125,6 @@ async function fetchVentasWithCache({
     if (!previousVentasByKey.has(key)) previousVentasByKey.set(key, [])
     previousVentasByKey.get(key)!.push(v)
   }
-  const PARTIAL_THRESHOLD = 0.7
-
   // Determine which dates still need to be fetched (a date needs fetch if any local for that date is missing/stale)
   const allDates = enumerateDates(startDate, endDate)
   const datesNeedingFetch: string[] = []
@@ -206,7 +205,7 @@ async function fetchVentasWithCache({
         const key = `${date}_${lid}`
         const newGroup = newByKey.get(key) ?? []
         const prevCount = previousCountByKey.get(key) ?? 0
-        if (prevCount > 0 && newGroup.length < prevCount * PARTIAL_THRESHOLD) {
+        if (isLikelyPartialResponse(newGroup.length, prevCount)) {
           const prevGroup = previousVentasByKey.get(key) ?? []
           accumulated.push(...prevGroup)
         } else {
@@ -245,6 +244,10 @@ async function fetchVentasWithCache({
       completed += batch.length
     } catch (err) {
       if (err instanceof PosRateLimitError) {
+        // If nothing was fetched yet, let React Query retry with exponential backoff.
+        // If we already got some chunks, keep the partial progress and surface the
+        // rate-limited flag so the UI shows the warning alongside the partial data.
+        if (completed === 0) throw err
         rateLimited = true
         aborted = true
         break
@@ -328,6 +331,10 @@ export function usePosVentas({
     gcTime: GC_TIME_MS,
     refetchInterval: AUTO_REFRESH_MS,
     refetchIntervalInBackground: false,
+    placeholderData: keepPreviousData,
+    retry: (failureCount, error) =>
+      error instanceof PosRateLimitError && failureCount < 3,
+    retryDelay: (attempt) => Math.min(2 ** attempt * 1000, 30_000),
     queryFn: async () => {
       setProgress(null)
       const force = forceRef.current
@@ -358,11 +365,12 @@ export function usePosVentas({
   const data = query.data
   const isFetching = query.isFetching
 
+  const hardRateLimited = query.error instanceof PosRateLimitError
   return {
     ventas: data?.ventas ?? [],
     loading: isFetching,
-    error: query.error ? query.error.message : null,
-    rateLimited: data?.rateLimited ?? false,
+    error: query.error && !hardRateLimited ? query.error.message : null,
+    rateLimited: (data?.rateLimited ?? false) || hardRateLimited,
     lastUpdated: query.dataUpdatedAt ? new Date(query.dataUpdatedAt) : null,
     fromCache: data?.fromCache ?? false,
     progress,

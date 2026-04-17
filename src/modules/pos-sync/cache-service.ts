@@ -111,7 +111,11 @@ export async function getCachedVentas(
 
 // Threshold below which a new fetch is considered a "partial response" relative
 // to the cached version and we refuse to overwrite the existing cache.
-const PARTIAL_RESPONSE_THRESHOLD = 0.7
+export const PARTIAL_RESPONSE_THRESHOLD = 0.7
+
+export function isLikelyPartialResponse(newCount: number, prevCount: number): boolean {
+  return prevCount > 0 && newCount < prevCount * PARTIAL_RESPONSE_THRESHOLD
+}
 
 export async function saveVentasToCache(
   companyId: string,
@@ -148,7 +152,7 @@ export async function saveVentasToCache(
 
       // Skip overwriting if the new payload looks partial vs. what we already had.
       // Don't update the meta either, so the next load re-tries.
-      if (prevCount > 0 && newCount < prevCount * PARTIAL_RESPONSE_THRESHOLD) {
+      if (isLikelyPartialResponse(newCount, prevCount)) {
         // eslint-disable-next-line no-console
         console.warn(
           `[pos-sync] skip overwrite for ${key}: new=${newCount} < prev=${prevCount}`,
