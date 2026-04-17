@@ -11,18 +11,14 @@ import type {
   DashboardKPIs,
   SalesTrendPoint,
   DashboardAlerts,
-  CajaBreakdown,
-  CajaOverviewRow,
   DashboardSyncStatus,
 } from '../hooks'
-import { useHomeFilters, HomeFiltersProvider } from '../context/home-filters-context'
+import { HomeFiltersProvider } from '../context/home-filters-context'
 import { KPICardsRow } from './kpi-cards-row'
 import { SalesTrendChart } from './sales-trend-chart'
 import { AlertsPanel } from './alerts-panel'
 import { QuickActions } from './quick-actions'
 import { CajaFilter } from './caja-filter'
-import { CajaBreakdownCard } from './caja-breakdown-card'
-import { CajasOverviewCard } from './cajas-overview-card'
 
 const CACHE_STALE_MS = 2 * 60 * 60 * 1000 // 2 horas
 
@@ -60,8 +56,6 @@ interface DashboardContentProps {
   periodLabel: string
   startDate: Date
   endDate: Date
-  cajaBreakdown: CajaBreakdown | null
-  cajasOverview: CajaOverviewRow[]
 }
 
 function DashboardContent({
@@ -71,19 +65,10 @@ function DashboardContent({
   periodLabel,
   startDate,
   endDate,
-  cajaBreakdown,
-  cajasOverview,
 }: DashboardContentProps) {
-  const { selectedCaja } = useHomeFilters()
   return (
     <div className="space-y-6">
       <KPICardsRow kpis={kpis} periodLabel={periodLabel} />
-      {cajaBreakdown && selectedCaja !== 'todas' && (
-        <CajaBreakdownCard cajaId={selectedCaja} breakdown={cajaBreakdown} periodLabel={periodLabel} />
-      )}
-      {selectedCaja === 'todas' && cajasOverview.length > 1 && (
-        <CajasOverviewCard rows={cajasOverview} periodLabel={periodLabel} />
-      )}
       <SalesTrendChart data={salesTrend} startDate={startDate} endDate={endDate} />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <AlertsPanel alerts={alerts} />
@@ -103,8 +88,6 @@ function HomePageContent() {
     loading,
     syncStatus,
     cajasDisponibles,
-    cajaBreakdown,
-    cajasOverview,
   } = useDashboardData()
 
   const firstName = user?.displayName?.split(' ')[0] ?? user?.email?.split('@')[0] ?? 'Usuario'
@@ -150,8 +133,6 @@ function HomePageContent() {
             periodLabel={presetLabel}
             startDate={startDate}
             endDate={endDate}
-            cajaBreakdown={cajaBreakdown}
-            cajasOverview={cajasOverview}
           />
         </>
       )}

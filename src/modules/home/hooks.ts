@@ -9,11 +9,9 @@ import { usePosVentas } from '@/modules/pos-sync/hooks'
 import { useCompanyLocalIds } from '@/modules/pos-sync/company-mapping'
 import {
   isAnulada,
-  sumPropinas,
   ventaMonto,
   cajaKey,
   toDateStrLocal,
-  num,
 } from '@/modules/pos-sync/utils/sales-calculations'
 import { useHomeFilters } from './context/home-filters-context'
 import type { Supplier } from '@/modules/suppliers/types'
@@ -61,30 +59,6 @@ export interface DashboardSyncStatus {
   onRefresh?: () => void
 }
 
-export interface CajaBreakdown {
-  ventasNetas: number
-  propinas: number
-  envio: number
-  impuestos: number
-  total: number
-  totalConImpuestos: number
-  totalConImpuestosYAnuladas: number
-  cantidad: number
-  anuladas: number
-  montoAnulado: number
-  porTipo: Array<{ tipo: string; label: string; count: number; monto: number }>
-}
-
-export interface CajaOverviewRow {
-  cajaId: string
-  cantidad: number
-  ventasNetas: number
-  propinas: number
-  envio: number
-  total: number
-  anuladas: number
-}
-
 // ─── Helpers ────────────────────────────────────────────────────────
 
 const toDateStr = toDateStrLocal
@@ -112,12 +86,6 @@ function daysUntil(ts: any): number {
   const d = ts?.toDate?.() ?? (typeof ts === 'string' ? new Date(ts) : null)
   if (!d) return Infinity
   return Math.ceil((d.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-}
-
-const DOC_TYPE_LABELS: Record<string, string> = {
-  F: 'Facturas',
-  B: 'Boletas',
-  NV: 'Notas de venta',
 }
 
 // ─── Hook ───────────────────────────────────────────────────────────
@@ -188,113 +156,6 @@ export function useDashboardData() {
       counts.set(cajaKey(v), (counts.get(cajaKey(v)) ?? 0) + 1)
     }
     return Array.from(counts.entries()).sort((a, b) => Number(a[0]) - Number(b[0]))
-  }, [posVentas, startDate, endDate])
-
-  // Desglose de la caja seleccionada dentro del rango visible — sirve para cuadrar
-  // contra el reporte del POS. Incluye impuestos y monto anulado para diagnosticar
-  // diferencias con la app externa del POS.
-  const cajaBreakdown = useMemo<CajaBreakdown | null>(() => {
-    if (selectedCaja === 'todas') return null
-    const startStr = toDateStr(startDate)
-    const endStr = toDateStr(endDate)
-    let ventasNetas = 0
-    let propinas = 0
-    let envio = 0
-    let impuestos = 0
-    let cantidad = 0
-    let anuladas = 0
-    let montoAnulado = 0
-    const porTipoMap = new Map<string, { count: number; monto: number }>()
-
-    for (const v of posVentas) {
-      const date = v.fecha?.slice(0, 10)
-      if (!date || date < startStr || date > endStr) continue
-      if (cajaKey(v) !== selectedCaja) continue
-      if (isAnulada(v)) {
-        anuladas += 1
-        montoAnulado += ventaMonto(v)
-        continue
-      }
-      const neto = num(v.total)
-      const prop = sumPropinas(v)
-      const env = num(v.costoenvio)
-      const imp = num(v.impuestos)
-      ventasNetas += neto
-      propinas += prop
-      envio += env
-      impuestos += imp
-      cantidad += 1
-      const tipo = (v.tipo_documento || '?').toUpperCase()
-      const prev = porTipoMap.get(tipo) ?? { count: 0, monto: 0 }
-      porTipoMap.set(tipo, { count: prev.count + 1, monto: prev.monto + neto })
-    }
-
-    const porTipo = Array.from(porTipoMap.entries())
-      .map(([tipo, { count, monto }]) => ({
-        tipo,
-        label: DOC_TYPE_LABELS[tipo] ?? tipo,
-        count,
-        monto,
-      }))
-      .sort((a, b) => b.monto - a.monto)
-
-    // `total` refleja lo que muestra el POS (solo neto). Propinas y envío se
-    // exponen por separado en los campos correspondientes del desglose.
-    const total = ventasNetas
-    const totalConImpuestos = total + impuestos
-    return {
-      ventasNetas,
-      propinas,
-      envio,
-      impuestos,
-      total,
-      totalConImpuestos,
-      totalConImpuestosYAnuladas: totalConImpuestos + montoAnulado,
-      cantidad,
-      anuladas,
-      montoAnulado,
-      porTipo,
-    }
-  }, [posVentas, selectedCaja, startDate, endDate])
-
-  // Overview por caja dentro del rango visible — tabla de diagnóstico para
-  // comparar caja por caja contra el reporte del POS.
-  const cajasOverview = useMemo<CajaOverviewRow[]>(() => {
-    const startStr = toDateStr(startDate)
-    const endStr = toDateStr(endDate)
-    const map = new Map<string, CajaOverviewRow>()
-    for (const v of posVentas) {
-      const date = v.fecha?.slice(0, 10)
-      if (!date || date < startStr || date > endStr) continue
-      const key = cajaKey(v)
-      const row =
-        map.get(key) ??
-        {
-          cajaId: key,
-          cantidad: 0,
-          ventasNetas: 0,
-          propinas: 0,
-          envio: 0,
-          total: 0,
-          anuladas: 0,
-        }
-      if (isAnulada(v)) {
-        row.anuladas += 1
-      } else {
-        const neto = num(v.total)
-        const prop = sumPropinas(v)
-        const env = num(v.costoenvio)
-        row.cantidad += 1
-        row.ventasNetas += neto
-        row.propinas += prop
-        row.envio += env
-        // `total` = solo neto (coincide con el reporte del POS). Propinas y
-        // envío siguen disponibles en sus campos para el desglose.
-        row.total += neto
-      }
-      map.set(key, row)
-    }
-    return Array.from(map.values()).sort((a, b) => b.total - a.total)
   }, [posVentas, startDate, endDate])
 
   // Auto-reset si la caja seleccionada sale del set disponible
@@ -544,7 +405,5 @@ export function useDashboardData() {
     loading,
     syncStatus,
     cajasDisponibles,
-    cajaBreakdown,
-    cajasOverview,
   }
 }
