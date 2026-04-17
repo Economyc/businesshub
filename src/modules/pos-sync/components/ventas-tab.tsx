@@ -64,8 +64,15 @@ function getEstadoTone(estado: string | undefined): 'positive' | 'warning' | 'ne
   const e = (estado ?? '').toLowerCase()
   if (!e || e === '—') return 'neutral'
   if (e.includes('anulado') || e.includes('pendiente')) return 'warning'
-  if (e.includes('pagado') || e.includes('aceptado') || e.includes('emitido')) return 'positive'
+  if (e.includes('pagado') || e.includes('aceptado') || e.includes('emitido') || e.includes('activo')) return 'positive'
   return 'neutral'
+}
+
+function getEstadoLabel(estado: string | undefined): string {
+  const e = (estado ?? '').trim()
+  if (!e) return '—'
+  const cleaned = e.replace(/^comprobante\s+/i, '')
+  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1).toLowerCase()
 }
 
 function getCanalTone(canal: string | undefined): 'info' | 'neutral' {
@@ -223,7 +230,7 @@ export function VentasTab({ localIds, allLocalIds, locales, localLabel }: Ventas
           <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-caption ${TONE_CLASSES[tone]}`}>
             {tone === 'positive' && <span className="w-1 h-1 rounded-full bg-emerald-500" />}
             {tone === 'warning' && <span className="w-1 h-1 rounded-full bg-amber-500" />}
-            {v.estado_txt || v.estado || '—'}
+            {getEstadoLabel(v.estado_txt || v.estado)}
           </span>
         )
       },
