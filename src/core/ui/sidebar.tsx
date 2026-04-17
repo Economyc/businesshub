@@ -236,7 +236,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
         className={cn(
           'bg-bone py-5 flex-shrink-0 flex flex-col transition-all duration-300 ease-in-out relative border-r border-border/60',
           settingsOpen && 'shadow-[4px_0_12px_-2px_rgba(0,0,0,0.08)]',
-          collapsed ? 'w-[10px]' : 'w-[200px]'
+          collapsed ? 'w-[2px]' : 'w-[200px]'
         )}
       >
         {/* Collapse toggle — hover-reveal on sidebar edge */}
