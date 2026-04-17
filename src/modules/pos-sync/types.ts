@@ -89,30 +89,32 @@ export interface PosCliente {
   [key: string]: unknown
 }
 
-// --- Catálogo de productos ---
+// --- Catálogo de productos (endpoint obtenerCartaPorLocal) ---
 export interface PosProducto {
-  producto_id: number | string
-  producto_descripcion: string
-  producto_precio: number | string
-  producto_estado: number | string
-  categoria_nombre?: string
-  presentaciones?: PosPresentacion[]
-  modificadores?: PosModificador[]
+  productogeneral_id: number | string
+  productogeneral_descripcion: string
+  productogeneral_urlimagen?: string | null
+  categoria_id?: number | string
+  categoria_descripcion?: string
+  lista_presentacion?: PosPresentacion[]
+  listaModificadores?: PosModificador[]
+  lista_agrupadores?: unknown[]
+  notas?: unknown[]
   [key: string]: unknown
 }
 
 export interface PosPresentacion {
-  presentacion_id: number | string
-  presentacion_descripcion: string
-  presentacion_precio: number | string
+  producto_id: number | string
+  producto_presentacion: string
+  producto_precio: number | string
+  producto_delivery?: number | string
+  producto_urlimagen?: string | null
 }
 
 export interface PosModificador {
-  modificador_id: number | string
-  modificador_nombre: string
-  selecciones?: {
-    modificadorseleccion_id: number | string
-    modificadorseleccion_nombre: string
-    modificadorseleccion_precio: number | string
-  }[]
+  modificadorseleccion_id: number | string
+  modificadorseleccion_nombre: string
+  modificadorseleccion_tipo?: number | string
+  modificadorseleccion_precio?: number | string
+  modificadorseleccion_urlimagen?: string | null
 }

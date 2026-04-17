@@ -36,7 +36,7 @@ export function CatalogoTab({ localId, localLabel }: CatalogoTabProps) {
   const categorias = useMemo(() => {
     const set = new Set<string>()
     productos.forEach((p) => {
-      if (p.categoria_nombre) set.add(p.categoria_nombre)
+      if (p.categoria_descripcion) set.add(p.categoria_descripcion)
     })
     return Array.from(set).sort()
   }, [productos])
@@ -44,16 +44,19 @@ export function CatalogoTab({ localId, localLabel }: CatalogoTabProps) {
   const filtered = useMemo(() => {
     let result = productos
     if (categoriaFilter !== 'all') {
-      result = result.filter((p) => p.categoria_nombre === categoriaFilter)
+      result = result.filter((p) => p.categoria_descripcion === categoriaFilter)
     }
     if (search) {
       const q = search.toLowerCase()
-      result = result.filter((p) => p.producto_descripcion?.toLowerCase().includes(q))
+      result = result.filter((p) => p.productogeneral_descripcion?.toLowerCase().includes(q))
     }
     return result
   }, [productos, categoriaFilter, search])
 
-  const data = filtered.map((p) => ({ ...p, id: String(p.producto_id ?? Math.random()) }))
+  const data = filtered.map((p, idx) => ({
+    ...p,
+    id: String(p.productogeneral_id ?? idx),
+  }))
 
   return (
     <div>
@@ -175,38 +178,48 @@ export function CatalogoTab({ localId, localLabel }: CatalogoTabProps) {
 }
 
 function ProductCard({ product }: { product: PosProducto }) {
-  const variantCount = product.presentaciones?.length ?? 0
+  const presentaciones = product.lista_presentacion ?? []
+  const variantCount = presentaciones.length
+  const modifierCount = product.listaModificadores?.length ?? 0
+
+  const precios = presentaciones
+    .map((p) => Number(p.producto_precio))
+    .filter((n) => Number.isFinite(n) && n > 0)
+  const minPrecio = precios.length > 0 ? Math.min(...precios) : 0
+  const maxPrecio = precios.length > 0 ? Math.max(...precios) : 0
+  const precioLabel =
+    precios.length === 0
+      ? formatCurrency(0)
+      : minPrecio === maxPrecio
+        ? formatCurrency(minPrecio)
+        : `desde ${formatCurrency(minPrecio)}`
 
   return (
     <div className="bg-surface rounded-xl card-elevated p-4">
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <span className="text-body font-medium text-dark-graphite">
-            {product.producto_descripcion}
+        <div className="min-w-0">
+          <span className="text-body font-medium text-dark-graphite block truncate">
+            {product.productogeneral_descripcion || '—'}
           </span>
-          {product.categoria_nombre && (
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-caption bg-bone text-graphite mt-1 block w-fit">
-              {product.categoria_nombre}
+          {product.categoria_descripcion && (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-caption bg-bone text-graphite mt-1 w-fit">
+              {product.categoria_descripcion}
             </span>
           )}
         </div>
-        <span className="text-subheading font-bold text-dark-graphite shrink-0">
-          {formatCurrency(Number(product.producto_precio) || 0)}
+        <span className="text-subheading font-bold text-dark-graphite shrink-0 whitespace-nowrap">
+          {precioLabel}
         </span>
       </div>
       <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
         <span className="text-caption text-mid-gray">
-          {variantCount} variante{variantCount !== 1 ? 's' : ''}
+          {variantCount} presentaci{variantCount === 1 ? 'ón' : 'ones'}
         </span>
-        <span
-          className={`inline-flex items-center px-2 py-0.5 rounded-full text-caption ${
-            Number(product.producto_estado) === 1
-              ? 'bg-emerald-50 text-emerald-700'
-              : 'bg-red-50 text-red-700'
-          }`}
-        >
-          {Number(product.producto_estado) === 1 ? 'Activo' : 'Inactivo'}
-        </span>
+        {modifierCount > 0 && (
+          <span className="text-caption text-mid-gray">
+            {modifierCount} modificador{modifierCount !== 1 ? 'es' : ''}
+          </span>
+        )}
       </div>
     </div>
   )
