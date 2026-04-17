@@ -1,33 +1,109 @@
 import { db } from '@/core/firebase/config'
-import { collection, query, where, getDocs, writeBatch, doc, Timestamp } from 'firebase/firestore'
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  getDoc,
+  writeBatch,
+  doc,
+  Timestamp,
+} from 'firebase/firestore'
 import type { PosVenta } from './types'
 
-const COLLECTION = 'pos-sales-cache'
+const SALES_COLLECTION = 'pos-sales-cache'
+const META_COLLECTION = 'pos-sales-cache-meta'
 
-interface CachedDateEntry {
-  date: string
-  localId: number
+export const RECONCILE_WINDOW_DAYS = 7
+export const RECONCILE_TTL_MS = 24 * 60 * 60 * 1000
+
+export interface CacheLookup {
   ventas: PosVenta[]
-  syncedAt: Timestamp
+  freshKeys: Set<string>
+  staleKeys: Set<string>
 }
 
-/**
- * Get cached ventas for a date range from Firestore.
- */
+interface MetaDoc {
+  month: string
+  days?: Record<string, Timestamp>
+}
+
+function monthsInRange(startDate: string, endDate: string): string[] {
+  const result = new Set<string>()
+  const start = new Date(startDate + 'T12:00:00')
+  const end = new Date(endDate + 'T12:00:00')
+  const cursor = new Date(start.getFullYear(), start.getMonth(), 1)
+  while (cursor <= end) {
+    const y = cursor.getFullYear()
+    const m = String(cursor.getMonth() + 1).padStart(2, '0')
+    result.add(`${y}-${m}`)
+    cursor.setMonth(cursor.getMonth() + 1)
+  }
+  return Array.from(result)
+}
+
+function addDays(date: string, days: number): string {
+  const d = new Date(date + 'T12:00:00')
+  d.setDate(d.getDate() + days)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
 export async function getCachedVentas(
   companyId: string,
   startDate: string,
   endDate: string,
-): Promise<CachedDateEntry[]> {
-  const ref = collection(db, 'companies', companyId, COLLECTION)
-  const q = query(ref, where('date', '>=', startDate), where('date', '<=', endDate))
-  const snapshot = await getDocs(q)
-  return snapshot.docs.map((d) => d.data() as CachedDateEntry)
+): Promise<CacheLookup> {
+  const today = getTodayStr()
+  const reconcileFrom = addDays(today, -RECONCILE_WINDOW_DAYS)
+  const now = Date.now()
+
+  const salesRef = collection(db, 'companies', companyId, SALES_COLLECTION)
+  const salesQuery = query(
+    salesRef,
+    where('date', '>=', startDate),
+    where('date', '<=', endDate),
+  )
+
+  const months = monthsInRange(startDate, endDate)
+
+  const [salesSnap, metaSnaps] = await Promise.all([
+    getDocs(salesQuery),
+    Promise.all(
+      months.map((month) =>
+        getDoc(doc(db, 'companies', companyId, META_COLLECTION, month)),
+      ),
+    ),
+  ])
+
+  const ventas: PosVenta[] = []
+  for (const d of salesSnap.docs) {
+    const data = d.data() as { ventas?: PosVenta[] }
+    if (data.ventas?.length) ventas.push(...data.ventas)
+  }
+
+  const freshKeys = new Set<string>()
+  const staleKeys = new Set<string>()
+
+  for (const metaSnap of metaSnaps) {
+    if (!metaSnap.exists()) continue
+    const metaData = metaSnap.data() as MetaDoc
+    for (const [key, ts] of Object.entries(metaData.days ?? {})) {
+      const date = key.split('_')[0]
+      if (!date || date < startDate || date > endDate) continue
+      const withinReconcile = date >= reconcileFrom && date < today
+      const tsMs = ts?.toMillis?.() ?? 0
+      const stale = withinReconcile && now - tsMs > RECONCILE_TTL_MS
+      if (stale) staleKeys.add(key)
+      else freshKeys.add(key)
+    }
+  }
+
+  return { ventas, freshKeys, staleKeys }
 }
 
-/**
- * Save ventas to Firestore cache, grouped by date + local.
- */
 export async function saveVentasToCache(
   companyId: string,
   ventas: PosVenta[],
@@ -35,7 +111,6 @@ export async function saveVentasToCache(
   startDate: string,
   endDate: string,
 ): Promise<void> {
-  // Group ventas by date + localId
   const groups = new Map<string, PosVenta[]>()
   for (const v of ventas) {
     const date = v.fecha?.slice(0, 10)
@@ -49,25 +124,36 @@ export async function saveVentasToCache(
   const batch = writeBatch(db)
   const now = Timestamp.now()
 
+  const metaUpdates = new Map<string, Record<string, Timestamp>>()
+
   for (const date of allDates) {
+    const month = date.slice(0, 7)
+    if (!metaUpdates.has(month)) metaUpdates.set(month, {})
+    const monthPayload = metaUpdates.get(month)!
     for (const localId of localIds) {
       const key = `${date}_${localId}`
-      const docRef = doc(db, 'companies', companyId, COLLECTION, key)
-      batch.set(docRef, {
-        date,
-        localId,
-        ventas: groups.get(key) ?? [],
-        syncedAt: now,
-      })
+      monthPayload[key] = now
+      const group = groups.get(key)
+      if (group && group.length > 0) {
+        const docRef = doc(db, 'companies', companyId, SALES_COLLECTION, key)
+        batch.set(docRef, {
+          date,
+          localId,
+          ventas: group,
+          syncedAt: now,
+        })
+      }
     }
+  }
+
+  for (const [month, days] of metaUpdates) {
+    const metaRef = doc(db, 'companies', companyId, META_COLLECTION, month)
+    batch.set(metaRef, { month, days }, { merge: true })
   }
 
   await batch.commit()
 }
 
-/**
- * Enumerate all dates between start and end (inclusive). YYYY-MM-DD format.
- */
 export function enumerateDates(start: string, end: string): string[] {
   const dates: string[] = []
   const current = new Date(start + 'T12:00:00')
@@ -84,9 +170,6 @@ export function enumerateDates(start: string, end: string): string[] {
   return dates
 }
 
-/**
- * Get today's date as YYYY-MM-DD.
- */
 export function getTodayStr(): string {
   const d = new Date()
   const y = d.getFullYear()

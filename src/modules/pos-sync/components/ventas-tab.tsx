@@ -6,7 +6,7 @@ import { EmptyState } from '@/core/ui/empty-state'
 import { FilterPillGroup, type FilterPillOption } from '@/core/ui/filter-pill-group'
 import { formatCurrency } from '@/core/utils/format'
 import { useDateRange } from '@/modules/finance/context/date-range-context'
-import { usePosVentas, useAutoRefresh } from '../hooks'
+import { usePosVentas } from '../hooks'
 import { VentaDetailDrawer } from './venta-detail-drawer'
 import type { PosVenta, PosLocal } from '../types'
 import type { LucideIcon } from 'lucide-react'
@@ -84,7 +84,14 @@ const TONE_CLASSES: Record<string, string> = {
 
 export function VentasTab({ localIds, allLocalIds, locales, localLabel }: VentasTabProps) {
   const { startDate, endDate } = useDateRange()
-  const { ventas, loading, error, rateLimited, lastUpdated, fromCache, fetch, progress } = usePosVentas()
+  const startDateStr = toDateStr(startDate)
+  const endDateStr = toDateStr(endDate)
+  const { ventas, loading, error, rateLimited, lastUpdated, fromCache, refetch, progress } = usePosVentas({
+    localIds: allLocalIds,
+    startDate: startDateStr,
+    endDate: endDateStr,
+    enabled: allLocalIds.length > 0,
+  })
   const prefersReducedMotion = useReducedMotion()
   const [docFilter, setDocFilter] = useState<DocType | 'todos'>('todos')
   const [cajaFilter, setCajaFilter] = useState<string>('todas')
@@ -92,16 +99,8 @@ export function VentasTab({ localIds, allLocalIds, locales, localLabel }: Ventas
   const isMultiLocal = localIds.length > 1
 
   function handleConsultar() {
-    fetch(allLocalIds, `${toDateStr(startDate)} 00:00:00`, `${toDateStr(endDate)} 23:59:59`)
+    refetch()
   }
-
-  useEffect(() => {
-    if (allLocalIds.length > 0) {
-      fetch(allLocalIds, `${toDateStr(startDate)} 00:00:00`, `${toDateStr(endDate)} 23:59:59`)
-    }
-  }, [allLocalIds.length, startDate, endDate])
-
-  useAutoRefresh(handleConsultar, 5 * 60 * 1000, allLocalIds.length > 0 && !loading)
 
   const localNameMap = useMemo(() => {
     const map = new Map<number, string>()

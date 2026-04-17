@@ -1,9 +1,9 @@
-import { useMemo, useEffect, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { RefreshCw, Loader2, Clock, MapPin, XCircle } from 'lucide-react'
 import { DataTable, type Column } from '@/core/ui/data-table'
 import { formatCurrency } from '@/core/utils/format'
 import { useDateRange } from '@/modules/finance/context/date-range-context'
-import { usePosVentas, useAutoRefresh } from '../hooks'
+import { usePosVentas } from '../hooks'
 import { VentaDetailDrawer } from './venta-detail-drawer'
 import type { PosVenta, PosLocal } from '../types'
 
@@ -28,19 +28,18 @@ interface AnuladasTabProps {
 export function AnuladasTab({ localIds, allLocalIds, locales, localLabel }: AnuladasTabProps) {
   const [selectedVenta, setSelectedVenta] = useState<PosVenta | null>(null)
   const { startDate, endDate } = useDateRange()
-  const { ventas, loading, error, rateLimited, lastUpdated, fromCache, fetch, progress } = usePosVentas()
+  const startDateStr = toDateStr(startDate)
+  const endDateStr = toDateStr(endDate)
+  const { ventas, loading, error, rateLimited, lastUpdated, fromCache, refetch, progress } = usePosVentas({
+    localIds: allLocalIds,
+    startDate: startDateStr,
+    endDate: endDateStr,
+    enabled: allLocalIds.length > 0,
+  })
 
   function handleConsultar() {
-    fetch(allLocalIds, `${toDateStr(startDate)} 00:00:00`, `${toDateStr(endDate)} 23:59:59`)
+    refetch()
   }
-
-  useEffect(() => {
-    if (allLocalIds.length > 0) {
-      fetch(allLocalIds, `${toDateStr(startDate)} 00:00:00`, `${toDateStr(endDate)} 23:59:59`)
-    }
-  }, [allLocalIds.length, startDate, endDate])
-
-  useAutoRefresh(handleConsultar, 5 * 60 * 1000, allLocalIds.length > 0 && !loading)
 
   const localNameMap = useMemo(() => {
     const map = new Map<number, string>()

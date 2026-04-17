@@ -32,8 +32,7 @@ export function usePosOrderSearch() {
     setLoading(true)
     try {
       const cached = await getCachedVentas(selectedCompany.id, dateStr, dateStr)
-      const allVentas = cached.flatMap((entry) => entry.ventas)
-      const valid = allVentas.filter(
+      const valid = cached.ventas.filter(
         (v) => v.estado_txt?.toLowerCase() !== 'comprobante anulado',
       )
       setOrders(

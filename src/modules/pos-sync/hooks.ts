@@ -1,14 +1,29 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCompany } from '@/core/hooks/use-company'
 import { posService, PosRateLimitError } from './services'
-import { getCachedVentas, saveVentasToCache, enumerateDates, getTodayStr } from './cache-service'
+import {
+  getCachedVentas,
+  saveVentasToCache,
+  enumerateDates,
+  getTodayStr,
+} from './cache-service'
 import type { PosLocal, PosVenta, PosProducto } from './types'
 
 const MAX_DAYS = 33
+const AUTO_REFRESH_MS = 5 * 60 * 1000
+const STALE_TIME_MS = 2 * 60 * 1000
+const GC_TIME_MS = 10 * 60 * 1000
 
 export interface FetchProgress {
   current: number
   total: number
+}
+
+interface FetchResult {
+  ventas: PosVenta[]
+  fromCache: boolean
+  rateLimited: boolean
 }
 
 function splitIntoChunks(startDate: string, endDate: string): { start: string; end: string }[] {
@@ -36,6 +51,140 @@ function splitIntoChunks(startDate: string, endDate: string): { start: string; e
   return chunks
 }
 
+interface FetchArgs {
+  companyId: string | undefined
+  localIds: number[]
+  startDate: string
+  endDate: string
+  onProgress?: (p: FetchProgress | null) => void
+  onPartial?: (partial: FetchResult) => void
+}
+
+async function fetchVentasWithCache({
+  companyId,
+  localIds,
+  startDate,
+  endDate,
+  onProgress,
+  onPartial,
+}: FetchArgs): Promise<FetchResult> {
+  const today = getTodayStr()
+  const localIdSet = new Set(localIds)
+
+  let cachedVentas: PosVenta[] = []
+  let freshKeys = new Set<string>()
+  let staleKeys = new Set<string>()
+
+  if (companyId) {
+    try {
+      const lookup = await getCachedVentas(companyId, startDate, endDate)
+      cachedVentas = lookup.ventas.filter((v) => localIdSet.has(v.id_local))
+      freshKeys = lookup.freshKeys
+      staleKeys = lookup.staleKeys
+    } catch {
+      // Cache read failed — fall through to full fetch
+    }
+  }
+
+  // Determine which date×local keys still need to be fetched
+  const allDates = enumerateDates(startDate, endDate)
+  const needsFetch = new Set<string>()
+  for (const date of allDates) {
+    for (const lid of localIds) {
+      const key = `${date}_${lid}`
+      if (date >= today) {
+        needsFetch.add(key)
+        continue
+      }
+      if (staleKeys.has(key)) {
+        needsFetch.add(key)
+        continue
+      }
+      if (!freshKeys.has(key)) {
+        needsFetch.add(key)
+      }
+    }
+  }
+
+  if (needsFetch.size === 0) {
+    return { ventas: cachedVentas, fromCache: true, rateLimited: false }
+  }
+
+  // Show cached preview while API loads
+  if (cachedVentas.length > 0) {
+    onPartial?.({ ventas: cachedVentas, fromCache: true, rateLimited: false })
+  }
+
+  // Find chunks that overlap with any uncached/stale key
+  const chunks = splitIntoChunks(startDate, endDate)
+  const chunksToFetch = chunks.filter((chunk) => {
+    for (const date of enumerateDates(chunk.start, chunk.end)) {
+      for (const lid of localIds) {
+        if (needsFetch.has(`${date}_${lid}`)) return true
+      }
+    }
+    return false
+  })
+
+  if (chunksToFetch.length === 0) {
+    return { ventas: cachedVentas, fromCache: true, rateLimited: false }
+  }
+
+  // Remove cached ventas that fall within dates we're about to re-fetch
+  const redoDates = new Set<string>()
+  for (const chunk of chunksToFetch) {
+    for (const date of enumerateDates(chunk.start, chunk.end)) {
+      for (const lid of localIds) {
+        if (needsFetch.has(`${date}_${lid}`)) {
+          redoDates.add(date)
+          break
+        }
+      }
+    }
+  }
+
+  const accumulated: PosVenta[] = cachedVentas.filter(
+    (v) => !redoDates.has(v.fecha?.slice(0, 10) ?? ''),
+  )
+
+  const showProgress = chunksToFetch.length > 1
+  let rateLimited = false
+
+  for (let i = 0; i < chunksToFetch.length; i++) {
+    const chunk = chunksToFetch[i]
+    if (showProgress) onProgress?.({ current: i + 1, total: chunksToFetch.length })
+
+    const chunkF1 = `${chunk.start} 00:00:00`
+    const chunkF2 = `${chunk.end} 23:59:59`
+
+    try {
+      const result = await posService.getVentasBatch(localIds, chunkF1, chunkF2)
+      accumulated.push(...result.ventas.filter((v) => localIdSet.has(v.id_local)))
+      onPartial?.({ ventas: [...accumulated], fromCache: false, rateLimited })
+
+      if (result.rateLimited) rateLimited = true
+
+      if (companyId) {
+        saveVentasToCache(companyId, result.ventas, localIds, chunk.start, chunk.end).catch(
+          (err) => {
+            // eslint-disable-next-line no-console
+            console.warn('[pos-sync] saveVentasToCache failed', err)
+          },
+        )
+      }
+    } catch (err) {
+      if (err instanceof PosRateLimitError) {
+        rateLimited = true
+        break
+      }
+      throw err
+    }
+  }
+
+  onProgress?.(null)
+  return { ventas: accumulated, fromCache: false, rateLimited }
+}
+
 export function usePosLocales() {
   const [locales, setLocales] = useState<PosLocal[]>([])
   const [loading, setLoading] = useState(true)
@@ -44,7 +193,8 @@ export function usePosLocales() {
   useEffect(() => {
     let cancelled = false
     setLoading(true)
-    posService.getDominio()
+    posService
+      .getDominio()
       .then((data) => {
         if (!cancelled) setLocales(data?.locales ?? [])
       })
@@ -54,164 +204,84 @@ export function usePosLocales() {
       .finally(() => {
         if (!cancelled) setLoading(false)
       })
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   return { locales, loading, error }
 }
 
-export function usePosVentas() {
+interface UsePosVentasParams {
+  localIds: number[]
+  startDate: string
+  endDate: string
+  enabled?: boolean
+}
+
+export function usePosVentas({
+  localIds,
+  startDate,
+  endDate,
+  enabled = true,
+}: UsePosVentasParams) {
   const { selectedCompany } = useCompany()
   const companyId = selectedCompany?.id
-  const [ventas, setVentas] = useState<PosVenta[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [rateLimited, setRateLimited] = useState(false)
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
-  const [fromCache, setFromCache] = useState(false)
+  const queryClient = useQueryClient()
   const [progress, setProgress] = useState<FetchProgress | null>(null)
 
-  const fetch = useCallback(async (localIds: number[], f1: string, f2: string) => {
-    const startDate = f1.slice(0, 10)
-    const endDate = f2.slice(0, 10)
-    const today = getTodayStr()
+  const sortedLocalIds = useMemo(
+    () => [...localIds].sort((a, b) => a - b),
+    [localIds],
+  )
 
-    setLoading(true)
-    setError(null)
-    setRateLimited(false)
-    setProgress(null)
+  const queryKey = useMemo(
+    () => ['pos-ventas', companyId, sortedLocalIds, startDate, endDate] as const,
+    [companyId, sortedLocalIds, startDate, endDate],
+  )
 
-    // --- Step 1: Try Firestore cache for full range ---
-    let cachedVentas: PosVenta[] = []
-    let rangeFullyCached = false
-    let cachedKeys = new Set<string>()
+  const queryEnabled =
+    enabled && !!companyId && sortedLocalIds.length > 0 && !!startDate && !!endDate
 
-    if (companyId) {
-      try {
-        const entries = await getCachedVentas(companyId, startDate, endDate)
-
-        if (entries.length > 0) {
-          const localIdSet = new Set(localIds)
-          cachedVentas = entries
-            .filter((e) => localIdSet.has(e.localId))
-            .flatMap((e) => e.ventas)
-
-          cachedKeys = new Set(entries.map((e) => `${e.date}_${e.localId}`))
-
-          if (endDate < today) {
-            const allDates = enumerateDates(startDate, endDate)
-            rangeFullyCached = allDates.every((date) =>
-              localIds.every((lid) => cachedKeys.has(`${date}_${lid}`))
-            )
-          }
-        }
-      } catch {
-        // Cache read failed, continue with API fetch
-      }
-    }
-
-    // --- Step 2: If fully cached, return immediately ---
-    if (rangeFullyCached) {
-      setVentas(cachedVentas)
-      setFromCache(true)
-      setLastUpdated(new Date())
-      setLoading(false)
-      return
-    }
-
-    // --- Step 3: Show cached preview while API loads ---
-    if (cachedVentas.length > 0) {
-      setVentas(cachedVentas)
-      setFromCache(true)
-    }
-
-    // --- Step 4: Split into chunks and fetch only uncached ones ---
-    const chunks = splitIntoChunks(startDate, endDate)
-
-    // Determine which chunks need API calls
-    const uncachedChunks = chunks.filter((chunk) => {
-      // If chunk ends in the past AND all dates are cached, skip it
-      if (chunk.end < today) {
-        const chunkDates = enumerateDates(chunk.start, chunk.end)
-        const fullyCached = chunkDates.every((date) =>
-          localIds.every((lid) => cachedKeys.has(`${date}_${lid}`))
-        )
-        if (fullyCached) return false
-      }
-      return true
-    })
-
-    if (uncachedChunks.length === 0) {
-      // All chunks cached — shouldn't happen (rangeFullyCached would've caught it)
-      // but handle gracefully
-      setVentas(cachedVentas)
-      setFromCache(true)
-      setLastUpdated(new Date())
-      setLoading(false)
-      return
-    }
-
-    // --- Step 5: Fetch uncached chunks sequentially ---
-    const allApiVentas: PosVenta[] = [...cachedVentas]
-    // Remove ventas that belong to chunks we're about to re-fetch
-    const uncachedRanges = new Set<string>()
-    for (const chunk of uncachedChunks) {
-      for (const date of enumerateDates(chunk.start, chunk.end)) {
-        uncachedRanges.add(date)
-      }
-    }
-    const keptCachedVentas = allApiVentas.filter(
-      (v) => !uncachedRanges.has(v.fecha?.slice(0, 10) ?? '')
-    )
-    allApiVentas.length = 0
-    allApiVentas.push(...keptCachedVentas)
-
-    const showProgress = uncachedChunks.length > 1
-    let hitRateLimit = false
-
-    try {
-      for (let i = 0; i < uncachedChunks.length; i++) {
-        const chunk = uncachedChunks[i]
-        if (showProgress) setProgress({ current: i + 1, total: uncachedChunks.length })
-
-        const chunkF1 = `${chunk.start} 00:00:00`
-        const chunkF2 = `${chunk.end} 23:59:59`
-
-        try {
-          const result = await posService.getVentasBatch(localIds, chunkF1, chunkF2)
-          allApiVentas.push(...result.ventas)
-          setVentas([...allApiVentas])
-          setFromCache(false)
-
-          if (result.rateLimited) hitRateLimit = true
-
-          // Save chunk to cache (fire and forget)
-          if (companyId) {
-            saveVentasToCache(companyId, result.ventas, localIds, chunk.start, chunk.end).catch(() => {})
-          }
-        } catch (err: unknown) {
-          if (err instanceof PosRateLimitError) {
-            hitRateLimit = true
-            // Show what we have so far and stop
-            break
-          }
-          throw err
-        }
-      }
-
-      setLastUpdated(new Date())
-      if (hitRateLimit) setRateLimited(true)
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Error desconocido')
-      // If we had accumulated data, keep showing it
-      if (allApiVentas.length === 0) setVentas([])
-    } finally {
-      setLoading(false)
+  const query = useQuery<FetchResult, Error>({
+    queryKey,
+    enabled: queryEnabled,
+    staleTime: STALE_TIME_MS,
+    gcTime: GC_TIME_MS,
+    refetchInterval: AUTO_REFRESH_MS,
+    refetchIntervalInBackground: false,
+    queryFn: async () => {
       setProgress(null)
-    }
-  }, [companyId])
+      return fetchVentasWithCache({
+        companyId,
+        localIds: sortedLocalIds,
+        startDate,
+        endDate,
+        onProgress: setProgress,
+        onPartial: (partial) => {
+          queryClient.setQueryData<FetchResult>(queryKey, partial)
+        },
+      })
+    },
+  })
 
-  return { ventas, loading, error, rateLimited, lastUpdated, fromCache, fetch, progress }
+  const refetch = useCallback(() => {
+    return query.refetch()
+  }, [query])
+
+  const data = query.data
+  const isFetching = query.isFetching
+
+  return {
+    ventas: data?.ventas ?? [],
+    loading: isFetching,
+    error: query.error ? query.error.message : null,
+    rateLimited: data?.rateLimited ?? false,
+    lastUpdated: query.dataUpdatedAt ? new Date(query.dataUpdatedAt) : null,
+    fromCache: data?.fromCache ?? false,
+    progress,
+    refetch,
+  }
 }
 
 export function useAutoRefresh(callback: () => void, intervalMs: number, enabled: boolean) {
