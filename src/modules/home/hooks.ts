@@ -75,6 +75,16 @@ export interface CajaBreakdown {
   porTipo: Array<{ tipo: string; label: string; count: number; monto: number }>
 }
 
+export interface CajaOverviewRow {
+  cajaId: string
+  cantidad: number
+  ventasNetas: number
+  propinas: number
+  envio: number
+  total: number
+  anuladas: number
+}
+
 // ─── Helpers ────────────────────────────────────────────────────────
 
 const toDateStr = toDateStrLocal
@@ -242,6 +252,44 @@ export function useDashboardData() {
       porTipo,
     }
   }, [posVentas, selectedCaja, startDate, endDate])
+
+  // Overview por caja dentro del rango visible — tabla de diagnóstico para
+  // comparar caja por caja contra el reporte del POS.
+  const cajasOverview = useMemo<CajaOverviewRow[]>(() => {
+    const startStr = toDateStr(startDate)
+    const endStr = toDateStr(endDate)
+    const map = new Map<string, CajaOverviewRow>()
+    for (const v of posVentas) {
+      const date = v.fecha?.slice(0, 10)
+      if (!date || date < startStr || date > endStr) continue
+      const key = cajaKey(v)
+      const row =
+        map.get(key) ??
+        {
+          cajaId: key,
+          cantidad: 0,
+          ventasNetas: 0,
+          propinas: 0,
+          envio: 0,
+          total: 0,
+          anuladas: 0,
+        }
+      if (isAnulada(v)) {
+        row.anuladas += 1
+      } else {
+        const neto = num(v.total)
+        const prop = sumPropinas(v)
+        const env = num(v.costoenvio)
+        row.cantidad += 1
+        row.ventasNetas += neto
+        row.propinas += prop
+        row.envio += env
+        row.total += neto + prop + env
+      }
+      map.set(key, row)
+    }
+    return Array.from(map.values()).sort((a, b) => b.total - a.total)
+  }, [posVentas, startDate, endDate])
 
   // Auto-reset si la caja seleccionada sale del set disponible
   useEffect(() => {
@@ -483,5 +531,14 @@ export function useDashboardData() {
     [posLoading, posLastUpdated, posFromCache, localIds.length, posForceRefresh],
   )
 
-  return { kpis, salesTrend, alerts, loading, syncStatus, cajasDisponibles, cajaBreakdown }
+  return {
+    kpis,
+    salesTrend,
+    alerts,
+    loading,
+    syncStatus,
+    cajasDisponibles,
+    cajaBreakdown,
+    cajasOverview,
+  }
 }

@@ -12,6 +12,7 @@ import type {
   SalesTrendPoint,
   DashboardAlerts,
   CajaBreakdown,
+  CajaOverviewRow,
   DashboardSyncStatus,
 } from '../hooks'
 import { useHomeFilters, HomeFiltersProvider } from '../context/home-filters-context'
@@ -21,6 +22,7 @@ import { AlertsPanel } from './alerts-panel'
 import { QuickActions } from './quick-actions'
 import { CajaFilter } from './caja-filter'
 import { CajaBreakdownCard } from './caja-breakdown-card'
+import { CajasOverviewCard } from './cajas-overview-card'
 
 const CACHE_STALE_MS = 2 * 60 * 60 * 1000 // 2 horas
 
@@ -59,15 +61,28 @@ interface DashboardContentProps {
   startDate: Date
   endDate: Date
   cajaBreakdown: CajaBreakdown | null
+  cajasOverview: CajaOverviewRow[]
 }
 
-function DashboardContent({ kpis, salesTrend, alerts, periodLabel, startDate, endDate, cajaBreakdown }: DashboardContentProps) {
+function DashboardContent({
+  kpis,
+  salesTrend,
+  alerts,
+  periodLabel,
+  startDate,
+  endDate,
+  cajaBreakdown,
+  cajasOverview,
+}: DashboardContentProps) {
   const { selectedCaja } = useHomeFilters()
   return (
     <div className="space-y-6">
       <KPICardsRow kpis={kpis} periodLabel={periodLabel} />
       {cajaBreakdown && selectedCaja !== 'todas' && (
         <CajaBreakdownCard cajaId={selectedCaja} breakdown={cajaBreakdown} periodLabel={periodLabel} />
+      )}
+      {selectedCaja === 'todas' && cajasOverview.length > 1 && (
+        <CajasOverviewCard rows={cajasOverview} periodLabel={periodLabel} />
       )}
       <SalesTrendChart data={salesTrend} startDate={startDate} endDate={endDate} />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -81,7 +96,16 @@ function DashboardContent({ kpis, salesTrend, alerts, periodLabel, startDate, en
 function HomePageContent() {
   const { user } = useAuth()
   const { presetLabel, startDate, endDate } = useDateRange()
-  const { kpis, salesTrend, alerts, loading, syncStatus, cajasDisponibles, cajaBreakdown } = useDashboardData()
+  const {
+    kpis,
+    salesTrend,
+    alerts,
+    loading,
+    syncStatus,
+    cajasDisponibles,
+    cajaBreakdown,
+    cajasOverview,
+  } = useDashboardData()
 
   const firstName = user?.displayName?.split(' ')[0] ?? user?.email?.split('@')[0] ?? 'Usuario'
   const todayLabel = new Date().toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'long' })
@@ -127,6 +151,7 @@ function HomePageContent() {
             startDate={startDate}
             endDate={endDate}
             cajaBreakdown={cajaBreakdown}
+            cajasOverview={cajasOverview}
           />
         </>
       )}

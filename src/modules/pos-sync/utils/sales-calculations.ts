@@ -8,10 +8,22 @@ export function isAnulada(v: PosVenta): boolean {
   return v.estado_txt?.toLowerCase() === 'comprobante anulado'
 }
 
+// Algunos POS registran propinas solo en `lista_propinas`, otros las ponen
+// en `pagosList` con tipoPago = "propina" (típicamente cuando se agregan
+// después de cerrar la cuenta, o en efectivo). Priorizamos `lista_propinas`;
+// si está vacío, caemos al fallback para no perder propinas reales.
 export function sumPropinas(v: PosVenta): number {
   const list = v.lista_propinas ?? []
   let s = 0
   for (const p of list) s += num(p.montoConIgv)
+  if (s > 0) return s
+  const pagos = v.pagosList ?? []
+  for (const p of pagos) {
+    const tipo = String(p.tipoPago ?? '').toLowerCase()
+    if (tipo.includes('propina') || tipo.includes('tip')) {
+      s += num(p.monto)
+    }
+  }
   return s
 }
 
