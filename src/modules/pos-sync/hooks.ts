@@ -75,6 +75,7 @@ interface FetchArgs {
   localIds: number[]
   startDate: string
   endDate: string
+  force?: boolean
   onProgress?: (p: FetchProgress | null) => void
   onPartial?: (partial: FetchResult) => void
 }
@@ -86,6 +87,7 @@ async function fetchVentasWithCache({
   localIds,
   startDate,
   endDate,
+  force = false,
   onProgress,
   onPartial,
 }: FetchArgs): Promise<FetchResult> {
@@ -95,22 +97,43 @@ async function fetchVentasWithCache({
   let cachedVentas: PosVenta[] = []
   let freshKeys = new Set<string>()
   let staleKeys = new Set<string>()
+  let allCachedVentas: PosVenta[] = []
 
   if (companyId) {
     try {
       const lookup = await getCachedVentas(companyId, startDate, endDate)
+      allCachedVentas = lookup.ventas
       cachedVentas = lookup.ventas.filter((v) => localIdSet.has(v.id_local))
-      freshKeys = lookup.freshKeys
-      staleKeys = lookup.staleKeys
+      if (!force) {
+        freshKeys = lookup.freshKeys
+        staleKeys = lookup.staleKeys
+      }
     } catch {
       // Cache read failed — fall through to full fetch
     }
   }
 
+  // Build per-day×local count + index of cached ventas to detect partial POS responses
+  const previousCountByKey = new Map<string, number>()
+  const previousVentasByKey = new Map<string, PosVenta[]>()
+  for (const v of allCachedVentas) {
+    const vDate = v.fecha?.slice(0, 10)
+    if (!vDate) continue
+    const key = `${vDate}_${v.id_local}`
+    previousCountByKey.set(key, (previousCountByKey.get(key) ?? 0) + 1)
+    if (!previousVentasByKey.has(key)) previousVentasByKey.set(key, [])
+    previousVentasByKey.get(key)!.push(v)
+  }
+  const PARTIAL_THRESHOLD = 0.7
+
   // Determine which dates still need to be fetched (a date needs fetch if any local for that date is missing/stale)
   const allDates = enumerateDates(startDate, endDate)
   const datesNeedingFetch: string[] = []
   for (const date of allDates) {
+    if (force) {
+      datesNeedingFetch.push(date)
+      continue
+    }
     let needs = false
     for (const lid of localIds) {
       const key = `${date}_${lid}`
@@ -155,15 +178,47 @@ async function fetchVentasWithCache({
     const chunkF1 = `${chunk.start} 00:00:00`
     const chunkF2 = `${chunk.end} 23:59:59`
     const result = await posService.getVentasBatch(localIds, chunkF1, chunkF2)
-    accumulated.push(...result.ventas.filter((v) => localIdSet.has(v.id_local)))
     if (result.rateLimited) rateLimited = true
+
+    // Group new ventas by date_local key
+    const newByKey = new Map<string, PosVenta[]>()
+    for (const v of result.ventas) {
+      if (!localIdSet.has(v.id_local)) continue
+      const vDate = v.fecha?.slice(0, 10)
+      if (!vDate) continue
+      const key = `${vDate}_${v.id_local}`
+      if (!newByKey.has(key)) newByKey.set(key, [])
+      newByKey.get(key)!.push(v)
+    }
+
+    // For each (date, local) covered by this chunk, prefer the new payload unless
+    // it's clearly a partial response — in that case keep the cached version.
+    for (const date of enumerateDates(chunk.start, chunk.end)) {
+      for (const lid of localIds) {
+        const key = `${date}_${lid}`
+        const newGroup = newByKey.get(key) ?? []
+        const prevCount = previousCountByKey.get(key) ?? 0
+        if (prevCount > 0 && newGroup.length < prevCount * PARTIAL_THRESHOLD) {
+          const prevGroup = previousVentasByKey.get(key) ?? []
+          accumulated.push(...prevGroup)
+        } else {
+          accumulated.push(...newGroup)
+        }
+      }
+    }
+
     if (companyId) {
-      saveVentasToCache(companyId, result.ventas, localIds, chunk.start, chunk.end).catch(
-        (err) => {
-          // eslint-disable-next-line no-console
-          console.warn('[pos-sync] saveVentasToCache failed', err)
-        },
-      )
+      saveVentasToCache(
+        companyId,
+        result.ventas,
+        localIds,
+        chunk.start,
+        chunk.end,
+        previousCountByKey,
+      ).catch((err) => {
+        // eslint-disable-next-line no-console
+        console.warn('[pos-sync] saveVentasToCache failed', err)
+      })
     }
   }
 
@@ -243,6 +298,7 @@ export function usePosVentas({
   const companyId = selectedCompany?.id
   const queryClient = useQueryClient()
   const [progress, setProgress] = useState<FetchProgress | null>(null)
+  const forceRef = useRef(false)
 
   const sortedLocalIds = useMemo(
     () => [...localIds].sort((a, b) => a - b),
@@ -266,11 +322,14 @@ export function usePosVentas({
     refetchIntervalInBackground: false,
     queryFn: async () => {
       setProgress(null)
+      const force = forceRef.current
+      forceRef.current = false
       return fetchVentasWithCache({
         companyId,
         localIds: sortedLocalIds,
         startDate,
         endDate,
+        force,
         onProgress: setProgress,
         onPartial: (partial) => {
           queryClient.setQueryData<FetchResult>(queryKey, partial)
@@ -280,6 +339,11 @@ export function usePosVentas({
   })
 
   const refetch = useCallback(() => {
+    return query.refetch()
+  }, [query])
+
+  const forceRefresh = useCallback(() => {
+    forceRef.current = true
     return query.refetch()
   }, [query])
 
@@ -295,6 +359,7 @@ export function usePosVentas({
     fromCache: data?.fromCache ?? false,
     progress,
     refetch,
+    forceRefresh,
   }
 }
 

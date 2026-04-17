@@ -49,6 +49,7 @@ export interface DashboardSyncStatus {
   lastUpdated: Date | null
   fromCache: boolean
   hasLocals: boolean
+  onRefresh?: () => void
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────
@@ -111,6 +112,7 @@ export function useDashboardData() {
     loading: posLoading,
     lastUpdated: posLastUpdated,
     fromCache: posFromCache,
+    forceRefresh: posForceRefresh,
   } = usePosVentas({
     localIds,
     startDate: posRangeStart,
@@ -360,8 +362,11 @@ export function useDashboardData() {
       lastUpdated: posLastUpdated,
       fromCache: posFromCache,
       hasLocals: localIds.length > 0,
+      onRefresh: () => {
+        posForceRefresh()
+      },
     }),
-    [posLoading, posLastUpdated, posFromCache, localIds.length],
+    [posLoading, posLastUpdated, posFromCache, localIds.length, posForceRefresh],
   )
 
   return { kpis, salesTrend, alerts, loading, syncStatus }

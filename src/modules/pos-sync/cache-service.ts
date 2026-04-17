@@ -61,7 +61,6 @@ export async function getCachedVentas(
 ): Promise<CacheLookup> {
   const today = getTodayStr()
   const reconcileFrom = addDays(today, -RECONCILE_WINDOW_DAYS)
-  const now = Date.now()
 
   const salesRef = collection(db, 'companies', companyId, SALES_COLLECTION)
   const salesQuery = query(
@@ -82,16 +81,9 @@ export async function getCachedVentas(
   ])
 
   const ventas: PosVenta[] = []
-  const keysWithSales = new Set<string>()
   for (const d of salesSnap.docs) {
     const data = d.data() as { ventas?: PosVenta[] }
-    if (data.ventas?.length) {
-      ventas.push(...data.ventas)
-      for (const v of data.ventas) {
-        const vDate = v.fecha?.slice(0, 10)
-        if (vDate) keysWithSales.add(`${vDate}_${v.id_local}`)
-      }
-    }
+    if (data.ventas?.length) ventas.push(...data.ventas)
   }
 
   const freshKeys = new Set<string>()
@@ -100,23 +92,16 @@ export async function getCachedVentas(
   for (const metaSnap of metaSnaps) {
     if (!metaSnap.exists()) continue
     const metaData = metaSnap.data() as MetaDoc
-    for (const [key, ts] of Object.entries(metaData.days ?? {})) {
+    for (const key of Object.keys(metaData.days ?? {})) {
       const date = key.split('_')[0]
       if (!date || date < startDate || date > endDate) continue
+      // Any day inside the reconcile window (last 7 days) is always re-fetched.
+      // The POS API occasionally returns partial payloads, so we never trust the
+      // cached version for recent days — saveVentasToCache then protects against
+      // overwriting a healthier cache with a smaller (likely partial) response.
+      // Older days outside the window are trusted as-is once cached.
       const withinReconcile = date >= reconcileFrom && date < today
-      const tsMs = ts?.toMillis?.() ?? 0
-      // A day is stale if (any of):
-      //  - within the reconcile window AND cache age exceeds the TTL
-      //  - cached before the day actually ended (mid-day snapshot, evening sales may be missing)
-      //  - within the reconcile window AND meta says "synced" but no sales were stored
-      //    (covers transient POS API errors that returned an empty payload)
-      const endOfDayMs = new Date(date + 'T23:59:59.999').getTime()
-      const cachedMidDay = tsMs > 0 && tsMs < endOfDayMs
-      const emptyButRecent = withinReconcile && !keysWithSales.has(key)
-      const stale =
-        withinReconcile &&
-        (now - tsMs > RECONCILE_TTL_MS || cachedMidDay || emptyButRecent)
-      if (stale) staleKeys.add(key)
+      if (withinReconcile) staleKeys.add(key)
       else freshKeys.add(key)
     }
   }
@@ -124,12 +109,17 @@ export async function getCachedVentas(
   return { ventas, freshKeys, staleKeys }
 }
 
+// Threshold below which a new fetch is considered a "partial response" relative
+// to the cached version and we refuse to overwrite the existing cache.
+const PARTIAL_RESPONSE_THRESHOLD = 0.7
+
 export async function saveVentasToCache(
   companyId: string,
   ventas: PosVenta[],
   localIds: number[],
   startDate: string,
   endDate: string,
+  previousCountByKey?: Map<string, number>,
 ): Promise<void> {
   const groups = new Map<string, PosVenta[]>()
   for (const v of ventas) {
@@ -152,8 +142,21 @@ export async function saveVentasToCache(
     const monthPayload = metaUpdates.get(month)!
     for (const localId of localIds) {
       const key = `${date}_${localId}`
-      monthPayload[key] = now
       const group = groups.get(key)
+      const newCount = group?.length ?? 0
+      const prevCount = previousCountByKey?.get(key) ?? 0
+
+      // Skip overwriting if the new payload looks partial vs. what we already had.
+      // Don't update the meta either, so the next load re-tries.
+      if (prevCount > 0 && newCount < prevCount * PARTIAL_RESPONSE_THRESHOLD) {
+        // eslint-disable-next-line no-console
+        console.warn(
+          `[pos-sync] skip overwrite for ${key}: new=${newCount} < prev=${prevCount}`,
+        )
+        continue
+      }
+
+      monthPayload[key] = now
       if (group && group.length > 0) {
         const docRef = doc(db, 'companies', companyId, SALES_COLLECTION, key)
         batch.set(docRef, {
@@ -167,6 +170,7 @@ export async function saveVentasToCache(
   }
 
   for (const [month, days] of metaUpdates) {
+    if (Object.keys(days).length === 0) continue
     const metaRef = doc(db, 'companies', companyId, META_COLLECTION, month)
     batch.set(metaRef, { month, days }, { merge: true })
   }

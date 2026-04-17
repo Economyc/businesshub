@@ -3,6 +3,7 @@ interface SyncStatusDotProps {
   lastUpdated: Date | null
   fromCache: boolean
   hasLocals?: boolean
+  onRefresh?: () => void
 }
 
 function formatTime(d: Date): string {
@@ -14,6 +15,7 @@ export function SyncStatusDot({
   lastUpdated,
   fromCache,
   hasLocals = true,
+  onRefresh,
 }: SyncStatusDotProps) {
   if (!hasLocals) {
     return (
@@ -35,33 +37,36 @@ export function SyncStatusDot({
     )
   }
 
-  if (!lastUpdated) {
+  const timeLabel = lastUpdated ? formatTime(lastUpdated) : null
+  const dotColor = !lastUpdated
+    ? 'bg-mid-gray/40'
+    : fromCache
+      ? 'bg-amber-500'
+      : 'bg-emerald-500'
+  const baseTitle = !lastUpdated
+    ? 'Sin datos'
+    : fromCache
+      ? `Cache · ${timeLabel}`
+      : `En vivo · ${timeLabel}`
+  const title = onRefresh ? `${baseTitle} · clic para forzar actualización` : baseTitle
+
+  if (!onRefresh) {
     return (
       <span
-        className="inline-block w-2 h-2 rounded-full bg-mid-gray/40"
-        title="Sin datos"
-        aria-label="Sin datos"
-      />
-    )
-  }
-
-  const timeLabel = formatTime(lastUpdated)
-
-  if (fromCache) {
-    return (
-      <span
-        className="inline-block w-2 h-2 rounded-full bg-amber-500"
-        title={`Cache · ${timeLabel}`}
-        aria-label={`Datos en cache, actualizado ${timeLabel}`}
+        className={`inline-block w-2 h-2 rounded-full ${dotColor}`}
+        title={baseTitle}
+        aria-label={baseTitle}
       />
     )
   }
 
   return (
-    <span
-      className="inline-block w-2 h-2 rounded-full bg-emerald-500"
-      title={`En vivo · ${timeLabel}`}
-      aria-label={`Datos en vivo, actualizado ${timeLabel}`}
+    <button
+      type="button"
+      onClick={onRefresh}
+      className={`inline-block w-2 h-2 rounded-full ${dotColor} hover:ring-2 hover:ring-offset-1 hover:ring-mid-gray/40 transition`}
+      title={title}
+      aria-label={title}
     />
   )
 }
