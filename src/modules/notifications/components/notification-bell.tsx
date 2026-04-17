@@ -48,12 +48,15 @@ function timeAgo(date: Date): string {
 
 export function NotificationBell({ dropdownPosition = 'below-right', fixedStyle }: NotificationBellProps = {}) {
   const [open, setOpen] = useState(false)
+  const [confirmClearOpen, setConfirmClearOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
   const { data: notifications = [] } = useNotifications()
   const unreadCount = useUnreadCount()
   const markAsRead = useMarkAsRead()
   const markAllAsRead = useMarkAllAsRead()
+  const deleteNotification = useDeleteNotification()
+  const clearAllNotifications = useClearAllNotifications()
 
   const dropdownRef = useRef<HTMLDivElement>(null)
 
@@ -118,15 +121,26 @@ export function NotificationBell({ dropdownPosition = 'below-right', fixedStyle 
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-border">
               <span className="text-sm font-semibold text-dark-graphite">Notificaciones</span>
-              {unreadCount > 0 && (
-                <button
-                  onClick={() => markAllAsRead.mutate()}
-                  className="flex items-center gap-1 text-xs text-mid-gray hover:text-graphite transition-colors"
-                >
-                  <CheckCheck size={12} />
-                  Marcar todas leídas
-                </button>
-              )}
+              <div className="flex items-center gap-3">
+                {unreadCount > 0 && (
+                  <button
+                    onClick={() => markAllAsRead.mutate()}
+                    className="flex items-center gap-1 text-xs text-mid-gray hover:text-graphite transition-colors"
+                  >
+                    <CheckCheck size={12} />
+                    Marcar todas leídas
+                  </button>
+                )}
+                {recent.length > 0 && (
+                  <button
+                    onClick={() => setConfirmClearOpen(true)}
+                    className="flex items-center gap-1 text-xs text-mid-gray hover:text-red-500 transition-colors"
+                  >
+                    <Trash2 size={12} />
+                    Limpiar todas
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* List */}
@@ -142,30 +156,44 @@ export function NotificationBell({ dropdownPosition = 'below-right', fixedStyle 
                   const createdAt = n.createdAt?.toDate?.() ?? new Date()
 
                   return (
-                    <button
+                    <div
                       key={n.id}
-                      onClick={() => handleNotificationClick(n)}
                       className={cn(
-                        'w-full text-left px-4 py-3 flex gap-3 hover:bg-bone/50 transition-colors border-b border-border/50 last:border-0',
+                        'group relative border-b border-border/50 last:border-0',
                         !n.read && 'bg-blue-50/50 dark:bg-blue-950/10'
                       )}
                     >
-                      <div className={cn('mt-0.5 shrink-0', color)}>
-                        <Icon size={16} strokeWidth={1.5} />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <p className={cn('text-xs font-medium truncate', !n.read ? 'text-dark-graphite' : 'text-graphite')}>
-                            {n.title}
-                          </p>
-                          {!n.read && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
-                          )}
+                      <button
+                        onClick={() => handleNotificationClick(n)}
+                        className="w-full text-left px-4 py-3 pr-8 flex gap-3 hover:bg-bone/50 transition-colors"
+                      >
+                        <div className={cn('mt-0.5 shrink-0', color)}>
+                          <Icon size={16} strokeWidth={1.5} />
                         </div>
-                        <p className="text-[11px] text-mid-gray line-clamp-2 mt-0.5">{n.summary}</p>
-                        <p className="text-[10px] text-mid-gray/60 mt-1">{timeAgo(createdAt)}</p>
-                      </div>
-                    </button>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className={cn('text-xs font-medium truncate', !n.read ? 'text-dark-graphite' : 'text-graphite')}>
+                              {n.title}
+                            </p>
+                            {!n.read && (
+                              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
+                            )}
+                          </div>
+                          <p className="text-[11px] text-mid-gray line-clamp-2 mt-0.5">{n.summary}</p>
+                          <p className="text-[10px] text-mid-gray/60 mt-1">{timeAgo(createdAt)}</p>
+                        </div>
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          deleteNotification.mutate(n.id)
+                        }}
+                        aria-label="Eliminar notificación"
+                        className="absolute top-2 right-2 p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-bone transition-opacity"
+                      >
+                        <X size={12} className="text-mid-gray hover:text-red-500" />
+                      </button>
+                    </div>
                   )
                 })
               )}
@@ -173,6 +201,17 @@ export function NotificationBell({ dropdownPosition = 'below-right', fixedStyle 
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmClearOpen}
+        title="¿Limpiar todas las notificaciones?"
+        description="Se eliminarán todas las notificaciones de esta empresa. Esta acción no se puede deshacer."
+        onConfirm={async () => {
+          await clearAllNotifications.mutateAsync()
+          setConfirmClearOpen(false)
+        }}
+        onCancel={() => setConfirmClearOpen(false)}
+      />
     </div>
   )
 }
