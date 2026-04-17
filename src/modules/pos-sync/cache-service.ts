@@ -5,17 +5,20 @@ import {
   where,
   getDocs,
   getDoc,
+  setDoc,
   writeBatch,
   doc,
   Timestamp,
 } from 'firebase/firestore'
-import type { PosVenta } from './types'
+import type { PosVenta, PosProducto } from './types'
 
 const SALES_COLLECTION = 'pos-sales-cache'
 const META_COLLECTION = 'pos-sales-cache-meta'
+const CATALOG_COLLECTION = 'pos-catalog-cache'
 
 export const RECONCILE_WINDOW_DAYS = 7
 export const RECONCILE_TTL_MS = 24 * 60 * 60 * 1000
+export const CATALOG_TTL_MS = 24 * 60 * 60 * 1000
 
 export interface CacheLookup {
   ventas: PosVenta[]
@@ -168,6 +171,42 @@ export function enumerateDates(start: string, end: string): string[] {
   }
 
   return dates
+}
+
+export interface CatalogLookup {
+  productos: PosProducto[]
+  syncedAt: Date | null
+  isFresh: boolean
+}
+
+export async function getCachedCatalogo(
+  companyId: string,
+  localId: number,
+): Promise<CatalogLookup | null> {
+  const ref = doc(db, 'companies', companyId, CATALOG_COLLECTION, String(localId))
+  const snap = await getDoc(ref)
+  if (!snap.exists()) return null
+  const data = snap.data() as { productos?: PosProducto[]; syncedAt?: Timestamp }
+  const syncedAt = data.syncedAt?.toDate() ?? null
+  const ageMs = syncedAt ? Date.now() - syncedAt.getTime() : Infinity
+  return {
+    productos: data.productos ?? [],
+    syncedAt,
+    isFresh: ageMs < CATALOG_TTL_MS,
+  }
+}
+
+export async function saveCatalogoToCache(
+  companyId: string,
+  localId: number,
+  productos: PosProducto[],
+): Promise<void> {
+  const ref = doc(db, 'companies', companyId, CATALOG_COLLECTION, String(localId))
+  await setDoc(ref, {
+    localId,
+    productos,
+    syncedAt: Timestamp.now(),
+  })
 }
 
 export function getTodayStr(): string {

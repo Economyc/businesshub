@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
-import { Package, Loader2, MapPin } from 'lucide-react'
+import { Package, Loader2, MapPin, RefreshCw } from 'lucide-react'
 import { EmptyState } from '@/core/ui/empty-state'
 import { SearchInput } from '@/core/ui/search-input'
 import { formatCurrency } from '@/core/utils/format'
@@ -11,8 +11,21 @@ interface CatalogoTabProps {
   localLabel?: string | null
 }
 
+function formatRelative(date: Date | null): string {
+  if (!date) return ''
+  const diffMs = Date.now() - date.getTime()
+  const min = Math.floor(diffMs / 60000)
+  if (min < 1) return 'hace instantes'
+  if (min < 60) return `hace ${min} min`
+  const h = Math.floor(min / 60)
+  if (h < 24) return `hace ${h} h`
+  const d = Math.floor(h / 24)
+  return `hace ${d} d`
+}
+
 export function CatalogoTab({ localId, localLabel }: CatalogoTabProps) {
-  const { productos, loading, error, fetch } = usePosCatalogo()
+  const { productos, loading, isRefreshing, error, fromCache, lastUpdated, fetch, refresh } =
+    usePosCatalogo()
   const [search, setSearch] = useState('')
   const [categoriaFilter, setCategoriaFilter] = useState<string>('all')
 
@@ -46,12 +59,34 @@ export function CatalogoTab({ localId, localLabel }: CatalogoTabProps) {
     <div>
       {/* Hero compacto */}
       <div className="relative bg-surface rounded-2xl card-elevated border border-bone/60 p-5 mb-4 overflow-hidden">
-        <div className="flex items-center gap-2 mb-3">
-          <MapPin size={14} className="text-mid-gray shrink-0" />
-          <span className="text-caption uppercase tracking-wider text-mid-gray">Local</span>
-          <span className="text-caption font-semibold text-dark-graphite truncate">
-            {localLabel ?? '—'}
-          </span>
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <MapPin size={14} className="text-mid-gray shrink-0" />
+            <span className="text-caption uppercase tracking-wider text-mid-gray">Local</span>
+            <span className="text-caption font-semibold text-dark-graphite truncate">
+              {localLabel ?? '—'}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {lastUpdated && (
+              <span className="text-caption text-mid-gray">
+                {fromCache ? 'Sincronizado' : 'Actualizado'} {formatRelative(lastUpdated)}
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => refresh(localId)}
+              disabled={isRefreshing || loading}
+              className="inline-flex items-center gap-1.5 text-caption font-medium text-graphite bg-bone hover:bg-bone/70 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg px-3 py-1.5 transition-colors"
+              aria-label="Actualizar catálogo"
+            >
+              <RefreshCw
+                size={12}
+                className={isRefreshing ? 'animate-spin' : ''}
+              />
+              Actualizar
+            </button>
+          </div>
         </div>
         <div className="flex items-end gap-6 flex-wrap">
           <div>

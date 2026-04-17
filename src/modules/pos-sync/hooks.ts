@@ -5,6 +5,8 @@ import { posService, PosRateLimitError } from './services'
 import {
   getCachedVentas,
   saveVentasToCache,
+  getCachedCatalogo,
+  saveCatalogoToCache,
   enumerateDates,
   getTodayStr,
 } from './cache-service'
@@ -315,23 +317,83 @@ export function useAutoRefresh(callback: () => void, intervalMs: number, enabled
 }
 
 export function usePosCatalogo() {
+  const { selectedCompany } = useCompany()
+  const companyId = selectedCompany?.id
   const [productos, setProductos] = useState<PosProducto[]>([])
   const [loading, setLoading] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [fromCache, setFromCache] = useState(false)
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
 
-  const fetch = useCallback(async (localId: number) => {
-    setLoading(true)
-    setError(null)
-    try {
+  const fetchFromPos = useCallback(
+    async (localId: number): Promise<void> => {
       const data = await posService.getCatalogo(localId)
       setProductos(data)
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Error desconocido')
-      setProductos([])
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+      const now = new Date()
+      setLastUpdated(now)
+      setFromCache(false)
+      if (companyId) {
+        saveCatalogoToCache(companyId, localId, data).catch((err) => {
+          // eslint-disable-next-line no-console
+          console.warn('[pos-sync] saveCatalogoToCache failed', err)
+        })
+      }
+    },
+    [companyId],
+  )
 
-  return { productos, loading, error, fetch }
+  const load = useCallback(
+    async (localId: number, { force }: { force?: boolean } = {}) => {
+      setError(null)
+
+      let cached: Awaited<ReturnType<typeof getCachedCatalogo>> = null
+      if (companyId) {
+        try {
+          cached = await getCachedCatalogo(companyId, localId)
+        } catch {
+          // Cache read failed — fall through to full fetch
+        }
+      }
+
+      if (cached && cached.productos.length > 0) {
+        setProductos(cached.productos)
+        setLastUpdated(cached.syncedAt)
+        setFromCache(true)
+        if (!force && cached.isFresh) return
+        setIsRefreshing(true)
+        try {
+          await fetchFromPos(localId)
+        } catch (err: unknown) {
+          setError(err instanceof Error ? err.message : 'Error desconocido')
+        } finally {
+          setIsRefreshing(false)
+        }
+        return
+      }
+
+      setLoading(true)
+      try {
+        await fetchFromPos(localId)
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Error desconocido')
+        setProductos([])
+      } finally {
+        setLoading(false)
+      }
+    },
+    [companyId, fetchFromPos],
+  )
+
+  const fetch = useCallback(
+    (localId: number) => load(localId),
+    [load],
+  )
+
+  const refresh = useCallback(
+    (localId: number) => load(localId, { force: true }),
+    [load],
+  )
+
+  return { productos, loading, isRefreshing, error, fromCache, lastUpdated, fetch, refresh }
 }
