@@ -42,7 +42,12 @@ export function SalesTrendChart({ data, periodLabel }: SalesTrendChartProps) {
               interval="preserveStartEnd"
             />
             <YAxis
-              tickFormatter={(v) => formatCurrency(v)}
+              tickFormatter={(v) =>
+                `$${Number(v).toLocaleString('es-CO', {
+                  notation: 'compact',
+                  maximumFractionDigits: 1,
+                })}`
+              }
               tick={{ fontSize: 11, fill: '#8a8a8a' }}
               axisLine={false}
               tickLine={false}
