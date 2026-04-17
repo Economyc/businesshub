@@ -98,7 +98,14 @@ export async function getCachedVentas(
       if (!date || date < startDate || date > endDate) continue
       const withinReconcile = date >= reconcileFrom && date < today
       const tsMs = ts?.toMillis?.() ?? 0
-      const stale = withinReconcile && now - tsMs > RECONCILE_TTL_MS
+      // A day is stale if:
+      //  - it's within the reconcile window AND its cache age exceeds the TTL, OR
+      //  - it was cached before the day actually ended (cache snapshot taken mid-day,
+      //    so afternoon/evening sales may be missing).
+      const endOfDayMs = new Date(date + 'T23:59:59.999').getTime()
+      const cachedMidDay = tsMs > 0 && tsMs < endOfDayMs
+      const stale =
+        withinReconcile && (now - tsMs > RECONCILE_TTL_MS || cachedMidDay)
       if (stale) staleKeys.add(key)
       else freshKeys.add(key)
     }
