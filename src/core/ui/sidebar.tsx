@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
-import { BarChart3, Users, Briefcase, DollarSign, Home, Search, ChevronsLeft, Building2, Tags, BadgeCheck, Network, Handshake, ClipboardList, FileSignature, Wallet, Receipt, Gift, ChevronRight, ChevronsUpDown, Check, MapPin, LogOut, Settings, Landmark, Boxes, UserRound, Bot, List, ShoppingCart, Package, Target, Scale, FileText, Shield, RefreshCw, Megaphone } from 'lucide-react'
+import { BarChart3, Users, Briefcase, DollarSign, Home, ChevronsLeft, Building2, Tags, BadgeCheck, Network, Handshake, ClipboardList, FileSignature, Wallet, Receipt, Gift, ChevronRight, ChevronsUpDown, Check, MapPin, LogOut, Settings, Landmark, Boxes, UserRound, Bot, List, ShoppingCart, Package, Target, Scale, FileText, Shield, RefreshCw, Megaphone } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { CommandPalette } from '@/core/ui/command-palette'
 import { CompanyLogo } from '@/core/ui/company-logo'
@@ -13,7 +13,6 @@ import { useAvatarConfig } from '@/core/hooks/use-avatar-config'
 import { useCompany } from '@/core/hooks/use-company'
 import { usePermissions } from '@/core/hooks/use-permissions'
 import type { ModuleKey } from '@/core/types/permissions'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 interface NavItem {
   to: string
@@ -232,13 +231,12 @@ export function Sidebar({ onNavClick }: SidebarProps) {
   }, [companyOpen, userMenuOpen, settingsOpen, financeOpen])
 
   return (
-    <TooltipProvider delayDuration={200}>
     <div className="flex flex-shrink-0 group/sidebar">
       <nav
         className={cn(
-          'bg-bone py-5 flex-shrink-0 flex flex-col transition-all duration-300 ease-in-out relative',
+          'bg-bone py-5 flex-shrink-0 flex flex-col transition-all duration-300 ease-in-out relative border-r border-border/60',
           settingsOpen && 'shadow-[4px_0_12px_-2px_rgba(0,0,0,0.08)]',
-          collapsed ? 'w-[60px]' : 'w-[200px]'
+          collapsed ? 'w-[10px]' : 'w-[200px]'
         )}
       >
         {/* Collapse toggle — hover-reveal on sidebar edge */}
@@ -248,419 +246,265 @@ export function Sidebar({ onNavClick }: SidebarProps) {
         >
           <ChevronsLeft size={13} strokeWidth={1.5} className={cn('transition-transform duration-300', collapsed && 'rotate-180')} />
         </button>
-        {/* Company selector */}
-        <div className={cn('mb-3', collapsed ? 'px-0' : 'px-3')} ref={companyRef}>
-          {!collapsed ? (
-            <div className="relative">
-              <button
-                onClick={() => setCompanyOpen(!companyOpen)}
-                className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg bg-smoke dark:bg-smoke hover:bg-selector-bg dark:hover:bg-selector-bg shadow-sm transition-all duration-150"
-              >
-                <CompanyLogo company={selectedCompany} />
-                <div className="min-w-0 flex-1 text-left">
-                  {selectedCompany?.location && (
-                    <div className="flex items-center gap-0.5 text-body font-medium text-dark-graphite truncate">
-                      <MapPin size={11} />
-                      {selectedCompany.location}
-                    </div>
-                  )}
-                </div>
-                <ChevronsUpDown size={14} className="text-mid-gray shrink-0" />
-              </button>
 
-              {companyOpen && (
-                <div className="absolute left-0 top-full mt-2 min-w-[250px] bg-surface-elevated border border-border rounded-xl shadow-lg z-50 py-1.5 overflow-hidden">
-                  {companies.map((company) => (
-                    <button
-                      key={company.id}
-                      onClick={() => { selectCompany(company); setCompanyOpen(false) }}
-                      className={cn(
-                        'w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors duration-100',
-                        selectedCompany?.id === company.id
-                          ? 'bg-bone'
-                          : 'hover:bg-bone/50'
-                      )}
-                    >
-                      <CompanyLogo company={company} />
-                      <div className="min-w-0 flex-1">
-                        <div className="text-body text-dark-graphite truncate">{company.name}</div>
-                        {company.location && (
-                          <div className="flex items-center gap-0.5 text-[11px] text-mid-gray truncate">
-                            <MapPin size={9} />
-                            {company.location}
-                          </div>
-                        )}
-                      </div>
-                      {selectedCompany?.id === company.id && (
-                        <Check size={14} className="text-graphite shrink-0" />
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="relative flex justify-center">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => setCompanyOpen(!companyOpen)}
-                    className="relative p-1.5 rounded-md hover:bg-smoke dark:hover:bg-smoke transition-colors duration-200"
-                  >
-                    <CompanyLogo company={selectedCompany} />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="right">{selectedCompany?.name ?? 'Compañía'}</TooltipContent>
-              </Tooltip>
-
-              {companyOpen && (
-                <div className="absolute left-full ml-2 top-0 min-w-[250px] bg-surface-elevated border border-border rounded-xl shadow-lg z-50 py-1.5 overflow-hidden">
-                  {companies.map((company) => (
-                    <button
-                      key={company.id}
-                      onClick={() => { selectCompany(company); setCompanyOpen(false) }}
-                      className={cn(
-                        'w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors duration-100',
-                        selectedCompany?.id === company.id
-                          ? 'bg-bone'
-                          : 'hover:bg-bone/50'
-                      )}
-                    >
-                      <CompanyLogo company={company} />
-                      <div className="min-w-0 flex-1">
-                        <div className="text-body text-dark-graphite truncate">{company.name}</div>
-                        {company.location && (
-                          <div className="flex items-center gap-0.5 text-[11px] text-mid-gray truncate">
-                            <MapPin size={9} />
-                            {company.location}
-                          </div>
-                        )}
-                      </div>
-                      {selectedCompany?.id === company.id && (
-                        <Check size={14} className="text-graphite shrink-0" />
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Search — inline CommandPalette dropdown */}
-        {!collapsed ? (
-          <div className="px-3 mb-3">
-            <CommandPalette />
-          </div>
-        ) : (
-          <div className="flex justify-center mb-3">
-            <Tooltip>
-              <TooltipTrigger asChild>
+        {!collapsed && (
+          <>
+            {/* Company selector */}
+            <div className="mb-3 px-3" ref={companyRef}>
+              <div className="relative">
                 <button
-                  onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))}
-                  className="flex items-center justify-center p-1.5 rounded-md text-mid-gray/50 hover:text-graphite transition-colors duration-200"
+                  onClick={() => setCompanyOpen(!companyOpen)}
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg bg-smoke dark:bg-smoke hover:bg-selector-bg dark:hover:bg-selector-bg shadow-sm transition-all duration-150"
                 >
-                  <Search size={16} strokeWidth={1.5} />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="right">Buscar (Ctrl K)</TooltipContent>
-            </Tooltip>
-          </div>
-        )}
-
-        {/* Nav items */}
-        <div
-          className="flex-1 overflow-y-auto"
-          style={{ scrollbarGutter: 'stable both-edges' }}
-        >
-          {permissionsLoading ? (
-            /* Skeleton while permissions load — prevents lone module flash */
-            collapsed ? (
-              <div className="flex flex-col gap-1 py-1">
-                {Array.from({ length: 10 }).map((_, i) => (
-                  <div key={i} className="mx-auto w-5 h-5 rounded-md bg-smoke animate-pulse" />
-                ))}
-              </div>
-            ) : (
-              <div className="flex flex-col gap-1">
-                {[3, 5, 2, 2, 1, 1].map((count, sIdx) => (
-                  <div key={sIdx} className="flex flex-col gap-1 mb-2">
-                    {sIdx > 0 && (
-                      <div className="h-8 mx-5 my-1 rounded-md bg-smoke animate-pulse" />
+                  <CompanyLogo company={selectedCompany} />
+                  <div className="min-w-0 flex-1 text-left">
+                    {selectedCompany?.location && (
+                      <div className="flex items-center gap-0.5 text-body font-medium text-dark-graphite truncate">
+                        <MapPin size={11} />
+                        {selectedCompany.location}
+                      </div>
                     )}
-                    {Array.from({ length: count }).map((_, i) => (
-                      <div key={i} className="h-7 mx-5 rounded-md bg-smoke/70 animate-pulse" />
+                  </div>
+                  <ChevronsUpDown size={14} className="text-mid-gray shrink-0" />
+                </button>
+
+                {companyOpen && (
+                  <div className="absolute left-0 top-full mt-2 min-w-[250px] bg-surface-elevated border border-border rounded-xl shadow-lg z-50 py-1.5 overflow-hidden">
+                    {companies.map((company) => (
+                      <button
+                        key={company.id}
+                        onClick={() => { selectCompany(company); setCompanyOpen(false) }}
+                        className={cn(
+                          'w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors duration-100',
+                          selectedCompany?.id === company.id
+                            ? 'bg-bone'
+                            : 'hover:bg-bone/50'
+                        )}
+                      >
+                        <CompanyLogo company={company} />
+                        <div className="min-w-0 flex-1">
+                          <div className="text-body text-dark-graphite truncate">{company.name}</div>
+                          {company.location && (
+                            <div className="flex items-center gap-0.5 text-[11px] text-mid-gray truncate">
+                              <MapPin size={9} />
+                              {company.location}
+                            </div>
+                          )}
+                        </div>
+                        {selectedCompany?.id === company.id && (
+                          <Check size={14} className="text-graphite shrink-0" />
+                        )}
+                      </button>
                     ))}
                   </div>
-                ))}
+                )}
               </div>
-            )
-          ) : collapsed ? (
-            /* Collapsed: flat list of all item icons, no section headers */
-            <div className="flex flex-col">
-              {NAV_SECTIONS.flatMap((section) =>
-                section.items.map(({ to, label, icon: Icon, moduleKey }) => {
-                  const hasAccess = !moduleKey || can(moduleKey, 'read')
-                  if (!hasAccess) return null
+            </div>
 
-                  if (to === '/finance') {
-                    return (
-                      <Tooltip key={to}>
-                        <TooltipTrigger asChild>
-                          <button
-                            onClick={handleFinanceClick}
-                            className={cn(
-                              'w-full flex items-center justify-center py-2.5 transition-all duration-150',
-                              isFinanceRoute
-                                ? 'text-dark-graphite font-medium shadow-[inset_-2px_0_0_0_var(--color-graphite)]'
-                                : 'text-graphite/70 hover:bg-card-bg hover:text-graphite'
-                            )}
-                          >
-                            <Icon size={16} strokeWidth={1.5} />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent side="right">{label}</TooltipContent>
-                      </Tooltip>
-                    )
-                  }
+            {/* Search — inline CommandPalette dropdown */}
+            <div className="px-3 mb-3">
+              <CommandPalette />
+            </div>
+
+            {/* Nav items */}
+            <div
+              className="flex-1 overflow-y-auto"
+              style={{ scrollbarGutter: 'stable both-edges' }}
+            >
+              {permissionsLoading ? (
+                <div className="flex flex-col gap-1">
+                  {[3, 5, 2, 2, 1, 1].map((count, sIdx) => (
+                    <div key={sIdx} className="flex flex-col gap-1 mb-2">
+                      {sIdx > 0 && (
+                        <div className="h-8 mx-5 my-1 rounded-md bg-smoke animate-pulse" />
+                      )}
+                      {Array.from({ length: count }).map((_, i) => (
+                        <div key={i} className="h-7 mx-5 rounded-md bg-smoke/70 animate-pulse" />
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                NAV_SECTIONS.map((section, sIdx) => {
+                  const visibleItems = section.items.filter(({ moduleKey }) => !moduleKey || can(moduleKey, 'read'))
+                  if (visibleItems.length === 0) return null
+
+                  const isOpen = !section.title || openSections.has(section.title)
                   return (
-                    <Tooltip key={to}>
-                      <TooltipTrigger asChild>
-                        <NavLink
-                          to={to}
-                          onClick={onNavClick}
-                          className={({ isActive }) =>
-                            cn(
-                              'w-full flex items-center justify-center py-2.5 transition-all duration-150',
-                              isActive
-                                ? 'text-dark-graphite font-medium shadow-[inset_-2px_0_0_0_var(--color-graphite)]'
-                                : 'text-graphite/70 hover:bg-card-bg hover:text-graphite'
-                            )
-                          }
+                    <div key={section.title ?? sIdx} className={section.title ? 'relative' : ''}>
+                      {section.title && (
+                        <button
+                          onClick={() => toggleSection(section.title!)}
+                          className={cn(
+                            'group/section w-full flex items-center gap-2.5 py-2.5 px-5 text-body transition-all duration-150',
+                            isOpen
+                              ? 'text-dark-graphite font-medium'
+                              : 'text-graphite/70 hover:bg-card-bg hover:text-graphite'
+                          )}
                         >
-                          <Icon size={16} strokeWidth={1.5} />
-                        </NavLink>
-                      </TooltipTrigger>
-                      <TooltipContent side="right">{label}</TooltipContent>
-                    </Tooltip>
+                          {section.icon && <section.icon size={16} strokeWidth={1.5} />}
+                          <span className="flex-1 text-left">{section.title}</span>
+                          <ChevronRight
+                            size={14}
+                            strokeWidth={1.5}
+                            className={cn(
+                              'text-mid-gray/40 group-hover/section:text-mid-gray transition-all duration-200',
+                              isOpen && 'rotate-90'
+                            )}
+                          />
+                        </button>
+                      )}
+                      <div
+                        className={cn(
+                          'grid transition-all duration-200 ease-in-out',
+                          isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+                        )}
+                      >
+                        <div className="overflow-hidden relative">
+                          {visibleItems.map(({ to, label, icon: Icon }, itemIdx) => {
+                            const isLastItem = itemIdx === visibleItems.length - 1
+
+                            if (to === '/finance') {
+                              return (
+                                <button
+                                  key={to}
+                                  onClick={handleFinanceClick}
+                                  className={cn(
+                                    'group/nav relative flex items-center gap-2.5 py-2.5 text-body transition-all duration-150 w-full',
+                                    section.title ? 'pl-8 pr-5' : 'px-5',
+                                    isFinanceRoute
+                                      ? 'text-dark-graphite font-medium bg-bone border-r-2 border-graphite'
+                                      : 'text-graphite/70 hover:bg-card-bg hover:text-graphite'
+                                  )}
+                                >
+                                  {section.title && (
+                                    <>
+                                      <div className="absolute left-[27px] top-0 h-1/2 w-[4px] border-l-[1.5px] border-b-[1.5px] border-graphite/20 rounded-bl-[4px]" />
+                                      {!isLastItem && <div className="absolute left-[27px] top-1/2 bottom-0 w-[1.5px] bg-graphite/20" />}
+                                    </>
+                                  )}
+                                  <Icon size={16} strokeWidth={1.5} />
+                                  {label}
+                                </button>
+                              )
+                            }
+                            return (
+                              <NavLink
+                                key={to}
+                                to={to}
+                                onClick={onNavClick}
+                                className={({ isActive }) =>
+                                  cn(
+                                    'group/nav relative flex items-center gap-2.5 py-2.5 text-body transition-all duration-150',
+                                    section.title ? 'pl-8 pr-5' : 'px-5',
+                                    isActive
+                                      ? 'text-dark-graphite font-medium bg-bone border-r-2 border-graphite'
+                                      : 'text-graphite/70 hover:bg-card-bg hover:text-graphite'
+                                  )
+                                }
+                              >
+                                {section.title && (
+                                  <>
+                                    <div className="absolute left-[27px] top-0 h-1/2 w-[4px] border-l-[1.5px] border-b-[1.5px] border-graphite/20 rounded-bl-[4px]" />
+                                    {!isLastItem && <div className="absolute left-[27px] top-1/2 bottom-0 w-[1.5px] bg-graphite/20" />}
+                                  </>
+                                )}
+                                <Icon size={16} strokeWidth={1.5} />
+                                {label}
+                              </NavLink>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    </div>
                   )
                 })
               )}
             </div>
-          ) : (
-            /* Expanded: sections with headers, tree lines, labels */
-            NAV_SECTIONS.map((section, sIdx) => {
-              // Hide entire section if no items have access
-              const visibleItems = section.items.filter(({ moduleKey }) => !moduleKey || can(moduleKey, 'read'))
-              if (visibleItems.length === 0) return null
 
-              const isOpen = !section.title || openSections.has(section.title)
-              return (
-                <div key={section.title ?? sIdx} className={section.title ? 'relative' : ''}>
-                  {/* Tree connector lines are now per-item (curved) */}
-                  {section.title && (
-                    <button
-                      onClick={() => toggleSection(section.title!)}
-                      className={cn(
-                        'group/section w-full flex items-center gap-2.5 py-2.5 px-5 text-body transition-all duration-150',
-                        isOpen
-                          ? 'text-dark-graphite font-medium'
-                          : 'text-graphite/70 hover:bg-card-bg hover:text-graphite'
-                      )}
-                    >
-                      {section.icon && <section.icon size={16} strokeWidth={1.5} />}
-                      <span className="flex-1 text-left">{section.title}</span>
-                      <ChevronRight
-                        size={14}
-                        strokeWidth={1.5}
-                        className={cn(
-                          'text-mid-gray/40 group-hover/section:text-mid-gray transition-all duration-200',
-                          isOpen && 'rotate-90'
-                        )}
-                      />
-                    </button>
-                  )}
+            {/* Bottom — Notifications + User menu */}
+            <div className="border-t border-border mx-4 pt-1">
+              <div className="flex justify-end py-2 px-1">
+                <NotificationBell
+                  dropdownPosition="fixed"
+                  fixedStyle={{ bottom: 60, left: 208 }}
+                />
+              </div>
+
+              <div className="relative" ref={userMenuRef}>
+                <button
+                  onClick={() => setUserMenuOpen(!userMenuOpen)}
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg bg-smoke dark:bg-smoke hover:bg-selector-bg dark:hover:bg-selector-bg shadow-sm transition-all duration-150 cursor-pointer"
+                >
+                  <UserAvatar config={avatarConfig} displayName={user?.displayName} email={user?.email} size="md" />
+                  <div className="min-w-0 flex-1 text-left">
+                    <div className="text-body font-medium text-dark-graphite truncate">{user?.displayName ?? user?.email?.split('@')[0] ?? 'Usuario'}</div>
+                    <div className="text-[11px] text-mid-gray truncate leading-tight">{user?.email ?? ''}</div>
+                  </div>
+                </button>
+
+                {/* User dropdown — opens to the right of sidebar */}
+                {userMenuOpen && (
                   <div
-                    className={cn(
-                      'grid transition-all duration-200 ease-in-out',
-                      isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
-                    )}
+                    ref={userDropdownRef}
+                    className="fixed bottom-4 z-50 w-[250px] animate-in fade-in slide-in-from-left-2 duration-200"
+                    style={{ left: 208 }}
                   >
-                    <div className="overflow-hidden relative">
-                      {visibleItems.map(({ to, label, icon: Icon }, itemIdx) => {
-                        const isLastItem = itemIdx === visibleItems.length - 1
-
-                        if (to === '/finance') {
-                          return (
+                    <div className="bg-bone border border-border rounded-xl shadow-lg p-2">
+                      {/* Main card */}
+                      <div className="bg-surface-elevated rounded-lg border border-border/60 shadow-sm">
+                        {/* User info header */}
+                        <div className="flex items-center gap-3 px-4 py-4">
+                          <UserAvatar config={avatarConfig} displayName={user?.displayName} email={user?.email} size="lg" />
+                          <div className="min-w-0">
+                            <div className="text-body font-medium text-dark-graphite truncate">{user?.displayName ?? user?.email?.split('@')[0] ?? 'Usuario'}</div>
+                            <div className="text-caption text-mid-gray truncate">{user?.email ?? ''}</div>
+                          </div>
+                        </div>
+                        <div className="border-t border-border/60" />
+                        <AvatarPicker config={avatarConfig} onConfigChange={setAvatarConfig} />
+                        <div className="border-t border-border/60" />
+                        <ThemeToggle />
+                        {can('settings', 'read') && (
+                          <>
+                            <div className="border-t border-border/60" />
+                            {/* Configuración button — opens side panel */}
                             <button
-                              key={to}
-                              onClick={handleFinanceClick}
+                              onClick={handleSettingsClick}
                               className={cn(
-                                'group/nav relative flex items-center gap-2.5 py-2.5 text-body transition-all duration-150 w-full',
-                                section.title ? 'pl-8 pr-5' : 'px-5',
-                                isFinanceRoute
-                                  ? 'text-dark-graphite font-medium bg-bone border-r-2 border-graphite'
-                                  : 'text-graphite/70 hover:bg-card-bg hover:text-graphite'
+                                'w-full flex items-center gap-2.5 px-4 py-3 rounded-lg text-body transition-colors duration-150',
+                                settingsOpen
+                                  ? 'text-dark-graphite font-medium'
+                                  : 'text-mid-gray hover:text-dark-graphite'
                               )}
                             >
-                              {section.title && (
-                                <>
-                                  <div className="absolute left-[27px] top-0 h-1/2 w-[4px] border-l-[1.5px] border-b-[1.5px] border-graphite/20 rounded-bl-[4px]" />
-                                  {!isLastItem && <div className="absolute left-[27px] top-1/2 bottom-0 w-[1.5px] bg-graphite/20" />}
-                                </>
-                              )}
-                              <Icon size={16} strokeWidth={1.5} />
-                              {label}
+                              <Settings size={16} strokeWidth={1.5} />
+                              Configuración
                             </button>
-                          )
-                        }
-                        return (
-                          <NavLink
-                            key={to}
-                            to={to}
-                            onClick={onNavClick}
-                            className={({ isActive }) =>
-                              cn(
-                                'group/nav relative flex items-center gap-2.5 py-2.5 text-body transition-all duration-150',
-                                section.title ? 'pl-8 pr-5' : 'px-5',
-                                isActive
-                                  ? 'text-dark-graphite font-medium bg-bone border-r-2 border-graphite'
-                                  : 'text-graphite/70 hover:bg-card-bg hover:text-graphite'
-                              )
-                            }
-                          >
-                            {section.title && (
-                              <>
-                                <div className="absolute left-[27px] top-0 h-1/2 w-[4px] border-l-[1.5px] border-b-[1.5px] border-graphite/20 rounded-bl-[4px]" />
-                                {!isLastItem && <div className="absolute left-[27px] top-1/2 bottom-0 w-[1.5px] bg-graphite/20" />}
-                              </>
-                            )}
-                            <Icon size={16} strokeWidth={1.5} />
-                            {label}
-                          </NavLink>
-                        )
-                      })}
-                    </div>
-                  </div>
-                </div>
-              )
-            })
-          )}
-        </div>
+                          </>
+                        )}
+                      </div>
 
-        {/* Bottom — Notifications + User menu */}
-        <div className={cn('border-t border-border', collapsed ? 'mx-3 pt-1' : 'mx-4 pt-1')}>
-          {/* Notification bell */}
-          {collapsed ? (
-            <div className="flex justify-center py-2">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div>
-                    <NotificationBell
-                      dropdownPosition="fixed"
-                      fixedStyle={{ bottom: 60, left: 68 }}
-                    />
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent side="right">Notificaciones</TooltipContent>
-              </Tooltip>
-            </div>
-          ) : (
-            <div className="flex justify-end py-2 px-1">
-              <NotificationBell
-                dropdownPosition="fixed"
-                fixedStyle={{ bottom: 60, left: 208 }}
-              />
-            </div>
-          )}
-
-          <div className={cn("relative", collapsed && "flex justify-center")} ref={userMenuRef}>
-            {collapsed ? (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => setUserMenuOpen(!userMenuOpen)}
-                    className="flex items-center justify-center p-1.5 rounded-md text-mid-gray/50 hover:text-graphite transition-colors duration-200"
-                  >
-                    <UserAvatar config={avatarConfig} displayName={user?.displayName} email={user?.email} size="sm" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="right">{user?.displayName ?? user?.email?.split('@')[0] ?? 'Usuario'}</TooltipContent>
-              </Tooltip>
-            ) : (
-              <button
-                onClick={() => setUserMenuOpen(!userMenuOpen)}
-                className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg bg-smoke dark:bg-smoke hover:bg-selector-bg dark:hover:bg-selector-bg shadow-sm transition-all duration-150 cursor-pointer"
-              >
-                <UserAvatar config={avatarConfig} displayName={user?.displayName} email={user?.email} size="md" />
-                <div className="min-w-0 flex-1 text-left">
-                  <div className="text-body font-medium text-dark-graphite truncate">{user?.displayName ?? user?.email?.split('@')[0] ?? 'Usuario'}</div>
-                  <div className="text-[11px] text-mid-gray truncate leading-tight">{user?.email ?? ''}</div>
-                </div>
-              </button>
-            )}
-
-            {/* User dropdown — opens to the right of sidebar */}
-            {userMenuOpen && (
-              <div
-                ref={userDropdownRef}
-                className="fixed bottom-4 z-50 w-[250px] animate-in fade-in slide-in-from-left-2 duration-200"
-                style={{ left: collapsed ? 68 : 208 }}
-              >
-                <div className="bg-bone border border-border rounded-xl shadow-lg p-2">
-                  {/* Main card */}
-                  <div className="bg-surface-elevated rounded-lg border border-border/60 shadow-sm">
-                    {/* User info header */}
-                    <div className="flex items-center gap-3 px-4 py-4">
-                      <UserAvatar config={avatarConfig} displayName={user?.displayName} email={user?.email} size="lg" />
-                      <div className="min-w-0">
-                        <div className="text-body font-medium text-dark-graphite truncate">{user?.displayName ?? user?.email?.split('@')[0] ?? 'Usuario'}</div>
-                        <div className="text-caption text-mid-gray truncate">{user?.email ?? ''}</div>
+                      {/* Logout sub-card */}
+                      <div className="mt-2 bg-surface/60 rounded-lg border border-border/60">
+                        <button
+                          onClick={() => {
+                            setUserMenuOpen(false)
+                            logout()
+                          }}
+                          className="w-full flex items-center gap-2.5 px-4 py-3 rounded-lg text-body text-mid-gray hover:text-dark-graphite transition-colors duration-150"
+                        >
+                          <LogOut size={16} strokeWidth={1.5} />
+                          Cerrar sesión
+                        </button>
                       </div>
                     </div>
-                    <div className="border-t border-border/60" />
-                    <AvatarPicker config={avatarConfig} onConfigChange={setAvatarConfig} />
-                    <div className="border-t border-border/60" />
-                    <ThemeToggle />
-                    {can('settings', 'read') && (
-                      <>
-                        <div className="border-t border-border/60" />
-                        {/* Configuración button — opens side panel */}
-                        <button
-                          onClick={handleSettingsClick}
-                          className={cn(
-                            'w-full flex items-center gap-2.5 px-4 py-3 rounded-lg text-body transition-colors duration-150',
-                            settingsOpen
-                              ? 'text-dark-graphite font-medium'
-                              : 'text-mid-gray hover:text-dark-graphite'
-                          )}
-                        >
-                          <Settings size={16} strokeWidth={1.5} />
-                          Configuración
-                        </button>
-                      </>
-                    )}
                   </div>
-
-                  {/* Logout sub-card */}
-                  <div className="mt-2 bg-surface/60 rounded-lg border border-border/60">
-                    <button
-                      onClick={() => {
-                        setUserMenuOpen(false)
-                        logout()
-                      }}
-                      className="w-full flex items-center gap-2.5 px-4 py-3 rounded-lg text-body text-mid-gray hover:text-dark-graphite transition-colors duration-150"
-                    >
-                      <LogOut size={16} strokeWidth={1.5} />
-                      Cerrar sesión
-                    </button>
-                  </div>
-                </div>
+                )}
               </div>
-            )}
-          </div>
-
-        </div>
+            </div>
+          </>
+        )}
       </nav>
 
       {/* Finance sub-panel */}
@@ -744,6 +588,5 @@ export function Sidebar({ onNavClick }: SidebarProps) {
         </div>
       </div>
     </div>
-    </TooltipProvider>
   )
 }
