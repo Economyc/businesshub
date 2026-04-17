@@ -118,6 +118,8 @@ export function useDashboardData() {
     enabled: localIds.length > 0,
   })
 
+  const posColdLoading = posLoading && posVentas.length === 0 && localIds.length > 0
+
   // Suma de ventas POS válidas (excluye anuladas) agrupadas por día YYYY-MM-DD
   const posSalesByDate = useMemo(() => {
     const map = new Map<string, number>()
@@ -343,7 +345,14 @@ export function useDashboardData() {
     return { overdueItems, budgetExceeded, expiringContracts }
   }, [receivables, payables, budgetComparison, suppliers, contracts])
 
-  const loading = txLoading || closingsLoading || carteraLoading || budgetLoading || suppliersLoading || contractsLoading
+  const loading =
+    txLoading ||
+    closingsLoading ||
+    carteraLoading ||
+    budgetLoading ||
+    suppliersLoading ||
+    contractsLoading ||
+    posColdLoading
 
   const syncStatus = useMemo<DashboardSyncStatus>(
     () => ({

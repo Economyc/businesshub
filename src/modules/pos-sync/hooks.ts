@@ -28,28 +28,45 @@ interface FetchResult {
   rateLimited: boolean
 }
 
-function splitIntoChunks(startDate: string, endDate: string): { start: string; end: string }[] {
+function fmtDate(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+function nextDay(date: string): string {
+  const d = new Date(date + 'T12:00:00')
+  d.setDate(d.getDate() + 1)
+  return fmtDate(d)
+}
+
+// Build minimal chunks (capped at MAX_DAYS) covering only the dates that actually need to be fetched.
+// Contiguous missing days are merged into a single request; non-contiguous gaps stay separate.
+function buildFetchChunks(
+  missingDates: string[],
+): { start: string; end: string }[] {
+  if (missingDates.length === 0) return []
+  const sorted = [...new Set(missingDates)].sort()
   const chunks: { start: string; end: string }[] = []
-  const end = new Date(endDate + 'T12:00:00')
-  let cursor = new Date(startDate + 'T12:00:00')
+  let chunkStart = sorted[0]
+  let chunkEnd = sorted[0]
+  let chunkLen = 1
 
-  while (cursor <= end) {
-    const chunkEnd = new Date(cursor)
-    chunkEnd.setDate(chunkEnd.getDate() + MAX_DAYS - 1)
-    if (chunkEnd > end) chunkEnd.setTime(end.getTime())
-
-    const fmt = (d: Date) => {
-      const y = d.getFullYear()
-      const m = String(d.getMonth() + 1).padStart(2, '0')
-      const day = String(d.getDate()).padStart(2, '0')
-      return `${y}-${m}-${day}`
+  for (let i = 1; i < sorted.length; i++) {
+    const date = sorted[i]
+    const expectedNext = nextDay(chunkEnd)
+    if (date === expectedNext && chunkLen < MAX_DAYS) {
+      chunkEnd = date
+      chunkLen++
+    } else {
+      chunks.push({ start: chunkStart, end: chunkEnd })
+      chunkStart = date
+      chunkEnd = date
+      chunkLen = 1
     }
-
-    chunks.push({ start: fmt(cursor), end: fmt(chunkEnd) })
-    cursor = new Date(chunkEnd)
-    cursor.setDate(cursor.getDate() + 1)
   }
-
+  chunks.push({ start: chunkStart, end: chunkEnd })
   return chunks
 }
 
@@ -61,6 +78,8 @@ interface FetchArgs {
   onProgress?: (p: FetchProgress | null) => void
   onPartial?: (partial: FetchResult) => void
 }
+
+const PARALLEL_CHUNKS = 2
 
 async function fetchVentasWithCache({
   companyId,
@@ -88,98 +107,91 @@ async function fetchVentasWithCache({
     }
   }
 
-  // Determine which date×local keys still need to be fetched
+  // Determine which dates still need to be fetched (a date needs fetch if any local for that date is missing/stale)
   const allDates = enumerateDates(startDate, endDate)
-  const needsFetch = new Set<string>()
+  const datesNeedingFetch: string[] = []
   for (const date of allDates) {
+    let needs = false
     for (const lid of localIds) {
       const key = `${date}_${lid}`
-      if (date >= today) {
-        needsFetch.add(key)
-        continue
-      }
-      if (staleKeys.has(key)) {
-        needsFetch.add(key)
-        continue
-      }
-      if (!freshKeys.has(key)) {
-        needsFetch.add(key)
+      if (date >= today || staleKeys.has(key) || !freshKeys.has(key)) {
+        needs = true
+        break
       }
     }
+    if (needs) datesNeedingFetch.push(date)
   }
 
-  if (needsFetch.size === 0) {
+  if (datesNeedingFetch.length === 0) {
     return { ventas: cachedVentas, fromCache: true, rateLimited: false }
   }
 
-  // Show cached preview while API loads
-  if (cachedVentas.length > 0) {
-    onPartial?.({ ventas: cachedVentas, fromCache: true, rateLimited: false })
-  }
-
-  // Find chunks that overlap with any uncached/stale key
-  const chunks = splitIntoChunks(startDate, endDate)
-  const chunksToFetch = chunks.filter((chunk) => {
-    for (const date of enumerateDates(chunk.start, chunk.end)) {
-      for (const lid of localIds) {
-        if (needsFetch.has(`${date}_${lid}`)) return true
-      }
-    }
-    return false
-  })
-
+  const chunksToFetch = buildFetchChunks(datesNeedingFetch)
   if (chunksToFetch.length === 0) {
     return { ventas: cachedVentas, fromCache: true, rateLimited: false }
   }
 
-  // Remove cached ventas that fall within dates we're about to re-fetch
-  const redoDates = new Set<string>()
-  for (const chunk of chunksToFetch) {
-    for (const date of enumerateDates(chunk.start, chunk.end)) {
-      for (const lid of localIds) {
-        if (needsFetch.has(`${date}_${lid}`)) {
-          redoDates.add(date)
-          break
-        }
-      }
-    }
-  }
+  // Decide whether to throttle partial updates: if cache covers most of the range, don't flicker the UI per chunk.
+  const cacheCoverage = allDates.length === 0 ? 0 : 1 - datesNeedingFetch.length / allDates.length
+  const isWarmReload = cacheCoverage >= 0.8 && cachedVentas.length > 0
 
+  // Remove cached ventas for dates we're about to refetch
+  const redoDates = new Set(datesNeedingFetch)
   const accumulated: PosVenta[] = cachedVentas.filter(
     (v) => !redoDates.has(v.fecha?.slice(0, 10) ?? ''),
   )
 
+  // Warm reload: show stable cache immediately, no per-chunk flicker
+  if (isWarmReload) {
+    onPartial?.({ ventas: cachedVentas, fromCache: true, rateLimited: false })
+  }
+
   const showProgress = chunksToFetch.length > 1
   let rateLimited = false
+  let completed = 0
+  let aborted = false
 
-  for (let i = 0; i < chunksToFetch.length; i++) {
-    const chunk = chunksToFetch[i]
-    if (showProgress) onProgress?.({ current: i + 1, total: chunksToFetch.length })
-
+  const runChunk = async (chunk: { start: string; end: string }) => {
     const chunkF1 = `${chunk.start} 00:00:00`
     const chunkF2 = `${chunk.end} 23:59:59`
+    const result = await posService.getVentasBatch(localIds, chunkF1, chunkF2)
+    accumulated.push(...result.ventas.filter((v) => localIdSet.has(v.id_local)))
+    if (result.rateLimited) rateLimited = true
+    if (companyId) {
+      saveVentasToCache(companyId, result.ventas, localIds, chunk.start, chunk.end).catch(
+        (err) => {
+          // eslint-disable-next-line no-console
+          console.warn('[pos-sync] saveVentasToCache failed', err)
+        },
+      )
+    }
+  }
+
+  // Process chunks in batches of PARALLEL_CHUNKS (chronological order preserved per batch)
+  for (let i = 0; i < chunksToFetch.length && !aborted; i += PARALLEL_CHUNKS) {
+    const batch = chunksToFetch.slice(i, i + PARALLEL_CHUNKS)
+    if (showProgress) {
+      onProgress?.({
+        current: Math.min(i + batch.length, chunksToFetch.length),
+        total: chunksToFetch.length,
+      })
+    }
 
     try {
-      const result = await posService.getVentasBatch(localIds, chunkF1, chunkF2)
-      accumulated.push(...result.ventas.filter((v) => localIdSet.has(v.id_local)))
-      onPartial?.({ ventas: [...accumulated], fromCache: false, rateLimited })
-
-      if (result.rateLimited) rateLimited = true
-
-      if (companyId) {
-        saveVentasToCache(companyId, result.ventas, localIds, chunk.start, chunk.end).catch(
-          (err) => {
-            // eslint-disable-next-line no-console
-            console.warn('[pos-sync] saveVentasToCache failed', err)
-          },
-        )
-      }
+      await Promise.all(batch.map(runChunk))
+      completed += batch.length
     } catch (err) {
       if (err instanceof PosRateLimitError) {
         rateLimited = true
+        aborted = true
         break
       }
       throw err
+    }
+
+    // Emit partial only on cold load and only after each batch (not per chunk)
+    if (!isWarmReload && completed < chunksToFetch.length) {
+      onPartial?.({ ventas: [...accumulated], fromCache: false, rateLimited })
     }
   }
 
