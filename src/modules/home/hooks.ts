@@ -10,6 +10,7 @@ import { useCompanyLocalIds } from '@/modules/pos-sync/company-mapping'
 import { useHomeFilters } from './context/home-filters-context'
 import type { Supplier } from '@/modules/suppliers/types'
 import type { Contract } from '@/modules/contracts/types'
+import type { PosVenta } from '@/modules/pos-sync/types'
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -53,6 +54,16 @@ export interface DashboardSyncStatus {
   onRefresh?: () => void
 }
 
+export interface CajaBreakdown {
+  ventasNetas: number
+  propinas: number
+  envio: number
+  total: number
+  cantidad: number
+  anuladas: number
+  porTipo: Array<{ tipo: string; label: string; count: number; monto: number }>
+}
+
 // ─── Helpers ────────────────────────────────────────────────────────
 
 function toDateStr(d: Date): string {
@@ -82,6 +93,27 @@ function daysUntil(ts: any): number {
   const d = ts?.toDate?.() ?? (typeof ts === 'string' ? new Date(ts) : null)
   if (!d) return Infinity
   return Math.ceil((d.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+}
+
+function sumPropinas(v: PosVenta): number {
+  const list = v.lista_propinas ?? []
+  let s = 0
+  for (const p of list) s += Number(p.montoConIgv) || 0
+  return s
+}
+
+function ventaMonto(v: PosVenta): number {
+  return (Number(v.total) || 0) + sumPropinas(v) + (Number(v.costoenvio) || 0)
+}
+
+function cajaKey(v: PosVenta): string {
+  return String(v.caja_id ?? '?')
+}
+
+const DOC_TYPE_LABELS: Record<string, string> = {
+  F: 'Facturas',
+  B: 'Boletas',
+  NV: 'Notas de venta',
 }
 
 // ─── Hook ───────────────────────────────────────────────────────────
@@ -124,16 +156,16 @@ export function useDashboardData() {
 
   const posColdLoading = posLoading && posVentas.length === 0 && localIds.length > 0
 
-  // Suma de ventas POS válidas (excluye anuladas) agrupadas por día YYYY-MM-DD
+  // Suma de ventas POS válidas (excluye anuladas) agrupadas por día YYYY-MM-DD.
+  // El monto incluye total + propinas + costo de envío para cuadrar con el POS.
   const posSalesByDate = useMemo(() => {
     const map = new Map<string, number>()
     for (const v of posVentas) {
       if (v.estado_txt?.toLowerCase() === 'comprobante anulado') continue
-      if (selectedCaja !== 'todas' && String(v.caja_id) !== selectedCaja) continue
+      if (selectedCaja !== 'todas' && cajaKey(v) !== selectedCaja) continue
       const date = v.fecha?.slice(0, 10)
       if (!date) continue
-      const monto = Number(v.total) || 0
-      map.set(date, (map.get(date) ?? 0) + monto)
+      map.set(date, (map.get(date) ?? 0) + ventaMonto(v))
     }
     return map
   }, [posVentas, selectedCaja])
@@ -147,11 +179,63 @@ export function useDashboardData() {
       if (v.estado_txt?.toLowerCase() === 'comprobante anulado') continue
       const date = v.fecha?.slice(0, 10)
       if (!date || date < startStr || date > endStr) continue
-      const k = String(v.caja_id ?? '?')
-      counts.set(k, (counts.get(k) ?? 0) + 1)
+      counts.set(cajaKey(v), (counts.get(cajaKey(v)) ?? 0) + 1)
     }
     return Array.from(counts.entries()).sort((a, b) => Number(a[0]) - Number(b[0]))
   }, [posVentas, startDate, endDate])
+
+  // Desglose de la caja seleccionada dentro del rango visible — sirve para cuadrar
+  // contra el reporte del POS (muestra ventas netas, propinas, envío, tipos).
+  const cajaBreakdown = useMemo<CajaBreakdown | null>(() => {
+    if (selectedCaja === 'todas') return null
+    const startStr = toDateStr(startDate)
+    const endStr = toDateStr(endDate)
+    let ventasNetas = 0
+    let propinas = 0
+    let envio = 0
+    let cantidad = 0
+    let anuladas = 0
+    const porTipoMap = new Map<string, { count: number; monto: number }>()
+
+    for (const v of posVentas) {
+      const date = v.fecha?.slice(0, 10)
+      if (!date || date < startStr || date > endStr) continue
+      if (cajaKey(v) !== selectedCaja) continue
+      if (v.estado_txt?.toLowerCase() === 'comprobante anulado') {
+        anuladas += 1
+        continue
+      }
+      const neto = Number(v.total) || 0
+      const prop = sumPropinas(v)
+      const env = Number(v.costoenvio) || 0
+      ventasNetas += neto
+      propinas += prop
+      envio += env
+      cantidad += 1
+      const tipo = (v.tipo_documento || '?').toUpperCase()
+      const prev = porTipoMap.get(tipo) ?? { count: 0, monto: 0 }
+      porTipoMap.set(tipo, { count: prev.count + 1, monto: prev.monto + neto + prop + env })
+    }
+
+    const porTipo = Array.from(porTipoMap.entries())
+      .map(([tipo, { count, monto }]) => ({
+        tipo,
+        label: DOC_TYPE_LABELS[tipo] ?? tipo,
+        count,
+        monto,
+      }))
+      .sort((a, b) => b.monto - a.monto)
+
+    return {
+      ventasNetas,
+      propinas,
+      envio,
+      total: ventasNetas + propinas + envio,
+      cantidad,
+      anuladas,
+      porTipo,
+    }
+  }, [posVentas, selectedCaja, startDate, endDate])
 
   // Auto-reset si la caja seleccionada sale del set disponible
   useEffect(() => {
@@ -393,5 +477,5 @@ export function useDashboardData() {
     [posLoading, posLastUpdated, posFromCache, localIds.length, posForceRefresh],
   )
 
-  return { kpis, salesTrend, alerts, loading, syncStatus, cajasDisponibles }
+  return { kpis, salesTrend, alerts, loading, syncStatus, cajasDisponibles, cajaBreakdown }
 }

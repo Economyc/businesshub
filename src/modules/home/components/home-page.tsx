@@ -6,13 +6,14 @@ import { useAuth } from '@/core/hooks/use-auth'
 import { DateRangePicker } from '@/modules/finance/components/date-range-picker'
 import { useDateRange } from '@/modules/finance/context/date-range-context'
 import { useDashboardData } from '../hooks'
-import type { DashboardKPIs, SalesTrendPoint, DashboardAlerts } from '../hooks'
-import { HomeFiltersProvider } from '../context/home-filters-context'
+import type { DashboardKPIs, SalesTrendPoint, DashboardAlerts, CajaBreakdown } from '../hooks'
+import { useHomeFilters, HomeFiltersProvider } from '../context/home-filters-context'
 import { KPICardsRow } from './kpi-cards-row'
 import { SalesTrendChart } from './sales-trend-chart'
 import { AlertsPanel } from './alerts-panel'
 import { QuickActions } from './quick-actions'
 import { CajaFilter } from './caja-filter'
+import { CajaBreakdownCard } from './caja-breakdown-card'
 
 interface DashboardContentProps {
   kpis: DashboardKPIs
@@ -21,12 +22,17 @@ interface DashboardContentProps {
   periodLabel: string
   startDate: Date
   endDate: Date
+  cajaBreakdown: CajaBreakdown | null
 }
 
-function DashboardContent({ kpis, salesTrend, alerts, periodLabel, startDate, endDate }: DashboardContentProps) {
+function DashboardContent({ kpis, salesTrend, alerts, periodLabel, startDate, endDate, cajaBreakdown }: DashboardContentProps) {
+  const { selectedCaja } = useHomeFilters()
   return (
     <div className="space-y-6">
       <KPICardsRow kpis={kpis} periodLabel={periodLabel} />
+      {cajaBreakdown && selectedCaja !== 'todas' && (
+        <CajaBreakdownCard cajaId={selectedCaja} breakdown={cajaBreakdown} periodLabel={periodLabel} />
+      )}
       <SalesTrendChart data={salesTrend} startDate={startDate} endDate={endDate} />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <AlertsPanel alerts={alerts} />
@@ -39,7 +45,7 @@ function DashboardContent({ kpis, salesTrend, alerts, periodLabel, startDate, en
 function HomePageContent() {
   const { user } = useAuth()
   const { presetLabel, startDate, endDate } = useDateRange()
-  const { kpis, salesTrend, alerts, loading, syncStatus, cajasDisponibles } = useDashboardData()
+  const { kpis, salesTrend, alerts, loading, syncStatus, cajasDisponibles, cajaBreakdown } = useDashboardData()
 
   const firstName = user?.displayName?.split(' ')[0] ?? user?.email?.split('@')[0] ?? 'Usuario'
   const todayLabel = new Date().toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'long' })
@@ -82,6 +88,7 @@ function HomePageContent() {
           periodLabel={presetLabel}
           startDate={startDate}
           endDate={endDate}
+          cajaBreakdown={cajaBreakdown}
         />
       )}
     </PageTransition>
