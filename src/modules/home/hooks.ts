@@ -85,26 +85,27 @@ function formatCurrencyShort(n: number): string {
 function buildComparisonLabel(activePreset: string, prevStart: Date): string {
   switch (activePreset) {
     case 'today':
-      return 'vs ayer'
+      return 'vs Ayer'
     case 'yesterday':
-      return 'vs anteayer'
+      return 'vs Anteayer'
     case 'last7':
       return 'vs 7 días previos'
     case 'last30':
       return 'vs 30 días previos'
     case 'thisWeek':
-      return 'vs semana anterior'
+      return 'vs Semana anterior'
     case 'lastWeek':
-      return 'vs semana previa'
+      return 'vs Semana previa'
     case 'thisMonth':
     case 'lastMonth': {
       const month = prevStart.toLocaleDateString('es-CO', { month: 'long' })
-      return `vs ${month}`
+      const capitalized = month.charAt(0).toUpperCase() + month.slice(1)
+      return `vs ${capitalized}`
     }
     case 'yearToDate':
-      return 'vs año anterior'
+      return 'vs Año anterior'
     default:
-      return 'vs período anterior'
+      return 'vs Período anterior'
   }
 }
 
