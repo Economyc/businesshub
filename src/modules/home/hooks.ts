@@ -44,6 +44,13 @@ export interface DashboardAlerts {
   expiringContracts: AlertItem[]
 }
 
+export interface DashboardSyncStatus {
+  loading: boolean
+  lastUpdated: Date | null
+  fromCache: boolean
+  hasLocals: boolean
+}
+
 // ─── Helpers ────────────────────────────────────────────────────────
 
 function toDateStr(d: Date): string {
@@ -99,7 +106,12 @@ export function useDashboardData() {
   // POS ventas para [prevStart, endDate] — se aplican como fuente primaria de ventas
   const posRangeStart = useMemo(() => toDateStr(prevStart), [prevStart])
   const posRangeEnd = useMemo(() => toDateStr(endDate), [endDate])
-  const { ventas: posVentas } = usePosVentas({
+  const {
+    ventas: posVentas,
+    loading: posLoading,
+    lastUpdated: posLastUpdated,
+    fromCache: posFromCache,
+  } = usePosVentas({
     localIds,
     startDate: posRangeStart,
     endDate: posRangeEnd,
@@ -333,5 +345,15 @@ export function useDashboardData() {
 
   const loading = txLoading || closingsLoading || carteraLoading || budgetLoading || suppliersLoading || contractsLoading
 
-  return { kpis, salesTrend, alerts, loading }
+  const syncStatus = useMemo<DashboardSyncStatus>(
+    () => ({
+      loading: posLoading,
+      lastUpdated: posLastUpdated,
+      fromCache: posFromCache,
+      hasLocals: localIds.length > 0,
+    }),
+    [posLoading, posLastUpdated, posFromCache, localIds.length],
+  )
+
+  return { kpis, salesTrend, alerts, loading, syncStatus }
 }

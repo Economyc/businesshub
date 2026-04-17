@@ -16,11 +16,33 @@ function ChartTooltip({ active, payload, label }: any) {
 
 interface SalesTrendChartProps {
   data: SalesTrendPoint[]
-  periodLabel: string
+  startDate: Date
+  endDate: Date
 }
 
-export function SalesTrendChart({ data, periodLabel }: SalesTrendChartProps) {
+function monthYearLabel(d: Date): string {
+  const month = d.toLocaleDateString('es-CO', { month: 'long' })
+  const capitalized = month.charAt(0).toUpperCase() + month.slice(1)
+  return `${capitalized} ${d.getFullYear()}`
+}
+
+function formatRangeMonthYear(start: Date, end: Date): string {
+  const sameYear = start.getFullYear() === end.getFullYear()
+  const sameMonth = sameYear && start.getMonth() === end.getMonth()
+  if (sameMonth) return monthYearLabel(end)
+  if (sameYear) {
+    const startMonth = start.toLocaleDateString('es-CO', { month: 'long' })
+    const startCap = startMonth.charAt(0).toUpperCase() + startMonth.slice(1)
+    const endMonth = end.toLocaleDateString('es-CO', { month: 'long' })
+    const endCap = endMonth.charAt(0).toUpperCase() + endMonth.slice(1)
+    return `${startCap} a ${endCap} ${end.getFullYear()}`
+  }
+  return `${monthYearLabel(start)} a ${monthYearLabel(end)}`
+}
+
+export function SalesTrendChart({ data, startDate, endDate }: SalesTrendChartProps) {
   const hasData = data.some((d) => d.sales > 0)
+  const periodLabel = formatRangeMonthYear(startDate, endDate)
 
   return (
     <div className="bg-surface rounded-xl card-elevated p-[18px]">
