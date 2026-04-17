@@ -7,17 +7,17 @@ import {
   Cell,
 } from 'recharts'
 import { PageTransition } from '@/core/ui/page-transition'
+import { PageHeader } from '@/core/ui/page-header'
 import { KPICard } from '@/core/ui/kpi-card'
 import { staggerContainer } from '@/core/animations/variants'
 import { formatCurrency } from '@/core/utils/format'
 import { DashboardSkeleton } from '@/core/ui/skeleton'
+import { DateRangePicker } from '@/modules/finance/components/date-range-picker'
 import { AnalyticsTabs } from './analytics-tabs'
 import { ExportPDF } from './export-pdf'
-import { AnalyticsHero } from './shared/analytics-hero'
 import { ChartCard } from './shared/chart-card'
 import { ChartTooltip } from './shared/chart-tooltip'
 import { EmptyChart } from './shared/empty-chart'
-import { KPIHero } from './shared/kpi-hero'
 import { CHART_SEMANTIC, CHART_AXIS_TICK } from './shared/chart-theme'
 import { usePurchaseAnalytics } from '../hooks'
 
@@ -26,47 +26,30 @@ export function PurchasesDashboard() {
   const { kpis, suppliers, products, monthlyPurchases, loading } = usePurchaseAnalytics()
 
   const supplierChartHeight = Math.max(200, suppliers.length * 48)
-  const purchasesSpark = monthlyPurchases.map((m) => ({ value: m.purchases ?? 0 }))
 
   return (
     <PageTransition>
-      <AnalyticsHero
-        eyebrow="Análisis · Compras"
-        title="Compras e insumos"
-        description="Flujo de compras, ticket promedio y concentración por proveedor y producto."
-        actions={<ExportPDF targetRef={dashboardRef} />}
-      />
+      <PageHeader title="Análisis">
+        <DateRangePicker />
+        <ExportPDF targetRef={dashboardRef} />
+      </PageHeader>
       <AnalyticsTabs />
 
       {loading ? (
         <DashboardSkeleton kpiCount={4} charts={2} />
       ) : (
         <div ref={dashboardRef} className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-            <div className="lg:col-span-2">
-              <KPIHero
-                eyebrow="Indicador principal"
-                label="Total en Compras"
-                value={kpis.totalPurchases}
-                change={kpis.totalChange}
-                trend={kpis.totalChange.startsWith('+') ? 'up' : 'down'}
-                icon={ShoppingCart}
-                sparkline={purchasesSpark}
-                sparkColor={CHART_SEMANTIC.purchases}
-                caption={`${kpis.orderCount} órdenes · ${kpis.activeSuppliers} proveedores`}
-              />
-            </div>
-            <motion.div
-              variants={staggerContainer}
-              initial="initial"
-              animate="animate"
-              className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-4 content-start"
-            >
-              <KPICard label="# Órdenes" value={kpis.orderCount} format="number" change={kpis.orderChange} trend={kpis.orderChange.startsWith('+') ? 'up' : 'down'} icon={Hash} />
-              <KPICard label="Ticket Promedio" value={kpis.avgTicket} format="currency" change={kpis.ticketChange} trend={kpis.ticketChange.startsWith('+') ? 'up' : 'down'} icon={Receipt} />
-              <KPICard label="Proveedores" value={kpis.activeSuppliers} format="number" change={kpis.supplierChange} trend="up" icon={Truck} />
-            </motion.div>
-          </div>
+          <motion.div
+            variants={staggerContainer}
+            initial="initial"
+            animate="animate"
+            className="grid grid-cols-2 lg:grid-cols-4 gap-4"
+          >
+            <KPICard label="Total en Compras" value={kpis.totalPurchases} format="currency" change={kpis.totalChange} trend={kpis.totalChange.startsWith('+') ? 'up' : 'down'} icon={ShoppingCart} />
+            <KPICard label="# Órdenes" value={kpis.orderCount} format="number" change={kpis.orderChange} trend={kpis.orderChange.startsWith('+') ? 'up' : 'down'} icon={Hash} />
+            <KPICard label="Ticket Promedio" value={kpis.avgTicket} format="currency" change={kpis.ticketChange} trend={kpis.ticketChange.startsWith('+') ? 'up' : 'down'} icon={Receipt} />
+            <KPICard label="Proveedores" value={kpis.activeSuppliers} format="number" change={kpis.supplierChange} trend="up" icon={Truck} />
+          </motion.div>
 
           <motion.div
             variants={staggerContainer}
@@ -80,12 +63,6 @@ export function PurchasesDashboard() {
               ) : (
                 <ResponsiveContainer width="100%" height={280}>
                   <AreaChart data={monthlyPurchases} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
-                    <defs>
-                      <linearGradient id="purchasesGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={CHART_SEMANTIC.purchases} stopOpacity={0.3} />
-                        <stop offset="100%" stopColor={CHART_SEMANTIC.purchases} stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke={CHART_SEMANTIC.grid} vertical={false} />
                     <XAxis dataKey="month" tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} />
                     <YAxis tickFormatter={(v) => formatCurrency(v)} tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} width={54} />
@@ -95,7 +72,8 @@ export function PurchasesDashboard() {
                       dataKey="purchases"
                       name="Compras"
                       stroke={CHART_SEMANTIC.purchases}
-                      fill="url(#purchasesGradient)"
+                      fill={CHART_SEMANTIC.purchases}
+                      fillOpacity={0.15}
                       strokeWidth={2}
                       dot={false}
                       activeDot={{ r: 4, strokeWidth: 0, fill: CHART_SEMANTIC.purchases }}

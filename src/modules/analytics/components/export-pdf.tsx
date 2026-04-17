@@ -32,7 +32,7 @@ export function ExportPDF({ targetRef }: ExportPDFProps) {
     <button
       onClick={handleExport}
       disabled={exporting}
-      className="flex items-center gap-2 px-3.5 py-2 rounded-[10px] border border-input-border bg-input-bg text-body text-graphite hover:bg-bone transition-all duration-200 disabled:opacity-50"
+      className="flex items-center gap-2 px-3.5 py-2 rounded-lg border border-input-border bg-input-bg text-body text-graphite hover:bg-bone transition-all duration-200 disabled:opacity-50"
     >
       <Download size={15} strokeWidth={1.5} />
       {exporting ? 'Exportando...' : 'PDF'}

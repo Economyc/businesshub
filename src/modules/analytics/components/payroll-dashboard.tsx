@@ -6,17 +6,17 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from 'recharts'
 import { PageTransition } from '@/core/ui/page-transition'
+import { PageHeader } from '@/core/ui/page-header'
 import { KPICard } from '@/core/ui/kpi-card'
 import { staggerContainer } from '@/core/animations/variants'
 import { formatCurrency } from '@/core/utils/format'
 import { DashboardSkeleton } from '@/core/ui/skeleton'
+import { DateRangePicker } from '@/modules/finance/components/date-range-picker'
 import { AnalyticsTabs } from './analytics-tabs'
 import { ExportPDF } from './export-pdf'
-import { AnalyticsHero } from './shared/analytics-hero'
 import { ChartCard } from './shared/chart-card'
 import { ChartTooltip } from './shared/chart-tooltip'
 import { EmptyChart } from './shared/empty-chart'
-import { KPIHero } from './shared/kpi-hero'
 import { CHART_SEMANTIC, CHART_AXIS_TICK, paletteColor } from './shared/chart-theme'
 import { usePayrollAnalytics } from '../hooks'
 
@@ -36,42 +36,27 @@ export function PayrollDashboard() {
 
   return (
     <PageTransition>
-      <AnalyticsHero
-        eyebrow="Análisis · Nómina"
-        title="Gasto en personal"
-        description="Nómina total, peso sobre ingresos y distribución por departamento y cargo."
-        actions={<ExportPDF targetRef={dashboardRef} />}
-      />
+      <PageHeader title="Análisis">
+        <DateRangePicker />
+        <ExportPDF targetRef={dashboardRef} />
+      </PageHeader>
       <AnalyticsTabs />
 
       {loading ? (
         <DashboardSkeleton kpiCount={4} charts={2} />
       ) : (
         <div ref={dashboardRef} className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-            <div className="lg:col-span-2">
-              <KPIHero
-                eyebrow="Indicador principal"
-                label="Nómina Total"
-                value={kpis.totalPayroll}
-                change={kpis.payrollChange}
-                trend={kpis.payrollChange.startsWith('+') ? 'down' : 'up'}
-                icon={DollarSign}
-                sparkColor={CHART_SEMANTIC.payroll}
-                caption={`${kpis.employeeCount} empleados · ${kpis.payrollToIncomeRatio.toFixed(1)}% de ingresos`}
-              />
-            </div>
-            <motion.div
-              variants={staggerContainer}
-              initial="initial"
-              animate="animate"
-              className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-4 content-start"
-            >
-              <KPICard label="Empleados" value={kpis.employeeCount} format="number" change={kpis.employeeChange} trend="up" icon={Users} />
-              <KPICard label="Salario Promedio" value={kpis.avgSalary} format="currency" change={kpis.salaryChange} trend="up" icon={UserCheck} />
-              <KPICard label="% de Ingresos" value={Math.round(kpis.payrollToIncomeRatio)} format="percent" change={kpis.ratioChange} trend={ratioTrend} icon={Percent} />
-            </motion.div>
-          </div>
+          <motion.div
+            variants={staggerContainer}
+            initial="initial"
+            animate="animate"
+            className="grid grid-cols-2 lg:grid-cols-4 gap-4"
+          >
+            <KPICard label="Nómina Total" value={kpis.totalPayroll} format="currency" change={kpis.payrollChange} trend={kpis.payrollChange.startsWith('+') ? 'down' : 'up'} icon={DollarSign} />
+            <KPICard label="Empleados" value={kpis.employeeCount} format="number" change={kpis.employeeChange} trend="up" icon={Users} />
+            <KPICard label="Salario Promedio" value={kpis.avgSalary} format="currency" change={kpis.salaryChange} trend="up" icon={UserCheck} />
+            <KPICard label="% de Ingresos" value={Math.round(kpis.payrollToIncomeRatio)} format="percent" change={kpis.ratioChange} trend={ratioTrend} icon={Percent} />
+          </motion.div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <ChartCard eyebrow="Peso relativo" title="Nómina sobre ingresos">
@@ -97,7 +82,7 @@ export function PayrollDashboard() {
                 </ResponsiveContainer>
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ marginTop: '-20px' }}>
                   <div className="text-center">
-                    <span className="text-[36px] leading-none font-bold text-dark-graphite tabular-nums">
+                    <span className="text-kpi font-semibold text-dark-graphite tabular-nums">
                       {kpis.payrollToIncomeRatio.toFixed(1)}%
                     </span>
                     <p className="text-caption text-mid-gray mt-1">de ingresos</p>

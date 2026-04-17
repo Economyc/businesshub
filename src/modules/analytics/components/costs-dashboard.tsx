@@ -5,17 +5,17 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts'
 import { PageTransition } from '@/core/ui/page-transition'
+import { PageHeader } from '@/core/ui/page-header'
 import { KPICard } from '@/core/ui/kpi-card'
 import { staggerContainer } from '@/core/animations/variants'
 import { formatCurrency } from '@/core/utils/format'
 import { DashboardSkeleton } from '@/core/ui/skeleton'
+import { DateRangePicker } from '@/modules/finance/components/date-range-picker'
 import { AnalyticsTabs } from './analytics-tabs'
 import { ExportPDF } from './export-pdf'
-import { AnalyticsHero } from './shared/analytics-hero'
 import { ChartCard } from './shared/chart-card'
 import { ChartTooltip } from './shared/chart-tooltip'
 import { EmptyChart } from './shared/empty-chart'
-import { KPIHero } from './shared/kpi-hero'
 import { CHART_SEMANTIC, CHART_AXIS_TICK, paletteColor } from './shared/chart-theme'
 import { useCostStructure } from '../hooks'
 import type { CategoryCost, CostGroup } from '../types'
@@ -35,52 +35,31 @@ export function CostsDashboard() {
   const obligationCategories = categories.filter((c) => c.group === 'obligaciones')
   const otherCategories = categories.filter((c) => c.group === 'otros')
 
-  const costSpark = monthlyCosts.map((m) => ({
-    value: Object.entries(m)
-      .filter(([k]) => k !== 'month')
-      .reduce((s, [, v]) => s + Number(v || 0), 0),
-  }))
   const costTrend: 'up' | 'down' | 'neutral' = kpis.totalChange.startsWith('+') ? 'down' : 'up'
 
   return (
     <PageTransition>
-      <AnalyticsHero
-        eyebrow="Análisis · Costos"
-        title="Estructura de costos"
-        description="Composición de operativos, obligaciones y otros gastos con evolución mensual."
-        actions={<ExportPDF targetRef={dashboardRef} />}
-      />
+      <PageHeader title="Análisis">
+        <DateRangePicker />
+        <ExportPDF targetRef={dashboardRef} />
+      </PageHeader>
       <AnalyticsTabs />
 
       {loading ? (
         <DashboardSkeleton kpiCount={5} charts={1} />
       ) : (
         <div ref={dashboardRef} className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-            <div className="lg:col-span-2">
-              <KPIHero
-                eyebrow="Indicador principal"
-                label="Gasto Total"
-                value={kpis.totalCost}
-                change={kpis.totalChange}
-                trend={costTrend}
-                icon={DollarSign}
-                sparkline={costSpark}
-                sparkColor={CHART_SEMANTIC.expense}
-                caption={`${categories.length} categorías activas`}
-              />
-            </div>
-            <motion.div
-              variants={staggerContainer}
-              initial="initial"
-              animate="animate"
-              className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-4 content-start"
-            >
-              <KPICard label="Operativos" value={kpis.operativeCost} format="currency" change={kpis.operativeChange} trend={kpis.operativeChange.startsWith('+') ? 'down' : 'up'} icon={RefreshCw} />
-              <KPICard label="Obligaciones" value={kpis.obligationsCost} format="currency" change={kpis.obligationsChange} trend={kpis.obligationsChange.startsWith('+') ? 'down' : 'up'} icon={ShieldCheck} />
-              <KPICard label="Otros" value={kpis.otherCost} format="currency" change={kpis.otherChange} trend={kpis.otherChange.startsWith('+') ? 'down' : 'up'} icon={PackageOpen} />
-            </motion.div>
-          </div>
+          <motion.div
+            variants={staggerContainer}
+            initial="initial"
+            animate="animate"
+            className="grid grid-cols-2 lg:grid-cols-4 gap-4"
+          >
+            <KPICard label="Gasto Total" value={kpis.totalCost} format="currency" change={kpis.totalChange} trend={costTrend} icon={DollarSign} />
+            <KPICard label="Operativos" value={kpis.operativeCost} format="currency" change={kpis.operativeChange} trend={kpis.operativeChange.startsWith('+') ? 'down' : 'up'} icon={RefreshCw} />
+            <KPICard label="Obligaciones" value={kpis.obligationsCost} format="currency" change={kpis.obligationsChange} trend={kpis.obligationsChange.startsWith('+') ? 'down' : 'up'} icon={ShieldCheck} />
+            <KPICard label="Otros" value={kpis.otherCost} format="currency" change={kpis.otherChange} trend={kpis.otherChange.startsWith('+') ? 'down' : 'up'} icon={PackageOpen} />
+          </motion.div>
 
           <ChartCard
             eyebrow="Composición"
@@ -125,7 +104,7 @@ export function CostsDashboard() {
                       title={`${cat.category}: ${cat.percentage.toFixed(1)}%`}
                     >
                       {cat.percentage >= 8 && (
-                        <span className="absolute inset-0 flex items-center justify-center text-[11px] font-medium text-white/95 truncate px-1">
+                        <span className="absolute inset-0 flex items-center justify-center text-caption font-medium text-surface truncate px-1">
                           {cat.percentage.toFixed(0)}%
                         </span>
                       )}
@@ -217,7 +196,7 @@ function SegmentBar({ width, color, label }: { width: number; color: string; lab
       style={{ width: `${width}%`, backgroundColor: color }}
     >
       {width >= 12 && (
-        <span className="absolute inset-0 flex items-center justify-center text-[11px] font-medium text-white/95">
+        <span className="absolute inset-0 flex items-center justify-center text-caption font-medium text-surface">
           {label} {width.toFixed(0)}%
         </span>
       )}

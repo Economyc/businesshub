@@ -6,17 +6,17 @@ import {
   PieChart, Pie, Cell,
 } from 'recharts'
 import { PageTransition } from '@/core/ui/page-transition'
+import { PageHeader } from '@/core/ui/page-header'
 import { KPICard } from '@/core/ui/kpi-card'
 import { staggerContainer } from '@/core/animations/variants'
 import { formatCurrency } from '@/core/utils/format'
 import { DashboardSkeleton } from '@/core/ui/skeleton'
+import { DateRangePicker } from '@/modules/finance/components/date-range-picker'
 import { AnalyticsTabs } from './analytics-tabs'
 import { ExportPDF } from './export-pdf'
-import { AnalyticsHero } from './shared/analytics-hero'
 import { ChartCard } from './shared/chart-card'
 import { ChartTooltip } from './shared/chart-tooltip'
 import { EmptyChart } from './shared/empty-chart'
-import { KPIHero } from './shared/kpi-hero'
 import { CHART_SEMANTIC, CHART_AXIS_TICK } from './shared/chart-theme'
 import { useAnalyticsKPIs, useMonthlyBreakdown, useCategoryBreakdown } from '../hooks'
 
@@ -28,50 +28,33 @@ export function GeneralDashboard() {
 
   const loading = kpiLoading || monthlyLoading || catLoading
   const top5 = categories.slice(0, 5)
-  const profitSpark = monthly.map((m) => ({ value: (m.income ?? 0) - (m.expenses ?? 0) }))
   const profitTrend: 'up' | 'down' | 'neutral' =
     kpis.netProfit > 0 ? 'up' : kpis.netProfit < 0 ? 'down' : 'neutral'
 
   return (
     <PageTransition>
-      <AnalyticsHero
-        eyebrow="Análisis · General"
-        title="Panorama financiero"
-        description="Ingresos, gastos y utilidad con comparativa contra el periodo anterior."
-        actions={<ExportPDF targetRef={dashboardRef} />}
-      />
+      <PageHeader title="Análisis">
+        <DateRangePicker />
+        <ExportPDF targetRef={dashboardRef} />
+      </PageHeader>
       <AnalyticsTabs />
 
       {loading ? (
         <DashboardSkeleton kpiCount={5} charts={2} />
       ) : (
         <div ref={dashboardRef} className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-            <div className="lg:col-span-2 flex">
-              <KPIHero
-                eyebrow="Indicador principal"
-                label="Utilidad Neta"
-                value={kpis.netProfit}
-                change={kpis.profitChange}
-                trend={profitTrend}
-                icon={DollarSign}
-                sparkline={profitSpark}
-                sparkColor={kpis.netProfit >= 0 ? CHART_SEMANTIC.income : CHART_SEMANTIC.expense}
-                caption={`Margen ${kpis.profitMargin.toFixed(1)}%`}
-              />
-            </div>
-            <motion.div
-              variants={staggerContainer}
-              initial="initial"
-              animate="animate"
-              className="lg:col-span-2 grid grid-cols-2 gap-4 content-start"
-            >
-              <KPICard label="Ingresos" value={kpis.totalIncome} format="currency" change={kpis.incomeChange} trend={kpis.incomeChange.startsWith('+') ? 'up' : 'down'} icon={TrendingUp} />
-              <KPICard label="Gastos" value={kpis.totalExpenses} format="currency" change={kpis.expenseChange} trend={kpis.expenseChange.startsWith('+') ? 'down' : 'up'} icon={TrendingDown} />
-              <KPICard label="Margen" value={Math.round(kpis.profitMargin)} format="percent" change={kpis.marginChange} trend={kpis.profitMargin >= 0 ? 'up' : 'down'} icon={Percent} />
-              <KPICard label="Compras" value={kpis.totalPurchases} format="currency" change={kpis.purchaseChange} trend={kpis.purchaseChange.startsWith('+') ? 'up' : 'down'} icon={ShoppingCart} />
-            </motion.div>
-          </div>
+          <motion.div
+            variants={staggerContainer}
+            initial="initial"
+            animate="animate"
+            className="grid grid-cols-2 lg:grid-cols-5 gap-4"
+          >
+            <KPICard label="Utilidad Neta" value={kpis.netProfit} format="currency" change={kpis.profitChange} trend={profitTrend} icon={DollarSign} />
+            <KPICard label="Ingresos" value={kpis.totalIncome} format="currency" change={kpis.incomeChange} trend={kpis.incomeChange.startsWith('+') ? 'up' : 'down'} icon={TrendingUp} />
+            <KPICard label="Gastos" value={kpis.totalExpenses} format="currency" change={kpis.expenseChange} trend={kpis.expenseChange.startsWith('+') ? 'down' : 'up'} icon={TrendingDown} />
+            <KPICard label="Margen" value={Math.round(kpis.profitMargin)} format="percent" change={kpis.marginChange} trend={kpis.profitMargin >= 0 ? 'up' : 'down'} icon={Percent} />
+            <KPICard label="Compras" value={kpis.totalPurchases} format="currency" change={kpis.purchaseChange} trend={kpis.purchaseChange.startsWith('+') ? 'up' : 'down'} icon={ShoppingCart} />
+          </motion.div>
 
           <motion.div
             variants={staggerContainer}
