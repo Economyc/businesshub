@@ -9,9 +9,12 @@ export function isAnulada(v: PosVenta): boolean {
 }
 
 // Algunos POS registran propinas solo en `lista_propinas`, otros las ponen
-// en `pagosList` con tipoPago = "propina" (típicamente cuando se agregan
+// en `pagosList` con tipo = "propina" (típicamente cuando se agregan
 // después de cerrar la cuenta, o en efectivo). Priorizamos `lista_propinas`;
 // si está vacío, caemos al fallback para no perder propinas reales.
+// Chequeamos ambos nombres de campo porque la API documentada usa
+// `pagoventa_tipo`/`pagoventa_monto` pero el proxy puede entregarlos
+// como `tipoPago`/`monto`.
 export function sumPropinas(v: PosVenta): number {
   const list = v.lista_propinas ?? []
   let s = 0
@@ -19,9 +22,11 @@ export function sumPropinas(v: PosVenta): number {
   if (s > 0) return s
   const pagos = v.pagosList ?? []
   for (const p of pagos) {
-    const tipo = String(p.tipoPago ?? '').toLowerCase()
-    if (tipo.includes('propina') || tipo.includes('tip')) {
-      s += num(p.monto)
+    const raw = p as Record<string, unknown>
+    const tipoStr = String(raw.tipoPago ?? raw.pagoventa_tipo ?? '').toLowerCase()
+    if (tipoStr.includes('propina') || tipoStr.includes('tip')) {
+      const monto = raw.monto ?? raw.pagoventa_monto
+      s += num(monto as string | number | undefined)
     }
   }
   return s
