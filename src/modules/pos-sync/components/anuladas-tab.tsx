@@ -4,19 +4,11 @@ import { DataTable, type Column } from '@/core/ui/data-table'
 import { formatCurrency } from '@/core/utils/format'
 import { useDateRange } from '@/modules/finance/context/date-range-context'
 import { usePosVentas } from '../hooks'
+import { isAnulada, num, toDateStrLocal, ventaMonto } from '../utils/sales-calculations'
 import { VentaDetailDrawer } from './venta-detail-drawer'
 import type { PosVenta, PosLocal } from '../types'
 
-function num(val: string | number | undefined): number {
-  return Number(val) || 0
-}
-
-function toDateStr(d: Date): string {
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
-}
+const toDateStr = toDateStrLocal
 
 interface AnuladasTabProps {
   localIds: number[]
@@ -49,14 +41,10 @@ export function AnuladasTab({ localIds, allLocalIds, locales, localLabel }: Anul
 
   const anuladas = useMemo(() => {
     const localSet = new Set(localIds)
-    return ventas.filter(
-      (v) =>
-        v.estado_txt?.toLowerCase() === 'comprobante anulado' &&
-        localSet.has(v.id_local)
-    )
+    return ventas.filter((v) => isAnulada(v) && localSet.has(v.id_local))
   }, [ventas, localIds])
 
-  const total = useMemo(() => anuladas.reduce((sum, v) => sum + num(v.total), 0), [anuladas])
+  const total = useMemo(() => anuladas.reduce((sum, v) => sum + ventaMonto(v), 0), [anuladas])
 
   const columns: Column<PosVenta & { id: string }>[] = [
     {

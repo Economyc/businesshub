@@ -1,3 +1,4 @@
+import { RefreshCw, Loader2 } from 'lucide-react'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
 import { DashboardSkeleton } from '@/core/ui/skeleton'
@@ -6,7 +7,13 @@ import { useAuth } from '@/core/hooks/use-auth'
 import { DateRangePicker } from '@/modules/finance/components/date-range-picker'
 import { useDateRange } from '@/modules/finance/context/date-range-context'
 import { useDashboardData } from '../hooks'
-import type { DashboardKPIs, SalesTrendPoint, DashboardAlerts, CajaBreakdown } from '../hooks'
+import type {
+  DashboardKPIs,
+  SalesTrendPoint,
+  DashboardAlerts,
+  CajaBreakdown,
+  DashboardSyncStatus,
+} from '../hooks'
 import { useHomeFilters, HomeFiltersProvider } from '../context/home-filters-context'
 import { KPICardsRow } from './kpi-cards-row'
 import { SalesTrendChart } from './sales-trend-chart'
@@ -14,6 +21,35 @@ import { AlertsPanel } from './alerts-panel'
 import { QuickActions } from './quick-actions'
 import { CajaFilter } from './caja-filter'
 import { CajaBreakdownCard } from './caja-breakdown-card'
+
+const CACHE_STALE_MS = 2 * 60 * 60 * 1000 // 2 horas
+
+function PosCacheStaleBanner({ syncStatus }: { syncStatus: DashboardSyncStatus }) {
+  const { fromCache, lastUpdated, loading, hasLocals, onRefresh } = syncStatus
+  if (!hasLocals || !fromCache || !lastUpdated) return null
+  const ageMs = Date.now() - lastUpdated.getTime()
+  if (ageMs < CACHE_STALE_MS) return null
+  const hours = Math.floor(ageMs / (60 * 60 * 1000))
+  const ageLabel = hours >= 24 ? `${Math.floor(hours / 24)} día(s)` : `${hours}h`
+  return (
+    <div className="bg-warning-bg text-warning-text rounded-xl px-4 py-3 text-body mb-4 flex items-center justify-between gap-3">
+      <span>
+        Los datos de POS tienen {ageLabel}. El total puede no incluir ventas recientes.
+      </span>
+      {onRefresh && (
+        <button
+          type="button"
+          onClick={onRefresh}
+          disabled={loading}
+          className="flex items-center gap-1.5 text-caption font-medium hover:underline disabled:opacity-50"
+        >
+          {loading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+          Sincronizar con POS
+        </button>
+      )}
+    </div>
+  )
+}
 
 interface DashboardContentProps {
   kpis: DashboardKPIs
@@ -81,15 +117,18 @@ function HomePageContent() {
       {loading ? (
         <DashboardSkeleton kpiCount={4} charts={1} />
       ) : (
-        <DashboardContent
-          kpis={kpis}
-          salesTrend={salesTrend}
-          alerts={alerts}
-          periodLabel={presetLabel}
-          startDate={startDate}
-          endDate={endDate}
-          cajaBreakdown={cajaBreakdown}
-        />
+        <>
+          <PosCacheStaleBanner syncStatus={syncStatus} />
+          <DashboardContent
+            kpis={kpis}
+            salesTrend={salesTrend}
+            alerts={alerts}
+            periodLabel={presetLabel}
+            startDate={startDate}
+            endDate={endDate}
+            cajaBreakdown={cajaBreakdown}
+          />
+        </>
       )}
     </PageTransition>
   )

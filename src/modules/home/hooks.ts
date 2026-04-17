@@ -7,10 +7,17 @@ import { useBudgetComparison } from '@/modules/finance/hooks'
 import { useDateRange } from '@/modules/finance/context/date-range-context'
 import { usePosVentas } from '@/modules/pos-sync/hooks'
 import { useCompanyLocalIds } from '@/modules/pos-sync/company-mapping'
+import {
+  isAnulada,
+  sumPropinas,
+  ventaMonto,
+  cajaKey,
+  toDateStrLocal,
+  num,
+} from '@/modules/pos-sync/utils/sales-calculations'
 import { useHomeFilters } from './context/home-filters-context'
 import type { Supplier } from '@/modules/suppliers/types'
 import type { Contract } from '@/modules/contracts/types'
-import type { PosVenta } from '@/modules/pos-sync/types'
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -58,17 +65,19 @@ export interface CajaBreakdown {
   ventasNetas: number
   propinas: number
   envio: number
+  impuestos: number
   total: number
+  totalConImpuestos: number
+  totalConImpuestosYAnuladas: number
   cantidad: number
   anuladas: number
+  montoAnulado: number
   porTipo: Array<{ tipo: string; label: string; count: number; monto: number }>
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────
 
-function toDateStr(d: Date): string {
-  return d.toISOString().slice(0, 10)
-}
+const toDateStr = toDateStrLocal
 
 function formatShortDate(dateStr: string): string {
   const [, m, d] = dateStr.split('-')
@@ -93,21 +102,6 @@ function daysUntil(ts: any): number {
   const d = ts?.toDate?.() ?? (typeof ts === 'string' ? new Date(ts) : null)
   if (!d) return Infinity
   return Math.ceil((d.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-}
-
-function sumPropinas(v: PosVenta): number {
-  const list = v.lista_propinas ?? []
-  let s = 0
-  for (const p of list) s += Number(p.montoConIgv) || 0
-  return s
-}
-
-function ventaMonto(v: PosVenta): number {
-  return (Number(v.total) || 0) + sumPropinas(v) + (Number(v.costoenvio) || 0)
-}
-
-function cajaKey(v: PosVenta): string {
-  return String(v.caja_id ?? '?')
 }
 
 const DOC_TYPE_LABELS: Record<string, string> = {
@@ -161,7 +155,7 @@ export function useDashboardData() {
   const posSalesByDate = useMemo(() => {
     const map = new Map<string, number>()
     for (const v of posVentas) {
-      if (v.estado_txt?.toLowerCase() === 'comprobante anulado') continue
+      if (isAnulada(v)) continue
       if (selectedCaja !== 'todas' && cajaKey(v) !== selectedCaja) continue
       const date = v.fecha?.slice(0, 10)
       if (!date) continue
@@ -176,7 +170,7 @@ export function useDashboardData() {
     const endStr = toDateStr(endDate)
     const counts = new Map<string, number>()
     for (const v of posVentas) {
-      if (v.estado_txt?.toLowerCase() === 'comprobante anulado') continue
+      if (isAnulada(v)) continue
       const date = v.fecha?.slice(0, 10)
       if (!date || date < startStr || date > endStr) continue
       counts.set(cajaKey(v), (counts.get(cajaKey(v)) ?? 0) + 1)
@@ -185,7 +179,8 @@ export function useDashboardData() {
   }, [posVentas, startDate, endDate])
 
   // Desglose de la caja seleccionada dentro del rango visible — sirve para cuadrar
-  // contra el reporte del POS (muestra ventas netas, propinas, envío, tipos).
+  // contra el reporte del POS. Incluye impuestos y monto anulado para diagnosticar
+  // diferencias con la app externa del POS.
   const cajaBreakdown = useMemo<CajaBreakdown | null>(() => {
     if (selectedCaja === 'todas') return null
     const startStr = toDateStr(startDate)
@@ -193,24 +188,29 @@ export function useDashboardData() {
     let ventasNetas = 0
     let propinas = 0
     let envio = 0
+    let impuestos = 0
     let cantidad = 0
     let anuladas = 0
+    let montoAnulado = 0
     const porTipoMap = new Map<string, { count: number; monto: number }>()
 
     for (const v of posVentas) {
       const date = v.fecha?.slice(0, 10)
       if (!date || date < startStr || date > endStr) continue
       if (cajaKey(v) !== selectedCaja) continue
-      if (v.estado_txt?.toLowerCase() === 'comprobante anulado') {
+      if (isAnulada(v)) {
         anuladas += 1
+        montoAnulado += ventaMonto(v)
         continue
       }
-      const neto = Number(v.total) || 0
+      const neto = num(v.total)
       const prop = sumPropinas(v)
-      const env = Number(v.costoenvio) || 0
+      const env = num(v.costoenvio)
+      const imp = num(v.impuestos)
       ventasNetas += neto
       propinas += prop
       envio += env
+      impuestos += imp
       cantidad += 1
       const tipo = (v.tipo_documento || '?').toUpperCase()
       const prev = porTipoMap.get(tipo) ?? { count: 0, monto: 0 }
@@ -226,13 +226,19 @@ export function useDashboardData() {
       }))
       .sort((a, b) => b.monto - a.monto)
 
+    const total = ventasNetas + propinas + envio
+    const totalConImpuestos = total + impuestos
     return {
       ventasNetas,
       propinas,
       envio,
-      total: ventasNetas + propinas + envio,
+      impuestos,
+      total,
+      totalConImpuestos,
+      totalConImpuestosYAnuladas: totalConImpuestos + montoAnulado,
       cantidad,
       anuladas,
+      montoAnulado,
       porTipo,
     }
   }, [posVentas, selectedCaja, startDate, endDate])

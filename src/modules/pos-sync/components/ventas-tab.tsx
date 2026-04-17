@@ -7,13 +7,10 @@ import { FilterPillGroup, type FilterPillOption } from '@/core/ui/filter-pill-gr
 import { formatCurrency } from '@/core/utils/format'
 import { useDateRange } from '@/modules/finance/context/date-range-context'
 import { usePosVentas } from '../hooks'
+import { calcTotals, num, toDateStrLocal, type PosTotals } from '../utils/sales-calculations'
 import { VentaDetailDrawer } from './venta-detail-drawer'
 import type { PosVenta, PosLocal } from '../types'
 import type { LucideIcon } from 'lucide-react'
-
-function num(val: string | number | undefined): number {
-  return Number(val) || 0
-}
 
 type DocType = 'factura' | 'boleta' | 'nota' | 'otro'
 
@@ -32,32 +29,13 @@ const DOC_TYPE_LABELS: Record<DocType, string> = {
   otro: 'Otro',
 }
 
-function toDateStr(d: Date): string {
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
-}
+const toDateStr = toDateStrLocal
 
 interface VentasTabProps {
   localIds: number[]
   allLocalIds: number[]
   locales: PosLocal[]
   localLabel: string | null
-}
-
-function calcTotals(list: PosVenta[]) {
-  const ventas = list.reduce((sum, v) => sum + num(v.total), 0)
-  return {
-    count: list.length,
-    ventas,
-    impuestos: list.reduce((sum, v) => sum + num(v.impuestos), 0),
-    propinas: list.reduce(
-      (sum, v) => sum + (v.lista_propinas?.reduce((s, p) => s + num(p.montoConIgv), 0) ?? 0),
-      0
-    ),
-    ticket: list.length > 0 ? ventas / list.length : 0,
-  }
 }
 
 function getEstadoTone(estado: string | undefined): 'positive' | 'warning' | 'neutral' {
@@ -409,7 +387,7 @@ export function VentasTab({ localIds, allLocalIds, locales, localLabel }: Ventas
 
 interface HeroPanelProps {
   localLabel: string | null
-  stats: ReturnType<typeof calcTotals>
+  stats: PosTotals
   loading: boolean
   lastUpdated: Date | null
   fromCache: boolean
@@ -468,6 +446,13 @@ function HeroPanel({
           <div className="text-[44px] md:text-[52px] leading-none font-bold text-dark-graphite tabular-nums">
             <CountUp value={stats.ventas} format={formatCurrency} disabled={!!prefersReducedMotion} />
           </div>
+          {hasData && (stats.propinas > 0 || stats.envio > 0) && (
+            <div className="mt-2 flex items-center gap-3 text-caption text-mid-gray tabular-nums">
+              <span>Netas {formatCurrency(stats.ventasNetas)}</span>
+              {stats.propinas > 0 && <span>+ propinas {formatCurrency(stats.propinas)}</span>}
+              {stats.envio > 0 && <span>+ envío {formatCurrency(stats.envio)}</span>}
+            </div>
+          )}
         </div>
         <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-right">
           <div>
@@ -523,7 +508,7 @@ interface CardConfig {
   label: string
   icon: LucideIcon
   tone: 'info' | 'warning' | 'neutral'
-  format: (stats: ReturnType<typeof calcTotals>) => string
+  format: (stats: PosTotals) => string
 }
 
 const CARDS_CONFIG: CardConfig[] = [
@@ -566,7 +551,7 @@ function SummaryCards({
   stats,
   prefersReducedMotion,
 }: {
-  stats: ReturnType<typeof calcTotals>
+  stats: PosTotals
   prefersReducedMotion: boolean | null
 }) {
   return (
