@@ -82,9 +82,16 @@ export async function getCachedVentas(
   ])
 
   const ventas: PosVenta[] = []
+  const keysWithSales = new Set<string>()
   for (const d of salesSnap.docs) {
     const data = d.data() as { ventas?: PosVenta[] }
-    if (data.ventas?.length) ventas.push(...data.ventas)
+    if (data.ventas?.length) {
+      ventas.push(...data.ventas)
+      for (const v of data.ventas) {
+        const vDate = v.fecha?.slice(0, 10)
+        if (vDate) keysWithSales.add(`${vDate}_${v.id_local}`)
+      }
+    }
   }
 
   const freshKeys = new Set<string>()
@@ -98,14 +105,17 @@ export async function getCachedVentas(
       if (!date || date < startDate || date > endDate) continue
       const withinReconcile = date >= reconcileFrom && date < today
       const tsMs = ts?.toMillis?.() ?? 0
-      // A day is stale if:
-      //  - it's within the reconcile window AND its cache age exceeds the TTL, OR
-      //  - it was cached before the day actually ended (cache snapshot taken mid-day,
-      //    so afternoon/evening sales may be missing).
+      // A day is stale if (any of):
+      //  - within the reconcile window AND cache age exceeds the TTL
+      //  - cached before the day actually ended (mid-day snapshot, evening sales may be missing)
+      //  - within the reconcile window AND meta says "synced" but no sales were stored
+      //    (covers transient POS API errors that returned an empty payload)
       const endOfDayMs = new Date(date + 'T23:59:59.999').getTime()
       const cachedMidDay = tsMs > 0 && tsMs < endOfDayMs
+      const emptyButRecent = withinReconcile && !keysWithSales.has(key)
       const stale =
-        withinReconcile && (now - tsMs > RECONCILE_TTL_MS || cachedMidDay)
+        withinReconcile &&
+        (now - tsMs > RECONCILE_TTL_MS || cachedMidDay || emptyButRecent)
       if (stale) staleKeys.add(key)
       else freshKeys.add(key)
     }
