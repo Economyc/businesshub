@@ -11,6 +11,7 @@ interface KPICardProps {
   format?: 'number' | 'currency' | 'percent'
   change?: string
   trend?: 'up' | 'down' | 'neutral'
+  comparison?: string
   icon?: LucideIcon
 }
 
@@ -35,7 +36,7 @@ function useCountUp(target: number, duration = 800) {
   return count
 }
 
-export function KPICard({ label, value, format = 'number', change, trend, icon: Icon }: KPICardProps) {
+export function KPICard({ label, value, format = 'number', change, trend, comparison, icon: Icon }: KPICardProps) {
   const animatedValue = useCountUp(value)
 
   const formattedValue = format === 'currency'
@@ -54,10 +55,17 @@ export function KPICard({ label, value, format = 'number', change, trend, icon: 
         {Icon && <Icon size={16} strokeWidth={1.5} className="text-smoke" />}
       </div>
       <div className="text-lg sm:text-kpi font-extrabold text-dark-graphite truncate">{formattedValue}</div>
-      {change && (
-        <div className={`inline-flex items-center gap-[3px] mt-1.5 text-caption px-2 py-0.5 rounded-full ${trend === 'down' ? 'bg-negative-bg text-negative-text' : trend === 'neutral' ? 'bg-warning-bg text-warning-text' : 'bg-positive-bg text-positive-text'}`}>
-          {trend === 'up' ? <ChevronUp size={12} strokeWidth={1.5} /> : trend === 'down' ? <ChevronDown size={12} strokeWidth={1.5} /> : null}
-          {change}
+      {(change || comparison) && (
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+          {change && (
+            <span className={`inline-flex items-center gap-[3px] text-caption px-2 py-0.5 rounded-full ${trend === 'down' ? 'bg-negative-bg text-negative-text' : trend === 'neutral' ? 'bg-warning-bg text-warning-text' : 'bg-positive-bg text-positive-text'}`}>
+              {trend === 'up' ? <ChevronUp size={12} strokeWidth={1.5} /> : trend === 'down' ? <ChevronDown size={12} strokeWidth={1.5} /> : null}
+              {change}
+            </span>
+          )}
+          {comparison && (
+            <span className="text-caption text-mid-gray truncate">{comparison}</span>
+          )}
         </div>
       )}
     </motion.div>

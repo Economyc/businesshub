@@ -7,9 +7,10 @@ import type { DashboardKPIs } from '../hooks'
 interface KPICardsRowProps {
   kpis: DashboardKPIs
   periodLabel: string
+  comparisonLabel: string
 }
 
-export function KPICardsRow({ kpis, periodLabel }: KPICardsRowProps) {
+export function KPICardsRow({ kpis, periodLabel, comparisonLabel }: KPICardsRowProps) {
   return (
     <motion.div
       variants={staggerContainer}
@@ -23,6 +24,7 @@ export function KPICardsRow({ kpis, periodLabel }: KPICardsRowProps) {
         format="currency"
         change={kpis.ventasHoyChange}
         trend={kpis.ventasHoyTrend}
+        comparison={comparisonLabel}
         icon={DollarSign}
       />
       <KPICard
@@ -31,6 +33,7 @@ export function KPICardsRow({ kpis, periodLabel }: KPICardsRowProps) {
         format="currency"
         change={kpis.gastosMesChange}
         trend={kpis.gastosMesTrend}
+        comparison={comparisonLabel}
         icon={CreditCard}
       />
       <KPICard

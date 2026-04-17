@@ -82,6 +82,32 @@ function formatCurrencyShort(n: number): string {
   return `$${n.toLocaleString('es-CO')}`
 }
 
+function buildComparisonLabel(activePreset: string, prevStart: Date): string {
+  switch (activePreset) {
+    case 'today':
+      return 'vs ayer'
+    case 'yesterday':
+      return 'vs anteayer'
+    case 'last7':
+      return 'vs 7 días previos'
+    case 'last30':
+      return 'vs 30 días previos'
+    case 'thisWeek':
+      return 'vs semana anterior'
+    case 'lastWeek':
+      return 'vs semana previa'
+    case 'thisMonth':
+    case 'lastMonth': {
+      const month = prevStart.toLocaleDateString('es-CO', { month: 'long' })
+      return `vs ${month}`
+    }
+    case 'yearToDate':
+      return 'vs año anterior'
+    default:
+      return 'vs período anterior'
+  }
+}
+
 function daysUntil(ts: any): number {
   const d = ts?.toDate?.() ?? (typeof ts === 'string' ? new Date(ts) : null)
   if (!d) return Infinity
@@ -91,7 +117,7 @@ function daysUntil(ts: any): number {
 // ─── Hook ───────────────────────────────────────────────────────────
 
 export function useDashboardData() {
-  const { startDate, endDate } = useDateRange()
+  const { startDate, endDate, activePreset } = useDateRange()
   const { selectedCaja, setSelectedCaja } = useHomeFilters()
   const { data: transactions, loading: txLoading } = useTransactions()
   const { data: closings, loading: closingsLoading } = useClosings()
@@ -398,6 +424,11 @@ export function useDashboardData() {
     [posLoading, posLastUpdated, posFromCache, localIds.length, posForceRefresh],
   )
 
+  const comparisonLabel = useMemo(
+    () => buildComparisonLabel(activePreset, prevStart),
+    [activePreset, prevStart],
+  )
+
   return {
     kpis,
     salesTrend,
@@ -405,5 +436,6 @@ export function useDashboardData() {
     loading,
     syncStatus,
     cajasDisponibles,
+    comparisonLabel,
   }
 }
