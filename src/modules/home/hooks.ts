@@ -161,7 +161,9 @@ export function useDashboardData() {
   const posColdLoading = posLoading && posVentas.length === 0 && localIds.length > 0
 
   // Suma de ventas POS válidas (excluye anuladas) agrupadas por día YYYY-MM-DD.
-  // El monto incluye total + propinas + costo de envío para cuadrar con el POS.
+  // Solo el total neto del comprobante — así cuadra 1:1 con el reporte del POS
+  // de restaurant.pe, que también reporta solo neto. Propinas y envío se muestran
+  // como desglose aparte en cajaBreakdown/cajasOverview pero no se suman al KPI.
   const posSalesByDate = useMemo(() => {
     const map = new Map<string, number>()
     for (const v of posVentas) {
@@ -224,7 +226,7 @@ export function useDashboardData() {
       cantidad += 1
       const tipo = (v.tipo_documento || '?').toUpperCase()
       const prev = porTipoMap.get(tipo) ?? { count: 0, monto: 0 }
-      porTipoMap.set(tipo, { count: prev.count + 1, monto: prev.monto + neto + prop + env })
+      porTipoMap.set(tipo, { count: prev.count + 1, monto: prev.monto + neto })
     }
 
     const porTipo = Array.from(porTipoMap.entries())
@@ -236,7 +238,9 @@ export function useDashboardData() {
       }))
       .sort((a, b) => b.monto - a.monto)
 
-    const total = ventasNetas + propinas + envio
+    // `total` refleja lo que muestra el POS (solo neto). Propinas y envío se
+    // exponen por separado en los campos correspondientes del desglose.
+    const total = ventasNetas
     const totalConImpuestos = total + impuestos
     return {
       ventasNetas,
@@ -284,7 +288,9 @@ export function useDashboardData() {
         row.ventasNetas += neto
         row.propinas += prop
         row.envio += env
-        row.total += neto + prop + env
+        // `total` = solo neto (coincide con el reporte del POS). Propinas y
+        // envío siguen disponibles en sus campos para el desglose.
+        row.total += neto
       }
       map.set(key, row)
     }

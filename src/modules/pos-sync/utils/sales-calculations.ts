@@ -36,10 +36,12 @@ export function sumImpuestos(v: PosVenta): number {
   return num(v.impuestos)
 }
 
-// Fórmula canónica para "Ventas": total neto + propinas + costo de envío.
-// Debe ser la única fuente de verdad usada en Home, POS Sync y cualquier otra vista.
+// Fórmula canónica para "Ventas": total neto del comprobante, sin propinas
+// ni costo de envío. Así cuadra 1:1 con el reporte del POS de restaurant.pe
+// que también reporta solo el neto. Propinas y envío se muestran aparte en
+// el desglose pero no se suman al total principal.
 export function ventaMonto(v: PosVenta): number {
-  return num(v.total) + sumPropinas(v) + num(v.costoenvio)
+  return num(v.total)
 }
 
 export function cajaKey(v: PosVenta): string {
@@ -77,7 +79,10 @@ export function calcTotals(list: PosVenta[]): PosTotals {
     envio += num(v.costoenvio)
     impuestos += num(v.impuestos)
   }
-  const ventas = ventasNetas + propinas + envio
+  // `ventas` representa el total principal mostrado en KPIs y debe cuadrar
+  // con el reporte del POS: solo neto. Propinas y envío quedan como campos
+  // separados para el desglose.
+  const ventas = ventasNetas
   return {
     count: list.length,
     ventas,

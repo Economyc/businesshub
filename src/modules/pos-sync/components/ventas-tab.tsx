@@ -448,7 +448,6 @@ function HeroPanel({
           </div>
           {hasData && (stats.propinas > 0 || stats.envio > 0) && (
             <div className="mt-2 flex items-center gap-3 text-caption text-mid-gray tabular-nums">
-              <span>Netas {formatCurrency(stats.ventasNetas)}</span>
               {stats.propinas > 0 && <span>+ propinas {formatCurrency(stats.propinas)}</span>}
               {stats.envio > 0 && <span>+ envío {formatCurrency(stats.envio)}</span>}
             </div>

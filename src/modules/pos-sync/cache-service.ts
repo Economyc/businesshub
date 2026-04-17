@@ -16,9 +16,23 @@ const SALES_COLLECTION = 'pos-sales-cache'
 const META_COLLECTION = 'pos-sales-cache-meta'
 const CATALOG_COLLECTION = 'pos-catalog-cache'
 
-export const RECONCILE_WINDOW_DAYS = 7
+// Ventana de reconciliación: todos los días dentro de esta ventana se
+// re-fetchean contra el POS en cada carga. Se amplió de 7 → 32 días tras
+// detectar que el POS de restaurant.pe entrega respuestas parciales
+// frecuentes, y cualquier día que quedara congelado fuera de la ventana
+// acumulaba ventas faltantes indefinidamente (diff de $32M observada en
+// abril 2026). 32 días cubren un mes calendario completo sin depender
+// del día del mes en que se consulte.
+export const RECONCILE_WINDOW_DAYS = 32
 export const RECONCILE_TTL_MS = 24 * 60 * 60 * 1000
 export const CATALOG_TTL_MS = 24 * 60 * 60 * 1000
+
+// Firestore acepta docs de hasta 1 MiB. Un día muy ocupado del POS (>300
+// ventas con `detalle` completo) sobrepasa ese límite si se guarda en un
+// solo doc. Paginamos cada `(date, localId)` en varios documentos con
+// sufijo `_pN` para no perder datos. La lectura reconstruye todo desde la
+// misma query por `date`.
+export const MAX_VENTAS_PER_DOC = 150
 
 export interface CacheLookup {
   ventas: PosVenta[]
@@ -111,7 +125,10 @@ export async function getCachedVentas(
 
 // Threshold below which a new fetch is considered a "partial response" relative
 // to the cached version and we refuse to overwrite the existing cache.
-export const PARTIAL_RESPONSE_THRESHOLD = 0.7
+// Bajamos de 0.7 → 0.5: el POS puede legítimamente devolver menos ventas si
+// hubo anulaciones, y 0.7 era muy conservador — descartaba actualizaciones
+// válidas y mantenía cache stale.
+export const PARTIAL_RESPONSE_THRESHOLD = 0.5
 
 export function isLikelyPartialResponse(newCount: number, prevCount: number): boolean {
   return prevCount > 0 && newCount < prevCount * PARTIAL_RESPONSE_THRESHOLD
@@ -162,13 +179,21 @@ export async function saveVentasToCache(
 
       monthPayload[key] = now
       if (group && group.length > 0) {
-        const docRef = doc(db, 'companies', companyId, SALES_COLLECTION, key)
-        batch.set(docRef, {
-          date,
-          localId,
-          ventas: group,
-          syncedAt: now,
-        })
+        // Paginar en chunks para no exceder el límite de 1 MiB por doc.
+        const pages = Math.ceil(group.length / MAX_VENTAS_PER_DOC)
+        for (let p = 0; p < pages; p++) {
+          const chunk = group.slice(p * MAX_VENTAS_PER_DOC, (p + 1) * MAX_VENTAS_PER_DOC)
+          const docId = `${key}_p${p}`
+          const docRef = doc(db, 'companies', companyId, SALES_COLLECTION, docId)
+          batch.set(docRef, {
+            date,
+            localId,
+            page: p,
+            pages,
+            ventas: chunk,
+            syncedAt: now,
+          })
+        }
       }
     }
   }

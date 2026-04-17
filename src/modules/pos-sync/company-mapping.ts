@@ -16,6 +16,11 @@ function normalize(str: string | null | undefined): string {
     .trim()
 }
 
+// Matching estricto: aceptamos match exacto (nombre completo o location como
+// sustring significativa del nombre del local), pero rechazamos coincidencias
+// parciales que puedan mezclar locales con nombres compartidos. Si no hay
+// match limpio devolvemos null y `useCompanyLocalIds` recurre a todos los
+// locales — mejor mostrar todo junto que asignar al local equivocado.
 export function findMatchingLocal(
   locales: PosLocal[],
   company: CompanyLike | null | undefined,
@@ -28,10 +33,10 @@ export function findMatchingLocal(
   const exact = locales.find((l) => normalize(l.local_descripcion) === companyNorm)
   if (exact) return exact
 
-  const partial = locales.find((l) => normalize(l.local_descripcion).includes(companyNorm))
-  if (partial) return partial
-
-  const locMatch = locales.find((l) => normalize(l.local_descripcion).includes(locationNorm))
+  // Match estricto por location: el nombre del local debe contener la location
+  // como palabra completa (delimitada por borde o espacio), no sustring.
+  const locWord = new RegExp(`(^|\\s)${locationNorm.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}($|\\s)`)
+  const locMatch = locales.find((l) => locWord.test(normalize(l.local_descripcion)))
   if (locMatch) return locMatch
 
   return null
