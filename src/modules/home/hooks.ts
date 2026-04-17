@@ -5,6 +5,8 @@ import { useClosings } from '@/modules/closings/hooks'
 import { useCarteraItems, useCarteraSummary } from '@/modules/cartera/hooks'
 import { useBudgetComparison } from '@/modules/finance/hooks'
 import { useDateRange } from '@/modules/finance/context/date-range-context'
+import { usePosVentas } from '@/modules/pos-sync/hooks'
+import { useCompanyLocalIds } from '@/modules/pos-sync/company-mapping'
 import type { Supplier } from '@/modules/suppliers/types'
 import type { Contract } from '@/modules/contracts/types'
 
@@ -83,6 +85,7 @@ export function useDashboardData() {
   const { summary: carteraSummary } = useCarteraSummary()
   const { data: suppliers, loading: suppliersLoading } = useCollection<Supplier>('suppliers')
   const { data: contracts, loading: contractsLoading } = useCollection<Contract>('contracts')
+  const { localIds } = useCompanyLocalIds()
 
   // Previous period of equal duration for comparison
   const { prevStart, prevEnd } = useMemo(() => {
@@ -92,6 +95,44 @@ export function useDashboardData() {
       prevEnd: new Date(startDate.getTime() - 1),
     }
   }, [startDate, endDate])
+
+  // POS ventas para [prevStart, endDate] — se aplican como fuente primaria de ventas
+  const posRangeStart = useMemo(() => toDateStr(prevStart), [prevStart])
+  const posRangeEnd = useMemo(() => toDateStr(endDate), [endDate])
+  const { ventas: posVentas } = usePosVentas({
+    localIds,
+    startDate: posRangeStart,
+    endDate: posRangeEnd,
+    enabled: localIds.length > 0,
+  })
+
+  // Suma de ventas POS válidas (excluye anuladas) agrupadas por día YYYY-MM-DD
+  const posSalesByDate = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const v of posVentas) {
+      if (v.estado_txt?.toLowerCase() === 'comprobante anulado') continue
+      const date = v.fecha?.slice(0, 10)
+      if (!date) continue
+      const monto = Number(v.total) || 0
+      map.set(date, (map.get(date) ?? 0) + monto)
+    }
+    return map
+  }, [posVentas])
+
+  function sumPosBetween(startStr: string, endStr: string): number {
+    let sum = 0
+    for (const [date, value] of posSalesByDate) {
+      if (date >= startStr && date <= endStr) sum += value
+    }
+    return sum
+  }
+
+  function hasPosBetween(startStr: string, endStr: string): boolean {
+    for (const date of posSalesByDate.keys()) {
+      if (date >= startStr && date <= endStr) return true
+    }
+    return false
+  }
 
   // Stabilize dates for useBudgetComparison
   const { monthStart, monthEnd } = useMemo(() => {
@@ -111,28 +152,38 @@ export function useDashboardData() {
     const prevStartStr = toDateStr(prevStart)
     const prevEndStr = toDateStr(prevEnd)
 
-    // Ventas del período: from closings
-    const periodClosings = closings.filter((c) => c.date >= startStr && c.date <= endStr)
-    const prevClosings = closings.filter((c) => c.date >= prevStartStr && c.date <= prevEndStr)
-    let ventas = periodClosings.reduce((s, c) => s + c.ventaTotal, 0)
-    let ventasPrev = prevClosings.reduce((s, c) => s + c.ventaTotal, 0)
+    // Ventas del período — precedencia: POS (cache + hoy en vivo) → closings → income transactions
+    let ventas = 0
+    let ventasPrev = 0
 
-    // Fallback to income transactions if no closings
-    if (ventas === 0 && periodClosings.length === 0) {
-      ventas = transactions
-        .filter((t) => {
-          const d = t.date?.toDate?.()
-          return d && t.type === 'income' && d >= startDate && d <= endDate
-        })
-        .reduce((s, t) => s + t.amount, 0)
+    if (hasPosBetween(startStr, endStr)) {
+      ventas = sumPosBetween(startStr, endStr)
+    } else {
+      const periodClosings = closings.filter((c) => c.date >= startStr && c.date <= endStr)
+      ventas = periodClosings.reduce((s, c) => s + c.ventaTotal, 0)
+      if (ventas === 0 && periodClosings.length === 0) {
+        ventas = transactions
+          .filter((t) => {
+            const d = t.date?.toDate?.()
+            return d && t.type === 'income' && d >= startDate && d <= endDate
+          })
+          .reduce((s, t) => s + t.amount, 0)
+      }
     }
-    if (ventasPrev === 0 && prevClosings.length === 0) {
-      ventasPrev = transactions
-        .filter((t) => {
-          const d = t.date?.toDate?.()
-          return d && t.type === 'income' && d >= prevStart && d <= prevEnd
-        })
-        .reduce((s, t) => s + t.amount, 0)
+
+    if (hasPosBetween(prevStartStr, prevEndStr)) {
+      ventasPrev = sumPosBetween(prevStartStr, prevEndStr)
+    } else {
+      const prevClosings = closings.filter((c) => c.date >= prevStartStr && c.date <= prevEndStr)
+      ventasPrev = prevClosings.reduce((s, c) => s + c.ventaTotal, 0)
+      if (ventasPrev === 0 && prevClosings.length === 0) {
+        ventasPrev = transactions
+          .filter((t) => {
+            const d = t.date?.toDate?.()
+            return d && t.type === 'income' && d >= prevStart && d <= prevEnd
+          })
+          .reduce((s, t) => s + t.amount, 0)
+      }
     }
 
     // Gastos del período
@@ -186,7 +237,7 @@ export function useDashboardData() {
       porCobrarChange: overdueCount > 0 ? `${overdueCount} vencidas` : porCobrar > 0 ? `${receivables.filter((r) => r.status === 'pending').length} pendientes` : 'Al día',
       porCobrarTrend: overdueCount > 0 ? 'down' : porCobrar > 0 ? 'neutral' : 'up',
     }
-  }, [transactions, closings, carteraSummary, receivables, startDate, endDate, prevStart, prevEnd])
+  }, [transactions, closings, posSalesByDate, carteraSummary, receivables, startDate, endDate, prevStart, prevEnd])
 
   // ─── Sales Trend (filtered by date range) ──────────────────────
   const salesTrend = useMemo<SalesTrendPoint[]>(() => {
@@ -208,7 +259,7 @@ export function useDashboardData() {
       txByDate.set(key, (txByDate.get(key) ?? 0) + t.amount)
     }
 
-    // Iterate each day in the selected range
+    // Iterate each day in the selected range — POS toma precedencia sobre closings/transactions
     const current = new Date(startDate)
     current.setHours(0, 0, 0, 0)
     const end = new Date(endDate)
@@ -216,13 +267,14 @@ export function useDashboardData() {
 
     while (current <= end) {
       const dateStr = toDateStr(current)
-      const sales = closingsByDate.get(dateStr) ?? txByDate.get(dateStr) ?? 0
+      const sales =
+        posSalesByDate.get(dateStr) ?? closingsByDate.get(dateStr) ?? txByDate.get(dateStr) ?? 0
       points.push({ date: formatShortDate(dateStr), sales })
       current.setDate(current.getDate() + 1)
     }
 
     return points
-  }, [closings, transactions, startDate, endDate])
+  }, [closings, transactions, posSalesByDate, startDate, endDate])
 
   // ─── Alerts ─────────────────────────────────────────────────────
   const alerts = useMemo<DashboardAlerts>(() => {

@@ -29,4 +29,11 @@ export const notificationService = {
 
   remove: (companyId: string, id: string) =>
     removeDocument(companyId, COLLECTION, id),
+
+  removeAll: async (companyId: string) => {
+    const all = await fetchCollection<AppNotification>(companyId, COLLECTION)
+    await Promise.all(
+      all.map((n) => removeDocument(companyId, COLLECTION, n.id))
+    )
+  },
 }

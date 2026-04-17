@@ -44,3 +44,29 @@ export function useMarkAllAsRead() {
     },
   })
 }
+
+export function useDeleteNotification() {
+  const { selectedCompany } = useCompany()
+  const companyId = selectedCompany?.id
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (id: string) => notificationService.remove(companyId!, id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['firestore', companyId, 'notifications'] })
+    },
+  })
+}
+
+export function useClearAllNotifications() {
+  const { selectedCompany } = useCompany()
+  const companyId = selectedCompany?.id
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: () => notificationService.removeAll(companyId!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['firestore', companyId, 'notifications'] })
+    },
+  })
+}

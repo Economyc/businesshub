@@ -1,8 +1,16 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bell, CheckCheck, AlertTriangle, FileText, CalendarClock, TrendingUp } from 'lucide-react'
+import { Bell, CheckCheck, AlertTriangle, FileText, CalendarClock, TrendingUp, X, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useNotifications, useUnreadCount, useMarkAsRead, useMarkAllAsRead } from '../hooks'
+import { ConfirmDialog } from '@/core/ui/confirm-dialog'
+import {
+  useNotifications,
+  useUnreadCount,
+  useMarkAsRead,
+  useMarkAllAsRead,
+  useDeleteNotification,
+  useClearAllNotifications,
+} from '../hooks'
 import type { AppNotification } from '../types'
 
 interface NotificationBellProps {
