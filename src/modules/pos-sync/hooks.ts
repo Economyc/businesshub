@@ -154,9 +154,15 @@ async function fetchVentasWithCache({
     return { ventas: cachedVentas, fromCache: true, rateLimited: false }
   }
 
-  // Decide whether to throttle partial updates: if cache covers most of the range, don't flicker the UI per chunk.
-  const cacheCoverage = allDates.length === 0 ? 0 : 1 - datesNeedingFetch.length / allDates.length
-  const isWarmReload = cacheCoverage >= 0.8 && cachedVentas.length > 0
+  // Compute cache coverage: how many days actually have cached sales (vs. just meta entries).
+  const datesWithCache = new Set<string>()
+  for (const v of cachedVentas) {
+    const vDate = v.fecha?.slice(0, 10)
+    if (vDate) datesWithCache.add(vDate)
+  }
+  const coverageRatio =
+    allDates.length === 0 ? 0 : datesWithCache.size / allDates.length
+  const hasUsableCache = cachedVentas.length > 0 && coverageRatio >= 0.5
 
   // Remove cached ventas for dates we're about to refetch
   const redoDates = new Set(datesNeedingFetch)
@@ -164,10 +170,12 @@ async function fetchVentasWithCache({
     (v) => !redoDates.has(v.fecha?.slice(0, 10) ?? ''),
   )
 
-  // Warm reload: show stable cache immediately, no per-chunk flicker
-  if (isWarmReload) {
+  // If we have usable cache, show it immediately so the UI doesn't block on reconciliation.
+  // The reconciliation continues in the background and the dot indicator shows the activity.
+  if (hasUsableCache) {
     onPartial?.({ ventas: cachedVentas, fromCache: true, rateLimited: false })
   }
+  const isWarmReload = hasUsableCache
 
   const showProgress = chunksToFetch.length > 1
   let rateLimited = false
