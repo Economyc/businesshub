@@ -15,9 +15,11 @@ function daysBetween(from: Date, to: Date): number {
 function computeStatus(
   balance: number,
   originalAmount: number,
-  dueDate: Date | undefined
+  dueDate: Date | undefined,
+  existingStatus?: CarteraItem['status']
 ): CarteraItem['status'] {
   if (balance <= 0) return 'paid'
+  if (existingStatus === 'overdue') return 'overdue'
   if (dueDate && dueDate < new Date()) return 'overdue'
   if (balance < originalAmount) return 'partial'
   return 'pending'
@@ -60,7 +62,7 @@ export function useCarteraItems() {
           commissionAmount,
           balance,
           date: t.date,
-          status: computeStatus(balance, t.amount, undefined),
+          status: computeStatus(balance, t.amount, undefined, t.status as CarteraItem['status']),
           daysOutstanding: days,
           payments: txPayments,
         }
@@ -91,7 +93,7 @@ export function useCarteraItems() {
           balance,
           date: p.date,
           dueDate: p.paymentDueDate,
-          status: computeStatus(balance, p.total, dueDate),
+          status: computeStatus(balance, p.total, dueDate, p.paymentStatus as CarteraItem['status']),
           daysOutstanding: days,
           payments: purPayments,
         }

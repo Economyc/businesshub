@@ -253,8 +253,9 @@ export function useDashboardData() {
     const expiringContracts: AlertItem[] = []
 
     for (const s of suppliers) {
+      if (s.status !== 'active' || !s.contractEnd) continue
       const days = daysUntil(s.contractEnd)
-      if (days >= 0 && days <= 30 && s.status === 'active') {
+      if (days >= 0 && days <= 30) {
         expiringContracts.push({
           id: s.id,
           label: s.name,
