@@ -17,13 +17,15 @@ interface DashboardContentProps {
   salesTrend: SalesTrendPoint[]
   alerts: DashboardAlerts
   periodLabel: string
+  startDate: Date
+  endDate: Date
 }
 
-function DashboardContent({ kpis, salesTrend, alerts, periodLabel }: DashboardContentProps) {
+function DashboardContent({ kpis, salesTrend, alerts, periodLabel, startDate, endDate }: DashboardContentProps) {
   return (
     <div className="space-y-6">
       <KPICardsRow kpis={kpis} periodLabel={periodLabel} />
-      <SalesTrendChart data={salesTrend} periodLabel={periodLabel} />
+      <SalesTrendChart data={salesTrend} startDate={startDate} endDate={endDate} />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <AlertsPanel alerts={alerts} />
         <QuickActions />
@@ -34,7 +36,7 @@ function DashboardContent({ kpis, salesTrend, alerts, periodLabel }: DashboardCo
 
 export function HomePage() {
   const { user } = useAuth()
-  const { presetLabel } = useDateRange()
+  const { presetLabel, startDate, endDate } = useDateRange()
   const { kpis, salesTrend, alerts, loading, syncStatus } = useDashboardData()
 
   const firstName = user?.displayName?.split(' ')[0] ?? user?.email?.split('@')[0] ?? 'Usuario'
@@ -74,6 +76,8 @@ export function HomePage() {
           salesTrend={salesTrend}
           alerts={alerts}
           periodLabel={presetLabel}
+          startDate={startDate}
+          endDate={endDate}
         />
       )}
     </PageTransition>
