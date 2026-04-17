@@ -7,10 +7,12 @@ import { DateRangePicker } from '@/modules/finance/components/date-range-picker'
 import { useDateRange } from '@/modules/finance/context/date-range-context'
 import { useDashboardData } from '../hooks'
 import type { DashboardKPIs, SalesTrendPoint, DashboardAlerts } from '../hooks'
+import { HomeFiltersProvider } from '../context/home-filters-context'
 import { KPICardsRow } from './kpi-cards-row'
 import { SalesTrendChart } from './sales-trend-chart'
 import { AlertsPanel } from './alerts-panel'
 import { QuickActions } from './quick-actions'
+import { CajaFilter } from './caja-filter'
 
 interface DashboardContentProps {
   kpis: DashboardKPIs
@@ -34,10 +36,10 @@ function DashboardContent({ kpis, salesTrend, alerts, periodLabel, startDate, en
   )
 }
 
-export function HomePage() {
+function HomePageContent() {
   const { user } = useAuth()
   const { presetLabel, startDate, endDate } = useDateRange()
-  const { kpis, salesTrend, alerts, loading, syncStatus } = useDashboardData()
+  const { kpis, salesTrend, alerts, loading, syncStatus, cajasDisponibles } = useDashboardData()
 
   const firstName = user?.displayName?.split(' ')[0] ?? user?.email?.split('@')[0] ?? 'Usuario'
   const todayLabel = new Date().toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'long' })
@@ -55,6 +57,7 @@ export function HomePage() {
           </div>
           <div className="flex items-center gap-2">
             <SyncStatusDot {...syncStatus} />
+            <CajaFilter cajas={cajasDisponibles} />
             <DateRangePicker />
           </div>
         </div>
@@ -64,6 +67,7 @@ export function HomePage() {
         <PageHeader title="Dashboard">
           <div className="flex items-center gap-2">
             <SyncStatusDot {...syncStatus} />
+            <CajaFilter cajas={cajasDisponibles} />
             <DateRangePicker />
           </div>
         </PageHeader>
@@ -81,5 +85,13 @@ export function HomePage() {
         />
       )}
     </PageTransition>
+  )
+}
+
+export function HomePage() {
+  return (
+    <HomeFiltersProvider>
+      <HomePageContent />
+    </HomeFiltersProvider>
   )
 }

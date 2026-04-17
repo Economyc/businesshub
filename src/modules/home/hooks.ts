@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useCollection } from '@/core/hooks/use-firestore'
 import { useTransactions } from '@/modules/finance/hooks'
 import { useClosings } from '@/modules/closings/hooks'
@@ -7,6 +7,7 @@ import { useBudgetComparison } from '@/modules/finance/hooks'
 import { useDateRange } from '@/modules/finance/context/date-range-context'
 import { usePosVentas } from '@/modules/pos-sync/hooks'
 import { useCompanyLocalIds } from '@/modules/pos-sync/company-mapping'
+import { useHomeFilters } from './context/home-filters-context'
 import type { Supplier } from '@/modules/suppliers/types'
 import type { Contract } from '@/modules/contracts/types'
 
@@ -87,6 +88,7 @@ function daysUntil(ts: any): number {
 
 export function useDashboardData() {
   const { startDate, endDate } = useDateRange()
+  const { selectedCaja, setSelectedCaja } = useHomeFilters()
   const { data: transactions, loading: txLoading } = useTransactions()
   const { data: closings, loading: closingsLoading } = useClosings()
   const { receivables, payables, loading: carteraLoading } = useCarteraItems()
@@ -127,13 +129,35 @@ export function useDashboardData() {
     const map = new Map<string, number>()
     for (const v of posVentas) {
       if (v.estado_txt?.toLowerCase() === 'comprobante anulado') continue
+      if (selectedCaja !== 'todas' && String(v.caja_id) !== selectedCaja) continue
       const date = v.fecha?.slice(0, 10)
       if (!date) continue
       const monto = Number(v.total) || 0
       map.set(date, (map.get(date) ?? 0) + monto)
     }
     return map
-  }, [posVentas])
+  }, [posVentas, selectedCaja])
+
+  // Cajas disponibles dentro del rango visible [startDate..endDate]
+  const cajasDisponibles = useMemo<Array<[string, number]>>(() => {
+    const startStr = toDateStr(startDate)
+    const endStr = toDateStr(endDate)
+    const counts = new Map<string, number>()
+    for (const v of posVentas) {
+      if (v.estado_txt?.toLowerCase() === 'comprobante anulado') continue
+      const date = v.fecha?.slice(0, 10)
+      if (!date || date < startStr || date > endStr) continue
+      const k = String(v.caja_id ?? '?')
+      counts.set(k, (counts.get(k) ?? 0) + 1)
+    }
+    return Array.from(counts.entries()).sort((a, b) => Number(a[0]) - Number(b[0]))
+  }, [posVentas, startDate, endDate])
+
+  // Auto-reset si la caja seleccionada sale del set disponible
+  useEffect(() => {
+    if (selectedCaja === 'todas') return
+    if (!cajasDisponibles.some(([k]) => k === selectedCaja)) setSelectedCaja('todas')
+  }, [cajasDisponibles, selectedCaja, setSelectedCaja])
 
   function sumPosBetween(startStr: string, endStr: string): number {
     let sum = 0
@@ -369,5 +393,5 @@ export function useDashboardData() {
     [posLoading, posLastUpdated, posFromCache, localIds.length, posForceRefresh],
   )
 
-  return { kpis, salesTrend, alerts, loading, syncStatus }
+  return { kpis, salesTrend, alerts, loading, syncStatus, cajasDisponibles }
 }
