@@ -22,9 +22,13 @@ export const DEFAULT_RECONCILE_DAYS = 32;
 const MANUAL_COOLDOWN_MS = 60 * 1000;
 // Tamaño máximo de ventana contra el POS. Rangos más grandes disparan
 // respuestas parciales / rate-limits internos del endpoint
-// obtenerVentasPorIntegracion. 31 días es el mismo orden que funciona en el
-// cron nocturno por default.
-const POS_WINDOW_DAYS = 31;
+// obtenerVentasPorIntegracion en meses de alto volumen (detectado en abril
+// 2026: enero/febrero quedaron cacheados incompletos por correr 31 días
+// en un único request). 15 días sí responde limpio incluso en meses con
+// ~2k ventas. Trade-off: ~2-3 llamadas al POS por local por reconcile
+// (antes 1), pero cada ventana es independiente: si una falla las demás
+// ya quedaron persistidas y el próximo run continúa desde donde quedó.
+const POS_WINDOW_DAYS = 15;
 function buildWindows(startDate, endDate, windowDays) {
     const windows = [];
     let cursor = startDate;
