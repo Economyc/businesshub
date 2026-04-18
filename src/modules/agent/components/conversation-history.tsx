@@ -1,5 +1,5 @@
+import { useState, useEffect, useRef } from 'react'
 import { Clock, Trash2, MessageSquare } from 'lucide-react'
-import { Popover, PopoverTrigger, PopoverContent, PopoverClose } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 import type { Conversation } from '../types'
 
@@ -27,9 +27,42 @@ function formatRelativeDate(timestamp: { seconds?: number; _seconds?: number }):
 }
 
 export function ConversationHistory({ conversations, activeConversationId, onSelect, onDelete }: ConversationHistoryProps) {
+  const [open, setOpen] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setOpen(false)
+      }
+    }
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('keydown', handleEscape)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleEscape)
+    }
+  }, [open])
+
+  function handleSelect(conversation: Conversation) {
+    onSelect(conversation)
+    setOpen(false)
+  }
+
+  function handleDelete(e: React.MouseEvent, conversationId: string) {
+    e.stopPropagation()
+    onDelete(conversationId)
+  }
+
   return (
-    <Popover>
-      <PopoverTrigger
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
         className="w-8 h-8 flex items-center justify-center rounded-full text-mid-gray hover:text-graphite hover:bg-bone transition-colors active:scale-95 relative"
         title="Historial de conversaciones"
       >
@@ -39,55 +72,57 @@ export function ConversationHistory({ conversations, activeConversationId, onSel
             {conversations.length > 9 ? '9+' : conversations.length}
           </span>
         )}
-      </PopoverTrigger>
-      <PopoverContent className="w-72 p-0">
-        <div className="px-3 py-2.5 border-b border-border">
-          <p className="text-xs font-semibold text-dark-graphite">Conversaciones</p>
-        </div>
+      </button>
 
-        {conversations.length === 0 ? (
-          <div className="px-3 py-6 text-center">
-            <MessageSquare size={20} className="text-mid-gray/40 mx-auto mb-1.5" />
-            <p className="text-xs text-mid-gray">Sin conversaciones guardadas</p>
+      {open && (
+        <div className="absolute top-full right-0 mt-2 w-72 z-50 rounded-xl border border-border bg-card-bg shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 duration-100">
+          <div className="px-3 py-2.5 border-b border-border">
+            <p className="text-xs font-semibold text-dark-graphite">Conversaciones</p>
           </div>
-        ) : (
-          <div className="max-h-72 overflow-y-auto">
-            {conversations.map((conv) => (
-              <div
-                key={conv.id}
-                className={cn(
-                  'flex items-start group hover:bg-bone/60 transition-colors',
-                  conv.id === activeConversationId && 'bg-bone/80'
-                )}
-              >
-                <PopoverClose
-                  onClick={() => onSelect(conv)}
-                  className="flex-1 min-w-0 text-left px-3 py-2.5 cursor-pointer"
+
+          {conversations.length === 0 ? (
+            <div className="px-3 py-6 text-center">
+              <MessageSquare size={20} className="text-mid-gray/40 mx-auto mb-1.5" />
+              <p className="text-xs text-mid-gray">Sin conversaciones guardadas</p>
+            </div>
+          ) : (
+            <div className="max-h-72 overflow-y-auto">
+              {conversations.map((conv) => (
+                <div
+                  key={conv.id}
+                  onClick={() => handleSelect(conv)}
+                  className={cn(
+                    'flex items-start group hover:bg-bone/60 transition-colors cursor-pointer',
+                    conv.id === activeConversationId && 'bg-bone/80'
+                  )}
                 >
-                  <p className="text-[13px] font-medium text-dark-graphite truncate leading-tight">
-                    {conv.title}
-                  </p>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[10px] text-mid-gray">
-                      {formatRelativeDate(conv.updatedAt as unknown as { seconds?: number; _seconds?: number })}
-                    </span>
-                    <span className="text-[10px] text-mid-gray/60">
-                      {conv.messageCount} msgs
-                    </span>
+                  <div className="flex-1 min-w-0 px-3 py-2.5">
+                    <p className="text-[13px] font-medium text-dark-graphite truncate leading-tight">
+                      {conv.title}
+                    </p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-[10px] text-mid-gray">
+                        {formatRelativeDate(conv.updatedAt as unknown as { seconds?: number; _seconds?: number })}
+                      </span>
+                      <span className="text-[10px] text-mid-gray/60">
+                        {conv.messageCount} msgs
+                      </span>
+                    </div>
                   </div>
-                </PopoverClose>
-                <button
-                  onClick={() => onDelete(conv.id)}
-                  className="shrink-0 w-6 h-6 mr-2 mt-2.5 flex items-center justify-center rounded text-mid-gray/0 group-hover:text-mid-gray hover:!text-destructive transition-colors"
-                  title="Eliminar"
-                >
-                  <Trash2 size={13} />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </PopoverContent>
-    </Popover>
+                  <button
+                    type="button"
+                    onClick={(e) => handleDelete(e, conv.id)}
+                    className="shrink-0 w-6 h-6 mr-2 mt-2.5 flex items-center justify-center rounded text-mid-gray/0 group-hover:text-mid-gray hover:!text-destructive transition-colors"
+                    title="Eliminar"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   )
 }
