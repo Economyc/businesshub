@@ -1,12 +1,15 @@
 import { useMemo, useState, useEffect, useRef } from 'react'
-import { Search, RefreshCw, Loader2, MapPin, Receipt, Heart, Clock, TrendingUp } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
+import { Search, RefreshCw, Loader2, MapPin, Receipt, Heart, Clock, TrendingUp, CloudDownload } from 'lucide-react'
 import { motion, useReducedMotion, useMotionValue, useTransform, animate, type Variants } from 'framer-motion'
 import { DataTable, type Column } from '@/core/ui/data-table'
 import { EmptyState } from '@/core/ui/empty-state'
 import { FilterPillGroup, type FilterPillOption } from '@/core/ui/filter-pill-group'
 import { formatCurrency } from '@/core/utils/format'
+import { useCompany } from '@/core/hooks/use-company'
 import { useDateRange } from '@/modules/finance/context/date-range-context'
 import { usePosVentas } from '../hooks'
+import { triggerServerReconcile } from '../services'
 import { calcTotals, num, toDateStrLocal, type PosTotals } from '../utils/sales-calculations'
 import { VentaDetailDrawer } from './venta-detail-drawer'
 import type { PosVenta, PosLocal } from '../types'
@@ -69,6 +72,8 @@ const TONE_CLASSES: Record<string, string> = {
 
 export function VentasTab({ localIds, allLocalIds, locales, localLabel }: VentasTabProps) {
   const { startDate, endDate } = useDateRange()
+  const { selectedCompany } = useCompany()
+  const queryClient = useQueryClient()
   const startDateStr = toDateStr(startDate)
   const endDateStr = toDateStr(endDate)
   const { ventas, loading, error, rateLimited, lastUpdated, fromCache, refetch, progress } = usePosVentas({
@@ -81,10 +86,27 @@ export function VentasTab({ localIds, allLocalIds, locales, localLabel }: Ventas
   const [docFilter, setDocFilter] = useState<DocType | 'todos'>('todos')
   const [cajaFilter, setCajaFilter] = useState<string>('todas')
   const [selectedVenta, setSelectedVenta] = useState<PosVenta | null>(null)
+  const [syncingServer, setSyncingServer] = useState(false)
+  const [syncError, setSyncError] = useState<string | null>(null)
   const isMultiLocal = localIds.length > 1
 
   function handleConsultar() {
     refetch()
+  }
+
+  async function handleForceServerSync() {
+    if (!selectedCompany?.id || syncingServer) return
+    setSyncError(null)
+    setSyncingServer(true)
+    try {
+      await triggerServerReconcile(selectedCompany.id, 32)
+      await queryClient.invalidateQueries({ queryKey: ['pos-ventas', selectedCompany.id] })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Error sincronizando con el POS'
+      setSyncError(msg)
+    } finally {
+      setSyncingServer(false)
+    }
   }
 
   const localNameMap = useMemo(() => {
@@ -275,9 +297,18 @@ export function VentasTab({ localIds, allLocalIds, locales, localLabel }: Ventas
         lastUpdated={lastUpdated}
         fromCache={fromCache}
         onRefresh={handleConsultar}
+        onForceServerSync={handleForceServerSync}
+        syncingServer={syncingServer}
         prefersReducedMotion={prefersReducedMotion}
         hasData={hasData}
       />
+
+      {syncError && (
+        <div className="bg-warning-bg text-warning-text rounded-xl px-4 py-3 text-caption mb-4 flex items-center gap-2">
+          <Clock size={14} className="shrink-0" />
+          {syncError}
+        </div>
+      )}
 
       {/* Toolbar unificado */}
       {hasData && (
@@ -392,6 +423,8 @@ interface HeroPanelProps {
   lastUpdated: Date | null
   fromCache: boolean
   onRefresh: () => void
+  onForceServerSync: () => void
+  syncingServer: boolean
   prefersReducedMotion: boolean | null
   hasData: boolean
 }
@@ -403,6 +436,8 @@ function HeroPanel({
   lastUpdated,
   fromCache,
   onRefresh,
+  onForceServerSync,
+  syncingServer,
   prefersReducedMotion,
   hasData,
 }: HeroPanelProps) {
@@ -433,6 +468,16 @@ function HeroPanel({
           >
             {loading ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
             Actualizar
+          </button>
+          <button
+            onClick={onForceServerSync}
+            disabled={syncingServer}
+            className="flex items-center gap-1 text-caption text-mid-gray hover:text-dark-graphite transition-colors disabled:opacity-50"
+            aria-label="Forzar sincronización desde el POS"
+            title="Reconcilia los últimos 32 días contra el POS en el servidor"
+          >
+            {syncingServer ? <Loader2 size={12} className="animate-spin" /> : <CloudDownload size={12} />}
+            {syncingServer ? 'Sincronizando…' : 'Sincronizar POS'}
           </button>
         </div>
       </div>

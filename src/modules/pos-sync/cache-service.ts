@@ -16,14 +16,15 @@ const SALES_COLLECTION = 'pos-sales-cache'
 const META_COLLECTION = 'pos-sales-cache-meta'
 const CATALOG_COLLECTION = 'pos-catalog-cache'
 
-// Ventana de reconciliación: todos los días dentro de esta ventana se
-// re-fetchean contra el POS en cada carga. Se amplió de 7 → 32 días tras
-// detectar que el POS de restaurant.pe entrega respuestas parciales
-// frecuentes, y cualquier día que quedara congelado fuera de la ventana
-// acumulaba ventas faltantes indefinidamente (diff de $32M observada en
-// abril 2026). 32 días cubren un mes calendario completo sin depender
-// del día del mes en que se consulte.
-export const RECONCILE_WINDOW_DAYS = 32
+// Ventana de reconciliación en el cliente. Desde abril 2026 la reconciliación
+// profunda de 32 días la hace un cron nocturno (functions/src/pos-reconcile.ts,
+// 01:00 America/Bogota) que hidrata el mismo cache. El cliente solo necesita
+// un margen pequeño para cubrir el caso donde el cron no corrió (empresa
+// nueva, falla puntual del POS) — con 2 días recuperamos ayer/anteayer sin
+// pagar los ~3 minutos que costaban los 32 días completos en cada carga.
+// Si el cron falla varios días seguidos, el botón "Forzar sincronización"
+// dispara `posReconcileOnDemand` para cubrir los 32.
+export const RECONCILE_WINDOW_DAYS = 2
 export const RECONCILE_TTL_MS = 24 * 60 * 60 * 1000
 export const CATALOG_TTL_MS = 24 * 60 * 60 * 1000
 
@@ -109,11 +110,10 @@ export async function getCachedVentas(
     for (const key of Object.keys(metaData.days ?? {})) {
       const date = key.split('_')[0]
       if (!date || date < startDate || date > endDate) continue
-      // Any day inside the reconcile window (last 7 days) is always re-fetched.
-      // The POS API occasionally returns partial payloads, so we never trust the
-      // cached version for recent days — saveVentasToCache then protects against
-      // overwriting a healthier cache with a smaller (likely partial) response.
-      // Older days outside the window are trusted as-is once cached.
+      // Cualquier día dentro de la ventana (ver RECONCILE_WINDOW_DAYS) se
+      // re-fetchea desde el cliente como safety net; el cron nocturno cubre
+      // los 32 días completos. `saveVentasToCache` protege contra sobreescribir
+      // con respuestas parciales. Días fuera de la ventana se confían como están.
       const withinReconcile = date >= reconcileFrom && date < today
       if (withinReconcile) staleKeys.add(key)
       else freshKeys.add(key)
@@ -176,6 +176,12 @@ export async function saveVentasToCache(
         )
         continue
       }
+
+      // Si el API devolvió 0 ventas y tampoco teníamos cache previa, no
+      // stampar meta: un día "vacío" de primera mano puede ser una respuesta
+      // parcial del POS disfrazada de cero. Dejarlo sin stamp permite que la
+      // próxima carga lo reintente hasta ver datos al menos una vez.
+      if (newCount === 0 && prevCount === 0) continue
 
       monthPayload[key] = now
       if (group && group.length > 0) {
