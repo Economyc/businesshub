@@ -131,7 +131,7 @@ export function useDashboardData() {
   const { summary: carteraSummary } = useCarteraSummary()
   const { data: suppliers, loading: suppliersLoading } = useCollection<Supplier>('suppliers')
   const { data: contracts, loading: contractsLoading } = useCollection<Contract>('contracts')
-  const { localIds } = useCompanyLocalIds()
+  const { localIds, loading: localIdsLoading } = useCompanyLocalIds()
 
   // Previous period of equal duration for comparison
   const { prevStart, prevEnd } = useMemo(() => {
@@ -163,7 +163,11 @@ export function useDashboardData() {
   // Solo skeleton en la primera carga sin data/placeholder. Antes usábamos
   // `posLoading && posVentas.length === 0` que mantenía el skeleton eterno
   // cuando un chunk fallaba (queryFn terminaba en error y data quedaba vacía).
-  const posColdLoading = posIsPending && localIds.length > 0
+  // Incluimos `localIdsLoading` para evitar el flash datos→skeleton→datos:
+  // `useCompanyLocalIds` resuelve después de las queries Firestore, por lo
+  // que el skeleton se apagaba brevemente antes de que la query POS se
+  // habilitara. Mantenemos el skeleton hasta saber si hay locales.
+  const posColdLoading = localIdsLoading || (posIsPending && localIds.length > 0)
 
   // Suma de ventas POS válidas (excluye anuladas) agrupadas por día YYYY-MM-DD.
   // Solo el total neto del comprobante — así cuadra 1:1 con el reporte del POS
