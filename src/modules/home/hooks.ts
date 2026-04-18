@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { doc, onSnapshot, Timestamp } from 'firebase/firestore'
+import { doc, getDoc, Timestamp } from 'firebase/firestore'
 import { db } from '@/core/firebase/config'
 import { useCollection } from '@/core/hooks/use-firestore'
 import { useTransactions } from '@/modules/finance/hooks'
@@ -252,9 +252,12 @@ export function useDashboardData() {
     posRefetch,
   ])
 
-  // Suscripción al flag `inProgress` del server. Si otro cliente/cron está
-  // corriendo el reconcile, `reconcilingHistoric` refleja eso (banner visible)
-  // y al cambiar a false disparamos refetch para traer el cache hidratado.
+  // Polling al flag `inProgress` del server. Usamos getDoc con setInterval
+  // en vez de onSnapshot porque varios adblockers bloquean el endpoint
+  // `firestore.googleapis.com/.../channel` que usa el long-poll de
+  // onSnapshot (ERR_BLOCKED_BY_CLIENT). `getDoc` va por REST y no lo
+  // bloquean. 30s de latencia es trivial para reconciles que tardan
+  // 15-40 min.
   useEffect(() => {
     if (!selectedCompany?.id) return
     const ref = doc(
@@ -264,11 +267,18 @@ export function useDashboardData() {
       'settings',
       'pos-reconcile-meta',
     )
+    let cancelled = false
     let prevInProgress = false
-    const unsub = onSnapshot(
-      ref,
-      (snap) => {
-        if (!snap.exists()) return
+
+    const poll = async () => {
+      if (cancelled) return
+      try {
+        const snap = await getDoc(ref)
+        if (cancelled) return
+        if (!snap.exists()) {
+          prevInProgress = false
+          return
+        }
         const data = snap.data() as { inProgress?: boolean; startedAt?: Timestamp }
         const startedMs = data.startedAt?.toMillis?.() ?? 0
         const stuck = startedMs > 0 && Date.now() - startedMs > 60 * 60 * 1000
@@ -278,12 +288,17 @@ export function useDashboardData() {
           posRefetch()
         }
         prevInProgress = active
-      },
-      () => {
-        // Permission/network errors are non-fatal; UI sigue sin coord.
-      },
-    )
-    return () => unsub()
+      } catch {
+        // Permission/network errors son no-fatales; UI sigue sin coord.
+      }
+    }
+
+    poll()
+    const id = setInterval(poll, 30 * 1000)
+    return () => {
+      cancelled = true
+      clearInterval(id)
+    }
   }, [selectedCompany?.id, posRefetch])
 
   // Cajas disponibles dentro del rango visible [startDate..endDate]

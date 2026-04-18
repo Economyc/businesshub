@@ -117,7 +117,7 @@ export async function saveVentasToCacheServer(companyId, ventas, localIds, start
             const newCount = group?.length ?? 0;
             const prevCount = previousCounts.get(key) ?? 0;
             if (isLikelyPartialResponse(newCount, prevCount)) {
-                console.warn(`[PosReconcile] skip overwrite for ${companyId}/${key}: new=${newCount} < prev=${prevCount}`);
+                console.debug(`[PosReconcile] skip overwrite for ${companyId}/${key}: new=${newCount} < prev=${prevCount}`);
                 skippedPartial++;
                 continue;
             }

@@ -185,10 +185,13 @@ export async function saveVentasToCache(
       const prevCount = previousCountByKey?.get(key) ?? 0
 
       // Skip overwriting if the new payload looks partial vs. what we already had.
-      // Don't update the meta either, so the next load re-tries.
+      // Don't update the meta either, so the next load re-tries. Usamos
+      // console.debug (no warn) porque este skip es comportamiento esperado
+      // cuando cliente y server reconcile corren en paralelo; warn creaba
+      // ruido innecesario en DevTools.
       if (isLikelyPartialResponse(newCount, prevCount)) {
         // eslint-disable-next-line no-console
-        console.warn(
+        console.debug(
           `[pos-sync] skip overwrite for ${key}: new=${newCount} < prev=${prevCount}`,
         )
         continue
