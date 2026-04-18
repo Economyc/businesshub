@@ -22,6 +22,11 @@ export const SALES_COLLECTION = 'pos-sales-cache'
 export const META_COLLECTION = 'pos-sales-cache-meta'
 export const MAX_VENTAS_PER_DOC = 150
 export const PARTIAL_RESPONSE_THRESHOLD = 0.5
+// Umbral mínimo de ventas cacheadas para activar la guarda anti-partial.
+// Días con <10 ventas previas se sobrescriben libremente: el ruido de
+// parciales en días de bajo volumen (domingos, cierres) impedía rellenar
+// huecos en refetchs legítimas.
+export const PARTIAL_GUARD_MIN_PREV = 10
 
 // Firestore permite hasta 500 operaciones por batch; dejamos margen para el
 // batch.set del meta doc al final.
@@ -34,7 +39,7 @@ export interface PosVentaLike {
 }
 
 export function isLikelyPartialResponse(newCount: number, prevCount: number): boolean {
-  return prevCount > 0 && newCount < prevCount * PARTIAL_RESPONSE_THRESHOLD
+  return prevCount >= PARTIAL_GUARD_MIN_PREV && newCount < prevCount * PARTIAL_RESPONSE_THRESHOLD
 }
 
 export function enumerateDates(start: string, end: string): string[] {

@@ -129,9 +129,15 @@ export async function getCachedVentas(
 // hubo anulaciones, y 0.7 era muy conservador — descartaba actualizaciones
 // válidas y mantenía cache stale.
 export const PARTIAL_RESPONSE_THRESHOLD = 0.5
+// Umbral mínimo de ventas cacheadas para activar la guarda anti-partial.
+// Días con <10 ventas previas (domingos, cierres, cache parcialmente
+// poblado) se sobrescriben libremente: si no, una respuesta legítima de
+// pocas ventas queda bloqueada y el hueco nunca se rellena.
+// Debe mantenerse sincronizado con `functions/src/pos-cache.ts`.
+export const PARTIAL_GUARD_MIN_PREV = 10
 
 export function isLikelyPartialResponse(newCount: number, prevCount: number): boolean {
-  return prevCount > 0 && newCount < prevCount * PARTIAL_RESPONSE_THRESHOLD
+  return prevCount >= PARTIAL_GUARD_MIN_PREV && newCount < prevCount * PARTIAL_RESPONSE_THRESHOLD
 }
 
 // Cuántos docs de ventas por commit. Firestore permite hasta ~10 MiB de payload

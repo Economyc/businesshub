@@ -1,4 +1,4 @@
-import { RefreshCw, Loader2 } from 'lucide-react'
+import { RefreshCw, Loader2, AlertCircle, CalendarRange } from 'lucide-react'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
 import { DashboardSkeleton } from '@/core/ui/skeleton'
@@ -92,6 +92,10 @@ function HomePageContent() {
     cajasDisponibles,
     comparisonLabel,
     reconcilingHistoric,
+    reconcileError,
+    retryReconcile,
+    loadFullYear,
+    lastCronRun,
   } = useDashboardData()
 
   const firstName = user?.displayName?.split(' ')[0] ?? user?.email?.split('@')[0] ?? 'Usuario'
@@ -119,6 +123,22 @@ function HomePageContent() {
       <div className="hidden sm:block">
         <PageHeader title="Dashboard">
           <div className="flex items-center gap-2">
+            {syncStatus.hasLocals && loadFullYear && (
+              <button
+                type="button"
+                onClick={loadFullYear}
+                disabled={reconcilingHistoric}
+                className="flex items-center gap-1.5 rounded-lg border border-border/60 bg-bone px-3 py-1.5 text-caption text-graphite hover:bg-light-gray disabled:opacity-50 disabled:cursor-not-allowed transition"
+                title="Reconcilia contra el POS desde el 1 de enero hasta hoy. Tarda 20-40 min. Sigue trabajando; los datos aparecen al terminar."
+              >
+                {reconcilingHistoric ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <CalendarRange size={14} />
+                )}
+                Cargar año completo
+              </button>
+            )}
             <SyncStatusDot {...syncStatus} />
             <CajaFilter cajas={cajasDisponibles} />
             <DateRangePicker />
@@ -136,6 +156,39 @@ function HomePageContent() {
               <span>
                 Rellenando históricos del POS para este rango — puede tardar unos minutos. Los datos se actualizarán solos cuando termine.
               </span>
+            </div>
+          )}
+          {reconcileError && !reconcilingHistoric && (
+            <div className="bg-negative-bg text-negative-text rounded-xl px-4 py-3 text-body mb-4 flex items-start justify-between gap-3">
+              <div className="flex items-start gap-2">
+                <AlertCircle size={16} className="mt-0.5 shrink-0" />
+                <div>
+                  <div>No se pudieron cargar los históricos del POS.</div>
+                  <div className="text-caption mt-1 opacity-80">{reconcileError}</div>
+                </div>
+              </div>
+              {retryReconcile && (
+                <button
+                  type="button"
+                  onClick={retryReconcile}
+                  className="shrink-0 flex items-center gap-1.5 rounded-lg border border-negative-text/30 px-3 py-1.5 text-caption hover:bg-negative-text/10 transition"
+                >
+                  <RefreshCw size={14} />
+                  Reintentar
+                </button>
+              )}
+            </div>
+          )}
+          {lastCronRun && !reconcilingHistoric && !reconcileError && (
+            <div className="text-caption text-mid-gray mb-4">
+              Reconcile nocturno {lastCronRun.date} ·{' '}
+              {lastCronRun.hadErrors ? (
+                <span className="text-warning-text">con errores</span>
+              ) : (
+                <span className="text-positive-text">
+                  {lastCronRun.ventasWritten.toLocaleString('es-CO')} ventas escritas
+                </span>
+              )}
             </div>
           )}
           <DashboardContent

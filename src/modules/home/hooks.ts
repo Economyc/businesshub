@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { doc, getDoc, Timestamp } from 'firebase/firestore'
 import { db } from '@/core/firebase/config'
 import { useCollection } from '@/core/hooks/use-firestore'
@@ -194,6 +194,34 @@ export function useDashboardData() {
   const firingRef = useRef(false)
   const failedAtRef = useRef<Map<string, number>>(new Map())
   const [reconcilingHistoric, setReconcilingHistoric] = useState(false)
+  const [reconcileError, setReconcileError] = useState<string | null>(null)
+  const [forceReconcileTick, setForceReconcileTick] = useState(0)
+
+  const runReconcile = useCallback(
+    async (days: number, fireKey: string, label: string) => {
+      if (!selectedCompany?.id) return
+      firingRef.current = true
+      setReconcilingHistoric(true)
+      setReconcileError(null)
+      try {
+        await triggerServerReconcile(selectedCompany.id, days)
+        reconcileFiredRef.current = fireKey
+        failedAtRef.current.delete(fireKey)
+        await posRefetch()
+      } catch (err) {
+        failedAtRef.current.set(fireKey, Date.now())
+        const msg = err instanceof Error ? err.message : String(err)
+        setReconcileError(`${label}: ${msg}`)
+        // eslint-disable-next-line no-console
+        console.warn('[home] reconcile histórico falló', err)
+      } finally {
+        firingRef.current = false
+        setReconcilingHistoric(false)
+      }
+    },
+    [selectedCompany?.id, posRefetch],
+  )
+
   useEffect(() => {
     if (!selectedCompany?.id) return
     if (localIds.length === 0) return
@@ -222,29 +250,13 @@ export function useDashboardData() {
     if (coverage >= 0.7) return
 
     const fireKey = `${selectedCompany.id}_${startStr}_${endStr}`
-    if (reconcileFiredRef.current === fireKey) return
+    if (reconcileFiredRef.current === fireKey && forceReconcileTick === 0) return
     if (firingRef.current) return
     const failedAt = failedAtRef.current.get(fireKey)
     if (failedAt && Date.now() - failedAt < RECONCILE_FAILURE_COOLDOWN_MS) return
-    firingRef.current = true
 
     const reconcileDays = Math.min(Math.max(daysAgoStart, 32), 365)
-    setReconcilingHistoric(true)
-    triggerServerReconcile(selectedCompany.id, reconcileDays)
-      .then(() => {
-        reconcileFiredRef.current = fireKey
-        failedAtRef.current.delete(fireKey)
-        return posRefetch()
-      })
-      .catch((err) => {
-        failedAtRef.current.set(fireKey, Date.now())
-        // eslint-disable-next-line no-console
-        console.warn('[home] auto-reconcile histórico falló', err)
-      })
-      .finally(() => {
-        firingRef.current = false
-        setReconcilingHistoric(false)
-      })
+    void runReconcile(reconcileDays, fireKey, `Reconcile auto (${reconcileDays}d)`)
   }, [
     selectedCompany?.id,
     localIds.length,
@@ -253,8 +265,36 @@ export function useDashboardData() {
     posVentas,
     startDate,
     endDate,
-    posRefetch,
+    forceReconcileTick,
+    runReconcile,
   ])
+
+  // Acción manual para el usuario: reintento del reconcile cuando falló
+  // (limpia el circuit breaker y dispara de nuevo) o carga explícita del año
+  // completo bypasseando la heurística de coverage.
+  const retryReconcile = useCallback(() => {
+    if (!selectedCompany?.id || firingRef.current) return
+    const startStr = toDateStr(startDate)
+    const endStr = toDateStr(endDate)
+    const fireKey = `${selectedCompany.id}_${startStr}_${endStr}`
+    failedAtRef.current.delete(fireKey)
+    reconcileFiredRef.current = null
+    setForceReconcileTick((t) => t + 1)
+  }, [selectedCompany?.id, startDate, endDate])
+
+  const loadFullYear = useCallback(() => {
+    if (!selectedCompany?.id || firingRef.current) return
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const janFirst = new Date(today.getFullYear(), 0, 1)
+    const msPerDay = 1000 * 60 * 60 * 24
+    const daysFromJan = Math.floor((today.getTime() - janFirst.getTime()) / msPerDay)
+    // +7 de colchón: cubre desde 1-ene con margen por tz y rate-limit.
+    const days = Math.min(Math.max(daysFromJan + 7, 32), 365)
+    const fireKey = `${selectedCompany.id}_fullyear_${today.toISOString().slice(0, 10)}`
+    failedAtRef.current.delete(fireKey)
+    void runReconcile(days, fireKey, `Carga año completo (${days}d)`)
+  }, [selectedCompany?.id, runReconcile])
 
   // Polling al flag `inProgress` del server. Usamos getDoc con setInterval
   // en vez de onSnapshot porque varios adblockers bloquean el endpoint
@@ -575,6 +615,58 @@ export function useDashboardData() {
     [activePreset, prevStart],
   )
 
+  // Lee el último run del cron nocturno para mostrar al usuario si ha estado
+  // corriendo con éxito. `reports/pos-reconcile/runs/{YYYY-MM-DD}` es escrito
+  // por `runReconcile` en functions/src/pos-reconcile.ts.
+  const [lastCronRun, setLastCronRun] = useState<{
+    date: string
+    ventasWritten: number
+    hadErrors: boolean
+    finishedAt: Date | null
+  } | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    const fetchLastRun = async () => {
+      try {
+        // Intentamos hoy y ayer: el cron corre 01:00 BOG, así que si el
+        // usuario abre Home a las 08:00 debería existir el doc de hoy;
+        // si abre a las 23:00 del día anterior al cron, leemos el de ayer.
+        const today = new Date()
+        const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000)
+        const fmt = (d: Date) =>
+          `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+        for (const d of [today, yesterday]) {
+          const date = fmt(d)
+          const ref = doc(db, 'reports', 'pos-reconcile', 'runs', date)
+          const snap = await getDoc(ref)
+          if (cancelled) return
+          if (!snap.exists()) continue
+          const data = snap.data() as {
+            ventasWritten?: number
+            perCompany?: Array<{ error?: string; rateLimited?: boolean }>
+            finishedAt?: Timestamp
+          }
+          const hadErrors =
+            !!data.perCompany?.some((c) => c.error || c.rateLimited)
+          setLastCronRun({
+            date,
+            ventasWritten: data.ventasWritten ?? 0,
+            hadErrors,
+            finishedAt: data.finishedAt?.toDate?.() ?? null,
+          })
+          return
+        }
+      } catch {
+        // Silencioso: si Firestore falla (adblocker, offline), ocultamos el
+        // indicador — no es crítico que el usuario vea el estado del cron.
+      }
+    }
+    fetchLastRun()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   return {
     kpis,
     salesTrend,
@@ -584,5 +676,9 @@ export function useDashboardData() {
     cajasDisponibles,
     comparisonLabel,
     reconcilingHistoric,
+    reconcileError,
+    retryReconcile,
+    loadFullYear,
+    lastCronRun,
   }
 }

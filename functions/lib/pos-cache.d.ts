@@ -2,6 +2,7 @@ export declare const SALES_COLLECTION = "pos-sales-cache";
 export declare const META_COLLECTION = "pos-sales-cache-meta";
 export declare const MAX_VENTAS_PER_DOC = 150;
 export declare const PARTIAL_RESPONSE_THRESHOLD = 0.5;
+export declare const PARTIAL_GUARD_MIN_PREV = 10;
 export interface PosVentaLike {
     fecha?: string;
     id_local?: number | string;

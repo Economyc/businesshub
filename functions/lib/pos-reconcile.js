@@ -74,7 +74,6 @@ async function runReconcile(opts) {
             // de escribir).
             const prev = await getPreviousCountsForRange(companyId, localIds, startDate, endDate);
             for (const lid of localIds) {
-                let abortLocal = false;
                 for (const window of windows) {
                     const wf1 = `${window.start} 00:00:00`;
                     const wf2 = `${window.end} 23:59:59`;
@@ -90,15 +89,16 @@ async function runReconcile(opts) {
                     stats.skippedPartial += save.skippedPartial;
                     stats.emptyStamped += save.emptyStamped;
                     if (r.rateLimited) {
+                        // Rate-limit es por local/ventana; NO bloquea los demás locales ni
+                        // companies. Anteriormente un `break` externo abortaba toda la
+                        // corrida, perdiendo datos de locales siguientes que aún podrían
+                        // responder. Ahora seguimos con el próximo local.
                         stats.rateLimited = true;
-                        abortLocal = true;
                         console.warn(`[PosReconcile] rate-limited company=${companyId} local=${lid} ` +
-                            `window=${window.start}..${window.end} — aborting local`);
+                            `window=${window.start}..${window.end} — saltando al próximo local`);
                         break;
                     }
                 }
-                if (abortLocal)
-                    break;
             }
             console.log(`[PosReconcile] company=${companyId} locales=[${localIds.join(',')}] ` +
                 `windows=${windows.length} fetched=${stats.ventasFetched} ` +
@@ -151,7 +151,10 @@ export const posReconcileNightly = onSchedule({
     timeoutSeconds: 3600,
     memory: '1GiB',
     secrets: [posToken],
-    retryCount: 0,
+    // 1 reintento: si el primer intento falla por timeout transitorio o
+    // rate-limit del POS a la hora del cron, el scheduler lo vuelve a
+    // disparar con backoff. Mejor que perder un día entero de datos.
+    retryCount: 1,
 }, async () => {
     await runReconcile({ token: posToken.value() });
 });
