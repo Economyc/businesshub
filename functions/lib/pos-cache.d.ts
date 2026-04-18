@@ -17,6 +17,10 @@ export interface SaveStats {
     daysWritten: number;
     ventasWritten: number;
     skippedPartial: number;
+    emptyStamped: number;
 }
-export declare function saveVentasToCacheServer(companyId: string, ventas: PosVentaLike[], localIds: number[], startDate: string, endDate: string, previousCounts: PreviousCounts): Promise<SaveStats>;
+export interface SaveOptions {
+    stampEmpty?: boolean;
+}
+export declare function saveVentasToCacheServer(companyId: string, ventas: PosVentaLike[], localIds: number[], startDate: string, endDate: string, previousCounts: PreviousCounts, options?: SaveOptions): Promise<SaveStats>;
 //# sourceMappingURL=pos-cache.d.ts.map

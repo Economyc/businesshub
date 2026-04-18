@@ -114,6 +114,15 @@ export interface SaveStats {
   daysWritten: number
   ventasWritten: number
   skippedPartial: number
+  emptyStamped: number
+}
+
+export interface SaveOptions {
+  // Confiar en días con 0 ventas y stampar meta vacío. Romper el bucle de
+  // refetch solo cuando el caller sabe que la respuesta fue completa
+  // (no rate-limited). El cron/reconcile pasa true cuando la ventana terminó
+  // limpia; el cliente nunca lo pasa (es conservador).
+  stampEmpty?: boolean
 }
 
 // Escribe ventas al mismo schema que el cliente. `ventas` debe venir ya
@@ -128,7 +137,9 @@ export async function saveVentasToCacheServer(
   startDate: string,
   endDate: string,
   previousCounts: PreviousCounts,
+  options: SaveOptions = {},
 ): Promise<SaveStats> {
+  const { stampEmpty = false } = options
   const groups = new Map<string, PosVentaLike[]>()
   for (const v of ventas) {
     const date = typeof v.fecha === 'string' ? v.fecha.slice(0, 10) : undefined
@@ -149,6 +160,7 @@ export async function saveVentasToCacheServer(
   const pendingVentas: PendingWrite[] = []
   let skippedPartial = 0
   let ventasWritten = 0
+  let emptyStamped = 0
   const daysWrittenSet = new Set<string>()
 
   for (const date of allDates) {
@@ -166,6 +178,17 @@ export async function saveVentasToCacheServer(
           `[PosReconcile] skip overwrite for ${companyId}/${key}: new=${newCount} < prev=${prevCount}`,
         )
         skippedPartial++
+        continue
+      }
+
+      // Día confirmadamente vacío: stampar meta sin crear doc de ventas para
+      // que el cliente no lo siga clasificando como "needs fetch". Solo
+      // cuando el caller garantiza que la respuesta del POS fue completa.
+      if (newCount === 0 && prevCount === 0) {
+        if (stampEmpty) {
+          monthPayload[key] = now
+          emptyStamped++
+        }
         continue
       }
 
@@ -226,5 +249,6 @@ export async function saveVentasToCacheServer(
     daysWritten: daysWrittenSet.size,
     ventasWritten,
     skippedPartial,
+    emptyStamped,
   }
 }

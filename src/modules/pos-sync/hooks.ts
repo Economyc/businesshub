@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query'
+import { doc, getDoc, Timestamp } from 'firebase/firestore'
+import { db } from '@/core/firebase/config'
 import { useCompany } from '@/core/hooks/use-company'
 import { posService, PosRateLimitError } from './services'
 import {
@@ -17,6 +19,29 @@ const MAX_DAYS = 33
 const AUTO_REFRESH_MS = 5 * 60 * 1000
 const STALE_TIME_MS = 2 * 60 * 1000
 const GC_TIME_MS = 10 * 60 * 1000
+
+// Si el server reconcile lleva más de este tiempo corriendo, asumimos que
+// murió sin soltar el flag (crash, timeout que omitió el finally). Permitir
+// que el cliente vuelva a fetchear en ese caso.
+const RECONCILE_STUCK_MS = 60 * 60 * 1000
+// Rango a partir del cual coordinamos con el server (días hacia atrás desde
+// hoy). Para rangos cortos el cliente siempre puede fetchear directo.
+const SERVER_COORD_THRESHOLD_DAYS = 32
+
+async function isServerReconcileActive(companyId: string): Promise<boolean> {
+  try {
+    const ref = doc(db, 'companies', companyId, 'settings', 'pos-reconcile-meta')
+    const snap = await getDoc(ref)
+    if (!snap.exists()) return false
+    const data = snap.data() as { inProgress?: boolean; startedAt?: Timestamp }
+    if (!data.inProgress) return false
+    const startedMs = data.startedAt?.toMillis?.() ?? 0
+    if (!startedMs) return true
+    return Date.now() - startedMs < RECONCILE_STUCK_MS
+  } catch {
+    return false
+  }
+}
 
 export interface FetchProgress {
   current: number
@@ -111,6 +136,25 @@ async function fetchVentasWithCache({
       }
     } catch {
       // Cache read failed — fall through to full fetch
+    }
+  }
+
+  // Si el server está reconciliando en este momento y el rango solicitado
+  // se extiende más allá de la ventana del cron (>32 días atrás), no
+  // competir por el token POS. Mostrar cache actual y dejar que React Query
+  // reintente en el próximo refetch; el Home también suscribe a `inProgress`
+  // y dispara refetch al completar.
+  if (companyId && !force) {
+    const daysSpan = Math.floor(
+      (new Date(today + 'T12:00:00').getTime() -
+        new Date(startDate + 'T12:00:00').getTime()) /
+        (1000 * 60 * 60 * 24),
+    )
+    if (daysSpan > SERVER_COORD_THRESHOLD_DAYS) {
+      const serverActive = await isServerReconcileActive(companyId)
+      if (serverActive) {
+        return { ventas: cachedVentas, fromCache: true, rateLimited: false }
+      }
     }
   }
 

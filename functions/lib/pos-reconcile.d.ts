@@ -6,6 +6,7 @@ export interface ReconcileStats {
     ventasWritten: number;
     daysWritten: number;
     skippedPartial: number;
+    emptyStamped: number;
     rateLimited: boolean;
     durationMs: number;
     error?: string;

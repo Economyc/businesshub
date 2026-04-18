@@ -20,13 +20,27 @@ export const DEFAULT_RECONCILE_DAYS = 32;
 // Cooldown por company: evita double-clicks y abuso, pero sin bloquear al usuario
 // por varios minutos si el primer intento falló o devolvió parcial.
 const MANUAL_COOLDOWN_MS = 60 * 1000;
+// Tamaño máximo de ventana contra el POS. Rangos más grandes disparan
+// respuestas parciales / rate-limits internos del endpoint
+// obtenerVentasPorIntegracion. 31 días es el mismo orden que funciona en el
+// cron nocturno por default.
+const POS_WINDOW_DAYS = 31;
+function buildWindows(startDate, endDate, windowDays) {
+    const windows = [];
+    let cursor = startDate;
+    while (cursor <= endDate) {
+        const tentativeEnd = addDays(cursor, windowDays - 1);
+        const end = tentativeEnd > endDate ? endDate : tentativeEnd;
+        windows.push({ start: cursor, end });
+        cursor = addDays(end, 1);
+    }
+    return windows;
+}
 async function runReconcile(opts) {
     const days = opts.days ?? DEFAULT_RECONCILE_DAYS;
     const today = getTodayStrBogota();
     const startDate = addDays(today, -days);
     const endDate = addDays(today, -1);
-    const f1 = `${startDate} 00:00:00`;
-    const f2 = `${endDate} 23:59:59`;
     const locales = opts.locales ?? (await fetchDominio(opts.token)).locales;
     const map = await buildCompanyLocalMap(locales);
     const filtered = opts.targetCompanyIds
@@ -35,6 +49,7 @@ async function runReconcile(opts) {
     console.log(`[PosReconcile] start days=${days} range=${startDate}..${endDate} companies=${filtered.length}`);
     const t0 = Date.now();
     const perCompany = [];
+    const windows = buildWindows(startDate, endDate, POS_WINDOW_DAYS);
     // Secuencial: el token POS es compartido y correr companies en paralelo
     // dispara rate-limits de 5s cruzados entre sí. Si crece a >50 companies
     // habría que sharding (schedules 01/02/03 BOG).
@@ -47,28 +62,48 @@ async function runReconcile(opts) {
             ventasWritten: 0,
             daysWritten: 0,
             skippedPartial: 0,
+            emptyStamped: 0,
             rateLimited: false,
             durationMs: 0,
         };
         try {
+            // El lookup de counts previos se hace una vez sobre todo el rango; los
+            // writes parciales de ventanas anteriores no alteran los counts que
+            // usamos para la guarda anti-partial, por diseño (queremos comparar
+            // contra lo que había antes del reconcile, no contra lo que acabamos
+            // de escribir).
             const prev = await getPreviousCountsForRange(companyId, localIds, startDate, endDate);
-            const allVentas = [];
             for (const lid of localIds) {
-                const r = await fetchAllPagesForLocal(opts.token, lid, f1, f2);
-                allVentas.push(...r.ventas);
-                stats.ventasFetched += r.ventas.length;
-                if (r.rateLimited) {
-                    stats.rateLimited = true;
-                    break;
+                let abortLocal = false;
+                for (const window of windows) {
+                    const wf1 = `${window.start} 00:00:00`;
+                    const wf2 = `${window.end} 23:59:59`;
+                    const r = await fetchAllPagesForLocal(opts.token, lid, wf1, wf2);
+                    stats.ventasFetched += r.ventas.length;
+                    // Persistimos tras cada ventana. Si el timeout de 3600s nos alcanza
+                    // en medio, el trabajo anterior queda cacheado y el próximo run
+                    // continúa desde donde quedó. stampEmpty solo cuando la ventana
+                    // terminó sin rate-limit: ceros "truncados" no son confiables.
+                    const save = await saveVentasToCacheServer(companyId, r.ventas, [lid], window.start, window.end, prev, { stampEmpty: !r.rateLimited });
+                    stats.ventasWritten += save.ventasWritten;
+                    stats.daysWritten += save.daysWritten;
+                    stats.skippedPartial += save.skippedPartial;
+                    stats.emptyStamped += save.emptyStamped;
+                    if (r.rateLimited) {
+                        stats.rateLimited = true;
+                        abortLocal = true;
+                        console.warn(`[PosReconcile] rate-limited company=${companyId} local=${lid} ` +
+                            `window=${window.start}..${window.end} — aborting local`);
+                        break;
+                    }
                 }
+                if (abortLocal)
+                    break;
             }
-            const save = await saveVentasToCacheServer(companyId, allVentas, localIds, startDate, endDate, prev);
-            stats.ventasWritten = save.ventasWritten;
-            stats.daysWritten = save.daysWritten;
-            stats.skippedPartial = save.skippedPartial;
             console.log(`[PosReconcile] company=${companyId} locales=[${localIds.join(',')}] ` +
-                `fetched=${stats.ventasFetched} written=${stats.ventasWritten} ` +
-                `days=${stats.daysWritten} skipped=${stats.skippedPartial} ` +
+                `windows=${windows.length} fetched=${stats.ventasFetched} ` +
+                `written=${stats.ventasWritten} days=${stats.daysWritten} ` +
+                `emptyStamped=${stats.emptyStamped} skipped=${stats.skippedPartial} ` +
                 `rateLimited=${stats.rateLimited}`);
         }
         catch (err) {
@@ -160,11 +195,24 @@ export const posReconcileOnDemand = onCall({
             throw new HttpsError('resource-exhausted', `Ya se reconcilió hace poco. Espera ${waitS}s antes de volver a forzar.`);
         }
     }
-    await metaRef.set({ lastRun: FieldValue.serverTimestamp() }, { merge: true });
-    return runReconcile({
-        token: posToken.value(),
-        targetCompanyIds: [companyId],
-        days: typeof days === 'number' && days > 0 && days <= 365 ? days : DEFAULT_RECONCILE_DAYS,
-    });
+    // inProgress + startedAt: el cliente lo lee para suprimir fetches
+    // paralelos mientras el reconcile corre (evita competir por el token POS).
+    // startedAt permite al cliente ignorar reconciles "stuck" (>1h) como
+    // señal muerta en caso de que un crash omita el finally.
+    await metaRef.set({
+        lastRun: FieldValue.serverTimestamp(),
+        startedAt: FieldValue.serverTimestamp(),
+        inProgress: true,
+    }, { merge: true });
+    try {
+        return await runReconcile({
+            token: posToken.value(),
+            targetCompanyIds: [companyId],
+            days: typeof days === 'number' && days > 0 && days <= 365 ? days : DEFAULT_RECONCILE_DAYS,
+        });
+    }
+    finally {
+        await metaRef.set({ inProgress: false, finishedAt: FieldValue.serverTimestamp() }, { merge: true });
+    }
 });
 //# sourceMappingURL=pos-reconcile.js.map

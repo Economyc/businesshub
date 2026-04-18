@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { doc, onSnapshot, Timestamp } from 'firebase/firestore'
+import { db } from '@/core/firebase/config'
 import { useCollection } from '@/core/hooks/use-firestore'
 import { useTransactions } from '@/modules/finance/hooks'
 import { useClosings } from '@/modules/closings/hooks'
@@ -180,7 +182,10 @@ export function useDashboardData() {
   // `posReconcileOnDemand` una vez para rellenar hasta 365 días hacia atrás.
   // El callable tiene cooldown server-side de 1 min, así que es seguro llamarlo
   // de forma optimista — si ya corrió recientemente, el server rechaza sin costo.
+  // reconcileFiredRef se marca solo al completar con éxito; un fallo deja la
+  // marca limpia para que un re-dispatch (cambio de filtro, recarga) reintente.
   const reconcileFiredRef = useRef<string | null>(null)
+  const firingRef = useRef(false)
   const [reconcilingHistoric, setReconcilingHistoric] = useState(false)
   useEffect(() => {
     if (!selectedCompany?.id) return
@@ -211,17 +216,23 @@ export function useDashboardData() {
 
     const fireKey = `${selectedCompany.id}_${startStr}_${endStr}`
     if (reconcileFiredRef.current === fireKey) return
-    reconcileFiredRef.current = fireKey
+    if (firingRef.current) return
+    firingRef.current = true
 
     const reconcileDays = Math.min(Math.max(daysAgoStart, 32), 365)
     setReconcilingHistoric(true)
     triggerServerReconcile(selectedCompany.id, reconcileDays)
-      .then(() => posRefetch())
+      .then(() => {
+        reconcileFiredRef.current = fireKey
+        return posRefetch()
+      })
       .catch((err) => {
+        // No marcar fireKey en fallo para permitir reintento
         // eslint-disable-next-line no-console
         console.warn('[home] auto-reconcile histórico falló', err)
       })
       .finally(() => {
+        firingRef.current = false
         setReconcilingHistoric(false)
       })
   }, [
@@ -234,6 +245,40 @@ export function useDashboardData() {
     endDate,
     posRefetch,
   ])
+
+  // Suscripción al flag `inProgress` del server. Si otro cliente/cron está
+  // corriendo el reconcile, `reconcilingHistoric` refleja eso (banner visible)
+  // y al cambiar a false disparamos refetch para traer el cache hidratado.
+  useEffect(() => {
+    if (!selectedCompany?.id) return
+    const ref = doc(
+      db,
+      'companies',
+      selectedCompany.id,
+      'settings',
+      'pos-reconcile-meta',
+    )
+    let prevInProgress = false
+    const unsub = onSnapshot(
+      ref,
+      (snap) => {
+        if (!snap.exists()) return
+        const data = snap.data() as { inProgress?: boolean; startedAt?: Timestamp }
+        const startedMs = data.startedAt?.toMillis?.() ?? 0
+        const stuck = startedMs > 0 && Date.now() - startedMs > 60 * 60 * 1000
+        const active = !!data.inProgress && !stuck
+        setReconcilingHistoric((prev) => (firingRef.current ? prev : active))
+        if (prevInProgress && !active) {
+          posRefetch()
+        }
+        prevInProgress = active
+      },
+      () => {
+        // Permission/network errors are non-fatal; UI sigue sin coord.
+      },
+    )
+    return () => unsub()
+  }, [selectedCompany?.id, posRefetch])
 
   // Cajas disponibles dentro del rango visible [startDate..endDate]
   const cajasDisponibles = useMemo<Array<[string, number]>>(() => {

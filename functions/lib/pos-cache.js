@@ -86,7 +86,8 @@ export async function getPreviousCountsForRange(companyId, localIds, startDate, 
 // definen qué días cubre la escritura (aunque no haya ventas en ese día — el
 // meta doc marca el día como sincronizado para que el cliente no lo considere
 // faltante).
-export async function saveVentasToCacheServer(companyId, ventas, localIds, startDate, endDate, previousCounts) {
+export async function saveVentasToCacheServer(companyId, ventas, localIds, startDate, endDate, previousCounts, options = {}) {
+    const { stampEmpty = false } = options;
     const groups = new Map();
     for (const v of ventas) {
         const date = typeof v.fecha === 'string' ? v.fecha.slice(0, 10) : undefined;
@@ -103,6 +104,7 @@ export async function saveVentasToCacheServer(companyId, ventas, localIds, start
     const pendingVentas = [];
     let skippedPartial = 0;
     let ventasWritten = 0;
+    let emptyStamped = 0;
     const daysWrittenSet = new Set();
     for (const date of allDates) {
         const month = date.slice(0, 7);
@@ -117,6 +119,16 @@ export async function saveVentasToCacheServer(companyId, ventas, localIds, start
             if (isLikelyPartialResponse(newCount, prevCount)) {
                 console.warn(`[PosReconcile] skip overwrite for ${companyId}/${key}: new=${newCount} < prev=${prevCount}`);
                 skippedPartial++;
+                continue;
+            }
+            // Día confirmadamente vacío: stampar meta sin crear doc de ventas para
+            // que el cliente no lo siga clasificando como "needs fetch". Solo
+            // cuando el caller garantiza que la respuesta del POS fue completa.
+            if (newCount === 0 && prevCount === 0) {
+                if (stampEmpty) {
+                    monthPayload[key] = now;
+                    emptyStamped++;
+                }
                 continue;
             }
             monthPayload[key] = now;
@@ -171,6 +183,7 @@ export async function saveVentasToCacheServer(companyId, ventas, localIds, start
         daysWritten: daysWrittenSet.size,
         ventasWritten,
         skippedPartial,
+        emptyStamped,
     };
 }
 //# sourceMappingURL=pos-cache.js.map
