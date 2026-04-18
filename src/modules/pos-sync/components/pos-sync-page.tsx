@@ -1,21 +1,25 @@
-import { useState, useEffect } from 'react'
-import { ShoppingBag, Package, XCircle } from 'lucide-react'
+import { useState, useEffect, useMemo } from 'react'
+import { ShoppingBag, Package, XCircle, Database } from 'lucide-react'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
 import { UnderlineButtonTabs } from '@/core/ui/underline-tabs'
 import { SyncStatusDot } from '@/core/ui/sync-status-dot'
 import { DateRangePicker } from '@/modules/finance/components/date-range-picker'
 import { useDateRange } from '@/modules/finance/context/date-range-context'
+import { usePermissions } from '@/core/hooks/use-permissions'
 import { useCompanyLocalIds } from '../company-mapping'
 import { VentasTab } from './ventas-tab'
 import { CatalogoTab } from './catalogo-tab'
 import { AnuladasTab } from './anuladas-tab'
+import { CacheStatusTab } from './cache-status-tab'
 
-const TABS = [
+const BASE_TABS = [
   { value: 'ventas', label: 'Ventas', icon: ShoppingBag },
   { value: 'catalogo', label: 'Catálogo', icon: Package },
   { value: 'anuladas', label: 'Anuladas', icon: XCircle },
 ]
+
+const CACHE_TAB = { value: 'cache', label: 'Caché', icon: Database }
 
 export function PosSyncPage() {
   const [activeTab, setActiveTab] = useState('ventas')
@@ -27,11 +31,22 @@ export function PosSyncPage() {
     error: localesError,
   } = useCompanyLocalIds()
   const { setPreset } = useDateRange()
+  const { isAdmin } = usePermissions()
+
+  const tabs = useMemo(
+    () => (isAdmin ? [...BASE_TABS, CACHE_TAB] : BASE_TABS),
+    [isAdmin],
+  )
 
   useEffect(() => {
     setPreset('today')
     return () => { setPreset('thisMonth') }
   }, [setPreset])
+
+  // Si el tab activo deja de ser visible (ej. pierde isAdmin), volver a ventas.
+  useEffect(() => {
+    if (!tabs.some((t) => t.value === activeTab)) setActiveTab('ventas')
+  }, [tabs, activeTab])
 
   return (
     <PageTransition>
@@ -47,7 +62,7 @@ export function PosSyncPage() {
         </div>
       </PageHeader>
 
-      <UnderlineButtonTabs tabs={TABS} active={activeTab} onChange={setActiveTab} />
+      <UnderlineButtonTabs tabs={tabs} active={activeTab} onChange={setActiveTab} />
 
       {locales.length > 0 && activeTab === 'ventas' && (
         <VentasTab
@@ -68,6 +83,7 @@ export function PosSyncPage() {
           localLabel={localLabel}
         />
       )}
+      {activeTab === 'cache' && isAdmin && <CacheStatusTab />}
     </PageTransition>
   )
 }

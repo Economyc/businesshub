@@ -24,4 +24,10 @@ export interface SaveOptions {
     stampEmpty?: boolean;
 }
 export declare function saveVentasToCacheServer(companyId: string, ventas: PosVentaLike[], localIds: number[], startDate: string, endDate: string, previousCounts: PreviousCounts, options?: SaveOptions): Promise<SaveStats>;
+export interface DeleteMonthStats {
+    month: string;
+    salesDocsDeleted: number;
+    metaDeleted: boolean;
+}
+export declare function deleteMonthFromCache(companyId: string, month: string): Promise<DeleteMonthStats>;
 //# sourceMappingURL=pos-cache.d.ts.map

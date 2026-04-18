@@ -314,3 +314,63 @@ export function getTodayStr(): string {
   const day = String(d.getDate()).padStart(2, '0')
   return `${y}-${m}-${day}`
 }
+
+export interface CachedMonthStats {
+  month: string // 'YYYY-MM'
+  daysWithData: number // fechas únicas con al menos un local stampado
+  daysExpected: number // días del mes (clamp al día actual si es el mes vigente)
+  completeness: number // daysWithData / daysExpected
+  lastSync: Date | null
+}
+
+function daysInMonth(month: string): number {
+  const [y, m] = month.split('-').map(Number)
+  return new Date(y, m, 0).getDate()
+}
+
+// Enumera los meses cacheados para una company leyendo
+// `companies/{id}/pos-sales-cache-meta`. Calcula completeness del mes a
+// partir de las fechas únicas presentes en el map `days`, cuyas keys son
+// `YYYY-MM-DD_localId` (puede haber múltiples locales por día; nos interesa
+// el count de fechas únicas). Para el mes actual, `daysExpected` se recorta
+// al día de hoy para no marcar 80% solo porque el mes aún no terminó.
+export async function listCachedMonths(companyId: string): Promise<CachedMonthStats[]> {
+  const ref = collection(db, 'companies', companyId, META_COLLECTION)
+  const snap = await getDocs(ref)
+  const today = getTodayStr()
+  const currentMonth = today.slice(0, 7)
+  const todayDay = Number(today.slice(8, 10))
+
+  const stats: CachedMonthStats[] = []
+  for (const d of snap.docs) {
+    const data = d.data() as MetaDoc
+    const month = data.month ?? d.id
+    if (!/^\d{4}-\d{2}$/.test(month)) continue
+
+    const days = data.days ?? {}
+    const uniqueDates = new Set<string>()
+    let maxTs = 0
+    for (const [key, ts] of Object.entries(days)) {
+      const date = key.split('_')[0]
+      if (date) uniqueDates.add(date)
+      const ms = ts instanceof Timestamp ? ts.toMillis() : 0
+      if (ms > maxTs) maxTs = ms
+    }
+
+    const monthDays = daysInMonth(month)
+    const daysExpected = month === currentMonth ? Math.min(todayDay, monthDays) : monthDays
+    const daysWithData = uniqueDates.size
+    const completeness = daysExpected > 0 ? Math.min(daysWithData / daysExpected, 1) : 0
+
+    stats.push({
+      month,
+      daysWithData,
+      daysExpected,
+      completeness,
+      lastSync: maxTs > 0 ? new Date(maxTs) : null,
+    })
+  }
+
+  stats.sort((a, b) => (a.month < b.month ? 1 : a.month > b.month ? -1 : 0))
+  return stats
+}

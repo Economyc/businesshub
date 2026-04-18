@@ -46,6 +46,36 @@ export async function triggerServerReconcile(
   return res.data
 }
 
+export interface RebuildMonthResult {
+  month: string
+  companyId: string
+  localIds: number[]
+  salesDocsDeleted: number
+  ventasFetched: number
+  ventasWritten: number
+  daysWritten: number
+  windowsProcessed: number
+  rateLimited: boolean
+  durationMs: number
+  error?: string
+}
+
+// Purga y redescarga un mes completo con ventanas de 15 días. Tarda varios
+// minutos según volumen (ej. Manila en un mes típico ~2-3 min). Solo admins
+// de la company deberían invocarlo — la validación de auth+cooldown la hace
+// el callable; la UI oculta el control para no-admins.
+export async function rebuildCacheMonth(
+  companyId: string,
+  month: string,
+): Promise<RebuildMonthResult> {
+  const fn = httpsCallable<{ companyId: string; month: string }, RebuildMonthResult>(
+    functions,
+    'posRebuildMonth',
+  )
+  const res = await fn({ companyId, month })
+  return res.data
+}
+
 interface ProxyResponse<T> {
   success: boolean
   data: {

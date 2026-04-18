@@ -257,3 +257,59 @@ export async function saveVentasToCacheServer(
     emptyStamped,
   }
 }
+
+// Último día del mes en formato YYYY-MM-DD. `month` es 'YYYY-MM'.
+function lastDayOfMonth(month: string): string {
+  const [y, m] = month.split('-').map(Number)
+  const last = new Date(Date.UTC(y, m, 0)).getUTCDate()
+  return `${month}-${String(last).padStart(2, '0')}`
+}
+
+export interface DeleteMonthStats {
+  month: string
+  salesDocsDeleted: number
+  metaDeleted: boolean
+}
+
+// Borra todos los docs de `pos-sales-cache` cuyo campo `date` pertenezca al mes
+// y elimina el meta doc correspondiente. Uso: rebuild quirúrgico de meses
+// incompletos sin tocar el resto del historial. Batches de ≤450 para no
+// exceder el límite de 500 writes por commit de Firestore.
+export async function deleteMonthFromCache(
+  companyId: string,
+  month: string,
+): Promise<DeleteMonthStats> {
+  const start = `${month}-01`
+  const end = lastDayOfMonth(month)
+
+  const snap = await db
+    .collection('companies')
+    .doc(companyId)
+    .collection(SALES_COLLECTION)
+    .where('date', '>=', start)
+    .where('date', '<=', end)
+    .get()
+
+  let deleted = 0
+  for (let i = 0; i < snap.docs.length; i += MAX_WRITES_PER_BATCH) {
+    const slice = snap.docs.slice(i, i + MAX_WRITES_PER_BATCH)
+    const batch = db.batch()
+    for (const d of slice) batch.delete(d.ref)
+    await batch.commit()
+    deleted += slice.length
+  }
+
+  const metaRef = db
+    .collection('companies')
+    .doc(companyId)
+    .collection(META_COLLECTION)
+    .doc(month)
+  const metaSnap = await metaRef.get()
+  let metaDeleted = false
+  if (metaSnap.exists) {
+    await metaRef.delete()
+    metaDeleted = true
+  }
+
+  return { month, salesDocsDeleted: deleted, metaDeleted }
+}
