@@ -487,15 +487,8 @@ function HeroPanel({
 }: HeroPanelProps) {
   return (
     <div className="relative bg-surface rounded-2xl card-elevated border border-bone/60 p-5 md:p-6 mb-4 overflow-hidden">
-      {/* Top row — local + sync */}
-      <div className="flex items-center justify-between gap-3 mb-4">
-        <div className="flex items-center gap-2 min-w-0">
-          <MapPin size={14} className="text-mid-gray shrink-0" />
-          <span className="text-caption uppercase tracking-wider text-mid-gray">Local</span>
-          <span className="text-caption font-semibold text-dark-graphite truncate">
-            {localLabel ?? '—'}
-          </span>
-        </div>
+      {/* Top row — sync actions */}
+      <div className="flex items-center justify-end gap-3 mb-4">
         <div className="flex items-center gap-3 shrink-0">
           {lastUpdated && (
             <span className="flex items-center gap-1 text-caption text-mid-gray tabular-nums">
@@ -542,18 +535,11 @@ function HeroPanel({
             </div>
           )}
         </div>
-        <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-right">
-          <div>
-            <div className="text-caption text-mid-gray">Registros</div>
-            <div className="text-body font-semibold text-dark-graphite tabular-nums">
-              {hasData ? stats.count : '—'}
-            </div>
-          </div>
-          <div>
-            <div className="text-caption text-mid-gray">Ticket prom.</div>
-            <div className="text-body font-semibold text-dark-graphite tabular-nums">
-              {hasData ? formatCurrency(stats.ticket) : '—'}
-            </div>
+        <div className="text-right min-w-0">
+          <div className="text-caption uppercase tracking-wider text-mid-gray mb-1">Local</div>
+          <div className="inline-flex items-center gap-1.5 text-body font-semibold text-dark-graphite truncate">
+            <MapPin size={14} strokeWidth={1.5} className="text-mid-gray shrink-0" />
+            <span className="truncate">{localLabel ?? '—'}</span>
           </div>
         </div>
       </div>
