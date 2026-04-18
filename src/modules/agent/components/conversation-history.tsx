@@ -1,6 +1,5 @@
-import { useState } from 'react'
 import { Clock, Trash2, MessageSquare } from 'lucide-react'
-import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
+import { Popover, PopoverTrigger, PopoverContent, PopoverClose } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 import type { Conversation } from '../types'
 
@@ -28,20 +27,8 @@ function formatRelativeDate(timestamp: { seconds?: number; _seconds?: number }):
 }
 
 export function ConversationHistory({ conversations, activeConversationId, onSelect, onDelete }: ConversationHistoryProps) {
-  const [open, setOpen] = useState(false)
-
-  function handleSelect(conversation: Conversation) {
-    onSelect(conversation)
-    setOpen(false)
-  }
-
-  function handleDelete(e: React.MouseEvent, conversationId: string) {
-    e.stopPropagation()
-    onDelete(conversationId)
-  }
-
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover>
       <PopoverTrigger
         className="w-8 h-8 flex items-center justify-center rounded-full text-mid-gray hover:text-graphite hover:bg-bone transition-colors active:scale-95 relative"
         title="Historial de conversaciones"
@@ -66,15 +53,17 @@ export function ConversationHistory({ conversations, activeConversationId, onSel
         ) : (
           <div className="max-h-72 overflow-y-auto">
             {conversations.map((conv) => (
-              <button
+              <div
                 key={conv.id}
-                onClick={() => handleSelect(conv)}
                 className={cn(
-                  'w-full text-left px-3 py-2.5 flex items-start gap-2.5 hover:bg-bone/60 transition-colors group',
+                  'flex items-start group hover:bg-bone/60 transition-colors',
                   conv.id === activeConversationId && 'bg-bone/80'
                 )}
               >
-                <div className="flex-1 min-w-0">
+                <PopoverClose
+                  onClick={() => onSelect(conv)}
+                  className="flex-1 min-w-0 text-left px-3 py-2.5 cursor-pointer"
+                >
                   <p className="text-[13px] font-medium text-dark-graphite truncate leading-tight">
                     {conv.title}
                   </p>
@@ -86,15 +75,15 @@ export function ConversationHistory({ conversations, activeConversationId, onSel
                       {conv.messageCount} msgs
                     </span>
                   </div>
-                </div>
+                </PopoverClose>
                 <button
-                  onClick={(e) => handleDelete(e, conv.id)}
-                  className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-mid-gray/0 group-hover:text-mid-gray hover:!text-destructive transition-colors"
+                  onClick={() => onDelete(conv.id)}
+                  className="shrink-0 w-6 h-6 mr-2 mt-2.5 flex items-center justify-center rounded text-mid-gray/0 group-hover:text-mid-gray hover:!text-destructive transition-colors"
                   title="Eliminar"
                 >
                   <Trash2 size={13} />
                 </button>
-              </button>
+              </div>
             ))}
           </div>
         )}

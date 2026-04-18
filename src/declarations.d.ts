@@ -34,6 +34,7 @@ declare module '@base-ui/react/popover' {
     namespace Portal { type Props = Record<string, any> }
     namespace Popup { type Props = Record<string, any> }
     namespace Positioner { type Props = Record<string, any> }
+    namespace Close { type Props = Record<string, any> }
   }
 }
 

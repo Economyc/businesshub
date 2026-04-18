@@ -16,6 +16,10 @@ function PopoverPortal({ ...props }: PopoverPrimitive.Portal.Props) {
   return <PopoverPrimitive.Portal data-slot="popover-portal" {...props} />
 }
 
+function PopoverClose({ ...props }: PopoverPrimitive.Close.Props) {
+  return <PopoverPrimitive.Close data-slot="popover-close" {...props} />
+}
+
 function PopoverContent({
   className,
   sideOffset = 8,
@@ -41,4 +45,4 @@ function PopoverContent({
   )
 }
 
-export { Popover, PopoverTrigger, PopoverPortal, PopoverContent }
+export { Popover, PopoverTrigger, PopoverPortal, PopoverContent, PopoverClose }
