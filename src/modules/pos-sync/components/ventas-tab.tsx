@@ -331,27 +331,33 @@ export function VentasTab({ localIds, allLocalIds, locales, localLabel }: Ventas
         </div>
       )}
 
-      {/* Toolbar unificado */}
+      {/* KPI cards secundarios */}
+      {hasData && (
+        <SummaryCards stats={totalStats} prefersReducedMotion={prefersReducedMotion} />
+      )}
+
+      {/* Toolbar — filtros + buscador */}
       {hasData && (
         <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
-          <div className="inline-flex items-center gap-1 bg-input-bg border border-input-border rounded-[10px] p-1">
-            <SegmentedFilter
-              ariaLabel="Tipo de comprobante"
-              options={docOptions}
-              value={docFilter}
-              onChange={setDocFilter}
-              hideZeroCount
-            />
+          <div className="inline-flex items-center gap-2 flex-wrap">
+            <div className="inline-flex items-center gap-1 bg-input-bg border border-input-border rounded-[10px] p-1">
+              <SegmentedFilter
+                ariaLabel="Tipo de comprobante"
+                options={docOptions}
+                value={docFilter}
+                onChange={setDocFilter}
+                hideZeroCount
+              />
+            </div>
             {cajasDisponibles.length > 1 && (
-              <>
-                <span className="h-5 w-px bg-border/60 mx-1" aria-hidden />
+              <div className="inline-flex items-center gap-1 bg-input-bg border border-input-border rounded-[10px] p-1">
                 <SegmentedFilter
                   ariaLabel="Caja"
                   options={cajaOptions}
                   value={cajaFilter}
                   onChange={setCajaFilter}
                 />
-              </>
+              </div>
             )}
           </div>
           <div className="relative inline-flex items-center gap-2 h-10 pl-3.5 pr-2 bg-input-bg border border-input-border rounded-[10px] min-w-[240px] flex-1 md:flex-none md:w-[280px] focus-within:border-border-hover transition-colors">
@@ -375,11 +381,6 @@ export function VentasTab({ localIds, allLocalIds, locales, localLabel }: Ventas
             )}
           </div>
         </div>
-      )}
-
-      {/* KPI cards secundarios */}
-      {hasData && (
-        <SummaryCards stats={totalStats} prefersReducedMotion={prefersReducedMotion} />
       )}
 
       {/* Rate limit warning */}
