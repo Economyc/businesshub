@@ -35,6 +35,7 @@ export function KPICardsRow({ kpis, periodLabel, comparisonLabel }: KPICardsRowP
         trend={kpis.gastosMesTrend}
         comparison={comparisonLabel}
         icon={CreditCard}
+        inverse
       />
       <KPICard
         label="Margen neto"

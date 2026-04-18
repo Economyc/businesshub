@@ -475,7 +475,7 @@ export function useDashboardData() {
       ventasHoyTrend: ventas >= ventasPrev ? 'up' : 'down',
       gastosMes: gastos,
       gastosMesChange: pctChange(gastos, gastosPrev),
-      gastosMesTrend: gastos <= gastosPrev ? 'up' : 'down',
+      gastosMesTrend: gastos >= gastosPrev ? 'up' : 'down',
       margenNeto,
       margenNetoChange: `${margenNeto.toFixed(1)}%`,
       margenNetoTrend: margenNeto >= margenPrev ? 'up' : 'down',

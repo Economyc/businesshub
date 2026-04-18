@@ -13,6 +13,7 @@ interface KPICardProps {
   trend?: 'up' | 'down' | 'neutral'
   comparison?: string
   icon?: LucideIcon
+  inverse?: boolean
 }
 
 function useCountUp(target: number, duration = 800) {
@@ -36,7 +37,7 @@ function useCountUp(target: number, duration = 800) {
   return count
 }
 
-export function KPICard({ label, value, format = 'number', change, trend, comparison, icon: Icon }: KPICardProps) {
+export function KPICard({ label, value, format = 'number', change, trend, comparison, icon: Icon, inverse = false }: KPICardProps) {
   const animatedValue = useCountUp(value)
 
   const formattedValue = format === 'currency'
@@ -58,7 +59,7 @@ export function KPICard({ label, value, format = 'number', change, trend, compar
       {(change || comparison) && (
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
           {change && (
-            <span className={`inline-flex items-center gap-[3px] text-caption px-2 py-0.5 rounded-full ${trend === 'down' ? 'bg-negative-bg text-negative-text' : trend === 'neutral' ? 'bg-warning-bg text-warning-text' : 'bg-positive-bg text-positive-text'}`}>
+            <span className={`inline-flex items-center gap-[3px] text-caption px-2 py-0.5 rounded-full ${trend === 'neutral' ? 'bg-warning-bg text-warning-text' : (inverse ? trend === 'up' : trend === 'down') ? 'bg-negative-bg text-negative-text' : 'bg-positive-bg text-positive-text'}`}>
               {trend === 'up' ? <ChevronUp size={12} strokeWidth={1.5} /> : trend === 'down' ? <ChevronDown size={12} strokeWidth={1.5} /> : null}
               {change}
             </span>
