@@ -270,8 +270,7 @@ export function useDashboardData() {
   ])
 
   // Acción manual para el usuario: reintento del reconcile cuando falló
-  // (limpia el circuit breaker y dispara de nuevo) o carga explícita del año
-  // completo bypasseando la heurística de coverage.
+  // (limpia el circuit breaker y dispara de nuevo).
   const retryReconcile = useCallback(() => {
     if (!selectedCompany?.id || firingRef.current) return
     const startStr = toDateStr(startDate)
@@ -281,20 +280,6 @@ export function useDashboardData() {
     reconcileFiredRef.current = null
     setForceReconcileTick((t) => t + 1)
   }, [selectedCompany?.id, startDate, endDate])
-
-  const loadFullYear = useCallback(() => {
-    if (!selectedCompany?.id || firingRef.current) return
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const janFirst = new Date(today.getFullYear(), 0, 1)
-    const msPerDay = 1000 * 60 * 60 * 24
-    const daysFromJan = Math.floor((today.getTime() - janFirst.getTime()) / msPerDay)
-    // +7 de colchón: cubre desde 1-ene con margen por tz y rate-limit.
-    const days = Math.min(Math.max(daysFromJan + 7, 32), 365)
-    const fireKey = `${selectedCompany.id}_fullyear_${today.toISOString().slice(0, 10)}`
-    failedAtRef.current.delete(fireKey)
-    void runReconcile(days, fireKey, `Carga año completo (${days}d)`)
-  }, [selectedCompany?.id, runReconcile])
 
   // Polling al flag `inProgress` del server. Usamos getDoc con setInterval
   // en vez de onSnapshot porque varios adblockers bloquean el endpoint
@@ -678,7 +663,6 @@ export function useDashboardData() {
     reconcilingHistoric,
     reconcileError,
     retryReconcile,
-    loadFullYear,
     lastCronRun,
   }
 }

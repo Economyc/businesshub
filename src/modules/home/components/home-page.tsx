@@ -1,4 +1,4 @@
-import { RefreshCw, Loader2, AlertCircle, CalendarRange } from 'lucide-react'
+import { RefreshCw, Loader2, AlertCircle } from 'lucide-react'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
 import { DashboardSkeleton } from '@/core/ui/skeleton'
@@ -94,7 +94,6 @@ function HomePageContent() {
     reconcilingHistoric,
     reconcileError,
     retryReconcile,
-    loadFullYear,
     lastCronRun,
   } = useDashboardData()
 
@@ -123,22 +122,6 @@ function HomePageContent() {
       <div className="hidden sm:block">
         <PageHeader title="Dashboard">
           <div className="flex items-center gap-2">
-            {syncStatus.hasLocals && loadFullYear && (
-              <button
-                type="button"
-                onClick={loadFullYear}
-                disabled={reconcilingHistoric}
-                className="flex items-center gap-1.5 rounded-lg border border-border/60 bg-bone px-3 py-1.5 text-caption text-graphite hover:bg-light-gray disabled:opacity-50 disabled:cursor-not-allowed transition"
-                title="Reconcilia contra el POS desde el 1 de enero hasta hoy. Tarda 20-40 min. Sigue trabajando; los datos aparecen al terminar."
-              >
-                {reconcilingHistoric ? (
-                  <Loader2 size={14} className="animate-spin" />
-                ) : (
-                  <CalendarRange size={14} />
-                )}
-                Cargar año completo
-              </button>
-            )}
             <SyncStatusDot {...syncStatus} />
             <CajaFilter cajas={cajasDisponibles} />
             <DateRangePicker />
