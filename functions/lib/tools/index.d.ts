@@ -1,4 +1,697 @@
 export declare function createAgentTools(companyId: string): {
+    getPosSales: import("ai").Tool<import("zod").ZodObject<{
+        startDate: import("zod").ZodString;
+        endDate: import("zod").ZodString;
+        localId: import("zod").ZodOptional<import("zod").ZodNumber>;
+    }, "strip", import("zod").ZodTypeAny, {
+        startDate: string;
+        endDate: string;
+        localId?: number | undefined;
+    }, {
+        startDate: string;
+        endDate: string;
+        localId?: number | undefined;
+    }>, {
+        dateRange: {
+            startDate: string;
+            endDate: string;
+        };
+        localId: string | number;
+        totalSales: number;
+        totalRevenue: number;
+        avgTicket: number;
+        daysWithSales: number;
+        byDay: {
+            date: string;
+            total: number;
+            count: number;
+            avgTicket: number;
+        }[];
+    }> & {
+        execute: (args: {
+            startDate: string;
+            endDate: string;
+            localId?: number | undefined;
+        }, options: import("ai").ToolExecutionOptions) => PromiseLike<{
+            dateRange: {
+                startDate: string;
+                endDate: string;
+            };
+            localId: string | number;
+            totalSales: number;
+            totalRevenue: number;
+            avgTicket: number;
+            daysWithSales: number;
+            byDay: {
+                date: string;
+                total: number;
+                count: number;
+                avgTicket: number;
+            }[];
+        }>;
+    };
+    getSalesByPaymentMethod: import("ai").Tool<import("zod").ZodObject<{
+        startDate: import("zod").ZodString;
+        endDate: import("zod").ZodString;
+    }, "strip", import("zod").ZodTypeAny, {
+        startDate: string;
+        endDate: string;
+    }, {
+        startDate: string;
+        endDate: string;
+    }>, {
+        dateRange: {
+            startDate: string;
+            endDate: string;
+        };
+        totalRevenue: number;
+        ventasCount: number;
+        byPaymentMethod: {
+            method: string;
+            total: number;
+            count: number;
+            percentage: number;
+        }[];
+    }> & {
+        execute: (args: {
+            startDate: string;
+            endDate: string;
+        }, options: import("ai").ToolExecutionOptions) => PromiseLike<{
+            dateRange: {
+                startDate: string;
+                endDate: string;
+            };
+            totalRevenue: number;
+            ventasCount: number;
+            byPaymentMethod: {
+                method: string;
+                total: number;
+                count: number;
+                percentage: number;
+            }[];
+        }>;
+    };
+    getTopProducts: import("ai").Tool<import("zod").ZodObject<{
+        startDate: import("zod").ZodString;
+        endDate: import("zod").ZodString;
+        limit: import("zod").ZodDefault<import("zod").ZodOptional<import("zod").ZodNumber>>;
+    }, "strip", import("zod").ZodTypeAny, {
+        startDate: string;
+        endDate: string;
+        limit: number;
+    }, {
+        startDate: string;
+        endDate: string;
+        limit?: number | undefined;
+    }>, {
+        dateRange: {
+            startDate: string;
+            endDate: string;
+        };
+        uniqueProducts: number;
+        topProducts: {
+            units: number;
+            revenue: number;
+            category: string;
+            name: string;
+        }[];
+    }> & {
+        execute: (args: {
+            startDate: string;
+            endDate: string;
+            limit: number;
+        }, options: import("ai").ToolExecutionOptions) => PromiseLike<{
+            dateRange: {
+                startDate: string;
+                endDate: string;
+            };
+            uniqueProducts: number;
+            topProducts: {
+                units: number;
+                revenue: number;
+                category: string;
+                name: string;
+            }[];
+        }>;
+    };
+    getSalesByLocation: import("ai").Tool<import("zod").ZodObject<{
+        startDate: import("zod").ZodString;
+        endDate: import("zod").ZodString;
+    }, "strip", import("zod").ZodTypeAny, {
+        startDate: string;
+        endDate: string;
+    }, {
+        startDate: string;
+        endDate: string;
+    }>, {
+        dateRange: {
+            startDate: string;
+            endDate: string;
+        };
+        totalRevenue: number;
+        ventasCount: number;
+        byLocation: {
+            localId: string;
+            total: number;
+            count: number;
+            avgTicket: number;
+            percentage: number;
+        }[];
+    }> & {
+        execute: (args: {
+            startDate: string;
+            endDate: string;
+        }, options: import("ai").ToolExecutionOptions) => PromiseLike<{
+            dateRange: {
+                startDate: string;
+                endDate: string;
+            };
+            totalRevenue: number;
+            ventasCount: number;
+            byLocation: {
+                localId: string;
+                total: number;
+                count: number;
+                avgTicket: number;
+                percentage: number;
+            }[];
+        }>;
+    };
+    getPosSyncStatus: import("ai").Tool<import("zod").ZodObject<{}, "strip", import("zod").ZodTypeAny, {}, {}>, {
+        monthsCached: number;
+        firstMonth: string;
+        lastMonth: string;
+        lastDateWithData: string | null;
+        gapsInLast14Days: string[];
+    }> & {
+        execute: (args: {}, options: import("ai").ToolExecutionOptions) => PromiseLike<{
+            monthsCached: number;
+            firstMonth: string;
+            lastMonth: string;
+            lastDateWithData: string | null;
+            gapsInLast14Days: string[];
+        }>;
+    };
+    triggerPosReconcile: import("ai").Tool<import("zod").ZodObject<{
+        days: import("zod").ZodDefault<import("zod").ZodOptional<import("zod").ZodNumber>>;
+    }, "strip", import("zod").ZodTypeAny, {
+        days: number;
+    }, {
+        days?: number | undefined;
+    }>, unknown> & {
+        execute: undefined;
+    };
+    getInfluencerVisits: import("ai").Tool<import("zod").ZodObject<{
+        status: import("zod").ZodOptional<import("zod").ZodEnum<["pending", "completed"]>>;
+        startDate: import("zod").ZodOptional<import("zod").ZodString>;
+        endDate: import("zod").ZodOptional<import("zod").ZodString>;
+    }, "strip", import("zod").ZodTypeAny, {
+        startDate?: string | undefined;
+        status?: "pending" | "completed" | undefined;
+        endDate?: string | undefined;
+    }, {
+        startDate?: string | undefined;
+        status?: "pending" | "completed" | undefined;
+        endDate?: string | undefined;
+    }>, {
+        count: number;
+        pending: number;
+        completed: number;
+        visits: {
+            id: unknown;
+            name: unknown;
+            socialNetworks: unknown;
+            visitDate: string | null;
+            content: unknown;
+            status: unknown;
+            order: unknown;
+            notes: unknown;
+        }[];
+    }> & {
+        execute: (args: {
+            startDate?: string | undefined;
+            status?: "pending" | "completed" | undefined;
+            endDate?: string | undefined;
+        }, options: import("ai").ToolExecutionOptions) => PromiseLike<{
+            count: number;
+            pending: number;
+            completed: number;
+            visits: {
+                id: unknown;
+                name: unknown;
+                socialNetworks: unknown;
+                visitDate: string | null;
+                content: unknown;
+                status: unknown;
+                order: unknown;
+                notes: unknown;
+            }[];
+        }>;
+    };
+    getInfluencerContentReport: import("ai").Tool<import("zod").ZodObject<{
+        startDate: import("zod").ZodString;
+        endDate: import("zod").ZodString;
+    }, "strip", import("zod").ZodTypeAny, {
+        startDate: string;
+        endDate: string;
+    }, {
+        startDate: string;
+        endDate: string;
+    }>, {
+        dateRange: {
+            startDate: string;
+            endDate: string;
+        };
+        visitsCount: number;
+        stories: number;
+        posts: number;
+        reels: number;
+        totalContent: number;
+        topInfluencers: {
+            visits: number;
+            content: number;
+            name: string;
+        }[];
+    }> & {
+        execute: (args: {
+            startDate: string;
+            endDate: string;
+        }, options: import("ai").ToolExecutionOptions) => PromiseLike<{
+            dateRange: {
+                startDate: string;
+                endDate: string;
+            };
+            visitsCount: number;
+            stories: number;
+            posts: number;
+            reels: number;
+            totalContent: number;
+            topInfluencers: {
+                visits: number;
+                content: number;
+                name: string;
+            }[];
+        }>;
+    };
+    createInfluencerVisit: import("ai").Tool<import("zod").ZodObject<{
+        name: import("zod").ZodString;
+        socialNetworks: import("zod").ZodArray<import("zod").ZodObject<{
+            platform: import("zod").ZodEnum<["instagram", "tiktok", "youtube", "facebook", "twitter", "other"]>;
+            handle: import("zod").ZodString;
+        }, "strip", import("zod").ZodTypeAny, {
+            platform: "instagram" | "tiktok" | "youtube" | "facebook" | "twitter" | "other";
+            handle: string;
+        }, {
+            platform: "instagram" | "tiktok" | "youtube" | "facebook" | "twitter" | "other";
+            handle: string;
+        }>, "many">;
+        visitDate: import("zod").ZodString;
+        content: import("zod").ZodObject<{
+            story: import("zod").ZodBoolean;
+            post: import("zod").ZodBoolean;
+            reel: import("zod").ZodBoolean;
+        }, "strip", import("zod").ZodTypeAny, {
+            story: boolean;
+            post: boolean;
+            reel: boolean;
+        }, {
+            story: boolean;
+            post: boolean;
+            reel: boolean;
+        }>;
+        notes: import("zod").ZodOptional<import("zod").ZodString>;
+        status: import("zod").ZodDefault<import("zod").ZodOptional<import("zod").ZodEnum<["pending", "completed"]>>>;
+    }, "strip", import("zod").ZodTypeAny, {
+        name: string;
+        status: "pending" | "completed";
+        content: {
+            story: boolean;
+            post: boolean;
+            reel: boolean;
+        };
+        socialNetworks: {
+            platform: "instagram" | "tiktok" | "youtube" | "facebook" | "twitter" | "other";
+            handle: string;
+        }[];
+        visitDate: string;
+        notes?: string | undefined;
+    }, {
+        name: string;
+        content: {
+            story: boolean;
+            post: boolean;
+            reel: boolean;
+        };
+        socialNetworks: {
+            platform: "instagram" | "tiktok" | "youtube" | "facebook" | "twitter" | "other";
+            handle: string;
+        }[];
+        visitDate: string;
+        status?: "pending" | "completed" | undefined;
+        notes?: string | undefined;
+    }>, unknown> & {
+        execute: undefined;
+    };
+    getDailyClosings: import("ai").Tool<import("zod").ZodObject<{
+        startDate: import("zod").ZodString;
+        endDate: import("zod").ZodString;
+    }, "strip", import("zod").ZodTypeAny, {
+        startDate: string;
+        endDate: string;
+    }, {
+        startDate: string;
+        endDate: string;
+    }>, {
+        count: number;
+        dateRange: {
+            startDate: string;
+            endDate: string;
+        };
+        totals: {
+            ap: number;
+            qr: number;
+            datafono: number;
+            rappiVentas: number;
+            efectivo: number;
+            ventaTotal: number;
+            propinas: number;
+            gastos: number;
+        };
+        closings: {
+            id: unknown;
+            date: unknown;
+            ap: number;
+            qr: number;
+            datafono: number;
+            rappiVentas: number;
+            efectivo: number;
+            ventaTotal: number;
+            propinas: number;
+            gastos: number;
+            cajaMenor: number;
+            entregaEfectivo: number;
+            responsable: unknown;
+        }[];
+    }> & {
+        execute: (args: {
+            startDate: string;
+            endDate: string;
+        }, options: import("ai").ToolExecutionOptions) => PromiseLike<{
+            count: number;
+            dateRange: {
+                startDate: string;
+                endDate: string;
+            };
+            totals: {
+                ap: number;
+                qr: number;
+                datafono: number;
+                rappiVentas: number;
+                efectivo: number;
+                ventaTotal: number;
+                propinas: number;
+                gastos: number;
+            };
+            closings: {
+                id: unknown;
+                date: unknown;
+                ap: number;
+                qr: number;
+                datafono: number;
+                rappiVentas: number;
+                efectivo: number;
+                ventaTotal: number;
+                propinas: number;
+                gastos: number;
+                cajaMenor: number;
+                entregaEfectivo: number;
+                responsable: unknown;
+            }[];
+        }>;
+    };
+    getDailyClosing: import("ai").Tool<import("zod").ZodObject<{
+        date: import("zod").ZodString;
+    }, "strip", import("zod").ZodTypeAny, {
+        date: string;
+    }, {
+        date: string;
+    }>, {
+        found: boolean;
+        date: string;
+        message: string;
+        closing?: undefined;
+    } | {
+        found: boolean;
+        closing: {
+            id: unknown;
+            date: unknown;
+            ap: number;
+            qr: number;
+            datafono: number;
+            rappiVentas: number;
+            efectivo: number;
+            ventaTotal: number;
+            propinas: number;
+            gastos: number;
+            cajaMenor: number;
+            entregaEfectivo: number;
+            responsable: unknown;
+        };
+        date?: undefined;
+        message?: undefined;
+    }> & {
+        execute: (args: {
+            date: string;
+        }, options: import("ai").ToolExecutionOptions) => PromiseLike<{
+            found: boolean;
+            date: string;
+            message: string;
+            closing?: undefined;
+        } | {
+            found: boolean;
+            closing: {
+                id: unknown;
+                date: unknown;
+                ap: number;
+                qr: number;
+                datafono: number;
+                rappiVentas: number;
+                efectivo: number;
+                ventaTotal: number;
+                propinas: number;
+                gastos: number;
+                cajaMenor: number;
+                entregaEfectivo: number;
+                responsable: unknown;
+            };
+            date?: undefined;
+            message?: undefined;
+        }>;
+    };
+    getDiscountsReport: import("ai").Tool<import("zod").ZodObject<{
+        startDate: import("zod").ZodString;
+        endDate: import("zod").ZodString;
+        reason: import("zod").ZodOptional<import("zod").ZodEnum<["Empleado", "Influencer", "Socio", "Prueba de calidad", "Otro"]>>;
+    }, "strip", import("zod").ZodTypeAny, {
+        startDate: string;
+        endDate: string;
+        reason?: "Empleado" | "Influencer" | "Socio" | "Prueba de calidad" | "Otro" | undefined;
+    }, {
+        startDate: string;
+        endDate: string;
+        reason?: "Empleado" | "Influencer" | "Socio" | "Prueba de calidad" | "Otro" | undefined;
+    }>, {
+        count: number;
+        totalAmount: number;
+        dateRange: {
+            startDate: string;
+            endDate: string;
+        };
+        byReason: Record<string, {
+            count: number;
+            amount: number;
+        }>;
+        discounts: {
+            id: unknown;
+            date: unknown;
+            type: unknown;
+            amount: number;
+            reason: unknown;
+            description: unknown;
+            authorizedBy: unknown;
+        }[];
+    }> & {
+        execute: (args: {
+            startDate: string;
+            endDate: string;
+            reason?: "Empleado" | "Influencer" | "Socio" | "Prueba de calidad" | "Otro" | undefined;
+        }, options: import("ai").ToolExecutionOptions) => PromiseLike<{
+            count: number;
+            totalAmount: number;
+            dateRange: {
+                startDate: string;
+                endDate: string;
+            };
+            byReason: Record<string, {
+                count: number;
+                amount: number;
+            }>;
+            discounts: {
+                id: unknown;
+                date: unknown;
+                type: unknown;
+                amount: number;
+                reason: unknown;
+                description: unknown;
+                authorizedBy: unknown;
+            }[];
+        }>;
+    };
+    getTipsSummary: import("ai").Tool<import("zod").ZodObject<{
+        startDate: import("zod").ZodString;
+        endDate: import("zod").ZodString;
+    }, "strip", import("zod").ZodTypeAny, {
+        startDate: string;
+        endDate: string;
+    }, {
+        startDate: string;
+        endDate: string;
+    }>, {
+        dateRange: {
+            startDate: string;
+            endDate: string;
+        };
+        daysWithClosing: number;
+        totalTips: number;
+        avgDailyTips: number;
+        byDay: {
+            date: string;
+            tips: number;
+        }[];
+    }> & {
+        execute: (args: {
+            startDate: string;
+            endDate: string;
+        }, options: import("ai").ToolExecutionOptions) => PromiseLike<{
+            dateRange: {
+                startDate: string;
+                endDate: string;
+            };
+            daysWithClosing: number;
+            totalTips: number;
+            avgDailyTips: number;
+            byDay: {
+                date: string;
+                tips: number;
+            }[];
+        }>;
+    };
+    createDailyClosing: import("ai").Tool<import("zod").ZodObject<{
+        date: import("zod").ZodString;
+        ap: import("zod").ZodNumber;
+        qr: import("zod").ZodNumber;
+        datafono: import("zod").ZodNumber;
+        rappiVentas: import("zod").ZodNumber;
+        efectivo: import("zod").ZodNumber;
+        propinas: import("zod").ZodNumber;
+        gastos: import("zod").ZodNumber;
+        cajaMenor: import("zod").ZodNumber;
+        entregaEfectivo: import("zod").ZodNumber;
+        responsable: import("zod").ZodString;
+    }, "strip", import("zod").ZodTypeAny, {
+        date: string;
+        propinas: number;
+        ap: number;
+        qr: number;
+        datafono: number;
+        rappiVentas: number;
+        efectivo: number;
+        gastos: number;
+        cajaMenor: number;
+        entregaEfectivo: number;
+        responsable: string;
+    }, {
+        date: string;
+        propinas: number;
+        ap: number;
+        qr: number;
+        datafono: number;
+        rappiVentas: number;
+        efectivo: number;
+        gastos: number;
+        cajaMenor: number;
+        entregaEfectivo: number;
+        responsable: string;
+    }>, unknown> & {
+        execute: undefined;
+    };
+    getNotifications: import("ai").Tool<import("zod").ZodObject<{
+        onlyUnread: import("zod").ZodDefault<import("zod").ZodOptional<import("zod").ZodBoolean>>;
+        type: import("zod").ZodOptional<import("zod").ZodEnum<["weekly-report", "overdue-alert", "closing-reminder", "price-increase"]>>;
+        limit: import("zod").ZodDefault<import("zod").ZodOptional<import("zod").ZodNumber>>;
+    }, "strip", import("zod").ZodTypeAny, {
+        onlyUnread: boolean;
+        limit: number;
+        type?: "weekly-report" | "overdue-alert" | "closing-reminder" | "price-increase" | undefined;
+    }, {
+        type?: "weekly-report" | "overdue-alert" | "closing-reminder" | "price-increase" | undefined;
+        onlyUnread?: boolean | undefined;
+        limit?: number | undefined;
+    }>, {
+        totalCount: number;
+        unreadCount: number;
+        returnedCount: number;
+        notifications: {
+            id: unknown;
+            type: unknown;
+            title: unknown;
+            summary: unknown;
+            read: unknown;
+            createdAt: string | null;
+        }[];
+    }> & {
+        execute: (args: {
+            onlyUnread: boolean;
+            limit: number;
+            type?: "weekly-report" | "overdue-alert" | "closing-reminder" | "price-increase" | undefined;
+        }, options: import("ai").ToolExecutionOptions) => PromiseLike<{
+            totalCount: number;
+            unreadCount: number;
+            returnedCount: number;
+            notifications: {
+                id: unknown;
+                type: unknown;
+                title: unknown;
+                summary: unknown;
+                read: unknown;
+                createdAt: string | null;
+            }[];
+        }>;
+    };
+    markNotificationsRead: import("ai").Tool<import("zod").ZodObject<{
+        ids: import("zod").ZodArray<import("zod").ZodString, "many">;
+    }, "strip", import("zod").ZodTypeAny, {
+        ids: string[];
+    }, {
+        ids: string[];
+    }>, unknown> & {
+        execute: undefined;
+    };
+    createNotification: import("ai").Tool<import("zod").ZodObject<{
+        type: import("zod").ZodEnum<["weekly-report", "overdue-alert", "closing-reminder", "price-increase"]>;
+        title: import("zod").ZodString;
+        summary: import("zod").ZodString;
+    }, "strip", import("zod").ZodTypeAny, {
+        type: "weekly-report" | "overdue-alert" | "closing-reminder" | "price-increase";
+        title: string;
+        summary: string;
+    }, {
+        type: "weekly-report" | "overdue-alert" | "closing-reminder" | "price-increase";
+        title: string;
+        summary: string;
+    }>, unknown> & {
+        execute: undefined;
+    };
     generateMonthClosingPreview: import("ai").Tool<import("zod").ZodObject<{
         year: import("zod").ZodNumber;
         month: import("zod").ZodNumber;
@@ -579,6 +1272,39 @@ export declare function createAgentTools(companyId: string): {
             };
         }>;
     };
+    getBudget: import("ai").Tool<import("zod").ZodObject<{}, "strip", import("zod").ZodTypeAny, {}, {}>, {
+        itemCount: number;
+        totalBudgetedIncome: number;
+        totalBudgetedExpense: number;
+        netBudgeted: number;
+        income: {
+            category: string;
+            type: string;
+            amount: number;
+        }[];
+        expense: {
+            category: string;
+            type: string;
+            amount: number;
+        }[];
+    }> & {
+        execute: (args: {}, options: import("ai").ToolExecutionOptions) => PromiseLike<{
+            itemCount: number;
+            totalBudgetedIncome: number;
+            totalBudgetedExpense: number;
+            netBudgeted: number;
+            income: {
+                category: string;
+                type: string;
+                amount: number;
+            }[];
+            expense: {
+                category: string;
+                type: string;
+                amount: number;
+            }[];
+        }>;
+    };
     updateBudget: import("ai").Tool<import("zod").ZodObject<{
         category: import("zod").ZodString;
         type: import("zod").ZodEnum<["income", "expense"]>;
@@ -606,6 +1332,18 @@ export declare function createAgentTools(companyId: string): {
         type: "income" | "expense";
         category: string;
         amount: number;
+    }>, unknown> & {
+        execute: undefined;
+    };
+    deleteBudgetItem: import("ai").Tool<import("zod").ZodObject<{
+        category: import("zod").ZodString;
+        type: import("zod").ZodEnum<["income", "expense"]>;
+    }, "strip", import("zod").ZodTypeAny, {
+        type: "income" | "expense";
+        category: string;
+    }, {
+        type: "income" | "expense";
+        category: string;
     }>, unknown> & {
         execute: undefined;
     };
@@ -772,6 +1510,133 @@ export declare function createAgentTools(companyId: string): {
             }[];
             searchDays: number;
         }>;
+    };
+    createContractTemplate: import("ai").Tool<import("zod").ZodObject<{
+        name: import("zod").ZodString;
+        contractType: import("zod").ZodEnum<["indefinido", "fijo", "obra_labor", "aprendizaje", "prestacion_servicios"]>;
+        position: import("zod").ZodString;
+        description: import("zod").ZodString;
+        clauses: import("zod").ZodArray<import("zod").ZodObject<{
+            id: import("zod").ZodString;
+            title: import("zod").ZodString;
+            content: import("zod").ZodString;
+            isRequired: import("zod").ZodBoolean;
+            isEditable: import("zod").ZodBoolean;
+            order: import("zod").ZodNumber;
+            category: import("zod").ZodEnum<["mandatory", "optional", "position_specific"]>;
+        }, "strip", import("zod").ZodTypeAny, {
+            id: string;
+            category: "mandatory" | "optional" | "position_specific";
+            title: string;
+            content: string;
+            isRequired: boolean;
+            isEditable: boolean;
+            order: number;
+        }, {
+            id: string;
+            category: "mandatory" | "optional" | "position_specific";
+            title: string;
+            content: string;
+            isRequired: boolean;
+            isEditable: boolean;
+            order: number;
+        }>, "many">;
+        isDefault: import("zod").ZodDefault<import("zod").ZodOptional<import("zod").ZodBoolean>>;
+    }, "strip", import("zod").ZodTypeAny, {
+        description: string;
+        name: string;
+        position: string;
+        clauses: {
+            id: string;
+            category: "mandatory" | "optional" | "position_specific";
+            title: string;
+            content: string;
+            isRequired: boolean;
+            isEditable: boolean;
+            order: number;
+        }[];
+        contractType: "indefinido" | "fijo" | "obra_labor" | "aprendizaje" | "prestacion_servicios";
+        isDefault: boolean;
+    }, {
+        description: string;
+        name: string;
+        position: string;
+        clauses: {
+            id: string;
+            category: "mandatory" | "optional" | "position_specific";
+            title: string;
+            content: string;
+            isRequired: boolean;
+            isEditable: boolean;
+            order: number;
+        }[];
+        contractType: "indefinido" | "fijo" | "obra_labor" | "aprendizaje" | "prestacion_servicios";
+        isDefault?: boolean | undefined;
+    }>, unknown> & {
+        execute: undefined;
+    };
+    updateContractTemplate: import("ai").Tool<import("zod").ZodObject<{
+        id: import("zod").ZodString;
+        name: import("zod").ZodOptional<import("zod").ZodString>;
+        position: import("zod").ZodOptional<import("zod").ZodString>;
+        description: import("zod").ZodOptional<import("zod").ZodString>;
+        isDefault: import("zod").ZodOptional<import("zod").ZodBoolean>;
+    }, "strip", import("zod").ZodTypeAny, {
+        id: string;
+        description?: string | undefined;
+        name?: string | undefined;
+        position?: string | undefined;
+        isDefault?: boolean | undefined;
+    }, {
+        id: string;
+        description?: string | undefined;
+        name?: string | undefined;
+        position?: string | undefined;
+        isDefault?: boolean | undefined;
+    }>, unknown> & {
+        execute: undefined;
+    };
+    deleteContractTemplate: import("ai").Tool<import("zod").ZodObject<{
+        id: import("zod").ZodString;
+        name: import("zod").ZodString;
+    }, "strip", import("zod").ZodTypeAny, {
+        id: string;
+        name: string;
+    }, {
+        id: string;
+        name: string;
+    }>, unknown> & {
+        execute: undefined;
+    };
+    createContractFromTemplate: import("ai").Tool<import("zod").ZodObject<{
+        templateId: import("zod").ZodString;
+        employeeId: import("zod").ZodOptional<import("zod").ZodString>;
+        employeeName: import("zod").ZodString;
+        employeeIdentification: import("zod").ZodString;
+        position: import("zod").ZodString;
+        salary: import("zod").ZodNumber;
+        startDate: import("zod").ZodString;
+        endDate: import("zod").ZodOptional<import("zod").ZodString>;
+    }, "strip", import("zod").ZodTypeAny, {
+        salary: number;
+        startDate: string;
+        employeeName: string;
+        position: string;
+        templateId: string;
+        employeeIdentification: string;
+        endDate?: string | undefined;
+        employeeId?: string | undefined;
+    }, {
+        salary: number;
+        startDate: string;
+        employeeName: string;
+        position: string;
+        templateId: string;
+        employeeIdentification: string;
+        endDate?: string | undefined;
+        employeeId?: string | undefined;
+    }>, unknown> & {
+        execute: undefined;
     };
     createEmployee: import("ai").Tool<import("zod").ZodObject<{
         name: import("zod").ZodString;
@@ -944,6 +1809,48 @@ export declare function createAgentTools(companyId: string): {
         amount: number;
         status?: "pending" | "paid" | undefined;
         notes?: string | undefined;
+    }>, unknown> & {
+        execute: undefined;
+    };
+    updateTransaction: import("ai").Tool<import("zod").ZodObject<{
+        id: import("zod").ZodString;
+        concept: import("zod").ZodOptional<import("zod").ZodString>;
+        category: import("zod").ZodOptional<import("zod").ZodString>;
+        amount: import("zod").ZodOptional<import("zod").ZodNumber>;
+        type: import("zod").ZodOptional<import("zod").ZodEnum<["income", "expense"]>>;
+        date: import("zod").ZodOptional<import("zod").ZodString>;
+        status: import("zod").ZodOptional<import("zod").ZodEnum<["paid", "pending"]>>;
+        notes: import("zod").ZodOptional<import("zod").ZodString>;
+    }, "strip", import("zod").ZodTypeAny, {
+        id: string;
+        status?: "pending" | "paid" | undefined;
+        type?: "income" | "expense" | undefined;
+        date?: string | undefined;
+        category?: string | undefined;
+        concept?: string | undefined;
+        amount?: number | undefined;
+        notes?: string | undefined;
+    }, {
+        id: string;
+        status?: "pending" | "paid" | undefined;
+        type?: "income" | "expense" | undefined;
+        date?: string | undefined;
+        category?: string | undefined;
+        concept?: string | undefined;
+        amount?: number | undefined;
+        notes?: string | undefined;
+    }>, unknown> & {
+        execute: undefined;
+    };
+    deleteTransaction: import("ai").Tool<import("zod").ZodObject<{
+        id: import("zod").ZodString;
+        concept: import("zod").ZodString;
+    }, "strip", import("zod").ZodTypeAny, {
+        id: string;
+        concept: string;
+    }, {
+        id: string;
+        concept: string;
     }>, unknown> & {
         execute: undefined;
     };

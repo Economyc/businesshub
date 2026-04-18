@@ -105,6 +105,60 @@ export function createDocumentTools(companyId) {
                 };
             },
         }),
+        // ─── Mutations (sin execute, confirmación en cliente) ───
+        createContractTemplate: tool({
+            description: 'Crea una nueva plantilla de contrato. Requiere confirmación del usuario.',
+            parameters: z.object({
+                name: z.string().describe('Nombre de la plantilla'),
+                contractType: z
+                    .enum(['indefinido', 'fijo', 'obra_labor', 'aprendizaje', 'prestacion_servicios'])
+                    .describe('Tipo de contrato'),
+                position: z.string().describe('Cargo al que aplica la plantilla'),
+                description: z.string().describe('Descripción breve'),
+                clauses: z
+                    .array(z.object({
+                    id: z.string(),
+                    title: z.string(),
+                    content: z.string(),
+                    isRequired: z.boolean(),
+                    isEditable: z.boolean(),
+                    order: z.number(),
+                    category: z.enum(['mandatory', 'optional', 'position_specific']),
+                }))
+                    .describe('Cláusulas de la plantilla'),
+                isDefault: z.boolean().optional().default(false).describe('Si es la plantilla por defecto para el tipo'),
+            }),
+        }),
+        updateContractTemplate: tool({
+            description: 'Actualiza una plantilla de contrato existente. Requiere confirmación del usuario.',
+            parameters: z.object({
+                id: z.string().describe('ID de la plantilla'),
+                name: z.string().optional(),
+                position: z.string().optional(),
+                description: z.string().optional(),
+                isDefault: z.boolean().optional(),
+            }),
+        }),
+        deleteContractTemplate: tool({
+            description: 'Elimina una plantilla de contrato. Requiere confirmación del usuario. Acción irreversible.',
+            parameters: z.object({
+                id: z.string().describe('ID de la plantilla'),
+                name: z.string().describe('Nombre de la plantilla (para confirmación)'),
+            }),
+        }),
+        createContractFromTemplate: tool({
+            description: 'Genera un contrato para un empleado desde una plantilla. Requiere confirmación del usuario. El PDF se genera luego desde la UI.',
+            parameters: z.object({
+                templateId: z.string().describe('ID de la plantilla base'),
+                employeeId: z.string().optional().describe('ID del empleado (opcional si se crea externo)'),
+                employeeName: z.string().describe('Nombre del empleado'),
+                employeeIdentification: z.string().describe('Cédula o identificación del empleado'),
+                position: z.string().describe('Cargo'),
+                salary: z.number().describe('Salario mensual'),
+                startDate: z.string().describe('Fecha de inicio (YYYY-MM-DD)'),
+                endDate: z.string().optional().describe('Fecha de fin (YYYY-MM-DD) — solo para contratos a término fijo'),
+            }),
+        }),
     };
 }
 //# sourceMappingURL=document-tools.js.map

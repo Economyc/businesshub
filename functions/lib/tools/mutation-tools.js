@@ -87,6 +87,26 @@ export function createMutationTools() {
                 notes: z.string().optional().describe('Notas adicionales'),
             }),
         }),
+        updateTransaction: tool({
+            description: 'Actualiza una transacción financiera existente. Requiere confirmación del usuario.',
+            parameters: z.object({
+                id: z.string().describe('ID de la transacción a actualizar'),
+                concept: z.string().optional().describe('Nuevo concepto'),
+                category: z.string().optional().describe('Nueva categoría'),
+                amount: z.number().optional().describe('Nuevo monto'),
+                type: z.enum(['income', 'expense']).optional().describe('Nuevo tipo'),
+                date: z.string().optional().describe('Nueva fecha (YYYY-MM-DD)'),
+                status: z.enum(['paid', 'pending']).optional().describe('Nuevo estado'),
+                notes: z.string().optional().describe('Nuevas notas'),
+            }),
+        }),
+        deleteTransaction: tool({
+            description: 'Elimina una transacción financiera. Requiere confirmación del usuario. Acción irreversible.',
+            parameters: z.object({
+                id: z.string().describe('ID de la transacción a eliminar'),
+                concept: z.string().describe('Concepto de la transacción (para confirmación)'),
+            }),
+        }),
     };
 }
 //# sourceMappingURL=mutation-tools.js.map

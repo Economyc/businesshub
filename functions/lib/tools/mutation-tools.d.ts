@@ -179,5 +179,47 @@ export declare function createMutationTools(): {
     }>, unknown> & {
         execute: undefined;
     };
+    updateTransaction: import("ai").Tool<z.ZodObject<{
+        id: z.ZodString;
+        concept: z.ZodOptional<z.ZodString>;
+        category: z.ZodOptional<z.ZodString>;
+        amount: z.ZodOptional<z.ZodNumber>;
+        type: z.ZodOptional<z.ZodEnum<["income", "expense"]>>;
+        date: z.ZodOptional<z.ZodString>;
+        status: z.ZodOptional<z.ZodEnum<["paid", "pending"]>>;
+        notes: z.ZodOptional<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        id: string;
+        status?: "pending" | "paid" | undefined;
+        type?: "income" | "expense" | undefined;
+        date?: string | undefined;
+        category?: string | undefined;
+        concept?: string | undefined;
+        amount?: number | undefined;
+        notes?: string | undefined;
+    }, {
+        id: string;
+        status?: "pending" | "paid" | undefined;
+        type?: "income" | "expense" | undefined;
+        date?: string | undefined;
+        category?: string | undefined;
+        concept?: string | undefined;
+        amount?: number | undefined;
+        notes?: string | undefined;
+    }>, unknown> & {
+        execute: undefined;
+    };
+    deleteTransaction: import("ai").Tool<z.ZodObject<{
+        id: z.ZodString;
+        concept: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        id: string;
+        concept: string;
+    }, {
+        id: string;
+        concept: string;
+    }>, unknown> & {
+        execute: undefined;
+    };
 };
 //# sourceMappingURL=mutation-tools.d.ts.map

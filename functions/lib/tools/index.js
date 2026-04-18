@@ -13,6 +13,10 @@ import { createPayrollTools } from './payroll-tools.js';
 import { createCollectionsTools } from './collections-tools.js';
 import { createObligationsTools } from './obligations-tools.js';
 import { createClosingTools } from './closing-tools.js';
+import { createNotificationsTools } from './notifications-tools.js';
+import { createDailyClosingTools } from './daily-closing-tools.js';
+import { createMarketingTools } from './marketing-tools.js';
+import { createPosTools } from './pos-tools.js';
 export function createAgentTools(companyId) {
     return {
         ...createEmployeeTools(companyId),
@@ -22,7 +26,7 @@ export function createAgentTools(companyId) {
         ...createMutationTools(),
         ...createDocumentTools(companyId),
         ...createAlertsTools(companyId),
-        ...createSettingsTools(),
+        ...createSettingsTools(companyId),
         ...createSearchTools(companyId),
         ...createChartTools(),
         ...createExportTools(),
@@ -31,6 +35,11 @@ export function createAgentTools(companyId) {
         ...createCollectionsTools(companyId),
         ...createObligationsTools(companyId),
         ...createClosingTools(companyId),
+        // Batch 1 — nuevos
+        ...createNotificationsTools(companyId),
+        ...createDailyClosingTools(companyId),
+        ...createMarketingTools(companyId),
+        ...createPosTools(companyId),
     };
 }
 //# sourceMappingURL=index.js.map
