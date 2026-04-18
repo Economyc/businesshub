@@ -2,7 +2,12 @@ import { httpsCallable } from 'firebase/functions'
 import { functions } from '@/core/firebase/config'
 import type { PosDominioData, PosVenta, PosProducto } from './types'
 
-const PROXY_URL = import.meta.env.VITE_POS_PROXY_URL as string
+// En prod usamos un path relativo (`/api/pos`) que nginx en Oracle reenvía
+// a la Cloud Function. Evita adblockers que bloquean `*.a.run.app`. En dev
+// permitimos override via env var para probar contra la función directo.
+const PROXY_URL = import.meta.env.PROD
+  ? '/api/pos'
+  : ((import.meta.env.VITE_POS_PROXY_URL as string) || '/api/pos')
 
 export interface ServerReconcileStats {
   companyId: string
