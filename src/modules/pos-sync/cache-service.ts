@@ -134,6 +134,12 @@ export function isLikelyPartialResponse(newCount: number, prevCount: number): bo
   return prevCount > 0 && newCount < prevCount * PARTIAL_RESPONSE_THRESHOLD
 }
 
+// Cuántos docs de ventas por commit. Firestore permite hasta ~10 MiB de payload
+// por commit y cada doc puede llegar a ~1 MiB, así que 6 es un techo seguro.
+// Cargar un año entero de un restaurante activo puede producir cientos de docs;
+// sin chunkear, el commit supera el límite y toda la escritura falla.
+const MAX_SALES_DOCS_PER_BATCH = 6
+
 export async function saveVentasToCache(
   companyId: string,
   ventas: PosVenta[],
@@ -152,10 +158,21 @@ export async function saveVentasToCache(
   }
 
   const allDates = enumerateDates(startDate, endDate)
-  const batch = writeBatch(db)
   const now = Timestamp.now()
 
   const metaUpdates = new Map<string, Record<string, Timestamp>>()
+  interface PendingWrite {
+    docId: string
+    payload: {
+      date: string
+      localId: number
+      page: number
+      pages: number
+      ventas: PosVenta[]
+      syncedAt: Timestamp
+    }
+  }
+  const pendingSalesWrites: PendingWrite[] = []
 
   for (const date of allDates) {
     const month = date.slice(0, 7)
@@ -185,32 +202,48 @@ export async function saveVentasToCache(
 
       monthPayload[key] = now
       if (group && group.length > 0) {
-        // Paginar en chunks para no exceder el límite de 1 MiB por doc.
         const pages = Math.ceil(group.length / MAX_VENTAS_PER_DOC)
         for (let p = 0; p < pages; p++) {
           const chunk = group.slice(p * MAX_VENTAS_PER_DOC, (p + 1) * MAX_VENTAS_PER_DOC)
-          const docId = `${key}_p${p}`
-          const docRef = doc(db, 'companies', companyId, SALES_COLLECTION, docId)
-          batch.set(docRef, {
-            date,
-            localId,
-            page: p,
-            pages,
-            ventas: chunk,
-            syncedAt: now,
+          pendingSalesWrites.push({
+            docId: `${key}_p${p}`,
+            payload: {
+              date,
+              localId,
+              page: p,
+              pages,
+              ventas: chunk,
+              syncedAt: now,
+            },
           })
         }
       }
     }
   }
 
+  // Chunkear en múltiples batches para no exceder el límite de payload por
+  // commit. Cada batch se envía secuencialmente; fallar uno no deja cache
+  // totalmente incoherente porque cada doc es auto-contenido.
+  for (let i = 0; i < pendingSalesWrites.length; i += MAX_SALES_DOCS_PER_BATCH) {
+    const slice = pendingSalesWrites.slice(i, i + MAX_SALES_DOCS_PER_BATCH)
+    const batch = writeBatch(db)
+    for (const w of slice) {
+      const ref = doc(db, 'companies', companyId, SALES_COLLECTION, w.docId)
+      batch.set(ref, w.payload)
+    }
+    await batch.commit()
+  }
+
+  // Meta docs en batch separado (típicamente 1-2 docs, siempre cabe).
+  const metaBatch = writeBatch(db)
+  let hasMetaWrites = false
   for (const [month, days] of metaUpdates) {
     if (Object.keys(days).length === 0) continue
     const metaRef = doc(db, 'companies', companyId, META_COLLECTION, month)
-    batch.set(metaRef, { month, days }, { merge: true })
+    metaBatch.set(metaRef, { month, days }, { merge: true })
+    hasMetaWrites = true
   }
-
-  await batch.commit()
+  if (hasMetaWrites) await metaBatch.commit()
 }
 
 export function enumerateDates(start: string, end: string): string[] {

@@ -207,6 +207,13 @@ export const posReconcileOnDemand = onCall<OnDemandData>(
     timeoutSeconds: 3600,
     memory: '1GiB',
     secrets: [posToken],
+    cors: [
+      'https://businesshub.myvnc.com',
+      'http://134.65.233.213',
+      'http://localhost:5173',
+      /empresas-bf\.web\.app$/,
+      /empresas-bf\.firebaseapp\.com$/,
+    ],
   },
   async (req) => {
     if (!req.auth) {
