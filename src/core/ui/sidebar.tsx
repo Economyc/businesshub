@@ -139,10 +139,9 @@ export function Sidebar({ onNavClick }: SidebarProps) {
     else setSettingsOpen(false)
   }, [isSettingsRoute])
 
-  // Sync finance panel with route
+  // Close finance panel when leaving finance routes; don't auto-open
   useEffect(() => {
-    if (isFinanceRoute) setFinanceOpen(true)
-    else setFinanceOpen(false)
+    if (!isFinanceRoute) setFinanceOpen(false)
   }, [isFinanceRoute])
 
   // Auto-expand section of active route; collapse previous route's section when switching categories
@@ -177,16 +176,11 @@ export function Sidebar({ onNavClick }: SidebarProps) {
   }
 
   function handleFinanceClick() {
-    if (financeOpen && isFinanceRoute) {
-      setFinanceOpen(false)
-      navigate('/home')
-    } else if (financeOpen) {
-      setFinanceOpen(false)
-    } else {
-      setSettingsOpen(false)
-      setFinanceOpen(true)
-      if (!isFinanceRoute) navigate('/finance')
-    }
+    setFinanceOpen(prev => {
+      const next = !prev
+      if (next) setSettingsOpen(false)
+      return next
+    })
   }
 
   function handleSettingsClick() {
@@ -523,7 +517,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
               key={to}
               to={to}
               end={end}
-              onClick={onNavClick}
+              onClick={() => { onNavClick?.(); setFinanceOpen(false) }}
               className={({ isActive }) =>
                 cn(
                   'flex items-center gap-2.5 px-4 py-2.5 text-body transition-all duration-150 whitespace-nowrap',
