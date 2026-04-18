@@ -1,92 +1,11 @@
 import { onRequest } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
+import { POS_DOMAIN_ID, buildUrl, fetchPosApi, extractVentas, fetchAllPagesForLocal, } from './pos-client.js';
 const posToken = defineSecret('POS_TOKEN');
-const POS_BASE_URL = 'http://api.restaurant.pe/restaurant';
-const POS_DOMAIN_ID = '8267';
-function buildUrl(path, token) {
-    return `${POS_BASE_URL}${path}?token=${token.trim()}`;
-}
-async function fetchPosApi(url, method = 'GET', body) {
-    const opts = {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-    };
-    if (body && method === 'POST') {
-        opts.body = JSON.stringify(body);
-    }
-    const res = await fetch(url, opts);
-    if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`POS API error ${res.status}: ${text}`);
-    }
-    return res.json();
-}
-const BATCH_DELAY = 5000; // 5s between API requests (matches API cooldown)
-function delay(ms) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-}
-function isRateLimited(response) {
-    const msg = (response.mensajes || []).join(' ').toLowerCase();
-    return msg.includes('solicitud en ejecuci') || msg.includes('esper');
-}
-function extractVentas(response) {
-    const d = response.data;
-    if (Array.isArray(d))
-        return d;
-    if (d && typeof d === 'object')
-        return Object.values(d);
-    return [];
-}
-const MAX_RETRIES = 3;
-async function fetchAllPagesForLocal(token, endpointPath, localId, f1, f2) {
-    const ventas = [];
-    let pagina = 1;
-    let requestCount = 0;
-    while (true) {
-        let response = null;
-        let succeeded = false;
-        for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-            if (attempt > 0) {
-                await delay(BATCH_DELAY);
-            }
-            const url = buildUrl(endpointPath, token);
-            response = (await fetchPosApi(url, 'POST', {
-                local_id: localId, f1, f2, pagina, incluirNotasVenta: 1,
-            }));
-            requestCount++;
-            if (isRateLimited(response)) {
-                continue; // retry after delay
-            }
-            succeeded = true;
-            break;
-        }
-        if (!succeeded) {
-            // Max retries exceeded due to rate limiting
-            return { ventas, rateLimited: true, requestCount };
-        }
-        const tipo = Number(response.tipo);
-        if (tipo !== 1) {
-            // Non-rate-limit error on first page: propagate so caller can decide to fallback
-            if (pagina === 1) {
-                const msg = (response.mensajes || []).join(', ') || `POS error tipo ${tipo}`;
-                throw new Error(msg);
-            }
-            // Error on later pages: stop pagination for this local, keep what we have
-            break;
-        }
-        const pageVentas = extractVentas(response);
-        if (pageVentas.length === 0)
-            break;
-        ventas.push(...pageVentas);
-        pagina++;
-    }
-    return { ventas, rateLimited: false, requestCount };
-}
 async function fetchVentasBatch(token, localIds, f1, f2) {
-    const endpointPath = `/readonly/rest/venta/obtenerVentasPorIntegracion/${POS_DOMAIN_ID}`;
     const allVentas = [];
-    for (let i = 0; i < localIds.length; i++) {
-        const result = await fetchAllPagesForLocal(token, endpointPath, localIds[i], f1, f2);
+    for (const lid of localIds) {
+        const result = await fetchAllPagesForLocal(token, lid, f1, f2);
         allVentas.push(...result.ventas);
         if (result.rateLimited) {
             return { ventas: allVentas, rateLimited: true, endpoint: 'obtenerVentasPorIntegracion' };
@@ -143,25 +62,31 @@ export const posProxy = onRequest({
                 return;
             }
             case 'probe': {
-                // Test a single endpoint and return raw response for debugging
                 if (!params?.endpoint_path || !params?.local_id || !params?.f1 || !params?.f2) {
                     res.status(400).json({ error: 'probe requires endpoint_path, local_id, f1, f2' });
                     return;
                 }
-                const { endpoint_path: _ep, ...extraParams } = params;
                 try {
                     const url = buildUrl(params.endpoint_path, token);
-                    const body = { local_id: params.local_id, f1: params.f1, f2: params.f2, pagina: params.pagina ?? 1, ...extraParams };
+                    const body = { local_id: params.local_id, f1: params.f1, f2: params.f2, pagina: params.pagina ?? 1, ...params };
                     delete body.endpoint_path;
                     delete body.local_ids;
                     const rawResponse = await fetchPosApi(url, 'POST', body);
                     const posResp = rawResponse;
                     const ventas = extractVentas(posResp);
-                    const tipos = ventas.map((v) => v.tipo_documento).filter(Boolean);
+                    const tipos = ventas
+                        .map((v) => v.tipo_documento)
+                        .filter(Boolean);
                     const uniqueTipos = [...new Set(tipos)];
-                    const docs = ventas.slice(0, 5).map((v) => ({
-                        documento: v.documento, tipo_documento: v.tipo_documento, total: v.total, fecha: v.fecha
-                    }));
+                    const docs = ventas.slice(0, 5).map((v) => {
+                        const rec = v;
+                        return {
+                            documento: rec.documento,
+                            tipo_documento: rec.tipo_documento,
+                            total: rec.total,
+                            fecha: rec.fecha,
+                        };
+                    });
                     res.json({
                         success: true,
                         endpoint: params.endpoint_path,

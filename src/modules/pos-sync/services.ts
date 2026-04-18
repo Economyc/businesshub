@@ -1,6 +1,45 @@
+import { httpsCallable } from 'firebase/functions'
+import { functions } from '@/core/firebase/config'
 import type { PosDominioData, PosVenta, PosProducto } from './types'
 
 const PROXY_URL = import.meta.env.VITE_POS_PROXY_URL as string
+
+export interface ServerReconcileStats {
+  companyId: string
+  localIds: number[]
+  ventasFetched: number
+  ventasWritten: number
+  daysWritten: number
+  skippedPartial: number
+  rateLimited: boolean
+  durationMs: number
+  error?: string
+}
+
+export interface ServerReconcileResult {
+  startDate: string
+  endDate: string
+  companiesProcessed: number
+  ventasWritten: number
+  totalDurationMs: number
+  perCompany: ServerReconcileStats[]
+}
+
+// Dispara el cron de reconciliación server-side para una company. Usa la
+// misma lógica del cron nocturno (functions/src/pos-reconcile.ts) pero
+// dirigida a una sola empresa. Rate-limiteado server-side a 1 llamada cada
+// 5 min por company.
+export async function triggerServerReconcile(
+  companyId: string,
+  days = 32,
+): Promise<ServerReconcileResult> {
+  const fn = httpsCallable<{ companyId: string; days: number }, ServerReconcileResult>(
+    functions,
+    'posReconcileOnDemand',
+  )
+  const res = await fn({ companyId, days })
+  return res.data
+}
 
 interface ProxyResponse<T> {
   success: boolean

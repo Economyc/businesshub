@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useCollection } from '@/core/hooks/use-firestore'
 import { useTransactions } from '@/modules/finance/hooks'
 import { useClosings } from '@/modules/closings/hooks'
@@ -7,6 +7,8 @@ import { useBudgetComparison } from '@/modules/finance/hooks'
 import { useDateRange } from '@/modules/finance/context/date-range-context'
 import { usePosVentas } from '@/modules/pos-sync/hooks'
 import { useCompanyLocalIds } from '@/modules/pos-sync/company-mapping'
+import { triggerServerReconcile } from '@/modules/pos-sync/services'
+import { useCompany } from '@/core/hooks/use-company'
 import {
   isAnulada,
   ventaMonto,
@@ -120,6 +122,7 @@ function daysUntil(ts: any): number {
 export function useDashboardData() {
   const { startDate, endDate, activePreset } = useDateRange()
   const { selectedCaja, setSelectedCaja } = useHomeFilters()
+  const { selectedCompany } = useCompany()
   const { data: transactions, loading: txLoading } = useTransactions()
   const { data: closings, loading: closingsLoading } = useClosings()
   const { receivables, payables, loading: carteraLoading } = useCarteraItems()
@@ -146,6 +149,7 @@ export function useDashboardData() {
     lastUpdated: posLastUpdated,
     fromCache: posFromCache,
     forceRefresh: posForceRefresh,
+    refetch: posRefetch,
   } = usePosVentas({
     localIds,
     startDate: posRangeStart,
@@ -170,6 +174,61 @@ export function useDashboardData() {
     }
     return map
   }, [posVentas, selectedCaja])
+
+  // Auto-reconcile histórico: si el usuario carga un rango que se extiende más
+  // allá de la ventana del cron (32 días) y el cache muestra huecos, disparar
+  // `posReconcileOnDemand` una vez para rellenar hasta 365 días hacia atrás.
+  // El callable tiene cooldown server-side de 5 min, así que es seguro llamarlo
+  // de forma optimista — si ya corrió recientemente, el server rechaza sin costo.
+  const reconcileFiredRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!selectedCompany?.id) return
+    if (localIds.length === 0) return
+    if (posLoading || posColdLoading) return
+
+    const startStr = toDateStr(startDate)
+    const endStr = toDateStr(endDate)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const msPerDay = 1000 * 60 * 60 * 24
+    const daysInRange = Math.max(
+      1,
+      Math.floor((endDate.getTime() - startDate.getTime()) / msPerDay) + 1,
+    )
+    const daysAgoStart = Math.floor((today.getTime() - startDate.getTime()) / msPerDay)
+    if (daysAgoStart <= 32) return
+
+    const daysWithSales = new Set<string>()
+    for (const v of posVentas) {
+      if (isAnulada(v)) continue
+      const date = v.fecha?.slice(0, 10)
+      if (!date || date < startStr || date > endStr) continue
+      daysWithSales.add(date)
+    }
+    const coverage = daysWithSales.size / daysInRange
+    if (coverage >= 0.7) return
+
+    const fireKey = `${selectedCompany.id}_${startStr}_${endStr}`
+    if (reconcileFiredRef.current === fireKey) return
+    reconcileFiredRef.current = fireKey
+
+    const reconcileDays = Math.min(Math.max(daysAgoStart, 32), 365)
+    triggerServerReconcile(selectedCompany.id, reconcileDays)
+      .then(() => posRefetch())
+      .catch((err) => {
+        // eslint-disable-next-line no-console
+        console.warn('[home] auto-reconcile histórico falló', err)
+      })
+  }, [
+    selectedCompany?.id,
+    localIds.length,
+    posLoading,
+    posColdLoading,
+    posVentas,
+    startDate,
+    endDate,
+    posRefetch,
+  ])
 
   // Cajas disponibles dentro del rango visible [startDate..endDate]
   const cajasDisponibles = useMemo<Array<[string, number]>>(() => {
