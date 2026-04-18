@@ -182,10 +182,13 @@ export function useDashboardData() {
   // `posReconcileOnDemand` una vez para rellenar hasta 365 días hacia atrás.
   // El callable tiene cooldown server-side de 1 min, así que es seguro llamarlo
   // de forma optimista — si ya corrió recientemente, el server rechaza sin costo.
-  // reconcileFiredRef se marca solo al completar con éxito; un fallo deja la
-  // marca limpia para que un re-dispatch (cambio de filtro, recarga) reintente.
+  // Circuit breaker: si un fireKey falló recientemente (CORS, 500, network),
+  // esperar RECONCILE_FAILURE_COOLDOWN_MS antes de reintentar. Evita loops
+  // infinitos cuando el fallo es determinista.
+  const RECONCILE_FAILURE_COOLDOWN_MS = 5 * 60 * 1000
   const reconcileFiredRef = useRef<string | null>(null)
   const firingRef = useRef(false)
+  const failedAtRef = useRef<Map<string, number>>(new Map())
   const [reconcilingHistoric, setReconcilingHistoric] = useState(false)
   useEffect(() => {
     if (!selectedCompany?.id) return
@@ -217,6 +220,8 @@ export function useDashboardData() {
     const fireKey = `${selectedCompany.id}_${startStr}_${endStr}`
     if (reconcileFiredRef.current === fireKey) return
     if (firingRef.current) return
+    const failedAt = failedAtRef.current.get(fireKey)
+    if (failedAt && Date.now() - failedAt < RECONCILE_FAILURE_COOLDOWN_MS) return
     firingRef.current = true
 
     const reconcileDays = Math.min(Math.max(daysAgoStart, 32), 365)
@@ -224,10 +229,11 @@ export function useDashboardData() {
     triggerServerReconcile(selectedCompany.id, reconcileDays)
       .then(() => {
         reconcileFiredRef.current = fireKey
+        failedAtRef.current.delete(fireKey)
         return posRefetch()
       })
       .catch((err) => {
-        // No marcar fireKey en fallo para permitir reintento
+        failedAtRef.current.set(fireKey, Date.now())
         // eslint-disable-next-line no-console
         console.warn('[home] auto-reconcile histórico falló', err)
       })
