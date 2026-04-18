@@ -4,7 +4,7 @@ import { Search, RefreshCw, Loader2, MapPin, Receipt, Heart, Clock, TrendingUp, 
 import { motion, useReducedMotion, useMotionValue, useTransform, animate, type Variants } from 'framer-motion'
 import { DataTable, type Column } from '@/core/ui/data-table'
 import { EmptyState } from '@/core/ui/empty-state'
-import { FilterPillGroup, type FilterPillOption } from '@/core/ui/filter-pill-group'
+import { SegmentedFilter, type SegmentedFilterOption } from '@/core/ui/segmented-filter'
 import { formatCurrency } from '@/core/utils/format'
 import { useCompany } from '@/core/hooks/use-company'
 import { useDateRange } from '@/modules/finance/context/date-range-context'
@@ -85,6 +85,7 @@ export function VentasTab({ localIds, allLocalIds, locales, localLabel }: Ventas
   const prefersReducedMotion = useReducedMotion()
   const [docFilter, setDocFilter] = useState<DocType | 'todos'>('todos')
   const [cajaFilter, setCajaFilter] = useState<string>('todas')
+  const [search, setSearch] = useState('')
   const [selectedVenta, setSelectedVenta] = useState<PosVenta | null>(null)
   const [syncingServer, setSyncingServer] = useState(false)
   const [syncError, setSyncError] = useState<string | null>(null)
@@ -126,8 +127,28 @@ export function VentasTab({ localIds, allLocalIds, locales, localLabel }: Ventas
     if (cajaFilter !== 'todas') {
       result = result.filter((v) => String(v.caja_id) === cajaFilter)
     }
+    const q = search.trim().toLowerCase()
+    if (q) {
+      result = result.filter((v) => {
+        const haystack = [
+          v.documento,
+          v.serie,
+          v.correlativo,
+          v.canalventa,
+          v.nombre_canaldelivery,
+          v.tipo_pago,
+          v.caja_id,
+          v.estado_txt,
+          String(num(v.total)),
+        ]
+          .filter((x) => x !== undefined && x !== null && x !== '')
+          .join(' ')
+          .toLowerCase()
+        return haystack.includes(q)
+      })
+    }
     return result
-  }, [ventas, localIds, docFilter, cajaFilter])
+  }, [ventas, localIds, docFilter, cajaFilter, search])
 
   const cajasDisponibles = useMemo(() => {
     const localSet = new Set(localIds)
@@ -274,7 +295,7 @@ export function VentasTab({ localIds, allLocalIds, locales, localLabel }: Ventas
   const totalStats = calcTotals(filteredVentas)
   const hasData = ventas.length > 0
 
-  const docOptions: FilterPillOption<DocType | 'todos'>[] = [
+  const docOptions: SegmentedFilterOption<DocType | 'todos'>[] = [
     { value: 'todos', label: 'Todos', count: docCounts.todos },
     { value: 'factura', label: 'Factura', count: docCounts.factura },
     { value: 'boleta', label: 'Boleta', count: docCounts.boleta },
@@ -282,7 +303,7 @@ export function VentasTab({ localIds, allLocalIds, locales, localLabel }: Ventas
     { value: 'otro', label: 'Otro', count: docCounts.otro },
   ]
 
-  const cajaOptions: FilterPillOption<string>[] = [
+  const cajaOptions: SegmentedFilterOption<string>[] = [
     { value: 'todas', label: 'Todas', count: cajasDisponibles.reduce((s, [, c]) => s + c, 0) },
     ...cajasDisponibles.map(([id, count]) => ({ value: id, label: `Caja ${id}`, count })),
   ]
@@ -312,25 +333,47 @@ export function VentasTab({ localIds, allLocalIds, locales, localLabel }: Ventas
 
       {/* Toolbar unificado */}
       {hasData && (
-        <div className="flex items-center gap-x-3 gap-y-2 mb-4 flex-wrap">
-          <FilterPillGroup
-            label="Tipo:"
-            options={docOptions}
-            value={docFilter}
-            onChange={setDocFilter}
-            hideZeroCount
-          />
-          {cajasDisponibles.length > 1 && (
-            <>
-              <span className="h-5 w-px bg-bone hidden md:inline-block" />
-              <FilterPillGroup
-                label="Caja:"
-                options={cajaOptions}
-                value={cajaFilter}
-                onChange={setCajaFilter}
-              />
-            </>
-          )}
+        <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+          <div className="inline-flex items-center gap-1 bg-bone rounded-full p-1">
+            <SegmentedFilter
+              ariaLabel="Tipo de comprobante"
+              options={docOptions}
+              value={docFilter}
+              onChange={setDocFilter}
+              hideZeroCount
+            />
+            {cajasDisponibles.length > 1 && (
+              <>
+                <span className="h-5 w-px bg-border/60 mx-1" aria-hidden />
+                <SegmentedFilter
+                  ariaLabel="Caja"
+                  options={cajaOptions}
+                  value={cajaFilter}
+                  onChange={setCajaFilter}
+                />
+              </>
+            )}
+          </div>
+          <div className="relative inline-flex items-center gap-2 h-10 pl-4 pr-3 bg-bone rounded-full min-w-[240px] flex-1 md:flex-none md:w-[280px] focus-within:ring-2 focus-within:ring-border transition-shadow">
+            <Search size={14} className="text-mid-gray shrink-0" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar comprobante, canal, pago…"
+              className="flex-1 min-w-0 bg-transparent outline-none text-body text-dark-graphite placeholder:text-mid-gray"
+              aria-label="Buscar ventas"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch('')}
+                className="text-caption text-mid-gray hover:text-dark-graphite transition-colors shrink-0"
+                aria-label="Limpiar búsqueda"
+              >
+                Limpiar
+              </button>
+            )}
+          </div>
         </div>
       )}
 
