@@ -104,6 +104,16 @@ interface FetchArgs {
 }
 
 const PARALLEL_CHUNKS = 2
+const SAVE_CACHE_TIMEOUT_MS = 15_000
+
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timeout ${ms}ms`)), ms),
+    ),
+  ])
+}
 
 async function fetchVentasWithCache({
   companyId,
@@ -254,13 +264,20 @@ async function fetchVentasWithCache({
     }
 
     if (companyId) {
-      saveVentasToCache(
-        companyId,
-        result.ventas,
-        localIds,
-        chunk.start,
-        chunk.end,
-        previousCountByKey,
+      // Timeout contra writes que cuelgan (adblocker bloqueando Firestore /channel):
+      // sin timeout, `writeBatch.commit()` no resuelve ni rechaza y acumula
+      // promesas en memoria por cada refetch automático.
+      withTimeout(
+        saveVentasToCache(
+          companyId,
+          result.ventas,
+          localIds,
+          chunk.start,
+          chunk.end,
+          previousCountByKey,
+        ),
+        SAVE_CACHE_TIMEOUT_MS,
+        'saveVentasToCache',
       ).catch((err) => {
         // eslint-disable-next-line no-console
         console.warn('[pos-sync] saveVentasToCache failed', err)
@@ -278,21 +295,31 @@ async function fetchVentasWithCache({
       })
     }
 
-    try {
-      await Promise.all(batch.map(runChunk))
-      completed += batch.length
-    } catch (err) {
-      if (err instanceof PosRateLimitError) {
-        // If nothing was fetched yet, let React Query retry with exponential backoff.
-        // If we already got some chunks, keep the partial progress and surface the
-        // rate-limited flag so the UI shows the warning alongside the partial data.
-        if (completed === 0) throw err
+    // allSettled en vez de all: un chunk que lanza (network, 500, parse) no mata
+    // los demás. El fetch YTD son 4 chunks — con `all`, un solo fallo devolvía
+    // queryFn con error y React Query no reintenta errores no-rate-limit, así
+    // que la UI quedaba con skeleton para siempre.
+    const results = await Promise.allSettled(batch.map(runChunk))
+    for (const r of results) {
+      if (r.status === 'fulfilled') {
+        completed += 1
+        continue
+      }
+      if (r.reason instanceof PosRateLimitError) {
+        // Rate limit sin nada útil recuperado → dejar que React Query reintente.
+        if (completed === 0 && accumulated.length === cachedVentas.length) {
+          throw r.reason
+        }
         rateLimited = true
         aborted = true
-        break
+      } else {
+        // Error de red/servidor en un chunk individual: marcar parcial y seguir.
+        // eslint-disable-next-line no-console
+        console.warn('[pos-sync] chunk failed, continuing with partial data', r.reason)
+        rateLimited = true
       }
-      throw err
     }
+    if (aborted) break
 
     // Emit partial only on cold load and only after each batch (not per chunk)
     if (!isWarmReload && completed < chunksToFetch.length) {
@@ -378,7 +405,12 @@ export function usePosVentas({
       setProgress(null)
       const force = forceRef.current
       forceRef.current = false
-      return fetchVentasWithCache({
+      // Preservar datos previos: React Query sobrescribe el cache con el return
+      // de queryFn, pisando cualquier partial que hayamos emitido. Si el fetch
+      // termina vacío (chunks abortados, rate-limit parcial), devolver los
+      // datos previos en lugar de un array vacío que borraría la UI.
+      const previous = queryClient.getQueryData<FetchResult>(queryKey)
+      const result = await fetchVentasWithCache({
         companyId,
         localIds: sortedLocalIds,
         startDate,
@@ -389,6 +421,14 @@ export function usePosVentas({
           queryClient.setQueryData<FetchResult>(queryKey, partial)
         },
       })
+      if (
+        result.ventas.length === 0 &&
+        previous &&
+        previous.ventas.length > 0
+      ) {
+        return { ...previous, rateLimited: result.rateLimited }
+      }
+      return result
     },
   })
 
@@ -408,6 +448,10 @@ export function usePosVentas({
   return {
     ventas: data?.ventas ?? [],
     loading: isFetching,
+    // `isPending` es true solo en la primera carga sin data ni placeholder.
+    // Distinto de `loading` (isFetching), que se activa en cada refetch.
+    // El Home usa esto para decidir si mostrar skeleton vs datos parciales.
+    isPending: query.isPending,
     error: query.error && !hardRateLimited ? query.error.message : null,
     rateLimited: (data?.rateLimited ?? false) || hardRateLimited,
     lastUpdated: query.dataUpdatedAt ? new Date(query.dataUpdatedAt) : null,

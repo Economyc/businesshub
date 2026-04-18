@@ -15,10 +15,11 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig)
 export const auth = getAuth(app)
-// Auto-detect long-polling: si el WebChannel (/channel) está bloqueado por
-// adblocker/proxy/firewall, el SDK cae a XHR long-polling (URL distinta,
-// no matchea reglas de uBlock/Brave). Sin esto, escrituras batch cuelgan
-// indefinidamente y la UI queda en blanco al cargar rangos históricos.
+// Auto-detect long-polling: el SDK detecta proxies/firewalls que buffean
+// streams HTTP y cambia de WebChannel streaming a XHR long-polling. El path
+// (/Listen/channel y /Write/channel) NO cambia, solo el transporte, así que
+// esto no evade adblockers que matcheen por URL pattern — pero sí evita
+// timeouts en redes corporativas con proxies que rompen streaming.
 export const db = initializeFirestore(app, {
   experimentalAutoDetectLongPolling: true,
 })

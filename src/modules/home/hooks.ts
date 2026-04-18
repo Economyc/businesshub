@@ -148,6 +148,7 @@ export function useDashboardData() {
   const {
     ventas: posVentas,
     loading: posLoading,
+    isPending: posIsPending,
     lastUpdated: posLastUpdated,
     fromCache: posFromCache,
     forceRefresh: posForceRefresh,
@@ -159,7 +160,10 @@ export function useDashboardData() {
     enabled: localIds.length > 0,
   })
 
-  const posColdLoading = posLoading && posVentas.length === 0 && localIds.length > 0
+  // Solo skeleton en la primera carga sin data/placeholder. Antes usábamos
+  // `posLoading && posVentas.length === 0` que mantenía el skeleton eterno
+  // cuando un chunk fallaba (queryFn terminaba en error y data quedaba vacía).
+  const posColdLoading = posIsPending && localIds.length > 0
 
   // Suma de ventas POS válidas (excluye anuladas) agrupadas por día YYYY-MM-DD.
   // Solo el total neto del comprobante — así cuadra 1:1 con el reporte del POS
@@ -269,11 +273,14 @@ export function useDashboardData() {
     )
     let cancelled = false
     let prevInProgress = false
+    let pollFailures = 0
+    const MAX_POLL_FAILURES = 3
 
     const poll = async () => {
       if (cancelled) return
       try {
         const snap = await getDoc(ref)
+        pollFailures = 0
         if (cancelled) return
         if (!snap.exists()) {
           prevInProgress = false
@@ -289,7 +296,15 @@ export function useDashboardData() {
         }
         prevInProgress = active
       } catch {
-        // Permission/network errors son no-fatales; UI sigue sin coord.
+        // Si el getDoc falla N veces consecutivas (adblocker, offline, reglas),
+        // asumir que no podemos coordinar y quitar el banner — peor que el
+        // usuario vea datos sin saber que hay reconcile corriendo que que
+        // quede mirando "Rellenando históricos..." para siempre.
+        pollFailures += 1
+        if (pollFailures >= MAX_POLL_FAILURES && !firingRef.current) {
+          setReconcilingHistoric(false)
+          prevInProgress = false
+        }
       }
     }
 
