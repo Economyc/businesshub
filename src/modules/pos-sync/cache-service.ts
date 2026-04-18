@@ -321,6 +321,8 @@ export interface CachedMonthStats {
   daysExpected: number // días del mes (clamp al día actual si es el mes vigente)
   completeness: number // daysWithData / daysExpected
   lastSync: Date | null
+  ventasTotal: number // Σ num(total) excluyendo anuladas, mismo filtro que /pos-sync
+  ventasCount: number // # de comprobantes no anulados
 }
 
 function daysInMonth(month: string): number {
@@ -329,20 +331,43 @@ function daysInMonth(month: string): number {
 }
 
 // Enumera los meses cacheados para una company leyendo
-// `companies/{id}/pos-sales-cache-meta`. Calcula completeness del mes a
-// partir de las fechas únicas presentes en el map `days`, cuyas keys son
-// `YYYY-MM-DD_localId` (puede haber múltiples locales por día; nos interesa
-// el count de fechas únicas). Para el mes actual, `daysExpected` se recorta
-// al día de hoy para no marcar 80% solo porque el mes aún no terminó.
+// `companies/{id}/pos-sales-cache-meta` + todos los docs de `pos-sales-cache`
+// en una sola query. Calcula completeness del mes a partir de las fechas
+// únicas presentes en el map `days` (keys `YYYY-MM-DD_localId`), y el total
+// de ventas agrupando los docs por `date.slice(0,7)`. Excluye anuladas
+// (`estado_txt === 'comprobante anulado'`) para cuadrar con el KPI que
+// muestra la tab Ventas. Para el mes actual, `daysExpected` se recorta al
+// día de hoy para no marcar 80% solo porque el mes aún no terminó.
 export async function listCachedMonths(companyId: string): Promise<CachedMonthStats[]> {
-  const ref = collection(db, 'companies', companyId, META_COLLECTION)
-  const snap = await getDocs(ref)
+  const metaRef = collection(db, 'companies', companyId, META_COLLECTION)
+  const salesRef = collection(db, 'companies', companyId, SALES_COLLECTION)
+
+  const [metaSnap, salesSnap] = await Promise.all([getDocs(metaRef), getDocs(salesRef)])
+
   const today = getTodayStr()
   const currentMonth = today.slice(0, 7)
   const todayDay = Number(today.slice(8, 10))
 
+  // Totales por mes a partir de los docs de ventas (single-pass).
+  interface MonthTotals { total: number; count: number }
+  const totalsByMonth = new Map<string, MonthTotals>()
+  for (const d of salesSnap.docs) {
+    const data = d.data() as { date?: string; ventas?: Array<Record<string, unknown>> }
+    const month = data.date?.slice(0, 7)
+    if (!month) continue
+    const bucket = totalsByMonth.get(month) ?? { total: 0, count: 0 }
+    const list = data.ventas ?? []
+    for (const v of list) {
+      const estado = String((v as { estado_txt?: string }).estado_txt ?? '').toLowerCase()
+      if (estado === 'comprobante anulado') continue
+      bucket.total += Number((v as { total?: unknown }).total) || 0
+      bucket.count += 1
+    }
+    totalsByMonth.set(month, bucket)
+  }
+
   const stats: CachedMonthStats[] = []
-  for (const d of snap.docs) {
+  for (const d of metaSnap.docs) {
     const data = d.data() as MetaDoc
     const month = data.month ?? d.id
     if (!/^\d{4}-\d{2}$/.test(month)) continue
@@ -361,6 +386,7 @@ export async function listCachedMonths(companyId: string): Promise<CachedMonthSt
     const daysExpected = month === currentMonth ? Math.min(todayDay, monthDays) : monthDays
     const daysWithData = uniqueDates.size
     const completeness = daysExpected > 0 ? Math.min(daysWithData / daysExpected, 1) : 0
+    const totals = totalsByMonth.get(month) ?? { total: 0, count: 0 }
 
     stats.push({
       month,
@@ -368,6 +394,8 @@ export async function listCachedMonths(companyId: string): Promise<CachedMonthSt
       daysExpected,
       completeness,
       lastSync: maxTs > 0 ? new Date(maxTs) : null,
+      ventasTotal: totals.total,
+      ventasCount: totals.count,
     })
   }
 

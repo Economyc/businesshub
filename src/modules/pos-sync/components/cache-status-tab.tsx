@@ -5,6 +5,7 @@ import { DataTable, type Column } from '@/core/ui/data-table'
 import { EmptyState } from '@/core/ui/empty-state'
 import { useCompany } from '@/core/hooks/use-company'
 import { usePermissions } from '@/core/hooks/use-permissions'
+import { formatCurrency } from '@/core/utils/format'
 import { listCachedMonths, type CachedMonthStats } from '../cache-service'
 import { rebuildCacheMonth, type RebuildMonthResult } from '../services'
 import {
@@ -122,6 +123,21 @@ export function CacheStatusTab() {
           <span className="text-body text-graphite tabular-nums">
             {r.daysWithData} / {r.daysExpected}
           </span>
+        ),
+      },
+      {
+        key: 'ventasTotal',
+        header: 'Ventas',
+        width: '1.2fr',
+        render: (r) => (
+          <div className="flex flex-col items-start">
+            <span className="text-body font-semibold text-dark-graphite tabular-nums">
+              {formatCurrency(r.ventasTotal)}
+            </span>
+            <span className="text-caption text-mid-gray tabular-nums">
+              {r.ventasCount.toLocaleString('es-CO')} ventas
+            </span>
+          </div>
         ),
       },
       {
