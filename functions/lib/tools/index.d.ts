@@ -192,6 +192,245 @@ export declare function createAgentTools(companyId: string): {
             gapsInLast14Days: string[];
         }>;
     };
+    getPosCatalog: import("ai").Tool<import("zod").ZodObject<{
+        localId: import("zod").ZodOptional<import("zod").ZodNumber>;
+        category: import("zod").ZodOptional<import("zod").ZodString>;
+        limit: import("zod").ZodDefault<import("zod").ZodOptional<import("zod").ZodNumber>>;
+    }, "strip", import("zod").ZodTypeAny, {
+        limit: number;
+        category?: string | undefined;
+        localId?: number | undefined;
+    }, {
+        category?: string | undefined;
+        limit?: number | undefined;
+        localId?: number | undefined;
+    }>, {
+        found: boolean;
+        message: string;
+        localId?: undefined;
+        syncedAt?: undefined;
+        totalProducts?: undefined;
+        returnedProducts?: undefined;
+        byCategory?: undefined;
+        products?: undefined;
+    } | {
+        found: boolean;
+        localId: string | number;
+        syncedAt: string | null;
+        totalProducts: number;
+        returnedProducts: number;
+        byCategory: Record<string, number>;
+        products: {
+            id: string | number | undefined;
+            name: string | undefined;
+            category: string | undefined;
+            presentaciones: {
+                id: string | number | undefined;
+                name: string | undefined;
+                price: number;
+            }[];
+            priceRange: {
+                min: number;
+                max: number;
+            } | null;
+            modifierCount: number;
+        }[];
+        message?: undefined;
+    }> & {
+        execute: (args: {
+            limit: number;
+            category?: string | undefined;
+            localId?: number | undefined;
+        }, options: import("ai").ToolExecutionOptions) => PromiseLike<{
+            found: boolean;
+            message: string;
+            localId?: undefined;
+            syncedAt?: undefined;
+            totalProducts?: undefined;
+            returnedProducts?: undefined;
+            byCategory?: undefined;
+            products?: undefined;
+        } | {
+            found: boolean;
+            localId: string | number;
+            syncedAt: string | null;
+            totalProducts: number;
+            returnedProducts: number;
+            byCategory: Record<string, number>;
+            products: {
+                id: string | number | undefined;
+                name: string | undefined;
+                category: string | undefined;
+                presentaciones: {
+                    id: string | number | undefined;
+                    name: string | undefined;
+                    price: number;
+                }[];
+                priceRange: {
+                    min: number;
+                    max: number;
+                } | null;
+                modifierCount: number;
+            }[];
+            message?: undefined;
+        }>;
+    };
+    searchPosProduct: import("ai").Tool<import("zod").ZodObject<{
+        query: import("zod").ZodString;
+        limit: import("zod").ZodDefault<import("zod").ZodOptional<import("zod").ZodNumber>>;
+    }, "strip", import("zod").ZodTypeAny, {
+        query: string;
+        limit: number;
+    }, {
+        query: string;
+        limit?: number | undefined;
+    }>, {
+        found: boolean;
+        message: string;
+        query?: undefined;
+        matchCount?: undefined;
+        returned?: undefined;
+        products?: undefined;
+    } | {
+        query: string;
+        matchCount: number;
+        returned: number;
+        products: {
+            id: string | number | undefined;
+            name: string | undefined;
+            category: string | undefined;
+            presentaciones: {
+                id: string | number | undefined;
+                name: string | undefined;
+                price: number;
+            }[];
+            priceRange: {
+                min: number;
+                max: number;
+            } | null;
+            modifierCount: number;
+        }[];
+        found?: undefined;
+        message?: undefined;
+    }> & {
+        execute: (args: {
+            query: string;
+            limit: number;
+        }, options: import("ai").ToolExecutionOptions) => PromiseLike<{
+            found: boolean;
+            message: string;
+            query?: undefined;
+            matchCount?: undefined;
+            returned?: undefined;
+            products?: undefined;
+        } | {
+            query: string;
+            matchCount: number;
+            returned: number;
+            products: {
+                id: string | number | undefined;
+                name: string | undefined;
+                category: string | undefined;
+                presentaciones: {
+                    id: string | number | undefined;
+                    name: string | undefined;
+                    price: number;
+                }[];
+                priceRange: {
+                    min: number;
+                    max: number;
+                } | null;
+                modifierCount: number;
+            }[];
+            found?: undefined;
+            message?: undefined;
+        }>;
+    };
+    getProductsWithoutSales: import("ai").Tool<import("zod").ZodObject<{
+        startDate: import("zod").ZodString;
+        endDate: import("zod").ZodString;
+        limit: import("zod").ZodDefault<import("zod").ZodOptional<import("zod").ZodNumber>>;
+    }, "strip", import("zod").ZodTypeAny, {
+        startDate: string;
+        endDate: string;
+        limit: number;
+    }, {
+        startDate: string;
+        endDate: string;
+        limit?: number | undefined;
+    }>, {
+        found: boolean;
+        message: string;
+        dateRange?: undefined;
+        catalogSize?: undefined;
+        soldUnique?: undefined;
+        withoutSalesCount?: undefined;
+        products?: undefined;
+    } | {
+        dateRange: {
+            startDate: string;
+            endDate: string;
+        };
+        catalogSize: number;
+        soldUnique: number;
+        withoutSalesCount: number;
+        products: {
+            id: string | number | undefined;
+            name: string | undefined;
+            category: string | undefined;
+            presentaciones: {
+                id: string | number | undefined;
+                name: string | undefined;
+                price: number;
+            }[];
+            priceRange: {
+                min: number;
+                max: number;
+            } | null;
+            modifierCount: number;
+        }[];
+        found?: undefined;
+        message?: undefined;
+    }> & {
+        execute: (args: {
+            startDate: string;
+            endDate: string;
+            limit: number;
+        }, options: import("ai").ToolExecutionOptions) => PromiseLike<{
+            found: boolean;
+            message: string;
+            dateRange?: undefined;
+            catalogSize?: undefined;
+            soldUnique?: undefined;
+            withoutSalesCount?: undefined;
+            products?: undefined;
+        } | {
+            dateRange: {
+                startDate: string;
+                endDate: string;
+            };
+            catalogSize: number;
+            soldUnique: number;
+            withoutSalesCount: number;
+            products: {
+                id: string | number | undefined;
+                name: string | undefined;
+                category: string | undefined;
+                presentaciones: {
+                    id: string | number | undefined;
+                    name: string | undefined;
+                    price: number;
+                }[];
+                priceRange: {
+                    min: number;
+                    max: number;
+                } | null;
+                modifierCount: number;
+            }[];
+            found?: undefined;
+            message?: undefined;
+        }>;
+    };
     triggerPosReconcile: import("ai").Tool<import("zod").ZodObject<{
         days: import("zod").ZodDefault<import("zod").ZodOptional<import("zod").ZodNumber>>;
     }, "strip", import("zod").ZodTypeAny, {

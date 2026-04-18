@@ -193,6 +193,245 @@ export declare function createPosTools(companyId: string): {
             gapsInLast14Days: string[];
         }>;
     };
+    getPosCatalog: import("ai").Tool<z.ZodObject<{
+        localId: z.ZodOptional<z.ZodNumber>;
+        category: z.ZodOptional<z.ZodString>;
+        limit: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
+    }, "strip", z.ZodTypeAny, {
+        limit: number;
+        category?: string | undefined;
+        localId?: number | undefined;
+    }, {
+        category?: string | undefined;
+        limit?: number | undefined;
+        localId?: number | undefined;
+    }>, {
+        found: boolean;
+        message: string;
+        localId?: undefined;
+        syncedAt?: undefined;
+        totalProducts?: undefined;
+        returnedProducts?: undefined;
+        byCategory?: undefined;
+        products?: undefined;
+    } | {
+        found: boolean;
+        localId: string | number;
+        syncedAt: string | null;
+        totalProducts: number;
+        returnedProducts: number;
+        byCategory: Record<string, number>;
+        products: {
+            id: string | number | undefined;
+            name: string | undefined;
+            category: string | undefined;
+            presentaciones: {
+                id: string | number | undefined;
+                name: string | undefined;
+                price: number;
+            }[];
+            priceRange: {
+                min: number;
+                max: number;
+            } | null;
+            modifierCount: number;
+        }[];
+        message?: undefined;
+    }> & {
+        execute: (args: {
+            limit: number;
+            category?: string | undefined;
+            localId?: number | undefined;
+        }, options: import("ai").ToolExecutionOptions) => PromiseLike<{
+            found: boolean;
+            message: string;
+            localId?: undefined;
+            syncedAt?: undefined;
+            totalProducts?: undefined;
+            returnedProducts?: undefined;
+            byCategory?: undefined;
+            products?: undefined;
+        } | {
+            found: boolean;
+            localId: string | number;
+            syncedAt: string | null;
+            totalProducts: number;
+            returnedProducts: number;
+            byCategory: Record<string, number>;
+            products: {
+                id: string | number | undefined;
+                name: string | undefined;
+                category: string | undefined;
+                presentaciones: {
+                    id: string | number | undefined;
+                    name: string | undefined;
+                    price: number;
+                }[];
+                priceRange: {
+                    min: number;
+                    max: number;
+                } | null;
+                modifierCount: number;
+            }[];
+            message?: undefined;
+        }>;
+    };
+    searchPosProduct: import("ai").Tool<z.ZodObject<{
+        query: z.ZodString;
+        limit: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
+    }, "strip", z.ZodTypeAny, {
+        query: string;
+        limit: number;
+    }, {
+        query: string;
+        limit?: number | undefined;
+    }>, {
+        found: boolean;
+        message: string;
+        query?: undefined;
+        matchCount?: undefined;
+        returned?: undefined;
+        products?: undefined;
+    } | {
+        query: string;
+        matchCount: number;
+        returned: number;
+        products: {
+            id: string | number | undefined;
+            name: string | undefined;
+            category: string | undefined;
+            presentaciones: {
+                id: string | number | undefined;
+                name: string | undefined;
+                price: number;
+            }[];
+            priceRange: {
+                min: number;
+                max: number;
+            } | null;
+            modifierCount: number;
+        }[];
+        found?: undefined;
+        message?: undefined;
+    }> & {
+        execute: (args: {
+            query: string;
+            limit: number;
+        }, options: import("ai").ToolExecutionOptions) => PromiseLike<{
+            found: boolean;
+            message: string;
+            query?: undefined;
+            matchCount?: undefined;
+            returned?: undefined;
+            products?: undefined;
+        } | {
+            query: string;
+            matchCount: number;
+            returned: number;
+            products: {
+                id: string | number | undefined;
+                name: string | undefined;
+                category: string | undefined;
+                presentaciones: {
+                    id: string | number | undefined;
+                    name: string | undefined;
+                    price: number;
+                }[];
+                priceRange: {
+                    min: number;
+                    max: number;
+                } | null;
+                modifierCount: number;
+            }[];
+            found?: undefined;
+            message?: undefined;
+        }>;
+    };
+    getProductsWithoutSales: import("ai").Tool<z.ZodObject<{
+        startDate: z.ZodString;
+        endDate: z.ZodString;
+        limit: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
+    }, "strip", z.ZodTypeAny, {
+        startDate: string;
+        endDate: string;
+        limit: number;
+    }, {
+        startDate: string;
+        endDate: string;
+        limit?: number | undefined;
+    }>, {
+        found: boolean;
+        message: string;
+        dateRange?: undefined;
+        catalogSize?: undefined;
+        soldUnique?: undefined;
+        withoutSalesCount?: undefined;
+        products?: undefined;
+    } | {
+        dateRange: {
+            startDate: string;
+            endDate: string;
+        };
+        catalogSize: number;
+        soldUnique: number;
+        withoutSalesCount: number;
+        products: {
+            id: string | number | undefined;
+            name: string | undefined;
+            category: string | undefined;
+            presentaciones: {
+                id: string | number | undefined;
+                name: string | undefined;
+                price: number;
+            }[];
+            priceRange: {
+                min: number;
+                max: number;
+            } | null;
+            modifierCount: number;
+        }[];
+        found?: undefined;
+        message?: undefined;
+    }> & {
+        execute: (args: {
+            startDate: string;
+            endDate: string;
+            limit: number;
+        }, options: import("ai").ToolExecutionOptions) => PromiseLike<{
+            found: boolean;
+            message: string;
+            dateRange?: undefined;
+            catalogSize?: undefined;
+            soldUnique?: undefined;
+            withoutSalesCount?: undefined;
+            products?: undefined;
+        } | {
+            dateRange: {
+                startDate: string;
+                endDate: string;
+            };
+            catalogSize: number;
+            soldUnique: number;
+            withoutSalesCount: number;
+            products: {
+                id: string | number | undefined;
+                name: string | undefined;
+                category: string | undefined;
+                presentaciones: {
+                    id: string | number | undefined;
+                    name: string | undefined;
+                    price: number;
+                }[];
+                priceRange: {
+                    min: number;
+                    max: number;
+                } | null;
+                modifierCount: number;
+            }[];
+            found?: undefined;
+            message?: undefined;
+        }>;
+    };
     triggerPosReconcile: import("ai").Tool<z.ZodObject<{
         days: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
     }, "strip", z.ZodTypeAny, {

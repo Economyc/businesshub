@@ -2,6 +2,23 @@ import { tool } from 'ai';
 import { z } from 'zod';
 import { db } from '../firestore.js';
 import { SALES_COLLECTION, META_COLLECTION } from '../pos-cache.js';
+const CATALOG_COLLECTION = 'pos-catalog-cache';
+function formatProduct(p) {
+    const presentaciones = Array.isArray(p.lista_presentacion) ? p.lista_presentacion : [];
+    const prices = presentaciones.map((x) => num(x.producto_precio)).filter((x) => x > 0);
+    return {
+        id: p.productogeneral_id,
+        name: p.productogeneral_descripcion,
+        category: p.categoria_descripcion,
+        presentaciones: presentaciones.map((x) => ({
+            id: x.producto_id,
+            name: x.producto_presentacion,
+            price: num(x.producto_precio),
+        })),
+        priceRange: prices.length > 0 ? { min: Math.min(...prices), max: Math.max(...prices) } : null,
+        modifierCount: Array.isArray(p.listaModificadores) ? p.listaModificadores.length : 0,
+    };
+}
 function num(v) {
     if (v === null || v === undefined)
         return 0;
@@ -235,6 +252,133 @@ export function createPosTools(companyId) {
                     lastMonth: months[months.length - 1] ?? null,
                     lastDateWithData: lastDate,
                     gapsInLast14Days: gaps,
+                };
+            },
+        }),
+        getPosCatalog: tool({
+            description: 'Obtiene el catálogo de productos del POS (menú maestro con presentaciones, precios de lista y modificadores). Si se provee localId, retorna solo ese local; si no, agrega los catálogos de todos los locales disponibles. Devuelve un resumen con categorías y conteos, además de los productos formateados.',
+            parameters: z.object({
+                localId: z.number().optional().describe('ID del local (opcional). Si se omite, agrega todos los locales.'),
+                category: z.string().optional().describe('Filtrar por categoría'),
+                limit: z.number().optional().default(50).describe('Máximo de productos a devolver (default: 50)'),
+            }),
+            execute: async ({ localId, category, limit }) => {
+                const ref = db.collection('companies').doc(companyId).collection(CATALOG_COLLECTION);
+                const snap = localId !== undefined ? await ref.doc(String(localId)).get().then((d) => (d.exists ? [d] : [])) : (await ref.get()).docs;
+                if (snap.length === 0) {
+                    return { found: false, message: 'No hay catálogo cacheado. Sincroniza el catálogo desde el módulo POS Sync.' };
+                }
+                const byId = new Map();
+                let latestSync = null;
+                for (const d of snap) {
+                    const data = d.data();
+                    const syncedAt = data.syncedAt?.toDate?.().toISOString() ?? null;
+                    if (syncedAt && (!latestSync || syncedAt > latestSync))
+                        latestSync = syncedAt;
+                    for (const p of data.productos ?? []) {
+                        const key = String(p.productogeneral_id);
+                        if (!byId.has(key))
+                            byId.set(key, p);
+                    }
+                }
+                let products = Array.from(byId.values());
+                if (category) {
+                    const needle = category.toLowerCase();
+                    products = products.filter((p) => String(p.categoria_descripcion ?? '').toLowerCase().includes(needle));
+                }
+                const byCategory = products.reduce((acc, p) => {
+                    const cat = String(p.categoria_descripcion ?? 'Sin categoría');
+                    acc[cat] = (acc[cat] ?? 0) + 1;
+                    return acc;
+                }, {});
+                const formatted = products.slice(0, limit).map(formatProduct);
+                return {
+                    found: true,
+                    localId: localId ?? 'all',
+                    syncedAt: latestSync,
+                    totalProducts: products.length,
+                    returnedProducts: formatted.length,
+                    byCategory,
+                    products: formatted,
+                };
+            },
+        }),
+        searchPosProduct: tool({
+            description: 'Busca productos en el catálogo del POS por nombre (parcial, case-insensitive). Útil para preguntas como "¿tenemos X en el menú?", "¿cuánto cuesta el Y?"',
+            parameters: z.object({
+                query: z.string().describe('Término de búsqueda (coincide con descripción del producto)'),
+                limit: z.number().optional().default(20).describe('Máximo de resultados (default: 20)'),
+            }),
+            execute: async ({ query, limit }) => {
+                const snap = await db.collection('companies').doc(companyId).collection(CATALOG_COLLECTION).get();
+                if (snap.empty) {
+                    return { found: false, message: 'No hay catálogo cacheado. Sincroniza el catálogo desde el módulo POS Sync.' };
+                }
+                const needle = query.toLowerCase();
+                const byId = new Map();
+                for (const d of snap.docs) {
+                    const data = d.data();
+                    for (const p of data.productos ?? []) {
+                        const name = String(p.productogeneral_descripcion ?? '').toLowerCase();
+                        if (!name.includes(needle))
+                            continue;
+                        const key = String(p.productogeneral_id);
+                        if (!byId.has(key))
+                            byId.set(key, p);
+                    }
+                }
+                const matches = Array.from(byId.values()).slice(0, limit).map(formatProduct);
+                return {
+                    query,
+                    matchCount: byId.size,
+                    returned: matches.length,
+                    products: matches,
+                };
+            },
+        }),
+        getProductsWithoutSales: tool({
+            description: 'Lista productos del catálogo que NO tuvieron ventas en el rango indicado (útil para detectar productos inactivos o sin rotación). Cruza el catálogo contra los detalles de ventas.',
+            parameters: z.object({
+                startDate: z.string().describe('Fecha inicio (YYYY-MM-DD)'),
+                endDate: z.string().describe('Fecha fin (YYYY-MM-DD)'),
+                limit: z.number().optional().default(30).describe('Máximo de productos a listar (default: 30)'),
+            }),
+            execute: async ({ startDate, endDate, limit }) => {
+                // Catálogo: productos únicos por productogeneral_id
+                const catSnap = await db.collection('companies').doc(companyId).collection(CATALOG_COLLECTION).get();
+                if (catSnap.empty) {
+                    return { found: false, message: 'No hay catálogo cacheado. Sincroniza el catálogo desde el módulo POS Sync.' };
+                }
+                const catalogById = new Map();
+                for (const d of catSnap.docs) {
+                    const data = d.data();
+                    for (const p of data.productos ?? []) {
+                        const key = String(p.productogeneral_id);
+                        if (!catalogById.has(key))
+                            catalogById.set(key, p);
+                    }
+                }
+                // Ventas en rango — colectar ids vendidos (de detalle.id_producto se mapea a presentación; usamos nombre como fallback)
+                const ventas = await fetchSalesInRange(companyId, startDate, endDate);
+                const soldNames = new Set();
+                for (const v of ventas) {
+                    const detalle = Array.isArray(v.detalle) ? v.detalle : [];
+                    for (const item of detalle) {
+                        const name = String(item.nombre_producto ?? '').trim().toLowerCase();
+                        if (name)
+                            soldNames.add(name);
+                    }
+                }
+                const withoutSales = Array.from(catalogById.values()).filter((p) => {
+                    const name = String(p.productogeneral_descripcion ?? '').trim().toLowerCase();
+                    return name && !soldNames.has(name);
+                });
+                return {
+                    dateRange: { startDate, endDate },
+                    catalogSize: catalogById.size,
+                    soldUnique: soldNames.size,
+                    withoutSalesCount: withoutSales.length,
+                    products: withoutSales.slice(0, limit).map(formatProduct),
                 };
             },
         }),
