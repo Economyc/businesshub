@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { Package, Loader2, MapPin, RefreshCw } from 'lucide-react'
 import { EmptyState } from '@/core/ui/empty-state'
 import { SearchInput } from '@/core/ui/search-input'
+import { SelectInput } from '@/core/ui/select-input'
 import { formatCurrency } from '@/core/utils/format'
 import { usePosCatalogo } from '../hooks'
 import type { PosProducto } from '../types'
@@ -113,19 +114,16 @@ export function CatalogoTab({ localId, localLabel }: CatalogoTabProps) {
           <SearchInput value={search} onChange={setSearch} placeholder="Buscar producto..." />
         </div>
         {categorias.length > 0 && (
-          <select
-            value={categoriaFilter}
-            onChange={(e) => setCategoriaFilter(e.target.value)}
-            className="text-body bg-surface border border-border rounded-lg px-3 py-2 text-graphite"
-            aria-label="Filtrar por categoría"
-          >
-            <option value="all">Todas las categorías</option>
-            {categorias.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
+          <div className="w-full sm:w-60">
+            <SelectInput
+              value={categoriaFilter}
+              onChange={setCategoriaFilter}
+              options={[
+                { value: 'all', label: 'Todas las categorías' },
+                ...categorias.map((c) => ({ value: c, label: c })),
+              ]}
+            />
+          </div>
         )}
       </div>
 
