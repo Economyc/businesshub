@@ -37,5 +37,7 @@ cors.json
 # Claude local settings
 .claude/settings.local.json
 .claude/skills/
+.claude/scheduled_tasks.lock
+.claude/plans/
 .aidesigner/*
 !.aidesigner/.gitkeep
