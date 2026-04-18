@@ -145,7 +145,10 @@ async function fetchVentasWithCache({
   // guarda anti-partial.
   if (companyId && !force) {
     const serverActive = await isServerReconcileActive(companyId)
-    if (serverActive) {
+    // Solo ceder el turno al server si tenemos cache útil que mostrar.
+    // Si cache está vacía (ej: escrituras bloqueadas por adblocker), seguir
+    // con el fetch al POS — peor dar datos parciales que borrar la UI.
+    if (serverActive && cachedVentas.length > 0) {
       return { ventas: cachedVentas, fromCache: true, rateLimited: false }
     }
   }

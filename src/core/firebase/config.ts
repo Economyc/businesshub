@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app'
 import { getAuth } from 'firebase/auth'
-import { getFirestore } from 'firebase/firestore'
+import { initializeFirestore } from 'firebase/firestore'
 import { getFunctions } from 'firebase/functions'
 import { getStorage } from 'firebase/storage'
 
@@ -15,6 +15,12 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig)
 export const auth = getAuth(app)
-export const db = getFirestore(app)
+// Auto-detect long-polling: si el WebChannel (/channel) está bloqueado por
+// adblocker/proxy/firewall, el SDK cae a XHR long-polling (URL distinta,
+// no matchea reglas de uBlock/Brave). Sin esto, escrituras batch cuelgan
+// indefinidamente y la UI queda en blanco al cargar rangos históricos.
+export const db = initializeFirestore(app, {
+  experimentalAutoDetectLongPolling: true,
+})
 export const functions = getFunctions(app)
 export const storage = getStorage(app)
