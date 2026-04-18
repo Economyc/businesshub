@@ -36,7 +36,7 @@ export function SegmentedFilter<T extends string>({
             role="tab"
             aria-selected={active}
             onClick={() => onChange(opt.value)}
-            className={`h-8 px-3 inline-flex items-center gap-1.5 rounded-full text-caption transition-colors ${
+            className={`h-8 px-3 inline-flex items-center gap-1.5 rounded-[6px] text-caption transition-colors ${
               active
                 ? 'bg-surface text-dark-graphite font-medium shadow-[0_1px_2px_rgba(0,0,0,0.06),0_0_0_1px_rgba(0,0,0,0.04)]'
                 : 'text-graphite hover:text-dark-graphite'

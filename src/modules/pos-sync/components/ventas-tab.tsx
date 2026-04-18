@@ -334,7 +334,7 @@ export function VentasTab({ localIds, allLocalIds, locales, localLabel }: Ventas
       {/* Toolbar unificado */}
       {hasData && (
         <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
-          <div className="inline-flex items-center gap-1 bg-bone rounded-full p-1">
+          <div className="inline-flex items-center gap-1 bg-input-bg border border-input-border rounded-[10px] p-1">
             <SegmentedFilter
               ariaLabel="Tipo de comprobante"
               options={docOptions}
@@ -354,8 +354,8 @@ export function VentasTab({ localIds, allLocalIds, locales, localLabel }: Ventas
               </>
             )}
           </div>
-          <div className="relative inline-flex items-center gap-2 h-10 pl-4 pr-3 bg-bone rounded-full min-w-[240px] flex-1 md:flex-none md:w-[280px] focus-within:ring-2 focus-within:ring-border transition-shadow">
-            <Search size={14} className="text-mid-gray shrink-0" />
+          <div className="relative inline-flex items-center gap-2 h-10 pl-3.5 pr-2 bg-input-bg border border-input-border rounded-[10px] min-w-[240px] flex-1 md:flex-none md:w-[280px] focus-within:border-border-hover transition-colors">
+            <Search size={15} strokeWidth={1.5} className="text-mid-gray shrink-0" />
             <input
               type="text"
               value={search}
@@ -367,7 +367,7 @@ export function VentasTab({ localIds, allLocalIds, locales, localLabel }: Ventas
             {search && (
               <button
                 onClick={() => setSearch('')}
-                className="text-caption text-mid-gray hover:text-dark-graphite transition-colors shrink-0"
+                className="text-caption text-mid-gray hover:text-dark-graphite transition-colors shrink-0 px-1.5"
                 aria-label="Limpiar búsqueda"
               >
                 Limpiar
