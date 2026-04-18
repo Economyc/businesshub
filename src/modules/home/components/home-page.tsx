@@ -91,6 +91,7 @@ function HomePageContent() {
     syncStatus,
     cajasDisponibles,
     comparisonLabel,
+    reconcilingHistoric,
   } = useDashboardData()
 
   const firstName = user?.displayName?.split(' ')[0] ?? user?.email?.split('@')[0] ?? 'Usuario'
@@ -129,6 +130,14 @@ function HomePageContent() {
       ) : (
         <>
           <PosCacheStaleBanner syncStatus={syncStatus} />
+          {reconcilingHistoric && (
+            <div className="bg-info-bg text-info-text rounded-xl px-4 py-3 text-body mb-4 flex items-center gap-2">
+              <Loader2 size={14} className="animate-spin" />
+              <span>
+                Rellenando históricos del POS para este rango — puede tardar unos minutos. Los datos se actualizarán solos cuando termine.
+              </span>
+            </div>
+          )}
           <DashboardContent
             kpis={kpis}
             salesTrend={salesTrend}

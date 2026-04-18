@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useCollection } from '@/core/hooks/use-firestore'
 import { useTransactions } from '@/modules/finance/hooks'
 import { useClosings } from '@/modules/closings/hooks'
@@ -178,9 +178,10 @@ export function useDashboardData() {
   // Auto-reconcile histórico: si el usuario carga un rango que se extiende más
   // allá de la ventana del cron (32 días) y el cache muestra huecos, disparar
   // `posReconcileOnDemand` una vez para rellenar hasta 365 días hacia atrás.
-  // El callable tiene cooldown server-side de 5 min, así que es seguro llamarlo
+  // El callable tiene cooldown server-side de 1 min, así que es seguro llamarlo
   // de forma optimista — si ya corrió recientemente, el server rechaza sin costo.
   const reconcileFiredRef = useRef<string | null>(null)
+  const [reconcilingHistoric, setReconcilingHistoric] = useState(false)
   useEffect(() => {
     if (!selectedCompany?.id) return
     if (localIds.length === 0) return
@@ -213,11 +214,15 @@ export function useDashboardData() {
     reconcileFiredRef.current = fireKey
 
     const reconcileDays = Math.min(Math.max(daysAgoStart, 32), 365)
+    setReconcilingHistoric(true)
     triggerServerReconcile(selectedCompany.id, reconcileDays)
       .then(() => posRefetch())
       .catch((err) => {
         // eslint-disable-next-line no-console
         console.warn('[home] auto-reconcile histórico falló', err)
+      })
+      .finally(() => {
+        setReconcilingHistoric(false)
       })
   }, [
     selectedCompany?.id,
@@ -497,5 +502,6 @@ export function useDashboardData() {
     syncStatus,
     cajasDisponibles,
     comparisonLabel,
+    reconcilingHistoric,
   }
 }
