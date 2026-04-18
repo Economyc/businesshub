@@ -26,7 +26,9 @@ import { buildCompanyLocalMap } from './pos-company-mapping.js'
 const posToken = defineSecret('POS_TOKEN')
 
 export const DEFAULT_RECONCILE_DAYS = 32
-const MANUAL_COOLDOWN_MS = 5 * 60 * 1000
+// Cooldown por company: evita double-clicks y abuso, pero sin bloquear al usuario
+// por varios minutos si el primer intento falló o devolvió parcial.
+const MANUAL_COOLDOWN_MS = 60 * 1000
 
 export interface ReconcileStats {
   companyId: string
@@ -193,14 +195,17 @@ interface OnDemandData {
   days?: number
 }
 
-// Callable para el botón "Forzar sincronización". Auth obligatoria, rate-limit
-// de 5 min por company para evitar abuso. No verifica membresía de la company
-// — asume que si el usuario está autenticado y conoce el companyId ya pasó el
-// check de permisos del frontend; ajustar si se requiere enforcement server-side.
+// Callable para el botón "Forzar sincronización" y el auto-trigger del Home
+// cuando el usuario carga rangos > 32 días. Auth obligatoria; cooldown corto por
+// company para evitar double-fire. No verifica membresía: asume que el check de
+// permisos del frontend ya aplicó. Timeout al máximo (60 min) porque reconciliar
+// 365 días para una company con varios locales puede acercarse fácil a 30-40 min
+// — el rate-limit reactivo del POS (fetchAllPagesForLocal en pos-client.ts) ya
+// espacia los requests cuando detecta "solicitud en ejecución".
 export const posReconcileOnDemand = onCall<OnDemandData>(
   {
-    timeoutSeconds: 540,
-    memory: '512MiB',
+    timeoutSeconds: 3600,
+    memory: '1GiB',
     secrets: [posToken],
   },
   async (req) => {
@@ -236,7 +241,7 @@ export const posReconcileOnDemand = onCall<OnDemandData>(
     return runReconcile({
       token: posToken.value(),
       targetCompanyIds: [companyId],
-      days: typeof days === 'number' && days > 0 && days <= 60 ? days : DEFAULT_RECONCILE_DAYS,
+      days: typeof days === 'number' && days > 0 && days <= 365 ? days : DEFAULT_RECONCILE_DAYS,
     })
   },
 )
