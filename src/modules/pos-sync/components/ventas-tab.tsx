@@ -487,59 +487,61 @@ function HeroPanel({
 }: HeroPanelProps) {
   return (
     <div className="relative bg-surface rounded-2xl card-elevated border border-bone/60 p-5 md:p-6 mb-4 overflow-hidden">
-      {/* Top row — sync actions */}
-      <div className="flex items-center justify-end gap-3 mb-4">
-        <div className="flex items-center gap-3 shrink-0">
-          {lastUpdated && (
-            <span className="flex items-center gap-1 text-caption text-mid-gray tabular-nums">
-              <Clock size={12} />
-              {lastUpdated.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}
-              {fromCache && <span className="ml-1">(cache)</span>}
-            </span>
-          )}
-          <button
-            onClick={onRefresh}
-            disabled={loading}
-            className="flex items-center gap-1 text-caption text-mid-gray hover:text-dark-graphite transition-colors disabled:opacity-50"
-            aria-label="Actualizar ventas"
-          >
-            {loading ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
-            Actualizar
-          </button>
-          <button
-            onClick={onForceServerSync}
-            disabled={syncingServer}
-            className="flex items-center gap-1 text-caption text-mid-gray hover:text-dark-graphite transition-colors disabled:opacity-50"
-            aria-label="Forzar sincronización desde el POS"
-            title="Reconcilia los últimos 32 días contra el POS en el servidor"
-          >
-            {syncingServer ? <Loader2 size={12} className="animate-spin" /> : <CloudDownload size={12} />}
-            {syncingServer ? 'Sincronizando…' : 'Sincronizar POS'}
-          </button>
-        </div>
-      </div>
-
-      {/* KPI display */}
-      <div className="flex items-end justify-between gap-4 flex-wrap">
-        <div className="min-w-0">
-          <div className="text-caption uppercase tracking-wider text-mid-gray mb-1">
+      <div className="flex items-stretch justify-between gap-4 flex-wrap">
+        {/* Columna izquierda — KPI principal */}
+        <div className="min-w-0 flex flex-col justify-between gap-3">
+          <div className="text-caption uppercase tracking-wider text-mid-gray">
             Total ventas
           </div>
-          <div className="text-[44px] md:text-[52px] leading-none font-bold text-dark-graphite tabular-nums">
-            <CountUp value={stats.ventas} format={formatCurrency} disabled={!!prefersReducedMotion} />
-          </div>
-          {hasData && (stats.propinas > 0 || stats.envio > 0) && (
-            <div className="mt-2 flex items-center gap-3 text-caption text-mid-gray tabular-nums">
-              {stats.propinas > 0 && <span>+ propinas {formatCurrency(stats.propinas)}</span>}
-              {stats.envio > 0 && <span>+ envío {formatCurrency(stats.envio)}</span>}
+          <div>
+            <div className="text-[44px] md:text-[52px] leading-none font-bold text-dark-graphite tabular-nums">
+              <CountUp value={stats.ventas} format={formatCurrency} disabled={!!prefersReducedMotion} />
             </div>
-          )}
+            {hasData && (stats.propinas > 0 || stats.envio > 0) && (
+              <div className="mt-2 flex items-center gap-3 text-caption text-mid-gray tabular-nums">
+                {stats.propinas > 0 && <span>+ propinas {formatCurrency(stats.propinas)}</span>}
+                {stats.envio > 0 && <span>+ envío {formatCurrency(stats.envio)}</span>}
+              </div>
+            )}
+          </div>
         </div>
-        <div className="text-right min-w-0">
-          <div className="text-caption uppercase tracking-wider text-mid-gray mb-1">Local</div>
-          <div className="inline-flex items-center gap-1.5 text-body font-semibold text-dark-graphite truncate">
-            <MapPin size={14} strokeWidth={1.5} className="text-mid-gray shrink-0" />
-            <span className="truncate">{localLabel ?? '—'}</span>
+
+        {/* Columna derecha — acciones arriba, Local abajo */}
+        <div className="flex flex-col justify-between items-end gap-3 shrink-0">
+          <div className="flex items-center gap-3">
+            {lastUpdated && (
+              <span className="flex items-center gap-1 text-caption text-mid-gray tabular-nums">
+                <Clock size={12} />
+                {lastUpdated.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}
+                {fromCache && <span className="ml-1">(cache)</span>}
+              </span>
+            )}
+            <button
+              onClick={onRefresh}
+              disabled={loading}
+              className="flex items-center gap-1 text-caption text-mid-gray hover:text-dark-graphite transition-colors disabled:opacity-50"
+              aria-label="Actualizar ventas"
+            >
+              {loading ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+              Actualizar
+            </button>
+            <button
+              onClick={onForceServerSync}
+              disabled={syncingServer}
+              className="flex items-center gap-1 text-caption text-mid-gray hover:text-dark-graphite transition-colors disabled:opacity-50"
+              aria-label="Forzar sincronización desde el POS"
+              title="Reconcilia los últimos 32 días contra el POS en el servidor"
+            >
+              {syncingServer ? <Loader2 size={12} className="animate-spin" /> : <CloudDownload size={12} />}
+              {syncingServer ? 'Sincronizando…' : 'Sincronizar POS'}
+            </button>
+          </div>
+          <div className="text-right min-w-0">
+            <div className="text-caption uppercase tracking-wider text-mid-gray mb-1">Local</div>
+            <div className="inline-flex items-center gap-1.5 text-body font-semibold text-dark-graphite truncate">
+              <MapPin size={14} strokeWidth={1.5} className="text-mid-gray shrink-0" />
+              <span className="truncate">{localLabel ?? '—'}</span>
+            </div>
           </div>
         </div>
       </div>
