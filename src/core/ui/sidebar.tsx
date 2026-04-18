@@ -31,8 +31,8 @@ const NAV_SECTIONS: NavSection[] = [
   {
     items: [
       { to: '/home', label: 'Home', icon: Home, moduleKey: 'home' },
-      { to: '/analytics', label: 'Análisis', icon: BarChart3, moduleKey: 'analytics' },
       { to: '/agent', label: 'Asistente AI', icon: Bot, moduleKey: 'agent' },
+      { to: '/analytics', label: 'Análisis', icon: BarChart3, moduleKey: 'analytics' },
     ],
   },
   {
