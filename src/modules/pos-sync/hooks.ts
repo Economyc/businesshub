@@ -202,15 +202,13 @@ async function fetchVentasWithCache({
     return { ventas: cachedVentas, fromCache: true, rateLimited: false }
   }
 
-  // Compute cache coverage: how many days actually have cached sales (vs. just meta entries).
-  const datesWithCache = new Set<string>()
-  for (const v of cachedVentas) {
-    const vDate = v.fecha?.slice(0, 10)
-    if (vDate) datesWithCache.add(vDate)
-  }
-  const coverageRatio =
-    allDates.length === 0 ? 0 : datesWithCache.size / allDates.length
-  const hasUsableCache = cachedVentas.length > 0 && coverageRatio >= 0.5
+  // Si hay cualquier venta cacheada, renderizar inmediato y reconciliar en background.
+  // Antes exigíamos cobertura ≥ 50% sobre `allDates`, pero para locales con apertura
+  // reciente (Escondite abrió en 2026-03) ese umbral es inalcanzable: los días previos
+  // a la apertura están legítimamente vacíos y no suman al cache. Resultado: el Home
+  // bloqueaba la UI con skeleton hasta completar el fetch al POS. Ahora confiamos en
+  // el cache existente y dejamos que el reconcile de los días stale corra en background.
+  const hasUsableCache = cachedVentas.length > 0
 
   // Remove cached ventas for dates we're about to refetch
   const redoDates = new Set(datesNeedingFetch)
