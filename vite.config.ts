@@ -10,4 +10,23 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'firebase-vendor': [
+            'firebase/app',
+            'firebase/auth',
+            'firebase/firestore',
+            'firebase/functions',
+            'firebase/storage',
+          ],
+          charts: ['recharts'],
+          motion: ['framer-motion'],
+          radix: ['@radix-ui/react-tooltip', '@base-ui/react'],
+        },
+      },
+    },
+  },
 })

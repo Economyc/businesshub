@@ -18,6 +18,7 @@ import { slugify, DEFAULT_CATEGORIES, migrateOldCategories } from '@/core/utils/
 import { fileToBase64Thumb } from '@/core/utils/image'
 import { cacheGet, cacheSet } from '@/core/utils/cache'
 import { preloadLogos } from '@/core/utils/logo-cache'
+import { prefetchHomeData } from '@/core/utils/prefetch'
 
 interface CompanyContextValue {
   companies: Company[]
@@ -184,6 +185,13 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
     }
     load()
   }, [])
+
+  // Prefetch de colecciones de Home en cuanto haya company activa.
+  // Dispara queries en paralelo a la cascada de providers para que
+  // HomePage encuentre data lista (o en vuelo) al montar.
+  useEffect(() => {
+    if (selectedCompany?.id) prefetchHomeData(selectedCompany.id)
+  }, [selectedCompany?.id])
 
   const selectCompany = useCallback((company: Company) => {
     setSelectedCompany(company)

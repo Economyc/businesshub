@@ -1,3 +1,6 @@
+import { queryClient } from '@/core/query/query-client'
+import { fetchCollection } from '@/core/firebase/helpers'
+
 const moduleImports = [
   () => import('@/modules/home/components/home-page'),
   () => import('@/modules/analytics/components/general-dashboard'),
@@ -27,5 +30,20 @@ export function prefetchRoutes() {
     requestIdleCallback(run)
   } else {
     setTimeout(run, 200)
+  }
+}
+
+// Colecciones que HomePage consume al montarse a través de useCollection<T>(name).
+// queryKey espejo exacto de src/core/hooks/use-firestore.ts → ['firestore', companyId, name].
+// queryFn idéntica a la del hook, sin constraints (igual que useCollection sin args).
+const HOME_COLLECTIONS = ['transactions', 'closings', 'payments', 'suppliers', 'contracts', 'purchases'] as const
+
+export function prefetchHomeData(companyId: string) {
+  if (!companyId) return
+  for (const name of HOME_COLLECTIONS) {
+    queryClient.prefetchQuery({
+      queryKey: ['firestore', companyId, name],
+      queryFn: () => fetchCollection(companyId, name),
+    })
   }
 }
