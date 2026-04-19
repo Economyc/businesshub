@@ -7,6 +7,13 @@
 // Este módulo mueve esa reconciliación a un cron que corre 01:00 America/Bogota
 // (ambos POS-Perú y BOG son UTC-5, así que la ventana de datos coincide).
 // El cliente mantiene ventana de 2 días como safety net si el cron falla.
+//
+// Alcance del cron (desde 2026-04): cubre **solo el mes actual**, desde el día 1
+// hasta ayer. Los meses pasados son datos cerrados para un restaurante y no
+// vale la pena re-pedirlos cada noche. Si un mes anterior quedó con huecos
+// (días con ceros legítimos o respuestas parciales que nunca stamparon), se
+// completa bajo demanda desde la pestaña Caché con el botón "Reconstruir"
+// (ver `src/modules/pos-sync/components/cache-status-tab.tsx`).
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
@@ -16,7 +23,12 @@ import { fetchDominio, fetchAllPagesForLocal } from './pos-client.js';
 import { addDays, getTodayStrBogota, getPreviousCountsForRange, saveVentasToCacheServer, } from './pos-cache.js';
 import { buildCompanyLocalMap } from './pos-company-mapping.js';
 const posToken = defineSecret('POS_TOKEN');
+// Default para `posReconcileOnDemand` cuando el caller no especifica `days`.
+// El cron nocturno ya NO lo usa (cubre mes actual dinámicamente, ver runReconcile).
 export const DEFAULT_RECONCILE_DAYS = 32;
+function firstDayOfMonth(dateStr) {
+    return `${dateStr.slice(0, 7)}-01`;
+}
 // Cooldown por company: evita double-clicks y abuso, pero sin bloquear al usuario
 // por varios minutos si el primer intento falló o devolvió parcial.
 const MANUAL_COOLDOWN_MS = 60 * 1000;
@@ -41,16 +53,31 @@ function buildWindows(startDate, endDate, windowDays) {
     return windows;
 }
 async function runReconcile(opts) {
-    const days = opts.days ?? DEFAULT_RECONCILE_DAYS;
     const today = getTodayStrBogota();
-    const startDate = addDays(today, -days);
     const endDate = addDays(today, -1);
+    // Cron (opts.days no seteado): cubrir solo el mes actual, desde el día 1.
+    // On-demand (opts.days explícito): rango clásico de N días hacia atrás.
+    const startDate = opts.days !== undefined ? addDays(today, -opts.days) : firstDayOfMonth(today);
+    // Día 1 del mes a las 01:00 BOG → startDate=YYYY-MM-01, endDate=YYYY-(MM-1)-xx.
+    // No hay nada que reconciliar del mes actual todavía. Saltamos el run.
+    if (startDate > endDate) {
+        console.log(`[PosReconcile] skip: día 1 del mes (start=${startDate} > end=${endDate}), nada que reconciliar`);
+        return {
+            startDate,
+            endDate,
+            companiesProcessed: 0,
+            ventasWritten: 0,
+            totalDurationMs: 0,
+            perCompany: [],
+        };
+    }
     const locales = opts.locales ?? (await fetchDominio(opts.token)).locales;
     const map = await buildCompanyLocalMap(locales);
     const filtered = opts.targetCompanyIds
         ? map.filter((m) => opts.targetCompanyIds.includes(m.companyId))
         : map;
-    console.log(`[PosReconcile] start days=${days} range=${startDate}..${endDate} companies=${filtered.length}`);
+    console.log(`[PosReconcile] start mode=${opts.days !== undefined ? `days=${opts.days}` : 'currentMonth'} ` +
+        `range=${startDate}..${endDate} companies=${filtered.length}`);
     const t0 = Date.now();
     const perCompany = [];
     const windows = buildWindows(startDate, endDate, POS_WINDOW_DAYS);

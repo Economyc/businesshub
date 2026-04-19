@@ -17,13 +17,13 @@ const META_COLLECTION = 'pos-sales-cache-meta'
 const CATALOG_COLLECTION = 'pos-catalog-cache'
 
 // Ventana de reconciliación en el cliente. Desde abril 2026 la reconciliación
-// profunda de 32 días la hace un cron nocturno (functions/src/pos-reconcile.ts,
-// 01:00 America/Bogota) que hidrata el mismo cache. El cliente solo necesita
-// un margen pequeño para cubrir el caso donde el cron no corrió (empresa
-// nueva, falla puntual del POS) — con 2 días recuperamos ayer/anteayer sin
-// pagar los ~3 minutos que costaban los 32 días completos en cada carga.
-// Si el cron falla varios días seguidos, el botón "Forzar sincronización"
-// dispara `posReconcileOnDemand` para cubrir los 32.
+// del mes actual la hace un cron nocturno (functions/src/pos-reconcile.ts,
+// 01:00 America/Bogota) que hidrata el mismo cache — día 1 del mes hasta ayer.
+// El cliente solo necesita un margen pequeño para cubrir el caso donde el
+// cron no corrió (empresa nueva, falla puntual del POS) — con 2 días
+// recuperamos ayer/anteayer sin pagar el fetch completo en cada carga.
+// Meses pasados: se completan bajo demanda desde la pestaña Caché (botón
+// "Reconstruir") o con "Forzar sincronización" que dispara `posReconcileOnDemand`.
 export const RECONCILE_WINDOW_DAYS = 2
 export const RECONCILE_TTL_MS = 24 * 60 * 60 * 1000
 export const CATALOG_TTL_MS = 24 * 60 * 60 * 1000
