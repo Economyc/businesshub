@@ -43,6 +43,20 @@ export interface SalesTrendPoint {
   sales: number
 }
 
+export interface DashboardProjection {
+  applicable: boolean
+  projected: number
+  mtd: number
+  daysElapsed: number
+  daysInMonth: number
+  daysRemaining: number
+  deltaVsLastMonth: string
+  deltaTrend: 'up' | 'down' | 'neutral'
+  lastMonthTotal: number
+  dailyAverage: number
+  futurePoints: SalesTrendPoint[]
+}
+
 export interface AlertItem {
   id: string
   label: string
@@ -531,6 +545,125 @@ export function useDashboardData() {
     return points
   }, [closings, transactions, posSalesByDate, startDate, endDate])
 
+  // ─── Month-end projection (solo aplicable cuando preset = thisMonth) ──
+  const projection = useMemo<DashboardProjection>(() => {
+    const empty: DashboardProjection = {
+      applicable: false,
+      projected: 0,
+      mtd: 0,
+      daysElapsed: 0,
+      daysInMonth: 0,
+      daysRemaining: 0,
+      deltaVsLastMonth: '0%',
+      deltaTrend: 'neutral',
+      lastMonthTotal: 0,
+      dailyAverage: 0,
+      futurePoints: [],
+    }
+
+    if (activePreset !== 'thisMonth') return empty
+
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const year = today.getFullYear()
+    const month = today.getMonth()
+    const monthFirst = new Date(year, month, 1)
+    const monthLast = new Date(year, month + 1, 0)
+    const daysInMonth = monthLast.getDate()
+    const dayOfMonth = today.getDate()
+
+    const monthStartStr = toDateStr(monthFirst)
+    const mtdEndStr = toDateStr(today)
+
+    // MTD: usa la misma precedencia que kpis (POS → closings → transactions)
+    let mtd = 0
+    if (hasPosBetween(monthStartStr, mtdEndStr)) {
+      mtd = sumPosBetween(monthStartStr, mtdEndStr)
+    } else {
+      const mtdClosings = closings.filter(
+        (c) => c.date >= monthStartStr && c.date <= mtdEndStr,
+      )
+      mtd = mtdClosings.reduce((s, c) => s + c.ventaTotal, 0)
+      if (mtd === 0 && mtdClosings.length === 0) {
+        mtd = transactions
+          .filter((t) => {
+            const d = t.date?.toDate?.()
+            return d && t.type === 'income' && d >= monthFirst && d <= today
+          })
+          .reduce((s, t) => s + t.amount, 0)
+      }
+    }
+
+    // Mes anterior completo — para comparar el proyectado
+    const lastMonthStart = new Date(year, month - 1, 1)
+    const lastMonthEnd = new Date(year, month, 0)
+    const lastMonthStartStr = toDateStr(lastMonthStart)
+    const lastMonthEndStr = toDateStr(lastMonthEnd)
+    let lastMonthTotal = 0
+    if (hasPosBetween(lastMonthStartStr, lastMonthEndStr)) {
+      lastMonthTotal = sumPosBetween(lastMonthStartStr, lastMonthEndStr)
+    } else {
+      const lmClosings = closings.filter(
+        (c) => c.date >= lastMonthStartStr && c.date <= lastMonthEndStr,
+      )
+      lastMonthTotal = lmClosings.reduce((s, c) => s + c.ventaTotal, 0)
+      if (lastMonthTotal === 0 && lmClosings.length === 0) {
+        lastMonthTotal = transactions
+          .filter((t) => {
+            const d = t.date?.toDate?.()
+            return (
+              d && t.type === 'income' && d >= lastMonthStart && d <= lastMonthEnd
+            )
+          })
+          .reduce((s, t) => s + t.amount, 0)
+      }
+    }
+
+    const daysElapsed = Math.min(dayOfMonth, daysInMonth)
+    const daysRemaining = Math.max(0, daysInMonth - daysElapsed)
+
+    // Umbral: necesitamos al menos 3 días con datos y MTD > 0
+    if (daysElapsed < 3 || mtd <= 0) return empty
+
+    const dailyAverage = mtd / daysElapsed
+    const projected = mtd + dailyAverage * daysRemaining
+
+    const deltaVsLastMonth =
+      lastMonthTotal > 0 ? pctChange(projected, lastMonthTotal) : 'n/d'
+    const deltaTrend: 'up' | 'down' | 'neutral' =
+      lastMonthTotal <= 0
+        ? 'neutral'
+        : projected >= lastMonthTotal
+          ? 'up'
+          : 'down'
+
+    // Puntos proyectados: día siguiente a hoy hasta fin de mes
+    const futurePoints: SalesTrendPoint[] = []
+    const cursor = new Date(today)
+    cursor.setDate(cursor.getDate() + 1)
+    while (cursor <= monthLast) {
+      futurePoints.push({
+        date: formatShortDate(toDateStr(cursor)),
+        sales: dailyAverage,
+      })
+      cursor.setDate(cursor.getDate() + 1)
+    }
+
+    return {
+      applicable: true,
+      projected,
+      mtd,
+      daysElapsed,
+      daysInMonth,
+      daysRemaining,
+      deltaVsLastMonth,
+      deltaTrend,
+      lastMonthTotal,
+      dailyAverage,
+      futurePoints,
+    }
+  }, [activePreset, closings, transactions, posSalesByDate])
+
   // ─── Alerts ─────────────────────────────────────────────────────
   const alerts = useMemo<DashboardAlerts>(() => {
     // Overdue items
@@ -677,5 +810,6 @@ export function useDashboardData() {
     reconcileError,
     retryReconcile,
     lastCronRun,
+    projection,
   }
 }

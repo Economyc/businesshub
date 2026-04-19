@@ -12,10 +12,12 @@ import type {
   SalesTrendPoint,
   DashboardAlerts,
   DashboardSyncStatus,
+  DashboardProjection,
 } from '../hooks'
 import { HomeFiltersProvider } from '../context/home-filters-context'
 import { KPICardsRow } from './kpi-cards-row'
 import { SalesTrendChart } from './sales-trend-chart'
+import { MonthProjectionTile } from './month-projection-tile'
 import { AlertsPanel } from './alerts-panel'
 import { QuickActions } from './quick-actions'
 import { CajaFilter } from './caja-filter'
@@ -57,6 +59,7 @@ interface DashboardContentProps {
   comparisonLabel: string
   startDate: Date
   endDate: Date
+  projection: DashboardProjection
 }
 
 function DashboardContent({
@@ -67,11 +70,18 @@ function DashboardContent({
   comparisonLabel,
   startDate,
   endDate,
+  projection,
 }: DashboardContentProps) {
   return (
     <div className="space-y-6">
       <KPICardsRow kpis={kpis} periodLabel={periodLabel} comparisonLabel={comparisonLabel} />
-      <SalesTrendChart data={salesTrend} startDate={startDate} endDate={endDate} />
+      {projection.applicable && <MonthProjectionTile projection={projection} />}
+      <SalesTrendChart
+        data={salesTrend}
+        startDate={startDate}
+        endDate={endDate}
+        projection={projection.applicable ? projection.futurePoints : undefined}
+      />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <AlertsPanel alerts={alerts} />
         <QuickActions />
@@ -95,6 +105,7 @@ function HomePageContent() {
     reconcileError,
     retryReconcile,
     lastCronRun,
+    projection,
   } = useDashboardData()
 
   const firstName = user?.displayName?.split(' ')[0] ?? user?.email?.split('@')[0] ?? 'Usuario'
@@ -182,6 +193,7 @@ function HomePageContent() {
             comparisonLabel={comparisonLabel}
             startDate={startDate}
             endDate={endDate}
+            projection={projection}
           />
         </>
       )}

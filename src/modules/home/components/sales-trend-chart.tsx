@@ -2,14 +2,29 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts'
 import { formatCurrency } from '@/core/utils/format'
+import { chartColors } from '@/core/ui/chart-colors'
 import type { SalesTrendPoint } from '../hooks'
+
+interface TrendRow {
+  date: string
+  sales: number | null
+  projected: number | null
+}
 
 function ChartTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null
+  const row = payload[0]?.payload as TrendRow | undefined
+  const realValue = row?.sales
+  const projectedValue = row?.projected
   return (
     <div className="bg-surface border border-border rounded-lg shadow-sm px-3 py-2 text-caption">
       <p className="font-medium text-dark-graphite mb-1">{label}</p>
-      <p className="text-emerald-600">Ventas: {formatCurrency(payload[0].value)}</p>
+      {typeof realValue === 'number' && (
+        <p className="text-emerald-600">Real: {formatCurrency(realValue)}</p>
+      )}
+      {typeof projectedValue === 'number' && realValue == null && (
+        <p className="text-mid-gray">Proyectado: {formatCurrency(projectedValue)}</p>
+      )}
     </div>
   )
 }
@@ -18,6 +33,7 @@ interface SalesTrendChartProps {
   data: SalesTrendPoint[]
   startDate: Date
   endDate: Date
+  projection?: SalesTrendPoint[]
 }
 
 function monthYearLabel(d: Date): string {
@@ -40,9 +56,25 @@ function formatRangeMonthYear(start: Date, end: Date): string {
   return `${monthYearLabel(start)} a ${monthYearLabel(end)}`
 }
 
-export function SalesTrendChart({ data, startDate, endDate }: SalesTrendChartProps) {
+export function SalesTrendChart({ data, startDate, endDate, projection }: SalesTrendChartProps) {
   const hasData = data.some((d) => d.sales > 0)
+  const hasProjection = !!projection && projection.length > 0
   const periodLabel = formatRangeMonthYear(startDate, endDate)
+
+  // Merge real + proyección en filas. Último punto real se duplica en `projected`
+  // para que la línea punteada arranque pegada a la real sin dejar hueco visual.
+  const rows: TrendRow[] = data.map((d) => ({
+    date: d.date,
+    sales: d.sales,
+    projected: null,
+  }))
+  if (hasProjection && rows.length > 0) {
+    const lastReal = rows[rows.length - 1]
+    lastReal.projected = lastReal.sales
+    for (const p of projection!) {
+      rows.push({ date: p.date, sales: null, projected: p.sales })
+    }
+  }
 
   return (
     <div className="bg-surface rounded-xl card-elevated p-[18px]">
@@ -54,7 +86,7 @@ export function SalesTrendChart({ data, startDate, endDate }: SalesTrendChartPro
       ) : (
         <div className="h-[150px] sm:h-[200px]">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
+          <AreaChart data={rows} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eeece9" vertical={false} />
             <XAxis
               dataKey="date"
@@ -83,7 +115,21 @@ export function SalesTrendChart({ data, startDate, endDate }: SalesTrendChartPro
               fill="#5a7a5a"
               fillOpacity={0.1}
               strokeWidth={2}
+              connectNulls={false}
             />
+            {hasProjection && (
+              <Area
+                type="monotone"
+                dataKey="projected"
+                stroke={chartColors.neutral}
+                fill={chartColors.neutral}
+                fillOpacity={0.05}
+                strokeWidth={2}
+                strokeDasharray="4 4"
+                connectNulls={false}
+                isAnimationActive={false}
+              />
+            )}
           </AreaChart>
         </ResponsiveContainer>
         </div>
