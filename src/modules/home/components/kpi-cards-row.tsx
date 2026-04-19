@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { DollarSign, CreditCard, Percent, Clock } from 'lucide-react'
+import { DollarSign, CreditCard, Package, Clock } from 'lucide-react'
 import { KPICard } from '@/core/ui/kpi-card'
 import { staggerContainer } from '@/core/animations/variants'
 import type { DashboardKPIs } from '../hooks'
@@ -38,12 +38,14 @@ export function KPICardsRow({ kpis, periodLabel, comparisonLabel }: KPICardsRowP
         inverse
       />
       <KPICard
-        label="Margen neto"
-        value={Math.round(kpis.margenNeto)}
-        format="percent"
-        change={kpis.margenNetoChange}
-        trend={kpis.margenNetoTrend}
-        icon={Percent}
+        label={`Costo — ${periodLabel}`}
+        value={kpis.costo}
+        format="currency"
+        change={kpis.costoChange}
+        trend={kpis.costoTrend}
+        comparison={comparisonLabel}
+        icon={Package}
+        inverse
       />
       <KPICard
         label="Por cobrar"

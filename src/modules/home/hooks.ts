@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { doc, getDoc, Timestamp } from 'firebase/firestore'
 import { db } from '@/core/firebase/config'
 import { useCollection } from '@/core/hooks/use-firestore'
-import { useTransactions } from '@/modules/finance/hooks'
+import { useTransactions, classifyExpense } from '@/modules/finance/hooks'
 import { useClosings } from '@/modules/closings/hooks'
 import { useCarteraItems, useCarteraSummary } from '@/modules/cartera/hooks'
 import { useBudgetComparison } from '@/modules/finance/hooks'
@@ -30,9 +30,9 @@ export interface DashboardKPIs {
   gastosMes: number
   gastosMesChange: string
   gastosMesTrend: 'up' | 'down'
-  margenNeto: number
-  margenNetoChange: string
-  margenNetoTrend: 'up' | 'down'
+  costo: number
+  costoChange: string
+  costoTrend: 'up' | 'down'
   porCobrar: number
   porCobrarChange: string
   porCobrarTrend: 'up' | 'down' | 'neutral'
@@ -447,23 +447,32 @@ export function useDashboardData() {
       })
       .reduce((s, t) => s + t.amount, 0)
 
-    // Ingresos del período (para margen)
-    const ingresos = transactions
+    // Costo de ventas del período (PUC clase 6: insumos, suministros, costo de ventas)
+    const costo = transactions
       .filter((t) => {
         const d = t.date?.toDate?.()
-        return d && t.type === 'income' && d >= startDate && d <= endDate
+        return (
+          d &&
+          t.type === 'expense' &&
+          classifyExpense(t.category) === 'cost_of_sales' &&
+          d >= startDate &&
+          d <= endDate
+        )
       })
       .reduce((s, t) => s + t.amount, 0)
 
-    const ingresosPrev = transactions
+    const costoPrev = transactions
       .filter((t) => {
         const d = t.date?.toDate?.()
-        return d && t.type === 'income' && d >= prevStart && d <= prevEnd
+        return (
+          d &&
+          t.type === 'expense' &&
+          classifyExpense(t.category) === 'cost_of_sales' &&
+          d >= prevStart &&
+          d <= prevEnd
+        )
       })
       .reduce((s, t) => s + t.amount, 0)
-
-    const margenNeto = ingresos > 0 ? ((ingresos - gastos) / ingresos) * 100 : 0
-    const margenPrev = ingresosPrev > 0 ? ((ingresosPrev - gastosPrev) / ingresosPrev) * 100 : 0
 
     // Cuentas por cobrar (estado actual, no depende del filtro)
     const porCobrar = carteraSummary.totalReceivables
@@ -476,9 +485,9 @@ export function useDashboardData() {
       gastosMes: gastos,
       gastosMesChange: pctChange(gastos, gastosPrev),
       gastosMesTrend: gastos >= gastosPrev ? 'up' : 'down',
-      margenNeto,
-      margenNetoChange: `${margenNeto.toFixed(1)}%`,
-      margenNetoTrend: margenNeto >= margenPrev ? 'up' : 'down',
+      costo,
+      costoChange: pctChange(costo, costoPrev),
+      costoTrend: costo >= costoPrev ? 'up' : 'down',
       porCobrar,
       porCobrarChange: overdueCount > 0 ? `${overdueCount} vencidas` : porCobrar > 0 ? `${receivables.filter((r) => r.status === 'pending').length} pendientes` : 'Al día',
       porCobrarTrend: overdueCount > 0 ? 'down' : porCobrar > 0 ? 'neutral' : 'up',
