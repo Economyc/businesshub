@@ -432,9 +432,14 @@ export function usePosAnalytics(): {
   totals: PosTotals
   topCategories: PosCategorySlice[]
   topProducts: PosProductSlice[]
+  allCategories: string[]
+  productsByCategory: Record<string, PosProductSlice[]>
   loading: boolean
   rateLimited: boolean
   hasLocales: boolean
+  lastUpdated: Date | null
+  fromCache: boolean
+  forceRefresh: () => void
 } {
   const { startDate, endDate } = useDateRange()
   const { localIds, loading: localesLoading } = useCompanyLocalIds()
@@ -446,6 +451,9 @@ export function usePosAnalytics(): {
     ventas,
     isPending: ventasPending,
     rateLimited,
+    lastUpdated,
+    fromCache,
+    forceRefresh,
   } = usePosVentas({
     localIds,
     startDate: startStr,
@@ -467,6 +475,7 @@ export function usePosAnalytics(): {
 
     const catMap = new Map<string, number>()
     const prodMap = new Map<string, PosProductSlice>()
+    const perCategoryMap = new Map<string, Map<string, PosProductSlice>>()
 
     for (const v of valid) {
       const detalle = v.detalle ?? []
@@ -486,19 +495,46 @@ export function usePosAnalytics(): {
         } else {
           prodMap.set(pid, { id: pid, name: pname, amount: lineTotal, quantity: qty })
         }
+
+        // Agregación por categoría para el filtro local del Top Productos.
+        // Un mismo id_producto puede aparecer bajo varias categorías si el POS
+        // lo tiene mal catalogado, por eso usamos un Map independiente por
+        // categoría en vez de reusar prodMap.
+        let catBucket = perCategoryMap.get(cat)
+        if (!catBucket) {
+          catBucket = new Map<string, PosProductSlice>()
+          perCategoryMap.set(cat, catBucket)
+        }
+        const catExisting = catBucket.get(pid)
+        if (catExisting) {
+          catExisting.amount += lineTotal
+          catExisting.quantity += qty
+        } else {
+          catBucket.set(pid, { id: pid, name: pname, amount: lineTotal, quantity: qty })
+        }
       }
     }
 
-    const topCategories: PosCategorySlice[] = Array.from(catMap.entries())
+    const sortedCategories = Array.from(catMap.entries())
       .map(([category, amount]) => ({ category, amount }))
       .sort((a, b) => b.amount - a.amount)
-      .slice(0, 5)
+
+    const topCategories: PosCategorySlice[] = sortedCategories.slice(0, 5)
 
     const topProducts: PosProductSlice[] = Array.from(prodMap.values())
       .sort((a, b) => b.amount - a.amount)
       .slice(0, 10)
 
-    return { totals, topCategories, topProducts }
+    const allCategories: string[] = sortedCategories.map((c) => c.category)
+
+    const productsByCategory: Record<string, PosProductSlice[]> = {}
+    for (const [cat, bucket] of perCategoryMap) {
+      productsByCategory[cat] = Array.from(bucket.values())
+        .sort((a, b) => b.amount - a.amount)
+        .slice(0, 10)
+    }
+
+    return { totals, topCategories, topProducts, allCategories, productsByCategory }
   }, [ventas])
 
   return {
@@ -506,5 +542,8 @@ export function usePosAnalytics(): {
     loading: coldLoading,
     rateLimited,
     hasLocales: localIds.length > 0,
+    lastUpdated,
+    fromCache,
+    forceRefresh,
   }
 }

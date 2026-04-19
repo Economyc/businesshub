@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
   DollarSign,
@@ -27,6 +27,8 @@ import { staggerContainer } from '@/core/animations/variants'
 import { formatCurrency } from '@/core/utils/format'
 import { DashboardSkeleton } from '@/core/ui/skeleton'
 import { DateRangePicker } from '@/modules/finance/components/date-range-picker'
+import { SelectInput } from '@/core/ui/select-input'
+import { SyncStatusDot } from '@/core/ui/sync-status-dot'
 import { AnalyticsTabs } from './analytics-tabs'
 import { ExportPDF } from './export-pdf'
 import { ChartCard } from './shared/chart-card'
@@ -44,10 +46,33 @@ function pct(part: number, total: number): string {
   return `${((part / total) * 100).toFixed(1)}%`
 }
 
+const ALL_CATEGORIES_VALUE = '__all__'
+
 export function PosDashboard() {
   const dashboardRef = useRef<HTMLDivElement>(null)
-  const { totals, topCategories, topProducts, loading, hasLocales } =
-    usePosAnalytics()
+  const [productCategory, setProductCategory] = useState<string>(ALL_CATEGORIES_VALUE)
+  const {
+    totals,
+    topCategories,
+    topProducts,
+    allCategories,
+    productsByCategory,
+    loading,
+    hasLocales,
+    lastUpdated,
+    fromCache,
+    forceRefresh,
+  } = usePosAnalytics()
+
+  const productsToShow =
+    productCategory === ALL_CATEGORIES_VALUE
+      ? topProducts
+      : productsByCategory[productCategory] ?? []
+
+  const categoryOptions = [
+    { value: ALL_CATEGORIES_VALUE, label: 'Todas las categorías' },
+    ...allCategories.map((c) => ({ value: c, label: c })),
+  ]
 
   const composition = [
     { name: 'Ventas netas', value: Math.max(totals.ventas - totals.impuestos, 0) },
@@ -67,7 +92,16 @@ export function PosDashboard() {
   return (
     <PageTransition>
       <PageHeader title="Análisis">
-        <DateRangePicker />
+        <div className="flex items-center gap-3">
+          <DateRangePicker />
+          <SyncStatusDot
+            loading={loading}
+            lastUpdated={lastUpdated}
+            fromCache={fromCache}
+            hasLocals={hasLocales}
+            onRefresh={forceRefresh}
+          />
+        </div>
         <ExportPDF targetRef={dashboardRef} />
       </PageHeader>
       <AnalyticsTabs />
@@ -190,13 +224,31 @@ export function PosDashboard() {
               eyebrow="Top 10"
               title="Productos más vendidos"
               description="Ranking por monto total de venta en el periodo"
+              action={
+                allCategories.length > 0 ? (
+                  <SelectInput
+                    value={productCategory}
+                    onChange={setProductCategory}
+                    options={categoryOptions}
+                    className="w-52"
+                  />
+                ) : undefined
+              }
             >
-              {topProducts.length === 0 ? (
-                <EmptyChart height={200} compact message="Sin productos vendidos" />
+              {productsToShow.length === 0 ? (
+                <EmptyChart
+                  height={200}
+                  compact
+                  message={
+                    productCategory === ALL_CATEGORIES_VALUE
+                      ? 'Sin productos vendidos'
+                      : 'Sin productos en esta categoría'
+                  }
+                />
               ) : (
-                <ResponsiveContainer width="100%" height={Math.max(topProducts.length * 32, 240)}>
+                <ResponsiveContainer width="100%" height={Math.max(productsToShow.length * 32, 240)}>
                   <BarChart
-                    data={topProducts}
+                    data={productsToShow}
                     layout="vertical"
                     margin={{ top: 4, right: 16, left: 8, bottom: 4 }}
                   >
