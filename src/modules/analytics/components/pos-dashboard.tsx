@@ -86,7 +86,7 @@ export function PosDashboard() {
             variants={staggerContainer}
             initial="initial"
             animate="animate"
-            className="grid grid-cols-2 lg:grid-cols-6 gap-4"
+            className="grid grid-cols-2 lg:grid-cols-3 gap-4"
           >
             <KPICard
               label="Ventas"
@@ -187,99 +187,99 @@ export function PosDashboard() {
             </ChartCard>
 
             <ChartCard
-              eyebrow="Top 5"
-              title="Categorías con mayor venta"
-              description="Suma de ítems vendidos por categoría"
+              eyebrow="Top 10"
+              title="Productos más vendidos"
+              description="Ranking por monto total de venta en el periodo"
             >
-              {topCategories.length === 0 ? (
-                <EmptyChart message="Sin ventas categorizadas" />
+              {topProducts.length === 0 ? (
+                <EmptyChart height={200} compact message="Sin productos vendidos" />
               ) : (
-                <div className="space-y-3">
-                  {topCategories.map((cat, i) => (
-                    <div key={cat.category} className="flex items-center gap-3">
-                      <span
-                        className="w-2.5 h-2.5 rounded-full shrink-0"
-                        style={{ backgroundColor: paletteColor(i) }}
-                      />
-                      <span className="text-body text-graphite w-20 sm:w-32 truncate">
-                        {cat.category}
-                      </span>
-                      <div className="flex-1 h-7 bg-bone rounded-lg overflow-hidden relative">
-                        <div
-                          className="h-full rounded-lg transition-all duration-700 ease-out"
-                          style={{
-                            width: `${maxCategory > 0 ? Math.max((cat.amount / maxCategory) * 100, 2) : 2}%`,
-                            backgroundColor: paletteColor(i),
-                            opacity: 0.75,
-                          }}
+                <ResponsiveContainer width="100%" height={Math.max(topProducts.length * 32, 240)}>
+                  <BarChart
+                    data={topProducts}
+                    layout="vertical"
+                    margin={{ top: 4, right: 16, left: 8, bottom: 4 }}
+                  >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke={CHART_SEMANTIC.grid}
+                      horizontal={false}
+                    />
+                    <XAxis
+                      type="number"
+                      tickFormatter={(v) => formatCurrency(v)}
+                      tick={CHART_AXIS_TICK}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      type="category"
+                      dataKey="name"
+                      tick={CHART_AXIS_TICK}
+                      axisLine={false}
+                      tickLine={false}
+                      width={120}
+                    />
+                    <Tooltip
+                      content={
+                        <ChartTooltip
+                          variant="single"
+                          extraLine={(p) =>
+                            p?.quantity != null
+                              ? `${Number(p.quantity).toLocaleString('es-CO')} unidades`
+                              : null
+                          }
                         />
-                      </div>
-                      <span className="text-body font-medium text-dark-graphite w-20 sm:w-28 text-right tabular-nums">
-                        {formatCurrency(cat.amount)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                      }
+                      cursor={{ fill: CHART_SEMANTIC.muted }}
+                    />
+                    <Bar
+                      dataKey="amount"
+                      name="Venta"
+                      fill={CHART_SEMANTIC.income}
+                      radius={[0, 4, 4, 0]}
+                      barSize={16}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
               )}
             </ChartCard>
           </motion.div>
 
           <ChartCard
-            eyebrow="Top 10"
-            title="Productos más vendidos"
-            description="Ranking por monto total de venta en el periodo"
+            eyebrow="Top 5"
+            title="Categorías con mayor venta"
+            description="Suma de ítems vendidos por categoría"
           >
-            {topProducts.length === 0 ? (
-              <EmptyChart height={200} compact message="Sin productos vendidos" />
+            {topCategories.length === 0 ? (
+              <EmptyChart height={200} compact message="Sin ventas categorizadas" />
             ) : (
-              <ResponsiveContainer width="100%" height={Math.max(topProducts.length * 36, 240)}>
-                <BarChart
-                  data={topProducts}
-                  layout="vertical"
-                  margin={{ top: 4, right: 16, left: 8, bottom: 4 }}
-                >
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke={CHART_SEMANTIC.grid}
-                    horizontal={false}
-                  />
-                  <XAxis
-                    type="number"
-                    tickFormatter={(v) => formatCurrency(v)}
-                    tick={CHART_AXIS_TICK}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <YAxis
-                    type="category"
-                    dataKey="name"
-                    tick={CHART_AXIS_TICK}
-                    axisLine={false}
-                    tickLine={false}
-                    width={140}
-                  />
-                  <Tooltip
-                    content={
-                      <ChartTooltip
-                        variant="single"
-                        extraLine={(p) =>
-                          p?.quantity != null
-                            ? `${Number(p.quantity).toLocaleString('es-CO')} unidades`
-                            : null
-                        }
+              <div className="space-y-3">
+                {topCategories.map((cat, i) => (
+                  <div key={cat.category} className="flex items-center gap-3">
+                    <span
+                      className="w-2.5 h-2.5 rounded-full shrink-0"
+                      style={{ backgroundColor: paletteColor(i) }}
+                    />
+                    <span className="text-body text-graphite w-20 sm:w-40 truncate">
+                      {cat.category}
+                    </span>
+                    <div className="flex-1 h-7 bg-bone rounded-lg overflow-hidden relative">
+                      <div
+                        className="h-full rounded-lg transition-all duration-700 ease-out"
+                        style={{
+                          width: `${maxCategory > 0 ? Math.max((cat.amount / maxCategory) * 100, 2) : 2}%`,
+                          backgroundColor: paletteColor(i),
+                          opacity: 0.75,
+                        }}
                       />
-                    }
-                    cursor={{ fill: CHART_SEMANTIC.muted }}
-                  />
-                  <Bar
-                    dataKey="amount"
-                    name="Venta"
-                    fill={CHART_SEMANTIC.income}
-                    radius={[0, 4, 4, 0]}
-                    barSize={18}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
+                    </div>
+                    <span className="text-body font-medium text-dark-graphite w-20 sm:w-28 text-right tabular-nums">
+                      {formatCurrency(cat.amount)}
+                    </span>
+                  </div>
+                ))}
+              </div>
             )}
           </ChartCard>
         </div>
