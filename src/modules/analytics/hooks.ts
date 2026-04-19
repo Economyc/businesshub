@@ -2,6 +2,15 @@ import { useMemo } from 'react'
 import { useCollection } from '@/core/hooks/use-firestore'
 import { useCompany } from '@/core/hooks/use-company'
 import { useDateRange } from '@/modules/finance/context/date-range-context'
+import { usePosVentas } from '@/modules/pos-sync/hooks'
+import { useCompanyLocalIds } from '@/modules/pos-sync/company-mapping'
+import {
+  calcTotals,
+  isAnulada,
+  toDateStrLocal,
+  num,
+  type PosTotals,
+} from '@/modules/pos-sync/utils/sales-calculations'
 import { getCostGroup, COST_GROUP_LABELS, calcChange, getMonthsBetween } from './services'
 import type { Transaction } from '@/modules/finance/types'
 import type { Purchase } from '@/modules/purchases/types'
@@ -403,4 +412,91 @@ export function usePayrollAnalytics(): {
   }, [employees, transactions, startDate, endDate])
 
   return { ...result, loading }
+}
+
+// ─── POS Analytics ───────────────────────────────────────────────────
+
+export interface PosCategorySlice {
+  category: string
+  amount: number
+}
+
+export interface PosProductSlice {
+  id: string
+  name: string
+  amount: number
+  quantity: number
+}
+
+export function usePosAnalytics(): {
+  totals: PosTotals
+  topCategories: PosCategorySlice[]
+  topProducts: PosProductSlice[]
+  loading: boolean
+  rateLimited: boolean
+  hasLocales: boolean
+} {
+  const { startDate, endDate } = useDateRange()
+  const { localIds, loading: localesLoading } = useCompanyLocalIds()
+
+  const startStr = toDateStrLocal(startDate)
+  const endStr = toDateStrLocal(endDate)
+
+  const {
+    ventas,
+    loading: ventasLoading,
+    rateLimited,
+  } = usePosVentas({
+    localIds,
+    startDate: startStr,
+    endDate: endStr,
+    enabled: localIds.length > 0,
+  })
+
+  const result = useMemo(() => {
+    const valid = ventas.filter((v) => !isAnulada(v))
+    const totals = calcTotals(valid)
+
+    const catMap = new Map<string, number>()
+    const prodMap = new Map<string, PosProductSlice>()
+
+    for (const v of valid) {
+      const detalle = v.detalle ?? []
+      for (const item of detalle) {
+        const lineTotal = num(item.venta_total as string | number | undefined)
+        const qty = num(item.cantidad_vendida as string | number | undefined)
+
+        const cat = (item.categoria_descripcion ?? 'Sin categoría').trim() || 'Sin categoría'
+        catMap.set(cat, (catMap.get(cat) ?? 0) + lineTotal)
+
+        const pid = String(item.id_producto ?? '?')
+        const pname = (item.nombre_producto ?? 'Sin nombre').trim() || 'Sin nombre'
+        const existing = prodMap.get(pid)
+        if (existing) {
+          existing.amount += lineTotal
+          existing.quantity += qty
+        } else {
+          prodMap.set(pid, { id: pid, name: pname, amount: lineTotal, quantity: qty })
+        }
+      }
+    }
+
+    const topCategories: PosCategorySlice[] = Array.from(catMap.entries())
+      .map(([category, amount]) => ({ category, amount }))
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 5)
+
+    const topProducts: PosProductSlice[] = Array.from(prodMap.values())
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 10)
+
+    return { totals, topCategories, topProducts }
+  }, [ventas])
+
+  return {
+    ...result,
+    loading: localesLoading || ventasLoading,
+    rateLimited,
+    hasLocales: localIds.length > 0,
+  }
 }

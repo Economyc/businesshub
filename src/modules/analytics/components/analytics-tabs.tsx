@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, PieChart, ShoppingCart, Users } from 'lucide-react'
+import { LayoutDashboard, PieChart, ShoppingCart, Store, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { LucideIcon } from 'lucide-react'
 
@@ -12,6 +12,7 @@ interface AnalyticsTab {
 
 const TABS: AnalyticsTab[] = [
   { to: '/analytics', label: 'General', icon: LayoutDashboard, end: true },
+  { to: '/analytics/pos', label: 'POS', icon: Store },
   { to: '/analytics/costs', label: 'Costos', icon: PieChart },
   { to: '/analytics/purchases', label: 'Compras', icon: ShoppingCart },
   { to: '/analytics/payroll', label: 'Nómina', icon: Users },

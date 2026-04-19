@@ -7,7 +7,7 @@ import { AuthProvider, useAuth } from '@/core/hooks/use-auth'
 import { CompanyProvider } from '@/core/ui/company-provider'
 import { Layout } from '@/core/ui/layout'
 import { LoginPage } from '@/core/ui/login-page'
-import { GeneralDashboard, CostsDashboard, PurchasesDashboard, PayrollDashboard } from '@/modules/analytics/routes'
+import { GeneralDashboard, PosDashboard, CostsDashboard, PurchasesDashboard, PayrollDashboard } from '@/modules/analytics/routes'
 import { EmployeeList, EmployeeProfile } from '@/modules/talent/routes'
 import { SupplierList, SupplierDetail } from '@/modules/suppliers/routes'
 import { TransactionList, ImportView, CashFlowView, IncomeStatementView, BudgetView, RecurringList, ReconciliationView, ReconciliationDetail } from '@/modules/finance/routes'
@@ -70,6 +70,7 @@ export default function App() {
               </Route>
               <Route element={<DateRangeProvider><Outlet /></DateRangeProvider>}>
                 <Route path="/analytics" element={<Suspense fallback={<Loading />}><GeneralDashboard /></Suspense>} />
+                <Route path="/analytics/pos" element={<Suspense fallback={<Loading />}><PosDashboard /></Suspense>} />
                 <Route path="/analytics/costs" element={<Suspense fallback={<Loading />}><CostsDashboard /></Suspense>} />
                 <Route path="/analytics/purchases" element={<Suspense fallback={<Loading />}><PurchasesDashboard /></Suspense>} />
                 <Route path="/analytics/payroll" element={<Suspense fallback={<Loading />}><PayrollDashboard /></Suspense>} />

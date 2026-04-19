@@ -65,6 +65,7 @@ export interface PosTotals {
   propinas: number
   envio: number
   impuestos: number
+  descuento: number
   ticket: number
 }
 
@@ -73,11 +74,13 @@ export function calcTotals(list: PosVenta[]): PosTotals {
   let propinas = 0
   let envio = 0
   let impuestos = 0
+  let descuento = 0
   for (const v of list) {
     ventasNetas += num(v.total)
     propinas += sumPropinas(v)
     envio += num(v.costoenvio)
     impuestos += num(v.impuestos)
+    descuento += num(v.descuento)
   }
   // `ventas` representa el total principal mostrado en KPIs y debe cuadrar
   // con el reporte del POS: solo neto. Propinas y envío quedan como campos
@@ -90,6 +93,7 @@ export function calcTotals(list: PosVenta[]): PosTotals {
     propinas,
     envio,
     impuestos,
+    descuento,
     ticket: list.length > 0 ? ventas / list.length : 0,
   }
 }
