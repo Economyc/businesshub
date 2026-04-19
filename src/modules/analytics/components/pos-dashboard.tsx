@@ -93,7 +93,6 @@ export function PosDashboard() {
     <PageTransition>
       <PageHeader title="Análisis">
         <div className="flex items-center gap-3">
-          <DateRangePicker />
           <SyncStatusDot
             loading={loading}
             lastUpdated={lastUpdated}
@@ -101,6 +100,7 @@ export function PosDashboard() {
             hasLocals={hasLocales}
             onRefresh={forceRefresh}
           />
+          <DateRangePicker />
         </div>
         <ExportPDF targetRef={dashboardRef} />
       </PageHeader>
