@@ -89,7 +89,7 @@ export function PosDashboard() {
             className="grid grid-cols-2 lg:grid-cols-3 gap-4"
           >
             <KPICard
-              label="Ventas"
+              label="Ventas Brutas"
               value={totals.ventas}
               format="currency"
               icon={DollarSign}
