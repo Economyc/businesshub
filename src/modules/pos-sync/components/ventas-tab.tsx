@@ -209,6 +209,17 @@ export function VentasTab({ localIds, allLocalIds, locales, localLabel }: Ventas
       width: '120px',
       hideOnMobile: true,
       render: (v) => {
+        const isRappi = (v.nombre_canaldelivery ?? '').trim().toLowerCase() === 'rappi'
+        if (isRappi) {
+          return (
+            <span
+              className="inline-flex items-center px-2 py-0.5 rounded-full text-caption font-medium text-white"
+              style={{ backgroundColor: '#FF4219' }}
+            >
+              RAPPI
+            </span>
+          )
+        }
         const canal = v.canalventa || v.nombre_canaldelivery || '—'
         const tone = getCanalTone(v.canalventa || v.nombre_canaldelivery)
         return (
