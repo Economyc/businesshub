@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { RefreshCw, Loader2, Clock, MapPin, XCircle } from 'lucide-react'
 import { DataTable, type Column } from '@/core/ui/data-table'
+import { PosCompactHeroSkeleton, TableSkeleton } from '@/core/ui/skeleton'
 import { formatCurrency } from '@/core/utils/format'
 import { useDateRange } from '@/modules/finance/context/date-range-context'
 import { usePosVentas } from '../hooks'
@@ -102,6 +103,21 @@ export function AnuladasTab({ localIds, allLocalIds, locales, localLabel }: Anul
     return list.map((v) => ({ ...v, id: v.ID ?? String(Math.random()) }))
   }
 
+  if (loading && ventas.length === 0) {
+    return (
+      <div>
+        <PosCompactHeroSkeleton />
+        <TableSkeleton rows={4} columns={4} />
+        {progress && (
+          <div className="mt-3 flex items-center justify-center text-caption text-mid-gray">
+            <Loader2 size={12} className="animate-spin mr-1.5" />
+            Sincronizando periodo {progress.current} de {progress.total}…
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div>
       {/* Hero */}
@@ -181,14 +197,10 @@ export function AnuladasTab({ localIds, allLocalIds, locales, localLabel }: Anul
         <DataTable columns={columns} data={addId(anuladas)} onRowClick={setSelectedVenta} />
       )}
 
-      {loading && (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 size={24} className="animate-spin text-mid-gray" />
-          <span className="ml-2 text-body text-mid-gray">
-            {progress
-              ? `Sincronizando periodo ${progress.current} de ${progress.total}...`
-              : 'Consultando ventas del POS...'}
-          </span>
+      {loading && ventas.length > 0 && progress && (
+        <div className="mt-3 flex items-center justify-center text-caption text-mid-gray">
+          <Loader2 size={12} className="animate-spin mr-1.5" />
+          Sincronizando periodo {progress.current} de {progress.total}…
         </div>
       )}
 

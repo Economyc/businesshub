@@ -4,6 +4,7 @@ import { motion, useReducedMotion, useMotionValue, useTransform, animate, type V
 import { DataTable, type Column } from '@/core/ui/data-table'
 import { EmptyState } from '@/core/ui/empty-state'
 import { SegmentedFilter, type SegmentedFilterOption } from '@/core/ui/segmented-filter'
+import { PosHeroSkeleton, PosSummaryCardsSkeleton, TableSkeleton } from '@/core/ui/skeleton'
 import { formatCurrency } from '@/core/utils/format'
 import { useDateRange } from '@/modules/finance/context/date-range-context'
 import { usePosVentas } from '../hooks'
@@ -283,6 +284,7 @@ export function VentasTab({ localIds, allLocalIds, locales, localLabel }: Ventas
 
   const totalStats = calcTotals(filteredVentas)
   const hasData = ventas.length > 0
+  const showSkeleton = loading && !hasData
 
   const docOptions: SegmentedFilterOption<DocType | 'todos'>[] = [
     { value: 'todos', label: 'Todos', count: docCounts.todos },
@@ -296,6 +298,22 @@ export function VentasTab({ localIds, allLocalIds, locales, localLabel }: Ventas
     { value: 'todas', label: 'Todas', count: cajasDisponibles.reduce((s, [, c]) => s + c, 0) },
     ...cajasDisponibles.map(([id, count]) => ({ value: id, label: `Caja ${id}`, count })),
   ]
+
+  if (showSkeleton) {
+    return (
+      <div>
+        <PosHeroSkeleton />
+        <PosSummaryCardsSkeleton />
+        <TableSkeleton rows={6} columns={6} />
+        {progress && (
+          <div className="mt-3 flex items-center justify-center text-caption text-mid-gray">
+            <Loader2 size={12} className="animate-spin mr-1.5" />
+            Sincronizando periodo {progress.current} de {progress.total}…
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div>
@@ -422,14 +440,10 @@ export function VentasTab({ localIds, allLocalIds, locales, localLabel }: Ventas
         </>
       )}
 
-      {loading && (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 size={24} className="animate-spin text-mid-gray" />
-          <span className="ml-2 text-body text-mid-gray">
-            {progress
-              ? `Sincronizando periodo ${progress.current} de ${progress.total}...`
-              : 'Consultando ventas del POS...'}
-          </span>
+      {loading && hasData && progress && (
+        <div className="mt-3 flex items-center justify-center text-caption text-mid-gray">
+          <Loader2 size={12} className="animate-spin mr-1.5" />
+          Sincronizando periodo {progress.current} de {progress.total}…
         </div>
       )}
 

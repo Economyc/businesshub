@@ -138,6 +138,97 @@ export function HomeCardSkeleton({ count = 2 }: { count?: number }) {
   )
 }
 
+export function PosHeroSkeleton() {
+  return (
+    <div className="relative bg-surface rounded-2xl card-elevated border border-bone/60 p-5 md:p-6 mb-4 overflow-hidden">
+      <div className="flex items-stretch justify-between gap-4 flex-wrap">
+        <div className="min-w-0 flex flex-col justify-between gap-3">
+          <Skeleton className="h-3 w-24 rounded" />
+          <div>
+            <Skeleton className="h-12 md:h-14 w-56 md:w-64 rounded" />
+            <div className="mt-2 flex items-center gap-3">
+              <Skeleton className="h-3 w-28 rounded" />
+              <Skeleton className="h-3 w-24 rounded" />
+            </div>
+          </div>
+        </div>
+        <div className="flex flex-col justify-between items-end gap-3 shrink-0">
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-3 w-16 rounded" />
+            <Skeleton className="h-3 w-20 rounded" />
+          </div>
+          <div className="text-right min-w-0">
+            <Skeleton className="h-3 w-12 rounded mb-1 ml-auto" />
+            <Skeleton className="h-4 w-32 rounded" />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export function PosCompactHeroSkeleton() {
+  return (
+    <div className="relative bg-surface rounded-2xl card-elevated border border-bone/60 p-5 mb-4 overflow-hidden">
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <Skeleton className="h-3 w-40 rounded" />
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-3 w-24 rounded" />
+          <Skeleton className="h-7 w-24 rounded-lg" />
+        </div>
+      </div>
+      <div className="flex items-end gap-6 flex-wrap">
+        <div>
+          <Skeleton className="h-3 w-20 rounded mb-2" />
+          <Skeleton className="h-10 md:h-11 w-24 rounded" />
+        </div>
+        <div className="text-right ml-auto">
+          <Skeleton className="h-3 w-16 rounded mb-1 ml-auto" />
+          <Skeleton className="h-4 w-12 rounded ml-auto" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export function PosSummaryCardsSkeleton({ count = 3 }: { count?: number }) {
+  return (
+    <div className="grid grid-cols-3 gap-3 mb-5">
+      {Array.from({ length: count }).map((_, i) => (
+        <div key={i} className="bg-surface rounded-xl border border-bone p-4 flex items-center gap-3">
+          <Skeleton className="h-9 w-9 rounded-lg shrink-0" />
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <Skeleton className="h-3 w-20 rounded" />
+            <Skeleton className="h-4 w-24 rounded" />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+export function PosProductGridSkeleton({ count = 9 }: { count?: number }) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+      {Array.from({ length: count }).map((_, i) => (
+        <div key={i} className="bg-surface rounded-xl card-elevated p-4 space-y-3">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1 space-y-1.5">
+              <Skeleton className="h-4 w-40 rounded" />
+              <Skeleton className="h-3 w-24 rounded" />
+            </div>
+            <Skeleton className="h-5 w-16 rounded-full" />
+          </div>
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-3 w-20 rounded" />
+            <Skeleton className="h-4 w-16 rounded" />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export function CarteraSkeleton() {
   return (
     <div className="space-y-6">

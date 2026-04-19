@@ -4,6 +4,14 @@ import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
 import { UnderlineButtonTabs } from '@/core/ui/underline-tabs'
 import { SyncStatusDot } from '@/core/ui/sync-status-dot'
+import {
+  PosHeroSkeleton,
+  PosCompactHeroSkeleton,
+  PosProductGridSkeleton,
+  PosSummaryCardsSkeleton,
+  Skeleton,
+  TableSkeleton,
+} from '@/core/ui/skeleton'
 import { DateRangePicker } from '@/modules/finance/components/date-range-picker'
 import { useDateRange } from '@/modules/finance/context/date-range-context'
 import { usePermissions } from '@/core/hooks/use-permissions'
@@ -64,6 +72,8 @@ export function PosSyncPage() {
 
       <UnderlineButtonTabs tabs={tabs} active={activeTab} onChange={setActiveTab} />
 
+      {loadingLocales && activeTab !== 'cache' && <PosTabSkeleton tab={activeTab} />}
+
       {locales.length > 0 && activeTab === 'ventas' && (
         <VentasTab
           localIds={activeLocalIds}
@@ -85,6 +95,36 @@ export function PosSyncPage() {
       )}
       {activeTab === 'cache' && isAdmin && <CacheStatusTab />}
     </PageTransition>
+  )
+}
+
+function PosTabSkeleton({ tab }: { tab: string }) {
+  if (tab === 'catalogo') {
+    return (
+      <div>
+        <PosCompactHeroSkeleton />
+        <div className="flex flex-wrap items-end gap-3 mb-5">
+          <Skeleton className="h-10 w-full max-w-sm rounded-[10px]" />
+          <Skeleton className="h-10 w-full sm:w-60 rounded-[10px]" />
+        </div>
+        <PosProductGridSkeleton />
+      </div>
+    )
+  }
+  if (tab === 'anuladas') {
+    return (
+      <div>
+        <PosCompactHeroSkeleton />
+        <TableSkeleton rows={4} columns={4} />
+      </div>
+    )
+  }
+  return (
+    <div>
+      <PosHeroSkeleton />
+      <PosSummaryCardsSkeleton />
+      <TableSkeleton rows={6} columns={6} />
+    </div>
   )
 }
 

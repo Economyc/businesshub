@@ -1,8 +1,9 @@
 import { useEffect, useState, useMemo } from 'react'
-import { Package, Loader2, MapPin, RefreshCw } from 'lucide-react'
+import { Package, MapPin, RefreshCw } from 'lucide-react'
 import { EmptyState } from '@/core/ui/empty-state'
 import { SearchInput } from '@/core/ui/search-input'
 import { SelectInput } from '@/core/ui/select-input'
+import { PosCompactHeroSkeleton, PosProductGridSkeleton, Skeleton } from '@/core/ui/skeleton'
 import { formatCurrency } from '@/core/utils/format'
 import { usePosCatalogo } from '../hooks'
 import type { PosProducto } from '../types'
@@ -58,6 +59,19 @@ export function CatalogoTab({ localId, localLabel }: CatalogoTabProps) {
     ...p,
     id: String(p.productogeneral_id ?? idx),
   }))
+
+  if (loading && productos.length === 0) {
+    return (
+      <div>
+        <PosCompactHeroSkeleton />
+        <div className="flex flex-wrap items-end gap-3 mb-5">
+          <Skeleton className="h-10 w-full max-w-sm rounded-[10px]" />
+          <Skeleton className="h-10 w-full sm:w-60 rounded-[10px]" />
+        </div>
+        <PosProductGridSkeleton />
+      </div>
+    )
+  }
 
   return (
     <div>
@@ -130,14 +144,6 @@ export function CatalogoTab({ localId, localLabel }: CatalogoTabProps) {
       {/* Error */}
       {error && (
         <div className="bg-red-50 text-red-700 rounded-lg px-4 py-3 text-body mb-4">{error}</div>
-      )}
-
-      {/* Loading */}
-      {loading && (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 size={24} className="animate-spin text-mid-gray" />
-          <span className="ml-2 text-body text-mid-gray">Cargando catálogo del POS...</span>
-        </div>
       )}
 
       {/* Empty */}
