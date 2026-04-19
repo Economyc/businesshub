@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect, useRef } from 'react'
-import { Search, RefreshCw, Loader2, MapPin, Receipt, Heart, Clock, TrendingUp, Truck } from 'lucide-react'
+import { Search, RefreshCw, Loader2, MapPin, Receipt, Heart, Clock, TrendingUp } from 'lucide-react'
 import { motion, useReducedMotion, useMotionValue, useTransform, animate, type Variants } from 'framer-motion'
 import { DataTable, type Column } from '@/core/ui/data-table'
 import { EmptyState } from '@/core/ui/empty-state'
@@ -567,12 +567,6 @@ const CARDS_CONFIG: CardConfig[] = [
     format: (s) => formatCurrency(s.propinas),
   },
   {
-    label: 'Envíos',
-    icon: Truck,
-    tone: 'info',
-    format: (s) => formatCurrency(s.envio),
-  },
-  {
     label: 'Ticket promedio',
     icon: TrendingUp,
     tone: 'neutral',
@@ -604,7 +598,7 @@ function SummaryCards({
 }) {
   return (
     <motion.div
-      className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5"
+      className="grid grid-cols-3 gap-3 mb-5"
       aria-live="polite"
       initial="hidden"
       animate="visible"
