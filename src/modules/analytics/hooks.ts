@@ -444,7 +444,7 @@ export function usePosAnalytics(): {
 
   const {
     ventas,
-    loading: ventasLoading,
+    isPending: ventasPending,
     rateLimited,
   } = usePosVentas({
     localIds,
@@ -452,6 +452,14 @@ export function usePosAnalytics(): {
     endDate: endStr,
     enabled: localIds.length > 0,
   })
+
+  // Solo skeleton en primera carga sin data/placeholder. Mismo patrón que
+  // Home (`posColdLoading`) y POS Sync (`showSkeleton = loading && !hasData`):
+  // durante refetches/auto-refresh, React Query mantiene los datos previos
+  // (keepPreviousData) y la UI sigue mostrando KPIs en vez de parpadear al
+  // skeleton. Incluimos localesLoading para evitar el flash datos→skeleton→datos.
+  const hasData = ventas.length > 0
+  const coldLoading = localesLoading || (ventasPending && localIds.length > 0 && !hasData)
 
   const result = useMemo(() => {
     const valid = ventas.filter((v) => !isAnulada(v))
@@ -495,7 +503,7 @@ export function usePosAnalytics(): {
 
   return {
     ...result,
-    loading: localesLoading || ventasLoading,
+    loading: coldLoading,
     rateLimited,
     hasLocales: localIds.length > 0,
   }
