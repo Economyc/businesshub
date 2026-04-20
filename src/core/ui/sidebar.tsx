@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
-import { BarChart3, Users, Briefcase, DollarSign, Home, ChevronsLeft, Building2, Tags, BadgeCheck, Network, Handshake, ClipboardList, FileSignature, Wallet, Receipt, Gift, ChevronRight, ChevronsUpDown, Check, MapPin, LogOut, Settings, Landmark, Boxes, UserRound, Bot, List, ShoppingCart, Package, Target, Scale, FileText, Shield, RefreshCw, Megaphone } from 'lucide-react'
+import { BarChart3, Users, Briefcase, DollarSign, Home, ChevronsLeft, Building2, Tags, BadgeCheck, Network, Handshake, ClipboardList, FileSignature, Wallet, Receipt, Gift, ChevronRight, ChevronsUpDown, Check, MapPin, LogOut, Settings, Landmark, Boxes, UserRound, Bot, List, ShoppingCart, Package, Target, Scale, FileText, Shield, RefreshCw, Megaphone, Lock, LockOpen } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { CommandPalette } from '@/core/ui/command-palette'
 import { CompanyLogo } from '@/core/ui/company-logo'
@@ -113,6 +113,10 @@ function getActiveSections(pathname: string): Set<string> {
 
 export function Sidebar({ onNavClick }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false)
+  const [autoHide, setAutoHide] = useState<boolean>(() =>
+    typeof window !== 'undefined' && localStorage.getItem('sidebar-auto-hide') === 'true'
+  )
+  const [hovered, setHovered] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
   const { user, logout } = useAuth()
@@ -224,24 +228,44 @@ export function Sidebar({ onNavClick }: SidebarProps) {
     }
   }, [companyOpen, userMenuOpen, settingsOpen, financeOpen])
 
+  const effectiveCollapsed = autoHide
+    ? !(hovered || companyOpen || userMenuOpen || settingsOpen || financeOpen)
+    : collapsed
+
+  function toggleAutoHide() {
+    const next = !autoHide
+    setAutoHide(next)
+    localStorage.setItem('sidebar-auto-hide', String(next))
+    if (next) {
+      setSettingsOpen(false)
+      setFinanceOpen(false)
+    }
+  }
+
   return (
-    <div className="flex flex-shrink-0 group/sidebar">
+    <div
+      className="flex flex-shrink-0 group/sidebar"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
       <nav
         className={cn(
           'bg-bone py-5 flex-shrink-0 flex flex-col transition-all duration-300 ease-in-out relative border-r border-border/60',
           settingsOpen && 'shadow-[4px_0_12px_-2px_rgba(0,0,0,0.08)]',
-          collapsed ? 'w-[14px]' : 'w-[200px]'
+          effectiveCollapsed ? 'w-[14px]' : 'w-[200px]'
         )}
       >
         {/* Collapse toggle — hover-reveal on sidebar edge */}
-        <button
-          onClick={() => { if (!collapsed) { setSettingsOpen(false); setFinanceOpen(false) }; setCollapsed(!collapsed) }}
-          className="absolute top-1/2 -translate-y-1/2 -right-3 w-6 h-6 rounded-full bg-bone border border-border shadow-sm flex items-center justify-center text-mid-gray/60 hover:text-graphite hover:bg-smoke opacity-0 group-hover/sidebar:opacity-100 transition-all duration-200 z-20 cursor-pointer"
-        >
-          <ChevronsLeft size={13} strokeWidth={1.5} className={cn('transition-transform duration-300', collapsed && 'rotate-180')} />
-        </button>
+        {!autoHide && (
+          <button
+            onClick={() => { if (!collapsed) { setSettingsOpen(false); setFinanceOpen(false) }; setCollapsed(!collapsed) }}
+            className="absolute top-1/2 -translate-y-1/2 -right-3 w-6 h-6 rounded-full bg-bone border border-border shadow-sm flex items-center justify-center text-mid-gray/60 hover:text-graphite hover:bg-smoke opacity-0 group-hover/sidebar:opacity-100 transition-all duration-200 z-20 cursor-pointer"
+          >
+            <ChevronsLeft size={13} strokeWidth={1.5} className={cn('transition-transform duration-300', collapsed && 'rotate-180')} />
+          </button>
+        )}
 
-        {!collapsed && (
+        {!effectiveCollapsed && (
           <>
             {/* Company selector */}
             <div className="mb-3 px-3" ref={companyRef}>
@@ -418,7 +442,17 @@ export function Sidebar({ onNavClick }: SidebarProps) {
 
             {/* Bottom — Notifications + User menu */}
             <div className="border-t border-border mx-4 pt-1">
-              <div className="flex justify-end py-2 px-1">
+              <div className="flex items-center justify-between py-2 px-1">
+                <button
+                  onClick={toggleAutoHide}
+                  className="p-1.5 rounded-md text-mid-gray/60 hover:text-graphite hover:bg-smoke transition-colors duration-150 cursor-pointer"
+                  title={autoHide ? 'Fijar sidebar' : 'Auto-ocultar sidebar'}
+                  aria-label={autoHide ? 'Fijar sidebar' : 'Auto-ocultar sidebar'}
+                >
+                  {autoHide
+                    ? <LockOpen size={15} strokeWidth={1.5} />
+                    : <Lock size={15} strokeWidth={1.5} />}
+                </button>
                 <NotificationBell
                   dropdownPosition="fixed"
                   fixedStyle={{ bottom: 60, left: 208 }}
