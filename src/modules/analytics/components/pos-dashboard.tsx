@@ -18,7 +18,6 @@ import { DateRangePicker } from '@/modules/finance/components/date-range-picker'
 import { useDateRange } from '@/modules/finance/context/date-range-context'
 import { SelectInput } from '@/core/ui/select-input'
 import { SyncStatusDot } from '@/core/ui/sync-status-dot'
-import { AnalyticsTabs } from './analytics-tabs'
 import { ExportPDF } from './export-pdf'
 import { ChartCard } from './shared/chart-card'
 import { EmptyChart } from './shared/empty-chart'
@@ -92,7 +91,6 @@ export function PosDashboard() {
         </div>
         <ExportPDF targetRef={dashboardRef} />
       </PageHeader>
-      <AnalyticsTabs />
 
       {loading ? (
         <DashboardSkeleton kpiCount={6} charts={2} />

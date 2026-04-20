@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
-import { BarChart3, Users, Briefcase, DollarSign, Home, ChevronsLeft, Building2, Tags, BadgeCheck, Network, Handshake, ClipboardList, FileSignature, Wallet, Receipt, Gift, ChevronRight, ChevronsUpDown, Check, MapPin, LogOut, Settings, Landmark, Boxes, UserRound, Bot, List, ShoppingCart, Package, Target, Scale, FileText, Shield, RefreshCw, Megaphone, Lock, LockOpen } from 'lucide-react'
+import { BarChart3, Users, Briefcase, DollarSign, Home, ChevronsLeft, Building2, Tags, BadgeCheck, Network, Handshake, ClipboardList, FileSignature, Wallet, Receipt, Gift, ChevronRight, ChevronsUpDown, Check, MapPin, LogOut, Settings, Landmark, Boxes, UserRound, Bot, List, ShoppingCart, Package, Target, Scale, FileText, Shield, RefreshCw, Megaphone, Lock, LockOpen, LayoutDashboard, Store, PieChart } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { CommandPalette } from '@/core/ui/command-palette'
 import { CompanyLogo } from '@/core/ui/company-logo'
@@ -96,6 +96,14 @@ const FINANCE_ITEMS: (NavItem & { end?: boolean })[] = [
   { to: '/finance/reconciliation', label: 'Conciliacion', icon: Scale },
 ]
 
+const ANALYTICS_ITEMS: (NavItem & { end?: boolean })[] = [
+  { to: '/analytics', label: 'General', icon: LayoutDashboard, end: true },
+  { to: '/analytics/pos', label: 'POS', icon: Store },
+  { to: '/analytics/costs', label: 'Costos', icon: PieChart },
+  { to: '/analytics/purchases', label: 'Compras', icon: ShoppingCart },
+  { to: '/analytics/payroll', label: 'Nómina', icon: Users },
+]
+
 
 interface SidebarProps {
   onNavClick?: () => void
@@ -137,6 +145,9 @@ export function Sidebar({ onNavClick }: SidebarProps) {
   const isFinanceRoute = location.pathname.startsWith('/finance')
   const [financeOpen, setFinanceOpen] = useState(isFinanceRoute)
 
+  const isAnalyticsRoute = location.pathname.startsWith('/analytics')
+  const [analyticsOpen, setAnalyticsOpen] = useState(isAnalyticsRoute)
+
   // Sync settings panel with route
   useEffect(() => {
     if (isSettingsRoute) setSettingsOpen(true)
@@ -147,6 +158,11 @@ export function Sidebar({ onNavClick }: SidebarProps) {
   useEffect(() => {
     if (!isFinanceRoute) setFinanceOpen(false)
   }, [isFinanceRoute])
+
+  // Close analytics panel when leaving analytics routes; don't auto-open
+  useEffect(() => {
+    if (!isAnalyticsRoute) setAnalyticsOpen(false)
+  }, [isAnalyticsRoute])
 
   // Auto-expand section of active route; collapse previous route's section when switching categories
   const previousPathnameRef = useRef<string | null>(null)
@@ -182,7 +198,15 @@ export function Sidebar({ onNavClick }: SidebarProps) {
   function handleFinanceClick() {
     setFinanceOpen(prev => {
       const next = !prev
-      if (next) setSettingsOpen(false)
+      if (next) { setSettingsOpen(false); setAnalyticsOpen(false) }
+      return next
+    })
+  }
+
+  function handleAnalyticsClick() {
+    setAnalyticsOpen(prev => {
+      const next = !prev
+      if (next) { setSettingsOpen(false); setFinanceOpen(false) }
       return next
     })
   }
@@ -196,6 +220,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
       setSettingsOpen(false)
     } else {
       setFinanceOpen(false)
+      setAnalyticsOpen(false)
       setSettingsOpen(true)
       navigate('/settings/companies')
     }
@@ -218,6 +243,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
         if (userMenuOpen) { e.preventDefault(); setUserMenuOpen(false) }
         if (settingsOpen) { e.preventDefault(); setSettingsOpen(false) }
         if (financeOpen) { e.preventDefault(); setFinanceOpen(false) }
+        if (analyticsOpen) { e.preventDefault(); setAnalyticsOpen(false) }
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -226,10 +252,10 @@ export function Sidebar({ onNavClick }: SidebarProps) {
       document.removeEventListener('mousedown', handleClickOutside)
       window.removeEventListener('keydown', handleKey, true)
     }
-  }, [companyOpen, userMenuOpen, settingsOpen, financeOpen])
+  }, [companyOpen, userMenuOpen, settingsOpen, financeOpen, analyticsOpen])
 
   const effectiveCollapsed = autoHide
-    ? !(hovered || companyOpen || userMenuOpen || settingsOpen || financeOpen)
+    ? !(hovered || companyOpen || userMenuOpen || settingsOpen || financeOpen || analyticsOpen)
     : collapsed
 
   function toggleAutoHide() {
@@ -239,6 +265,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
     if (next) {
       setSettingsOpen(false)
       setFinanceOpen(false)
+      setAnalyticsOpen(false)
     }
   }
 
@@ -258,7 +285,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
         {/* Collapse toggle — hover-reveal on sidebar edge */}
         {!autoHide && (
           <button
-            onClick={() => { if (!collapsed) { setSettingsOpen(false); setFinanceOpen(false) }; setCollapsed(!collapsed) }}
+            onClick={() => { if (!collapsed) { setSettingsOpen(false); setFinanceOpen(false); setAnalyticsOpen(false) }; setCollapsed(!collapsed) }}
             className="absolute top-1/2 -translate-y-1/2 -right-3 w-6 h-6 rounded-full bg-bone border border-border shadow-sm flex items-center justify-center text-mid-gray/60 hover:text-graphite hover:bg-smoke opacity-0 group-hover/sidebar:opacity-100 transition-all duration-200 z-20 cursor-pointer"
           >
             <ChevronsLeft size={13} strokeWidth={1.5} className={cn('transition-transform duration-300', collapsed && 'rotate-180')} />
@@ -382,15 +409,17 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                           {visibleItems.map(({ to, label, icon: Icon }, itemIdx) => {
                             const isLastItem = itemIdx === visibleItems.length - 1
 
-                            if (to === '/finance') {
+                            if (to === '/finance' || to === '/analytics') {
+                              const isPanelRoute = to === '/finance' ? isFinanceRoute : isAnalyticsRoute
+                              const onClick = to === '/finance' ? handleFinanceClick : handleAnalyticsClick
                               return (
                                 <button
                                   key={to}
-                                  onClick={handleFinanceClick}
+                                  onClick={onClick}
                                   className={cn(
                                     'group/nav relative flex items-center gap-2.5 py-2.5 text-body transition-all duration-150 w-full',
                                     section.title ? 'pl-8 pr-5' : 'px-5',
-                                    isFinanceRoute
+                                    isPanelRoute
                                       ? 'text-dark-graphite font-medium bg-bone border-r-2 border-graphite'
                                       : 'text-graphite/70 hover:bg-card-bg hover:text-graphite'
                                   )}
@@ -569,6 +598,47 @@ export function Sidebar({ onNavClick }: SidebarProps) {
         <div className="mx-4 pt-1 border-t border-border flex justify-end">
           <button
             onClick={() => setFinanceOpen(false)}
+            className="group/close relative flex items-center justify-center p-1.5 rounded-md text-mid-gray/50 hover:text-graphite transition-colors duration-200"
+          >
+            <ChevronsLeft size={15} strokeWidth={1.5} />
+          </button>
+        </div>
+      </div>
+
+      {/* Analytics sub-panel */}
+      <div
+        className={cn(
+          'bg-card-bg border-r border-border flex flex-col py-5 overflow-hidden transition-all duration-300 ease-in-out',
+          analyticsOpen ? 'w-[200px] opacity-100' : 'w-0 opacity-0'
+        )}
+      >
+        <div className="px-4 mb-4">
+          <h3 className="text-caption uppercase tracking-wider text-mid-gray font-medium">Análisis</h3>
+        </div>
+        <div className="flex flex-col gap-0.5 flex-1">
+          {ANALYTICS_ITEMS.map(({ to, label, icon: Icon, end }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={end}
+              onClick={() => { onNavClick?.(); setAnalyticsOpen(false) }}
+              className={({ isActive }) =>
+                cn(
+                  'flex items-center gap-2.5 px-4 py-2.5 text-body transition-all duration-150 whitespace-nowrap',
+                  isActive
+                    ? 'text-dark-graphite font-medium bg-bone/80'
+                    : 'text-graphite/70 hover:bg-bone/50 hover:text-graphite'
+                )
+              }
+            >
+              <Icon size={16} strokeWidth={1.5} />
+              {label}
+            </NavLink>
+          ))}
+        </div>
+        <div className="mx-4 pt-1 border-t border-border flex justify-end">
+          <button
+            onClick={() => setAnalyticsOpen(false)}
             className="group/close relative flex items-center justify-center p-1.5 rounded-md text-mid-gray/50 hover:text-graphite transition-colors duration-200"
           >
             <ChevronsLeft size={15} strokeWidth={1.5} />

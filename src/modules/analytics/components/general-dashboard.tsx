@@ -12,7 +12,6 @@ import { staggerContainer } from '@/core/animations/variants'
 import { formatCurrency } from '@/core/utils/format'
 import { DashboardSkeleton } from '@/core/ui/skeleton'
 import { DateRangePicker } from '@/modules/finance/components/date-range-picker'
-import { AnalyticsTabs } from './analytics-tabs'
 import { ExportPDF } from './export-pdf'
 import { ChartCard } from './shared/chart-card'
 import { ChartTooltip } from './shared/chart-tooltip'
@@ -37,7 +36,6 @@ export function GeneralDashboard() {
         <DateRangePicker />
         <ExportPDF targetRef={dashboardRef} />
       </PageHeader>
-      <AnalyticsTabs />
 
       {loading ? (
         <DashboardSkeleton kpiCount={5} charts={2} />

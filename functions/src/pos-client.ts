@@ -4,9 +4,12 @@
 // debe pasar por aquí para mantener un único lugar con el rate-limit, retries
 // y manejo de "tipo !== 1" — el POS entrega errores y rate-limits dentro del
 // body con status 200, así que no basta con revisar `res.ok`.
+//
+// Multi-tenant: `domainId` y `token` se reciben como parámetros; el resolver
+// vive en `pos-tenants.ts`. Esto permite que varias empresas (Blue, Filipo,
+// etc.) usen sus propios dominios/credenciales sin código duplicado.
 
 export const POS_BASE_URL = 'http://api.restaurant.pe/restaurant'
-export const POS_DOMAIN_ID = '8267'
 
 export const BATCH_DELAY_MS = 5000
 export const MAX_RETRIES = 3
@@ -68,9 +71,12 @@ export function extractVentas(response: PosApiResponse): unknown[] {
   return []
 }
 
-export async function fetchDominio(token: string): Promise<PosDominioResult> {
+export async function fetchDominio(
+  token: string,
+  domainId: string,
+): Promise<PosDominioResult> {
   const url = buildUrl(
-    `/readonly/rest/delivery/obtenerInformacionDominio/${POS_DOMAIN_ID}`,
+    `/readonly/rest/delivery/obtenerInformacionDominio/${domainId}`,
     token,
   )
   const raw = (await fetchPosApi(url)) as PosApiResponse
@@ -95,11 +101,12 @@ export interface FetchAllPagesResult {
 // en ejecución" reintentamos hasta MAX_RETRIES esperando BATCH_DELAY_MS.
 export async function fetchAllPagesForLocal(
   token: string,
+  domainId: string,
   localId: number,
   f1: string,
   f2: string,
 ): Promise<FetchAllPagesResult> {
-  const endpointPath = `/readonly/rest/venta/obtenerVentasPorIntegracion/${POS_DOMAIN_ID}`
+  const endpointPath = `/readonly/rest/venta/obtenerVentasPorIntegracion/${domainId}`
   const ventas: unknown[] = []
   let pagina = 1
   let requestCount = 0
@@ -155,9 +162,13 @@ export async function fetchAllPagesForLocal(
   return { ventas, rateLimited: false, requestCount }
 }
 
-export async function fetchCatalogo(token: string, localId: number): Promise<unknown[]> {
+export async function fetchCatalogo(
+  token: string,
+  domainId: string,
+  localId: number,
+): Promise<unknown[]> {
   const url = buildUrl(
-    `/readonly/rest/delivery/obtenerCartaPorLocal/${POS_DOMAIN_ID}/${localId}`,
+    `/readonly/rest/delivery/obtenerCartaPorLocal/${domainId}/${localId}`,
     token,
   )
   const raw = (await fetchPosApi(url)) as PosApiResponse
