@@ -8,15 +8,6 @@ import {
   Ticket,
   ShoppingCart,
 } from 'lucide-react'
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from 'recharts'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
 import { KPICard } from '@/core/ui/kpi-card'
@@ -30,13 +21,8 @@ import { SyncStatusDot } from '@/core/ui/sync-status-dot'
 import { AnalyticsTabs } from './analytics-tabs'
 import { ExportPDF } from './export-pdf'
 import { ChartCard } from './shared/chart-card'
-import { ChartTooltip } from './shared/chart-tooltip'
 import { EmptyChart } from './shared/empty-chart'
-import {
-  CHART_SEMANTIC,
-  CHART_AXIS_TICK,
-  paletteColor,
-} from './shared/chart-theme'
+import { CHART_SEMANTIC, paletteColor } from './shared/chart-theme'
 import { usePosAnalytics } from '../hooks'
 
 function pct(part: number, total: number): string {
@@ -253,54 +239,38 @@ export function PosDashboard() {
                   }
                 />
               ) : (
-                <ResponsiveContainer width="100%" height={Math.max(productsToShow.length * 32, 240)}>
-                  <BarChart
-                    data={productsToShow}
-                    layout="vertical"
-                    margin={{ top: 4, right: 16, left: 8, bottom: 4 }}
-                  >
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      stroke={CHART_SEMANTIC.grid}
-                      horizontal={false}
-                    />
-                    <XAxis
-                      type="number"
-                      tickFormatter={(v) => formatCurrency(v)}
-                      tick={CHART_AXIS_TICK}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      type="category"
-                      dataKey="name"
-                      tick={CHART_AXIS_TICK}
-                      axisLine={false}
-                      tickLine={false}
-                      width={120}
-                    />
-                    <Tooltip
-                      content={
-                        <ChartTooltip
-                          variant="single"
-                          extraLine={(p) =>
-                            p?.quantity != null
-                              ? `${Number(p.quantity).toLocaleString('es-CO')} unidades`
-                              : null
-                          }
-                        />
-                      }
-                      cursor={{ fill: CHART_SEMANTIC.muted }}
-                    />
-                    <Bar
-                      dataKey="amount"
-                      name="Venta"
-                      fill={CHART_SEMANTIC.income}
-                      radius={[0, 4, 4, 0]}
-                      barSize={16}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
+                <ul className="divide-y divide-border/60">
+                  {productsToShow.map((p, i) => {
+                    const maxAmount = productsToShow[0]?.amount ?? 0
+                    const pctWidth =
+                      maxAmount > 0 ? Math.max((p.amount / maxAmount) * 100, 2) : 2
+                    return (
+                      <li
+                        key={p.id}
+                        className="grid grid-cols-[auto_minmax(0,1.4fr)_minmax(0,1fr)_auto] items-center gap-4 py-3"
+                      >
+                        <span className="text-caption text-mid-gray tabular-nums w-6">
+                          {String(i + 1).padStart(2, '0')}
+                        </span>
+                        <span className="text-body text-graphite font-medium truncate">
+                          {p.name}
+                        </span>
+                        <div className="h-2 rounded-full bg-bone overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all duration-700 ease-out"
+                            style={{
+                              width: `${pctWidth}%`,
+                              backgroundColor: CHART_SEMANTIC.income,
+                            }}
+                          />
+                        </div>
+                        <span className="text-body text-mid-gray tabular-nums w-24 text-right">
+                          {formatCurrency(p.amount)}
+                        </span>
+                      </li>
+                    )
+                  })}
+                </ul>
               )}
             </ChartCard>
           </motion.div>
