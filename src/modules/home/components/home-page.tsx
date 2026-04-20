@@ -1,19 +1,13 @@
 import { RefreshCw, Loader2, AlertCircle } from 'lucide-react'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
-import { DashboardSkeleton } from '@/core/ui/skeleton'
+import { Skeleton, KPICardSkeleton } from '@/core/ui/skeleton'
 import { SyncStatusDot } from '@/core/ui/sync-status-dot'
 import { useAuth } from '@/core/hooks/use-auth'
 import { DateRangePicker } from '@/modules/finance/components/date-range-picker'
 import { useDateRange } from '@/modules/finance/context/date-range-context'
 import { useDashboardData } from '../hooks'
-import type {
-  DashboardKPIs,
-  SalesTrendPoint,
-  DashboardAlerts,
-  DashboardSyncStatus,
-  DashboardProjection,
-} from '../hooks'
+import type { DashboardSyncStatus } from '../hooks'
 import { HomeFiltersProvider } from '../context/home-filters-context'
 import { KPICardsRow } from './kpi-cards-row'
 import { SalesTrendChart } from './sales-trend-chart'
@@ -51,41 +45,35 @@ function PosCacheStaleBanner({ syncStatus }: { syncStatus: DashboardSyncStatus }
   )
 }
 
-interface DashboardContentProps {
-  kpis: DashboardKPIs
-  salesTrend: SalesTrendPoint[]
-  alerts: DashboardAlerts
-  periodLabel: string
-  comparisonLabel: string
-  startDate: Date
-  endDate: Date
-  projection: DashboardProjection
+function KPIRowSkeleton() {
+  return (
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <KPICardSkeleton key={i} />
+      ))}
+    </div>
+  )
 }
 
-function DashboardContent({
-  kpis,
-  salesTrend,
-  alerts,
-  periodLabel,
-  comparisonLabel,
-  startDate,
-  endDate,
-  projection,
-}: DashboardContentProps) {
+function SalesTrendSkeleton() {
   return (
-    <div className="space-y-6">
-      <KPICardsRow kpis={kpis} periodLabel={periodLabel} comparisonLabel={comparisonLabel} />
-      {projection.applicable && <MonthProjectionTile projection={projection} />}
-      <SalesTrendChart
-        data={salesTrend}
-        startDate={startDate}
-        endDate={endDate}
-        projection={projection.applicable ? projection.futurePoints : undefined}
-      />
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <AlertsPanel alerts={alerts} />
-        <QuickActions />
-      </div>
+    <div className="bg-surface rounded-xl card-elevated p-6">
+      <Skeleton className="h-5 w-40 rounded mb-4" />
+      <Skeleton className="h-[220px] w-full rounded-lg" />
+    </div>
+  )
+}
+
+function AlertsSkeleton() {
+  return (
+    <div className="bg-surface rounded-xl card-elevated p-5 space-y-3">
+      <Skeleton className="h-4 w-32 rounded" />
+      {Array.from({ length: 3 }).map((_, i) => (
+        <div key={i} className="flex items-center justify-between">
+          <Skeleton className="h-4 w-40 rounded" />
+          <Skeleton className="h-4 w-16 rounded" />
+        </div>
+      ))}
     </div>
   )
 }
@@ -97,7 +85,9 @@ function HomePageContent() {
     kpis,
     salesTrend,
     alerts,
-    loading,
+    kpisLoading,
+    chartLoading,
+    alertsLoading,
     syncStatus,
     cajasDisponibles,
     comparisonLabel,
@@ -139,64 +129,70 @@ function HomePageContent() {
           </div>
         </PageHeader>
       </div>
-      {loading ? (
-        <DashboardSkeleton kpiCount={4} charts={1} />
-      ) : (
-        <>
-          <PosCacheStaleBanner syncStatus={syncStatus} />
-          {reconcilingHistoric && (
-            <div className="bg-info-bg text-info-text rounded-xl px-4 py-3 text-body mb-4 flex items-center gap-2">
-              <Loader2 size={14} className="animate-spin" />
-              <span>
-                Rellenando históricos del POS para este rango — puede tardar unos minutos. Los datos se actualizarán solos cuando termine.
-              </span>
+      <PosCacheStaleBanner syncStatus={syncStatus} />
+      {reconcilingHistoric && (
+        <div className="bg-info-bg text-info-text rounded-xl px-4 py-3 text-body mb-4 flex items-center gap-2">
+          <Loader2 size={14} className="animate-spin" />
+          <span>
+            Rellenando históricos del POS para este rango — puede tardar unos minutos. Los datos se actualizarán solos cuando termine.
+          </span>
+        </div>
+      )}
+      {reconcileError && !reconcilingHistoric && (
+        <div className="bg-negative-bg text-negative-text rounded-xl px-4 py-3 text-body mb-4 flex items-start justify-between gap-3">
+          <div className="flex items-start gap-2">
+            <AlertCircle size={16} className="mt-0.5 shrink-0" />
+            <div>
+              <div>No se pudieron cargar los históricos del POS.</div>
+              <div className="text-caption mt-1 opacity-80">{reconcileError}</div>
             </div>
+          </div>
+          {retryReconcile && (
+            <button
+              type="button"
+              onClick={retryReconcile}
+              className="shrink-0 flex items-center gap-1.5 rounded-lg border border-negative-text/30 px-3 py-1.5 text-caption hover:bg-negative-text/10 transition"
+            >
+              <RefreshCw size={14} />
+              Reintentar
+            </button>
           )}
-          {reconcileError && !reconcilingHistoric && (
-            <div className="bg-negative-bg text-negative-text rounded-xl px-4 py-3 text-body mb-4 flex items-start justify-between gap-3">
-              <div className="flex items-start gap-2">
-                <AlertCircle size={16} className="mt-0.5 shrink-0" />
-                <div>
-                  <div>No se pudieron cargar los históricos del POS.</div>
-                  <div className="text-caption mt-1 opacity-80">{reconcileError}</div>
-                </div>
-              </div>
-              {retryReconcile && (
-                <button
-                  type="button"
-                  onClick={retryReconcile}
-                  className="shrink-0 flex items-center gap-1.5 rounded-lg border border-negative-text/30 px-3 py-1.5 text-caption hover:bg-negative-text/10 transition"
-                >
-                  <RefreshCw size={14} />
-                  Reintentar
-                </button>
-              )}
-            </div>
+        </div>
+      )}
+      {lastCronRun && !reconcilingHistoric && !reconcileError && (
+        <div className="text-caption text-mid-gray mb-4">
+          Reconcile nocturno {lastCronRun.date} ·{' '}
+          {lastCronRun.hadErrors ? (
+            <span className="text-warning-text">con errores</span>
+          ) : (
+            <span className="text-positive-text">
+              {lastCronRun.ventasWritten.toLocaleString('es-CO')} ventas escritas
+            </span>
           )}
-          {lastCronRun && !reconcilingHistoric && !reconcileError && (
-            <div className="text-caption text-mid-gray mb-4">
-              Reconcile nocturno {lastCronRun.date} ·{' '}
-              {lastCronRun.hadErrors ? (
-                <span className="text-warning-text">con errores</span>
-              ) : (
-                <span className="text-positive-text">
-                  {lastCronRun.ventasWritten.toLocaleString('es-CO')} ventas escritas
-                </span>
-              )}
-            </div>
-          )}
-          <DashboardContent
-            kpis={kpis}
-            salesTrend={salesTrend}
-            alerts={alerts}
-            periodLabel={presetLabel}
-            comparisonLabel={comparisonLabel}
+        </div>
+      )}
+      <div className="space-y-6">
+        {kpisLoading ? (
+          <KPIRowSkeleton />
+        ) : (
+          <KPICardsRow kpis={kpis} periodLabel={presetLabel} comparisonLabel={comparisonLabel} />
+        )}
+        {!chartLoading && projection.applicable && <MonthProjectionTile projection={projection} />}
+        {chartLoading ? (
+          <SalesTrendSkeleton />
+        ) : (
+          <SalesTrendChart
+            data={salesTrend}
             startDate={startDate}
             endDate={endDate}
-            projection={projection}
+            projection={projection.applicable ? projection.futurePoints : undefined}
           />
-        </>
-      )}
+        )}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {alertsLoading ? <AlertsSkeleton /> : <AlertsPanel alerts={alerts} />}
+          <QuickActions />
+        </div>
+      </div>
     </PageTransition>
   )
 }

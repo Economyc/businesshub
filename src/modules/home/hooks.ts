@@ -730,14 +730,15 @@ export function useDashboardData() {
     return { overdueItems, budgetExceeded, expiringContracts }
   }, [receivables, payables, budgetComparison, suppliers, contracts])
 
-  const loading =
-    txLoading ||
-    closingsLoading ||
-    carteraLoading ||
-    budgetLoading ||
-    suppliersLoading ||
-    contractsLoading ||
-    posColdLoading
+  // Carga progresiva: cada sección tiene su propio flag según las fuentes que
+  // consume, así Home pinta cada card cuando su data está lista en vez de
+  // esperar a que todas las queries terminen antes del first paint.
+  const kpisLoading =
+    txLoading || carteraLoading || posColdLoading
+  const chartLoading =
+    txLoading || closingsLoading || posColdLoading
+  const alertsLoading =
+    carteraLoading || budgetLoading || suppliersLoading || contractsLoading
 
   const syncStatus = useMemo<DashboardSyncStatus>(
     () => ({
@@ -813,7 +814,9 @@ export function useDashboardData() {
     kpis,
     salesTrend,
     alerts,
-    loading,
+    kpisLoading,
+    chartLoading,
+    alertsLoading,
     syncStatus,
     cajasDisponibles,
     comparisonLabel,
