@@ -16,17 +16,15 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
 } from 'recharts'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
 import { KPICard } from '@/core/ui/kpi-card'
-import { staggerContainer } from '@/core/animations/variants'
+import { staggerContainer, staggerItem } from '@/core/animations/variants'
 import { formatCurrency } from '@/core/utils/format'
 import { DashboardSkeleton } from '@/core/ui/skeleton'
 import { DateRangePicker } from '@/modules/finance/components/date-range-picker'
+import { useDateRange } from '@/modules/finance/context/date-range-context'
 import { SelectInput } from '@/core/ui/select-input'
 import { SyncStatusDot } from '@/core/ui/sync-status-dot'
 import { AnalyticsTabs } from './analytics-tabs'
@@ -51,6 +49,7 @@ const ALL_CATEGORIES_VALUE = '__all__'
 export function PosDashboard() {
   const dashboardRef = useRef<HTMLDivElement>(null)
   const [productCategory, setProductCategory] = useState<string>(ALL_CATEGORIES_VALUE)
+  const { presetLabel } = useDateRange()
   const {
     totals,
     topCategories,
@@ -172,53 +171,61 @@ export function PosDashboard() {
             animate="animate"
             className="grid grid-cols-1 lg:grid-cols-2 gap-6"
           >
-            <ChartCard
-              eyebrow="Composición"
-              title="Desglose del ticket"
-              description="Ventas netas vs impuestos, propinas y descuentos"
+            <motion.section
+              variants={staggerItem}
+              className="bg-surface rounded-2xl card-elevated p-6"
             >
               {compositionData.length === 0 ? (
                 <EmptyChart message="Sin ventas en el periodo" />
               ) : (
                 <>
-                  <ResponsiveContainer width="100%" height={280}>
-                    <PieChart>
-                      <Pie
-                        data={compositionData}
-                        dataKey="value"
-                        nameKey="name"
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={64}
-                        outerRadius={110}
-                        paddingAngle={2}
-                        strokeWidth={0}
-                      >
-                        {compositionData.map((entry, i) => (
-                          <Cell key={entry.name} fill={paletteColor(i)} />
-                        ))}
-                      </Pie>
-                      <Tooltip content={<ChartTooltip variant="pie" />} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="flex flex-wrap gap-x-4 gap-y-1.5 justify-center mt-3">
+                  <header className="flex flex-wrap items-baseline gap-x-3 gap-y-1 mb-4">
+                    <span className="text-kpi font-semibold text-dark-graphite tabular-nums break-all">
+                      {formatCurrency(compositionTotal)}
+                    </span>
+                    <span className="text-caption uppercase tracking-wider text-mid-gray font-medium">
+                      Ticket total · {presetLabel}
+                    </span>
+                  </header>
+
+                  <div className="flex h-2 w-full overflow-hidden rounded-full bg-smoke mb-2">
                     {compositionData.map((slice, i) => (
                       <div
                         key={slice.name}
-                        className="flex items-center gap-1.5 text-caption text-mid-gray"
-                      >
-                        <span
-                          className="inline-block w-2 h-2 rounded-full"
-                          style={{ backgroundColor: paletteColor(i) }}
-                        />
-                        <span className="text-graphite">{slice.name}</span>
-                        <span>{slice.percentage.toFixed(1)}%</span>
-                      </div>
+                        style={{
+                          width: `${slice.percentage}%`,
+                          backgroundColor: paletteColor(i),
+                        }}
+                      />
                     ))}
                   </div>
+
+                  <ul className="divide-y divide-border/60">
+                    {compositionData.map((slice, i) => (
+                      <li
+                        key={slice.name}
+                        className="flex items-center gap-3 py-3 text-body"
+                      >
+                        <span
+                          className="inline-block w-2 h-2 rounded-full shrink-0"
+                          style={{ backgroundColor: paletteColor(i) }}
+                          aria-hidden
+                        />
+                        <span className="text-graphite flex-1 min-w-0 truncate">
+                          {slice.name}
+                        </span>
+                        <span className="text-mid-gray tabular-nums">
+                          {formatCurrency(slice.value)}
+                        </span>
+                        <span className="text-dark-graphite font-medium tabular-nums w-14 text-right">
+                          {slice.percentage.toFixed(1)}%
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
                 </>
               )}
-            </ChartCard>
+            </motion.section>
 
             <ChartCard
               eyebrow="Top 10"
