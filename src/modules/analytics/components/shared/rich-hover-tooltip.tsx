@@ -35,7 +35,7 @@ export function RichHoverTooltip({
         side={side}
         sideOffset={8}
         collisionPadding={12}
-        className="bg-surface text-graphite card-elevated border border-border/60 rounded-xl px-4 py-3 min-w-[220px] shadow-none"
+        className="bg-surface text-graphite card-elevated rounded-xl px-4 py-3 min-w-[220px]"
       >
         <div className="flex items-center gap-2">
           {accentColor && (
