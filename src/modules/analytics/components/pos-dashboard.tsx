@@ -39,6 +39,7 @@ export function PosDashboard() {
   const {
     totals,
     topCategories,
+    categoriesTotal,
     topProducts,
     allCategories,
     productsByCategory,
@@ -278,7 +279,7 @@ export function PosDashboard() {
           <ChartCard
             eyebrow="Top 5"
             title="Categorías con mayor venta"
-            description="Suma de ítems vendidos por categoría"
+            description="Participación por categoría sobre el total vendido"
           >
             {topCategories.length === 0 ? (
               <EmptyChart height={200} compact message="Sin ventas categorizadas" />
@@ -303,8 +304,13 @@ export function PosDashboard() {
                         }}
                       />
                     </div>
-                    <span className="text-body font-medium text-dark-graphite w-20 sm:w-28 text-right tabular-nums">
+                    <span className="text-body font-medium text-dark-graphite w-20 sm:w-24 text-right tabular-nums">
                       {formatCurrency(cat.amount)}
+                    </span>
+                    <span className="text-caption text-mid-gray tabular-nums w-12 text-right">
+                      {categoriesTotal > 0
+                        ? `${((cat.amount / categoriesTotal) * 100).toFixed(1)}%`
+                        : '0.0%'}
                     </span>
                   </div>
                 ))}

@@ -431,6 +431,7 @@ export interface PosProductSlice {
 export function usePosAnalytics(): {
   totals: PosTotals
   topCategories: PosCategorySlice[]
+  categoriesTotal: number
   topProducts: PosProductSlice[]
   allCategories: string[]
   productsByCategory: Record<string, PosProductSlice[]>
@@ -519,6 +520,7 @@ export function usePosAnalytics(): {
       .map(([category, amount]) => ({ category, amount }))
       .sort((a, b) => b.amount - a.amount)
 
+    const categoriesTotal = sortedCategories.reduce((s, c) => s + c.amount, 0)
     const topCategories: PosCategorySlice[] = sortedCategories.slice(0, 5)
 
     const topProducts: PosProductSlice[] = Array.from(prodMap.values())
@@ -534,7 +536,14 @@ export function usePosAnalytics(): {
         .slice(0, 10)
     }
 
-    return { totals, topCategories, topProducts, allCategories, productsByCategory }
+    return {
+      totals,
+      topCategories,
+      categoriesTotal,
+      topProducts,
+      allCategories,
+      productsByCategory,
+    }
   }, [ventas])
 
   return {

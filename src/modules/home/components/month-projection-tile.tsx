@@ -30,14 +30,19 @@ export function MonthProjectionTile({ projection }: MonthProjectionTileProps) {
         : 'bg-warning-bg text-warning-text'
 
   return (
-    <div className="bg-surface rounded-xl p-4 sm:p-[18px] card-elevated">
+    <div className="bg-surface rounded-xl p-4 sm:p-[18px] border border-dashed border-border-hover/60">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         {/* Valor proyectado */}
         <div className="min-w-0">
-          <div className="flex items-center gap-1.5 mb-1">
-            <TrendingUp size={14} strokeWidth={1.5} className="text-smoke" />
-            <span className="text-caption uppercase tracking-wider text-mid-gray">
-              Proyección fin de mes
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
+            <div className="flex items-center gap-1.5">
+              <TrendingUp size={14} strokeWidth={1.5} className="text-mid-gray" />
+              <span className="text-caption uppercase tracking-wider text-mid-gray">
+                Proyección fin de mes
+              </span>
+            </div>
+            <span className="text-caption uppercase tracking-wider px-2 py-0.5 rounded-full bg-smoke text-mid-gray">
+              Estimado
             </span>
           </div>
           <div className="flex flex-wrap items-baseline gap-2">
@@ -64,22 +69,34 @@ export function MonthProjectionTile({ projection }: MonthProjectionTileProps) {
           </div>
         </div>
 
-        {/* Progreso del mes */}
-        <div className="sm:text-right sm:min-w-[220px]">
-          <div className="flex items-center justify-between sm:justify-end gap-3 mb-1.5">
-            <span className="text-caption text-mid-gray">
-              Día {daysElapsed} de {daysInMonth}
-              {daysRemaining > 0 && ` · faltan ${daysRemaining}`}
-            </span>
+        {/* Real acumulado + progreso dual */}
+        <div className="sm:text-right sm:min-w-[240px]">
+          <div className="text-caption uppercase tracking-wider text-mid-gray mb-1">
+            Real acumulado
           </div>
-          <div className="h-1.5 rounded-full bg-smoke overflow-hidden">
+          <div className="text-subheading font-medium text-dark-graphite mb-2">
+            {formatCurrency(mtd)}
+          </div>
+
+          <div className="relative h-2 rounded-full bg-smoke overflow-hidden">
             <div
-              className="h-full bg-graphite rounded-full transition-all"
+              className="absolute inset-y-0 left-0 bg-graphite rounded-full transition-all"
               style={{ width: `${progressPct}%` }}
             />
+            <div
+              className="absolute inset-y-0 rounded-full transition-all"
+              style={{
+                left: `${progressPct}%`,
+                width: `${100 - progressPct}%`,
+                backgroundImage:
+                  'repeating-linear-gradient(90deg, var(--app-border-hover) 0 3px, transparent 3px 6px)',
+              }}
+            />
           </div>
+
           <div className="mt-1.5 text-caption text-mid-gray">
-            Real acumulado: {formatCurrency(mtd)}
+            Día {daysElapsed} de {daysInMonth}
+            {daysRemaining > 0 && ` · faltan ${daysRemaining}`}
           </div>
         </div>
       </div>
