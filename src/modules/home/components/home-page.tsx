@@ -1,7 +1,7 @@
 import { RefreshCw, Loader2, AlertCircle } from 'lucide-react'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
-import { Skeleton, KPICardSkeleton } from '@/core/ui/skeleton'
+import { Skeleton } from '@/core/ui/skeleton'
 import { SyncStatusDot } from '@/core/ui/sync-status-dot'
 import { useAuth } from '@/core/hooks/use-auth'
 import { DateRangePicker } from '@/modules/finance/components/date-range-picker'
@@ -45,16 +45,6 @@ function PosCacheStaleBanner({ syncStatus }: { syncStatus: DashboardSyncStatus }
   )
 }
 
-function KPIRowSkeleton() {
-  return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      {Array.from({ length: 4 }).map((_, i) => (
-        <KPICardSkeleton key={i} />
-      ))}
-    </div>
-  )
-}
-
 function SalesTrendSkeleton() {
   return (
     <div className="bg-surface rounded-xl card-elevated p-6">
@@ -85,7 +75,10 @@ function HomePageContent() {
     kpis,
     salesTrend,
     alerts,
-    kpisLoading,
+    ventasLoading,
+    gastosLoading,
+    costoLoading,
+    porCobrarLoading,
     chartLoading,
     alertsLoading,
     syncStatus,
@@ -172,11 +165,15 @@ function HomePageContent() {
         </div>
       )}
       <div className="space-y-6">
-        {kpisLoading ? (
-          <KPIRowSkeleton />
-        ) : (
-          <KPICardsRow kpis={kpis} periodLabel={presetLabel} comparisonLabel={comparisonLabel} />
-        )}
+        <KPICardsRow
+          kpis={kpis}
+          periodLabel={presetLabel}
+          comparisonLabel={comparisonLabel}
+          ventasLoading={ventasLoading}
+          gastosLoading={gastosLoading}
+          costoLoading={costoLoading}
+          porCobrarLoading={porCobrarLoading}
+        />
         {!chartLoading && projection.applicable && <MonthProjectionTile projection={projection} />}
         {chartLoading ? (
           <SalesTrendSkeleton />

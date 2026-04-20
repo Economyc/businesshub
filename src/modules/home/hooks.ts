@@ -755,13 +755,17 @@ export function useDashboardData() {
     return { overdueItems, budgetExceeded, expiringContracts }
   }, [receivables, payables, budgetComparison, suppliers, contracts])
 
-  // Carga progresiva: cada sección tiene su propio flag según las fuentes que
-  // consume, así Home pinta cada card cuando su data está lista en vez de
-  // esperar a que todas las queries terminen antes del first paint.
-  const kpisLoading =
-    txLoading || carteraLoading || posColdLoading
-  const chartLoading =
-    txLoading || closingsLoading || posColdLoading
+  // Carga progresiva por KPI/sección. Cada card aparece en cuanto su propia
+  // fuente está lista, en vez de esperar a que la más lenta termine.
+  // Ventas solo necesita POS (cold load); gastos/costo necesitan transacciones
+  // (collection entera sin límite, puede ser pesada); por cobrar necesita
+  // cartera; gráfica necesita POS+closings+transacciones; alertas necesitan
+  // cartera+budget+suppliers+contracts.
+  const ventasLoading = posColdLoading
+  const gastosLoading = txLoading
+  const costoLoading = txLoading
+  const porCobrarLoading = carteraLoading
+  const chartLoading = txLoading || closingsLoading || posColdLoading
   const alertsLoading =
     carteraLoading || budgetLoading || suppliersLoading || contractsLoading
 
@@ -839,7 +843,10 @@ export function useDashboardData() {
     kpis,
     salesTrend,
     alerts,
-    kpisLoading,
+    ventasLoading,
+    gastosLoading,
+    costoLoading,
+    porCobrarLoading,
     chartLoading,
     alertsLoading,
     syncStatus,
