@@ -156,22 +156,31 @@ export function useDashboardData() {
     }
   }, [startDate, endDate])
 
-  // Rango estable de fetch: 1° de enero del año anterior → hoy. No depende del
-  // preset visible: así el queryKey de `usePosVentas` no cambia al alternar
-  // presets y React Query sirve desde su cache en memoria — el filtrado por
-  // rango visible ocurre downstream (KPIs, gráfica, proyección).
-  // Antes, cada preset producía un `posRangeStart` distinto → nuevo queryKey →
-  // re-lectura de Firestore y placeholder con data parcial mientras llegaba el
-  // cache completo (se veía como enero-febrero "plano" al entrar a YTD).
-  // Elegimos enero del año anterior porque es el `prevStart` más lejano posible
-  // (YTD con hoy = 31-dic compara contra el año anterior completo).
-  const posRangeStart = useMemo(() => {
-    const now = new Date()
-    return toDateStr(new Date(now.getFullYear() - 1, 0, 1))
-  }, [])
-  const posRangeEnd = useMemo(() => toDateStr(new Date()), [])
+  // Dos queries con queryKey estable para que cambiar de preset no re-lea
+  // Firestore. Split principal/background:
+  //  - `current year`: carga primero, desbloquea KPIs y gráfica rápido. Cubre
+  //    todos los presets visibles (hoy, semana, mes, YTD).
+  //  - `prev year`: carga en background para alimentar la comparación vs año
+  //    anterior (YTD principalmente) y los prev-periods que caen en el año
+  //    anterior (ej. "Último mes" en enero).
+  // Split-en-dos evita el problema de UX: antes pedíamos los 1.5 años juntos
+  // y Firestore tardaba en entregar todo antes del first paint.
+  const currentYearStart = useMemo(
+    () => toDateStr(new Date(new Date().getFullYear(), 0, 1)),
+    [],
+  )
+  const todayStr = useMemo(() => toDateStr(new Date()), [])
+  const prevYearStart = useMemo(
+    () => toDateStr(new Date(new Date().getFullYear() - 1, 0, 1)),
+    [],
+  )
+  const prevYearEnd = useMemo(
+    () => toDateStr(new Date(new Date().getFullYear() - 1, 11, 31)),
+    [],
+  )
+
   const {
-    ventas: posVentas,
+    ventas: currentYearVentas,
     loading: posLoading,
     isPending: posIsPending,
     lastUpdated: posLastUpdated,
@@ -180,10 +189,22 @@ export function useDashboardData() {
     refetch: posRefetch,
   } = usePosVentas({
     localIds,
-    startDate: posRangeStart,
-    endDate: posRangeEnd,
+    startDate: currentYearStart,
+    endDate: todayStr,
     enabled: localIds.length > 0,
   })
+
+  const { ventas: prevYearVentas, refetch: prevYearRefetch } = usePosVentas({
+    localIds,
+    startDate: prevYearStart,
+    endDate: prevYearEnd,
+    enabled: localIds.length > 0,
+  })
+
+  const posVentas = useMemo(
+    () => [...currentYearVentas, ...prevYearVentas],
+    [currentYearVentas, prevYearVentas],
+  )
 
   // Solo skeleton en la primera carga sin data/placeholder. Antes usábamos
   // `posLoading && posVentas.length === 0` que mantenía el skeleton eterno
@@ -226,6 +247,10 @@ export function useDashboardData() {
   const [reconcileError, setReconcileError] = useState<string | null>(null)
   const [forceReconcileTick, setForceReconcileTick] = useState(0)
 
+  const refetchAllPos = useCallback(async () => {
+    await Promise.all([posRefetch(), prevYearRefetch()])
+  }, [posRefetch, prevYearRefetch])
+
   const runReconcile = useCallback(
     async (days: number, fireKey: string, label: string) => {
       if (!selectedCompany?.id) return
@@ -236,7 +261,7 @@ export function useDashboardData() {
         await triggerServerReconcile(selectedCompany.id, days)
         reconcileFiredRef.current = fireKey
         failedAtRef.current.delete(fireKey)
-        await posRefetch()
+        await refetchAllPos()
       } catch (err) {
         failedAtRef.current.set(fireKey, Date.now())
         const msg = err instanceof Error ? err.message : String(err)
@@ -248,7 +273,7 @@ export function useDashboardData() {
         setReconcilingHistoric(false)
       }
     },
-    [selectedCompany?.id, posRefetch],
+    [selectedCompany?.id, refetchAllPos],
   )
 
   useEffect(() => {
@@ -346,7 +371,7 @@ export function useDashboardData() {
         const active = !!data.inProgress && !stuck
         setReconcilingHistoric((prev) => (firingRef.current ? prev : active))
         if (prevInProgress && !active) {
-          posRefetch()
+          refetchAllPos()
         }
         prevInProgress = active
       } catch {
@@ -368,7 +393,7 @@ export function useDashboardData() {
       cancelled = true
       clearInterval(id)
     }
-  }, [selectedCompany?.id, posRefetch])
+  }, [selectedCompany?.id, refetchAllPos])
 
   // Cajas disponibles dentro del rango visible [startDate..endDate]
   const cajasDisponibles = useMemo<Array<[string, number]>>(() => {
