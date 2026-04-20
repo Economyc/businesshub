@@ -30,7 +30,7 @@ export function MonthProjectionTile({ projection }: MonthProjectionTileProps) {
         : 'bg-warning-bg text-warning-text'
 
   return (
-    <div className="bg-surface rounded-xl p-4 sm:p-[18px] border border-dashed border-border-hover/60">
+    <div className="bg-surface-elevated rounded-xl p-4 sm:p-[18px] border border-dashed border-border-hover/40 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         {/* Valor proyectado */}
         <div className="min-w-0">
