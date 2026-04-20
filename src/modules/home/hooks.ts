@@ -156,21 +156,20 @@ export function useDashboardData() {
     }
   }, [startDate, endDate])
 
-  // POS ventas para [prevStart, endDate] — se aplican como fuente primaria de ventas.
-  // Para preset "thisMonth" extendemos al 1° del mes anterior: la proyección de fin
-  // de mes compara contra el mes anterior COMPLETO, y si `prevStart` cae dentro de
-  // ese mes (p.ej. hoy 19-abr → prevStart ≈ 13-mar), `lastMonthTotal` quedaba
-  // truncado (sumaba solo 13–31 marzo en vez de 1–31 marzo) y la delta salía inflada.
+  // Rango estable de fetch: 1° de enero del año anterior → hoy. No depende del
+  // preset visible: así el queryKey de `usePosVentas` no cambia al alternar
+  // presets y React Query sirve desde su cache en memoria — el filtrado por
+  // rango visible ocurre downstream (KPIs, gráfica, proyección).
+  // Antes, cada preset producía un `posRangeStart` distinto → nuevo queryKey →
+  // re-lectura de Firestore y placeholder con data parcial mientras llegaba el
+  // cache completo (se veía como enero-febrero "plano" al entrar a YTD).
+  // Elegimos enero del año anterior porque es el `prevStart` más lejano posible
+  // (YTD con hoy = 31-dic compara contra el año anterior completo).
   const posRangeStart = useMemo(() => {
-    if (activePreset === 'thisMonth') {
-      const now = new Date()
-      const lastMonthFirst = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-      const earlier = lastMonthFirst < prevStart ? lastMonthFirst : prevStart
-      return toDateStr(earlier)
-    }
-    return toDateStr(prevStart)
-  }, [prevStart, activePreset])
-  const posRangeEnd = useMemo(() => toDateStr(endDate), [endDate])
+    const now = new Date()
+    return toDateStr(new Date(now.getFullYear() - 1, 0, 1))
+  }, [])
+  const posRangeEnd = useMemo(() => toDateStr(new Date()), [])
   const {
     ventas: posVentas,
     loading: posLoading,
