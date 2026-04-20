@@ -419,6 +419,8 @@ export function usePayrollAnalytics(): {
 export interface PosCategorySlice {
   category: string
   amount: number
+  quantity: number
+  productCount: number
 }
 
 export interface PosProductSlice {
@@ -475,6 +477,8 @@ export function usePosAnalytics(): {
     const totals = calcTotals(valid)
 
     const catMap = new Map<string, number>()
+    const catQtyMap = new Map<string, number>()
+    const catProductIdsMap = new Map<string, Set<string>>()
     const prodMap = new Map<string, PosProductSlice>()
     const perCategoryMap = new Map<string, Map<string, PosProductSlice>>()
 
@@ -486,6 +490,13 @@ export function usePosAnalytics(): {
 
         const cat = (item.categoria_descripcion ?? 'Sin categoría').trim() || 'Sin categoría'
         catMap.set(cat, (catMap.get(cat) ?? 0) + lineTotal)
+        catQtyMap.set(cat, (catQtyMap.get(cat) ?? 0) + qty)
+        let catIds = catProductIdsMap.get(cat)
+        if (!catIds) {
+          catIds = new Set<string>()
+          catProductIdsMap.set(cat, catIds)
+        }
+        catIds.add(String(item.id_producto ?? '?'))
 
         const pid = String(item.id_producto ?? '?')
         const pname = (item.nombre_producto ?? 'Sin nombre').trim() || 'Sin nombre'
@@ -517,7 +528,12 @@ export function usePosAnalytics(): {
     }
 
     const sortedCategories = Array.from(catMap.entries())
-      .map(([category, amount]) => ({ category, amount }))
+      .map(([category, amount]) => ({
+        category,
+        amount,
+        quantity: catQtyMap.get(category) ?? 0,
+        productCount: catProductIdsMap.get(category)?.size ?? 0,
+      }))
       .sort((a, b) => b.amount - a.amount)
 
     const categoriesTotal = sortedCategories.reduce((s, c) => s + c.amount, 0)

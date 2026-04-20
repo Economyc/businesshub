@@ -23,6 +23,8 @@ import { ExportPDF } from './export-pdf'
 import { ChartCard } from './shared/chart-card'
 import { EmptyChart } from './shared/empty-chart'
 import { CHART_SEMANTIC, paletteColor } from './shared/chart-theme'
+import { RichHoverTooltip } from './shared/rich-hover-tooltip'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import { usePosAnalytics } from '../hooks'
 
 function pct(part: number, total: number): string {
@@ -101,6 +103,7 @@ export function PosDashboard() {
           height={320}
         />
       ) : (
+        <TooltipProvider delayDuration={120} skipDelayDuration={200}>
         <div ref={dashboardRef} className="space-y-6">
           <motion.div
             variants={staggerContainer}
@@ -189,25 +192,40 @@ export function PosDashboard() {
 
                   <ul className="divide-y divide-border/60">
                     {compositionData.map((slice, i) => (
-                      <li
+                      <RichHoverTooltip
                         key={slice.name}
-                        className="flex items-center gap-3 py-3 text-body"
+                        title={slice.name}
+                        accentColor={paletteColor(i)}
+                        metrics={[
+                          {
+                            label: 'Monto',
+                            value: formatCurrency(slice.value),
+                            accent: true,
+                          },
+                          {
+                            label: '% del total',
+                            value: `${slice.percentage.toFixed(1)}%`,
+                          },
+                        ]}
+                        footer={`Ticket total ${formatCurrency(compositionTotal)}`}
                       >
-                        <span
-                          className="inline-block w-2 h-2 rounded-full shrink-0"
-                          style={{ backgroundColor: paletteColor(i) }}
-                          aria-hidden
-                        />
-                        <span className="text-graphite flex-1 min-w-0 truncate">
-                          {slice.name}
-                        </span>
-                        <span className="text-mid-gray tabular-nums">
-                          {formatCurrency(slice.value)}
-                        </span>
-                        <span className="text-dark-graphite font-medium tabular-nums w-14 text-right">
-                          {slice.percentage.toFixed(1)}%
-                        </span>
-                      </li>
+                        <li className="flex items-center gap-3 py-3 text-body cursor-default hover:bg-bone/50 -mx-2 px-2 rounded-lg transition-colors">
+                          <span
+                            className="inline-block w-2 h-2 rounded-full shrink-0"
+                            style={{ backgroundColor: paletteColor(i) }}
+                            aria-hidden
+                          />
+                          <span className="text-graphite flex-1 min-w-0 truncate">
+                            {slice.name}
+                          </span>
+                          <span className="text-mid-gray tabular-nums">
+                            {formatCurrency(slice.value)}
+                          </span>
+                          <span className="text-dark-graphite font-medium tabular-nums w-14 text-right">
+                            {slice.percentage.toFixed(1)}%
+                          </span>
+                        </li>
+                      </RichHoverTooltip>
                     ))}
                   </ul>
                 </>
@@ -245,30 +263,58 @@ export function PosDashboard() {
                     const maxAmount = productsToShow[0]?.amount ?? 0
                     const pctWidth =
                       maxAmount > 0 ? Math.max((p.amount / maxAmount) * 100, 2) : 2
+                    const avgTicket = p.quantity > 0 ? p.amount / p.quantity : 0
                     return (
-                      <li
+                      <RichHoverTooltip
                         key={p.id}
-                        className="grid grid-cols-[auto_minmax(0,1.4fr)_minmax(0,1fr)_auto] items-center gap-4 py-3"
+                        title={p.name}
+                        accentColor={CHART_SEMANTIC.income}
+                        metrics={[
+                          {
+                            label: 'Unidades',
+                            value: p.quantity.toLocaleString('es-CO'),
+                            accent: true,
+                          },
+                          {
+                            label: 'Monto',
+                            value: formatCurrency(p.amount),
+                          },
+                          {
+                            label: 'Ticket prom.',
+                            value: formatCurrency(avgTicket),
+                          },
+                          {
+                            label: 'Ranking',
+                            value: `#${String(i + 1).padStart(2, '0')}`,
+                          },
+                        ]}
+                        footer={
+                          productCategory !== ALL_CATEGORIES_VALUE
+                            ? `Categoría · ${productCategory}`
+                            : undefined
+                        }
                       >
-                        <span className="text-caption text-mid-gray tabular-nums w-6">
-                          {String(i + 1).padStart(2, '0')}
-                        </span>
-                        <span className="text-body text-graphite font-medium truncate">
-                          {p.name}
-                        </span>
-                        <div className="h-2 rounded-full bg-bone overflow-hidden">
-                          <div
-                            className="h-full rounded-full transition-all duration-700 ease-out"
-                            style={{
-                              width: `${pctWidth}%`,
-                              backgroundColor: CHART_SEMANTIC.income,
-                            }}
-                          />
-                        </div>
-                        <span className="text-body text-mid-gray tabular-nums w-24 text-right">
-                          {formatCurrency(p.amount)}
-                        </span>
-                      </li>
+                        <li className="grid grid-cols-[auto_minmax(0,1.4fr)_minmax(0,1fr)_auto] items-center gap-4 py-3 cursor-default hover:bg-bone/50 -mx-2 px-2 rounded-lg transition-colors">
+                          <span className="text-caption text-mid-gray tabular-nums w-6">
+                            {String(i + 1).padStart(2, '0')}
+                          </span>
+                          <span className="text-body text-graphite font-medium truncate">
+                            {p.name}
+                          </span>
+                          <div className="h-2 rounded-full bg-bone overflow-hidden">
+                            <div
+                              className="h-full rounded-full transition-all duration-700 ease-out"
+                              style={{
+                                width: `${pctWidth}%`,
+                                backgroundColor: CHART_SEMANTIC.income,
+                              }}
+                            />
+                          </div>
+                          <span className="text-body text-mid-gray tabular-nums w-24 text-right">
+                            {formatCurrency(p.amount)}
+                          </span>
+                        </li>
+                      </RichHoverTooltip>
                     )
                   })}
                 </ul>
@@ -285,39 +331,67 @@ export function PosDashboard() {
               <EmptyChart height={200} compact message="Sin ventas categorizadas" />
             ) : (
               <div className="space-y-3">
-                {topCategories.map((cat, i) => (
-                  <div key={cat.category} className="flex items-center gap-3">
-                    <span
-                      className="w-2.5 h-2.5 rounded-full shrink-0"
-                      style={{ backgroundColor: paletteColor(i) }}
-                    />
-                    <span className="text-body text-graphite w-20 sm:w-40 truncate">
-                      {cat.category}
-                    </span>
-                    <div className="flex-1 h-7 bg-bone rounded-lg overflow-hidden relative">
-                      <div
-                        className="h-full rounded-lg transition-all duration-700 ease-out"
-                        style={{
-                          width: `${maxCategory > 0 ? Math.max((cat.amount / maxCategory) * 100, 2) : 2}%`,
-                          backgroundColor: paletteColor(i),
-                          opacity: 0.75,
-                        }}
-                      />
-                    </div>
-                    <span className="text-body font-medium text-dark-graphite w-20 sm:w-24 text-right tabular-nums">
-                      {formatCurrency(cat.amount)}
-                    </span>
-                    <span className="text-caption text-mid-gray tabular-nums w-12 text-right">
-                      {categoriesTotal > 0
-                        ? `${((cat.amount / categoriesTotal) * 100).toFixed(1)}%`
-                        : '0.0%'}
-                    </span>
-                  </div>
-                ))}
+                {topCategories.map((cat, i) => {
+                  const pct =
+                    categoriesTotal > 0 ? (cat.amount / categoriesTotal) * 100 : 0
+                  return (
+                    <RichHoverTooltip
+                      key={cat.category}
+                      title={cat.category}
+                      accentColor={paletteColor(i)}
+                      metrics={[
+                        {
+                          label: 'Monto',
+                          value: formatCurrency(cat.amount),
+                          accent: true,
+                        },
+                        {
+                          label: 'Unidades',
+                          value: cat.quantity.toLocaleString('es-CO'),
+                        },
+                        {
+                          label: '% del total',
+                          value: `${pct.toFixed(1)}%`,
+                        },
+                        {
+                          label: 'Productos',
+                          value: cat.productCount.toLocaleString('es-CO'),
+                        },
+                      ]}
+                    >
+                      <div className="flex items-center gap-3 cursor-default hover:bg-bone/50 -mx-2 px-2 py-1 rounded-lg transition-colors">
+                        <span
+                          className="w-2.5 h-2.5 rounded-full shrink-0"
+                          style={{ backgroundColor: paletteColor(i) }}
+                        />
+                        <span className="text-body text-graphite w-20 sm:w-40 truncate">
+                          {cat.category}
+                        </span>
+                        <div className="flex-1 h-7 bg-bone rounded-lg overflow-hidden relative">
+                          <div
+                            className="h-full rounded-lg transition-all duration-700 ease-out"
+                            style={{
+                              width: `${maxCategory > 0 ? Math.max((cat.amount / maxCategory) * 100, 2) : 2}%`,
+                              backgroundColor: paletteColor(i),
+                              opacity: 0.75,
+                            }}
+                          />
+                        </div>
+                        <span className="text-body font-medium text-dark-graphite w-20 sm:w-24 text-right tabular-nums">
+                          {formatCurrency(cat.amount)}
+                        </span>
+                        <span className="text-caption text-mid-gray tabular-nums w-12 text-right">
+                          {pct.toFixed(1)}%
+                        </span>
+                      </div>
+                    </RichHoverTooltip>
+                  )
+                })}
               </div>
             )}
           </ChartCard>
         </div>
+        </TooltipProvider>
       )}
     </PageTransition>
   )
