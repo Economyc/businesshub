@@ -156,8 +156,20 @@ export function useDashboardData() {
     }
   }, [startDate, endDate])
 
-  // POS ventas para [prevStart, endDate] — se aplican como fuente primaria de ventas
-  const posRangeStart = useMemo(() => toDateStr(prevStart), [prevStart])
+  // POS ventas para [prevStart, endDate] — se aplican como fuente primaria de ventas.
+  // Para preset "thisMonth" extendemos al 1° del mes anterior: la proyección de fin
+  // de mes compara contra el mes anterior COMPLETO, y si `prevStart` cae dentro de
+  // ese mes (p.ej. hoy 19-abr → prevStart ≈ 13-mar), `lastMonthTotal` quedaba
+  // truncado (sumaba solo 13–31 marzo en vez de 1–31 marzo) y la delta salía inflada.
+  const posRangeStart = useMemo(() => {
+    if (activePreset === 'thisMonth') {
+      const now = new Date()
+      const lastMonthFirst = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+      const earlier = lastMonthFirst < prevStart ? lastMonthFirst : prevStart
+      return toDateStr(earlier)
+    }
+    return toDateStr(prevStart)
+  }, [prevStart, activePreset])
   const posRangeEnd = useMemo(() => toDateStr(endDate), [endDate])
   const {
     ventas: posVentas,
