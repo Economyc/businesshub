@@ -146,7 +146,41 @@ export function isLikelyPartialResponse(newCount: number, prevCount: number): bo
 // sin chunkear, el commit supera el límite y toda la escritura falla.
 const MAX_SALES_DOCS_PER_BATCH = 6
 
-export async function saveVentasToCache(
+// Mutex global: serializa todos los `saveVentasToCache` del cliente. Sin esto,
+// las 4 queries `usePosVentas` del Home disparan hasta 8 writes paralelos a
+// Firestore (cada query con PARALLEL_CHUNKS=2). El SDK encola promesas hasta
+// que emite `resource-exhausted: Write stream exhausted maximum allowed queued
+// writes` y aplica backoff exponencial. Con mutex, las tareas corren en serie
+// y el SDK nunca llega al límite. El caller ya tiene timeout de 15s por tarea
+// (ver `withTimeout` en pos-sync/hooks.ts), así que una tarea atorada no
+// bloquea la cola indefinidamente.
+let saveMutex: Promise<void> = Promise.resolve()
+
+export function saveVentasToCache(
+  companyId: string,
+  ventas: PosVenta[],
+  localIds: number[],
+  startDate: string,
+  endDate: string,
+  previousCountByKey?: Map<string, number>,
+): Promise<void> {
+  const task = () =>
+    saveVentasToCacheImpl(
+      companyId,
+      ventas,
+      localIds,
+      startDate,
+      endDate,
+      previousCountByKey,
+    )
+  // Cadena de promesas. `.catch(() => {})` evita que un fallo atore toda la
+  // cola — si un save falla, los siguientes siguen su curso.
+  const next = saveMutex.catch(() => {}).then(task)
+  saveMutex = next.catch(() => {})
+  return next
+}
+
+async function saveVentasToCacheImpl(
   companyId: string,
   ventas: PosVenta[],
   localIds: number[],
