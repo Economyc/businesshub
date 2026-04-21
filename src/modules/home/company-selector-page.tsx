@@ -1,16 +1,19 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQueries } from '@tanstack/react-query'
-import { query, where, getDocs } from 'firebase/firestore'
+import { collection, query, where, getDocs } from 'firebase/firestore'
 import { MapPin, Plus, LogOut, ArrowUpRight } from 'lucide-react'
 import { useCompany } from '@/core/hooks/use-company'
 import { useAuth } from '@/core/hooks/use-auth'
 import { CompanyLogo } from '@/core/ui/company-logo'
 import { companyCollection } from '@/core/firebase/helpers'
+import { db } from '@/core/firebase/config'
 import { formatCurrency } from '@/core/utils/format'
+import { isAnulada, ventaMonto } from '@/modules/pos-sync/utils/sales-calculations'
 import { cn } from '@/lib/utils'
 import type { Company } from '@/core/types'
 import type { Closing } from '@/modules/closings/types'
+import type { PosVenta } from '@/modules/pos-sync/types'
 
 function ymd(offsetDays = 0): string {
   const d = new Date()
@@ -19,9 +22,26 @@ function ymd(offsetDays = 0): string {
 }
 
 async function fetchDaySales(companyId: string, dateStr: string): Promise<number> {
-  const ref = companyCollection(companyId, 'closings')
-  const snap = await getDocs(query(ref, where('date', '==', dateStr)))
-  return snap.docs.reduce((sum, d) => {
+  // Preferimos el cache del POS (datos en tiempo real del día) sobre los
+  // cierres manuales. El cron nocturno y las visitas al Home lo mantienen al día.
+  const posRef = collection(db, 'companies', companyId, 'pos-sales-cache')
+  const posSnap = await getDocs(query(posRef, where('date', '==', dateStr)))
+  if (!posSnap.empty) {
+    let total = 0
+    for (const d of posSnap.docs) {
+      const data = d.data() as { ventas?: PosVenta[] }
+      for (const v of data.ventas ?? []) {
+        if (isAnulada(v)) continue
+        total += ventaMonto(v)
+      }
+    }
+    return total
+  }
+
+  // Fallback a closings para compañías sin integración POS.
+  const closingsRef = companyCollection(companyId, 'closings')
+  const closingsSnap = await getDocs(query(closingsRef, where('date', '==', dateStr)))
+  return closingsSnap.docs.reduce((sum, d) => {
     const data = d.data() as Closing
     return sum + (typeof data.ventaTotal === 'number' ? data.ventaTotal : 0)
   }, 0)
