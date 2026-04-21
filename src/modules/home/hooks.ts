@@ -20,6 +20,7 @@ import {
 import { useHomeFilters } from './context/home-filters-context'
 import type { Supplier } from '@/modules/suppliers/types'
 import type { Contract } from '@/modules/contracts/types'
+import type { PosVenta } from '@/modules/pos-sync/types'
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -156,15 +157,23 @@ export function useDashboardData() {
     }
   }, [startDate, endDate])
 
-  // Dos queries con queryKey estable para que cambiar de preset no re-lea
-  // Firestore. Split principal/background:
-  //  - `current year`: carga primero, desbloquea KPIs y gráfica rápido. Cubre
-  //    todos los presets visibles (hoy, semana, mes, YTD).
-  //  - `prev year`: carga en background para alimentar la comparación vs año
-  //    anterior (YTD principalmente) y los prev-periods que caen en el año
-  //    anterior (ej. "Último mes" en enero).
-  // Split-en-dos evita el problema de UX: antes pedíamos los 1.5 años juntos
-  // y Firestore tardaba en entregar todo antes del first paint.
+  // Carga progresiva con 4 queries React Query independientes. Antes pedíamos
+  // ~475 días upfront (año actual + año anterior) y el skeleton esperaba a que
+  // Firestore devolviera miles de docs antes del first paint.
+  //  1. Filtro actual `[startDate..endDate]`: PRIORITARIA, bloquea skeleton.
+  //     El rango promedio (mes, semana, hoy) carga en décimas de segundo.
+  //  2. Periodo anterior `[prevStart..prevEnd]`: background, alimenta el
+  //     porcentaje de comparación.
+  //  3. Año actual completo: background, cubre el cambio a YTD o a otro mes
+  //     sin tener que volver a golpear Firestore.
+  //  4. Año anterior completo: background, cubre comparación YTD vs año
+  //     anterior y presets que caen en el año anterior.
+  // Si dos queries comparten queryKey (ej. filtro = YTD), React Query las
+  // deduplica automáticamente en un solo fetch.
+  const filterStartStr = useMemo(() => toDateStr(startDate), [startDate])
+  const filterEndStr = useMemo(() => toDateStr(endDate), [endDate])
+  const prevStartStr = useMemo(() => toDateStr(prevStart), [prevStart])
+  const prevEndStr = useMemo(() => toDateStr(prevEnd), [prevEnd])
   const currentYearStart = useMemo(
     () => toDateStr(new Date(new Date().getFullYear(), 0, 1)),
     [],
@@ -179,21 +188,39 @@ export function useDashboardData() {
     [],
   )
 
+  // Query 1 — Filtro actual (prioritaria, bloquea skeleton)
   const {
-    ventas: currentYearVentas,
+    ventas: filterVentas,
     loading: posLoading,
     isPending: posIsPending,
     lastUpdated: posLastUpdated,
     fromCache: posFromCache,
     forceRefresh: posForceRefresh,
-    refetch: posRefetch,
+    refetch: filterRefetch,
   } = usePosVentas({
+    localIds,
+    startDate: filterStartStr,
+    endDate: filterEndStr,
+    enabled: localIds.length > 0,
+  })
+
+  // Query 2 — Periodo anterior para comparación (background)
+  const { ventas: prevPeriodVentas, refetch: prevPeriodRefetch } = usePosVentas({
+    localIds,
+    startDate: prevStartStr,
+    endDate: prevEndStr,
+    enabled: localIds.length > 0,
+  })
+
+  // Query 3 — Año actual completo (background)
+  const { ventas: currentYearVentas, refetch: currentYearRefetch } = usePosVentas({
     localIds,
     startDate: currentYearStart,
     endDate: todayStr,
     enabled: localIds.length > 0,
   })
 
+  // Query 4 — Año anterior completo (background)
   const { ventas: prevYearVentas, refetch: prevYearRefetch } = usePosVentas({
     localIds,
     startDate: prevYearStart,
@@ -201,10 +228,21 @@ export function useDashboardData() {
     enabled: localIds.length > 0,
   })
 
-  const posVentas = useMemo(
-    () => [...currentYearVentas, ...prevYearVentas],
-    [currentYearVentas, prevYearVentas],
-  )
+  // Dedup por ID: las 4 queries pueden solaparse (ej. filtro "Mes" cae dentro
+  // del año actual). Sin dedup, `posSalesByDate` sumaría la misma venta dos
+  // veces. PosVenta.ID es único en el POS.
+  const posVentas = useMemo<PosVenta[]>(() => {
+    const seen = new Set<string>()
+    const out: PosVenta[] = []
+    for (const arr of [filterVentas, prevPeriodVentas, currentYearVentas, prevYearVentas]) {
+      for (const v of arr) {
+        if (!v.ID || seen.has(v.ID)) continue
+        seen.add(v.ID)
+        out.push(v)
+      }
+    }
+    return out
+  }, [filterVentas, prevPeriodVentas, currentYearVentas, prevYearVentas])
 
   // Solo skeleton en la primera carga sin data/placeholder. Antes usábamos
   // `posLoading && posVentas.length === 0` que mantenía el skeleton eterno
@@ -248,8 +286,13 @@ export function useDashboardData() {
   const [forceReconcileTick, setForceReconcileTick] = useState(0)
 
   const refetchAllPos = useCallback(async () => {
-    await Promise.all([posRefetch(), prevYearRefetch()])
-  }, [posRefetch, prevYearRefetch])
+    await Promise.all([
+      filterRefetch(),
+      prevPeriodRefetch(),
+      currentYearRefetch(),
+      prevYearRefetch(),
+    ])
+  }, [filterRefetch, prevPeriodRefetch, currentYearRefetch, prevYearRefetch])
 
   const runReconcile = useCallback(
     async (days: number, fireKey: string, label: string) => {
