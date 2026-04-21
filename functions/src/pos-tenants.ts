@@ -15,14 +15,15 @@
 //   3. Marcar las companies del tenant con posTenantId: '<name>' en Firestore
 
 import { defineSecret } from 'firebase-functions/params'
-import type { SecretParam } from 'firebase-functions/lib/params/types'
 import { db } from './firestore.js'
 
 export type TenantId = 'blue' | 'filipo'
 
 interface TenantConfig {
   domainId: string
-  secret: SecretParam
+  secretName: string
+  // Objeto SecretParam para `.value()` en runtime; tipo inferido por TS.
+  secret: ReturnType<typeof defineSecret>
 }
 
 // Secret actual `POS_TOKEN` = token del grupo Blue (dominio 8267). Mantenemos
@@ -30,17 +31,18 @@ interface TenantConfig {
 const POS_TOKEN_BLUE = defineSecret('POS_TOKEN')
 const POS_TOKEN_FILIPO = defineSecret('POS_TOKEN_FILIPO')
 
-export const TENANT_CONFIG: Record<TenantId, TenantConfig> = {
-  blue: { domainId: '8267', secret: POS_TOKEN_BLUE },
-  filipo: { domainId: '7052', secret: POS_TOKEN_FILIPO },
+const TENANT_CONFIG: Record<TenantId, TenantConfig> = {
+  blue: { domainId: '8267', secretName: 'POS_TOKEN', secret: POS_TOKEN_BLUE },
+  filipo: { domainId: '7052', secretName: 'POS_TOKEN_FILIPO', secret: POS_TOKEN_FILIPO },
 }
 
-// Array plano para pasar a `secrets: [...]` en los options de las functions.
-// Todas las functions que toquen POS deben declarar ambos (aunque cada call
-// termine usando sólo uno), porque no sabemos qué tenant va a venir hasta
-// runtime.
-export const TENANT_SECRETS: SecretParam[] = Object.values(TENANT_CONFIG).map(
-  (c) => c.secret,
+// Lista de nombres de secrets para pasar a `secrets: [...]` en los options de
+// las functions. `secrets` acepta strings además de SecretParam, así evitamos
+// exponer el tipo interno (que TS no puede portabilizar en los .d.ts emitidos).
+// Todas las functions que toquen POS deben declarar ambos nombres porque no
+// sabemos qué tenant va a venir hasta runtime.
+export const TENANT_SECRETS: string[] = Object.values(TENANT_CONFIG).map(
+  (c) => c.secretName,
 )
 
 export function getTenantDomainId(tenantId: TenantId): string {

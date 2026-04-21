@@ -4,8 +4,11 @@
 // debe pasar por aquí para mantener un único lugar con el rate-limit, retries
 // y manejo de "tipo !== 1" — el POS entrega errores y rate-limits dentro del
 // body con status 200, así que no basta con revisar `res.ok`.
+//
+// Multi-tenant: `domainId` y `token` se reciben como parámetros; el resolver
+// vive en `pos-tenants.ts`. Esto permite que varias empresas (Blue, Filipo,
+// etc.) usen sus propios dominios/credenciales sin código duplicado.
 export const POS_BASE_URL = 'http://api.restaurant.pe/restaurant';
-export const POS_DOMAIN_ID = '8267';
 export const BATCH_DELAY_MS = 5000;
 export const MAX_RETRIES = 3;
 export function buildUrl(path, token) {
@@ -41,8 +44,8 @@ export function extractVentas(response) {
         return Object.values(d);
     return [];
 }
-export async function fetchDominio(token) {
-    const url = buildUrl(`/readonly/rest/delivery/obtenerInformacionDominio/${POS_DOMAIN_ID}`, token);
+export async function fetchDominio(token, domainId) {
+    const url = buildUrl(`/readonly/rest/delivery/obtenerInformacionDominio/${domainId}`, token);
     const raw = (await fetchPosApi(url));
     const tipo = Number(raw.tipo);
     if (tipo !== 1) {
@@ -56,8 +59,8 @@ export async function fetchDominio(token) {
 // Pagina `obtenerVentasPorIntegracion` para un local en el rango [f1, f2].
 // El POS cooldownea ~5s entre requests al mismo token; si nos dice "solicitud
 // en ejecución" reintentamos hasta MAX_RETRIES esperando BATCH_DELAY_MS.
-export async function fetchAllPagesForLocal(token, localId, f1, f2) {
-    const endpointPath = `/readonly/rest/venta/obtenerVentasPorIntegracion/${POS_DOMAIN_ID}`;
+export async function fetchAllPagesForLocal(token, domainId, localId, f1, f2) {
+    const endpointPath = `/readonly/rest/venta/obtenerVentasPorIntegracion/${domainId}`;
     const ventas = [];
     let pagina = 1;
     let requestCount = 0;
@@ -102,8 +105,8 @@ export async function fetchAllPagesForLocal(token, localId, f1, f2) {
     }
     return { ventas, rateLimited: false, requestCount };
 }
-export async function fetchCatalogo(token, localId) {
-    const url = buildUrl(`/readonly/rest/delivery/obtenerCartaPorLocal/${POS_DOMAIN_ID}/${localId}`, token);
+export async function fetchCatalogo(token, domainId, localId) {
+    const url = buildUrl(`/readonly/rest/delivery/obtenerCartaPorLocal/${domainId}/${localId}`, token);
     const raw = (await fetchPosApi(url));
     const tipo = Number(raw.tipo);
     if (tipo !== 1) {

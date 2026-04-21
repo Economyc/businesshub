@@ -1,11 +1,10 @@
 import { onRequest } from 'firebase-functions/v2/https';
-import { defineSecret } from 'firebase-functions/params';
-import { POS_DOMAIN_ID, buildUrl, fetchPosApi, extractVentas, fetchAllPagesForLocal, } from './pos-client.js';
-const posToken = defineSecret('POS_TOKEN');
-async function fetchVentasBatch(token, localIds, f1, f2) {
+import { buildUrl, fetchPosApi, extractVentas, fetchAllPagesForLocal, } from './pos-client.js';
+import { TENANT_SECRETS, getTenantDomainId, getTenantToken, resolveCompanyTenant, } from './pos-tenants.js';
+async function fetchVentasBatch(token, domainId, localIds, f1, f2) {
     const allVentas = [];
     for (const lid of localIds) {
-        const result = await fetchAllPagesForLocal(token, lid, f1, f2);
+        const result = await fetchAllPagesForLocal(token, domainId, lid, f1, f2);
         allVentas.push(...result.ventas);
         if (result.rateLimited) {
             return { ventas: allVentas, rateLimited: true, endpoint: 'obtenerVentasPorIntegracion' };
@@ -17,23 +16,43 @@ export const posProxy = onRequest({
     cors: true,
     timeoutSeconds: 300,
     memory: '512MiB',
-    secrets: [posToken],
+    secrets: TENANT_SECRETS,
 }, async (req, res) => {
     if (req.method !== 'POST') {
         res.status(405).json({ error: 'Method not allowed' });
         return;
     }
     try {
-        const { action, params } = req.body;
-        const token = posToken.value();
+        const { action, params, companyId, tenantId: tenantIdOverride } = req.body;
         if (!action) {
             res.status(400).json({ error: 'action is required' });
             return;
         }
+        // Resolver tenant: tenantId explícito gana; si no, derivar de companyId.
+        let tenantId;
+        if (tenantIdOverride) {
+            tenantId = tenantIdOverride;
+        }
+        else if (companyId) {
+            try {
+                tenantId = await resolveCompanyTenant(companyId);
+            }
+            catch (err) {
+                const msg = err instanceof Error ? err.message : String(err);
+                res.status(400).json({ error: `No se pudo resolver tenant: ${msg}` });
+                return;
+            }
+        }
+        else {
+            res.status(400).json({ error: 'companyId (o tenantId) es requerido' });
+            return;
+        }
+        const token = getTenantToken(tenantId);
+        const domainId = getTenantDomainId(tenantId);
         let data;
         switch (action) {
             case 'dominio': {
-                const url = buildUrl(`/readonly/rest/delivery/obtenerInformacionDominio/${POS_DOMAIN_ID}`, token);
+                const url = buildUrl(`/readonly/rest/delivery/obtenerInformacionDominio/${domainId}`, token);
                 data = await fetchPosApi(url);
                 break;
             }
@@ -42,7 +61,7 @@ export const posProxy = onRequest({
                     res.status(400).json({ error: 'ventas requires local_id, f1, f2' });
                     return;
                 }
-                const url = buildUrl(`/readonly/rest/venta/obtenerVentasPorIntegracion/${POS_DOMAIN_ID}`, token);
+                const url = buildUrl(`/readonly/rest/venta/obtenerVentasPorIntegracion/${domainId}`, token);
                 data = await fetchPosApi(url, 'POST', {
                     pagina: params.pagina ?? 1,
                     local_id: params.local_id,
@@ -57,7 +76,7 @@ export const posProxy = onRequest({
                     res.status(400).json({ error: 'ventas-batch requires local_ids (array), f1, f2' });
                     return;
                 }
-                const batchResult = await fetchVentasBatch(token, params.local_ids, params.f1, params.f2);
+                const batchResult = await fetchVentasBatch(token, domainId, params.local_ids, params.f1, params.f2);
                 res.json({ success: true, data: batchResult });
                 return;
             }
@@ -111,7 +130,7 @@ export const posProxy = onRequest({
                     res.status(400).json({ error: 'catalogo requires local_id' });
                     return;
                 }
-                const url = buildUrl(`/readonly/rest/delivery/obtenerCartaPorLocal/${POS_DOMAIN_ID}/${params.local_id}`, token);
+                const url = buildUrl(`/readonly/rest/delivery/obtenerCartaPorLocal/${domainId}/${params.local_id}`, token);
                 data = await fetchPosApi(url);
                 break;
             }

@@ -14,10 +14,16 @@
 // (días con ceros legítimos o respuestas parciales que nunca stamparon), se
 // completa bajo demanda desde la pestaña Caché con el botón "Reconstruir"
 // (ver `src/modules/pos-sync/components/cache-status-tab.tsx`).
+//
+// Multi-tenant (2026-04): el cron itera todos los tenants configurados en
+// pos-tenants.ts. Cada tenant tiene su propio token y domainId; dentro de
+// un tenant las companies se procesan secuencialmente porque comparten
+// token y el POS rate-limitea. Entre tenants también vamos secuencial para
+// mantener logs legibles — los dominios son independientes en el servidor
+// del POS así que podríamos paralelizar en el futuro si hace falta.
 
 import { onSchedule } from 'firebase-functions/v2/scheduler'
 import { onCall, HttpsError } from 'firebase-functions/v2/https'
-import { defineSecret } from 'firebase-functions/params'
 import { FieldValue, Timestamp } from 'firebase-admin/firestore'
 import { db } from './firestore.js'
 import { fetchDominio, fetchAllPagesForLocal, type PosLocalRaw } from './pos-client.js'
@@ -29,8 +35,14 @@ import {
   type PosVentaLike,
 } from './pos-cache.js'
 import { buildCompanyLocalMap } from './pos-company-mapping.js'
-
-const posToken = defineSecret('POS_TOKEN')
+import {
+  TENANT_SECRETS,
+  getTenantDomainId,
+  getTenantToken,
+  listTenantIds,
+  resolveCompanyTenant,
+  type TenantId,
+} from './pos-tenants.js'
 
 // Default para `posReconcileOnDemand` cuando el caller no especifica `days`.
 // El cron nocturno ya NO lo usa (cubre mes actual dinámicamente, ver runReconcile).
@@ -53,6 +65,7 @@ const MANUAL_COOLDOWN_MS = 60 * 1000
 const POS_WINDOW_DAYS = 15
 
 export interface ReconcileStats {
+  tenantId: TenantId
   companyId: string
   localIds: number[]
   ventasFetched: number
@@ -91,10 +104,109 @@ export interface ReconcileResult {
   perCompany: ReconcileStats[]
 }
 
-interface RunReconcileOptions {
+interface ReconcileCompanyOptions {
+  tenantId: TenantId
   token: string
+  domainId: string
+  companyId: string
+  localIds: number[]
+  startDate: string
+  endDate: string
+  windows: DateWindow[]
+}
+
+async function reconcileCompany(opts: ReconcileCompanyOptions): Promise<ReconcileStats> {
+  const cStart = Date.now()
+  const stats: ReconcileStats = {
+    tenantId: opts.tenantId,
+    companyId: opts.companyId,
+    localIds: opts.localIds,
+    ventasFetched: 0,
+    ventasWritten: 0,
+    daysWritten: 0,
+    skippedPartial: 0,
+    emptyStamped: 0,
+    rateLimited: false,
+    durationMs: 0,
+  }
+
+  try {
+    // El lookup de counts previos se hace una vez sobre todo el rango; los
+    // writes parciales de ventanas anteriores no alteran los counts que
+    // usamos para la guarda anti-partial, por diseño (queremos comparar
+    // contra lo que había antes del reconcile, no contra lo que acabamos
+    // de escribir).
+    const prev = await getPreviousCountsForRange(
+      opts.companyId,
+      opts.localIds,
+      opts.startDate,
+      opts.endDate,
+    )
+
+    for (const lid of opts.localIds) {
+      for (const window of opts.windows) {
+        const wf1 = `${window.start} 00:00:00`
+        const wf2 = `${window.end} 23:59:59`
+        const r = await fetchAllPagesForLocal(opts.token, opts.domainId, lid, wf1, wf2)
+        stats.ventasFetched += r.ventas.length
+
+        // Persistimos tras cada ventana. Si el timeout de 3600s nos alcanza
+        // en medio, el trabajo anterior queda cacheado y el próximo run
+        // continúa desde donde quedó. stampEmpty solo cuando la ventana
+        // terminó sin rate-limit: ceros "truncados" no son confiables.
+        const save = await saveVentasToCacheServer(
+          opts.companyId,
+          r.ventas as PosVentaLike[],
+          [lid],
+          window.start,
+          window.end,
+          prev,
+          { stampEmpty: !r.rateLimited },
+        )
+        stats.ventasWritten += save.ventasWritten
+        stats.daysWritten += save.daysWritten
+        stats.skippedPartial += save.skippedPartial
+        stats.emptyStamped += save.emptyStamped
+
+        if (r.rateLimited) {
+          // Rate-limit es por local/ventana; NO bloquea los demás locales ni
+          // companies. Anteriormente un `break` externo abortaba toda la
+          // corrida, perdiendo datos de locales siguientes que aún podrían
+          // responder. Ahora seguimos con el próximo local.
+          stats.rateLimited = true
+          console.warn(
+            `[PosReconcile] rate-limited tenant=${opts.tenantId} company=${opts.companyId} ` +
+              `local=${lid} window=${window.start}..${window.end} — saltando al próximo local`,
+          )
+          break
+        }
+      }
+    }
+
+    console.log(
+      `[PosReconcile] tenant=${opts.tenantId} company=${opts.companyId} ` +
+        `locales=[${opts.localIds.join(',')}] windows=${opts.windows.length} ` +
+        `fetched=${stats.ventasFetched} written=${stats.ventasWritten} ` +
+        `days=${stats.daysWritten} emptyStamped=${stats.emptyStamped} ` +
+        `skipped=${stats.skippedPartial} rateLimited=${stats.rateLimited}`,
+    )
+  } catch (err) {
+    stats.error = err instanceof Error ? err.message : String(err)
+    console.error(
+      `[PosReconcile] error tenant=${opts.tenantId} company=${opts.companyId}: ${stats.error}`,
+    )
+  }
+
+  stats.durationMs = Date.now() - cStart
+  return stats
+}
+
+interface RunReconcileOptions {
+  // Si se pasa, solo procesa ese tenant (onDemand). Si no, itera todos (cron).
+  tenantId?: TenantId
   targetCompanyIds?: string[]
   days?: number
+  // Si se pasa junto con tenantId, evita refetchear el dominio desde el POS.
   locales?: PosLocalRaw[]
 }
 
@@ -122,101 +234,55 @@ async function runReconcile(opts: RunReconcileOptions): Promise<ReconcileResult>
     }
   }
 
-  const locales = opts.locales ?? (await fetchDominio(opts.token)).locales
-  const map = await buildCompanyLocalMap(locales)
-
-  const filtered = opts.targetCompanyIds
-    ? map.filter((m) => opts.targetCompanyIds!.includes(m.companyId))
-    : map
+  const tenantsToRun: TenantId[] = opts.tenantId ? [opts.tenantId] : listTenantIds()
+  const windows = buildWindows(startDate, endDate, POS_WINDOW_DAYS)
 
   console.log(
     `[PosReconcile] start mode=${opts.days !== undefined ? `days=${opts.days}` : 'currentMonth'} ` +
-      `range=${startDate}..${endDate} companies=${filtered.length}`,
+      `range=${startDate}..${endDate} tenants=[${tenantsToRun.join(',')}]`,
   )
 
   const t0 = Date.now()
   const perCompany: ReconcileStats[] = []
-  const windows = buildWindows(startDate, endDate, POS_WINDOW_DAYS)
 
-  // Secuencial: el token POS es compartido y correr companies en paralelo
-  // dispara rate-limits de 5s cruzados entre sí. Si crece a >50 companies
-  // habría que sharding (schedules 01/02/03 BOG).
-  for (const { companyId, localIds } of filtered) {
-    const cStart = Date.now()
-    const stats: ReconcileStats = {
-      companyId,
-      localIds,
-      ventasFetched: 0,
-      ventasWritten: 0,
-      daysWritten: 0,
-      skippedPartial: 0,
-      emptyStamped: 0,
-      rateLimited: false,
-      durationMs: 0,
-    }
+  for (const tenantId of tenantsToRun) {
+    const token = getTenantToken(tenantId)
+    const domainId = getTenantDomainId(tenantId)
 
+    let locales: PosLocalRaw[]
     try {
-      // El lookup de counts previos se hace una vez sobre todo el rango; los
-      // writes parciales de ventanas anteriores no alteran los counts que
-      // usamos para la guarda anti-partial, por diseño (queremos comparar
-      // contra lo que había antes del reconcile, no contra lo que acabamos
-      // de escribir).
-      const prev = await getPreviousCountsForRange(companyId, localIds, startDate, endDate)
-
-      for (const lid of localIds) {
-        for (const window of windows) {
-          const wf1 = `${window.start} 00:00:00`
-          const wf2 = `${window.end} 23:59:59`
-          const r = await fetchAllPagesForLocal(opts.token, lid, wf1, wf2)
-          stats.ventasFetched += r.ventas.length
-
-          // Persistimos tras cada ventana. Si el timeout de 3600s nos alcanza
-          // en medio, el trabajo anterior queda cacheado y el próximo run
-          // continúa desde donde quedó. stampEmpty solo cuando la ventana
-          // terminó sin rate-limit: ceros "truncados" no son confiables.
-          const save = await saveVentasToCacheServer(
-            companyId,
-            r.ventas as PosVentaLike[],
-            [lid],
-            window.start,
-            window.end,
-            prev,
-            { stampEmpty: !r.rateLimited },
-          )
-          stats.ventasWritten += save.ventasWritten
-          stats.daysWritten += save.daysWritten
-          stats.skippedPartial += save.skippedPartial
-          stats.emptyStamped += save.emptyStamped
-
-          if (r.rateLimited) {
-            // Rate-limit es por local/ventana; NO bloquea los demás locales ni
-            // companies. Anteriormente un `break` externo abortaba toda la
-            // corrida, perdiendo datos de locales siguientes que aún podrían
-            // responder. Ahora seguimos con el próximo local.
-            stats.rateLimited = true
-            console.warn(
-              `[PosReconcile] rate-limited company=${companyId} local=${lid} ` +
-                `window=${window.start}..${window.end} — saltando al próximo local`,
-            )
-            break
-          }
-        }
-      }
-
-      console.log(
-        `[PosReconcile] company=${companyId} locales=[${localIds.join(',')}] ` +
-          `windows=${windows.length} fetched=${stats.ventasFetched} ` +
-          `written=${stats.ventasWritten} days=${stats.daysWritten} ` +
-          `emptyStamped=${stats.emptyStamped} skipped=${stats.skippedPartial} ` +
-          `rateLimited=${stats.rateLimited}`,
-      )
+      locales = opts.locales ?? (await fetchDominio(token, domainId)).locales
     } catch (err) {
-      stats.error = err instanceof Error ? err.message : String(err)
-      console.error(`[PosReconcile] error company=${companyId}: ${stats.error}`)
+      console.error(
+        `[PosReconcile] tenant=${tenantId} fetchDominio falló: ` +
+          (err instanceof Error ? err.message : String(err)),
+      )
+      continue
     }
 
-    stats.durationMs = Date.now() - cStart
-    perCompany.push(stats)
+    const map = await buildCompanyLocalMap(tenantId, locales)
+    const filtered = opts.targetCompanyIds
+      ? map.filter((m) => opts.targetCompanyIds!.includes(m.companyId))
+      : map
+
+    console.log(
+      `[PosReconcile] tenant=${tenantId} locales=${locales.length} companies=${filtered.length}`,
+    )
+
+    // Secuencial dentro del tenant: comparten token y el POS rate-limitea.
+    for (const { companyId, localIds } of filtered) {
+      const stats = await reconcileCompany({
+        tenantId,
+        token,
+        domainId,
+        companyId,
+        localIds,
+        startDate,
+        endDate,
+        windows,
+      })
+      perCompany.push(stats)
+    }
   }
 
   const totalDurationMs = Date.now() - t0
@@ -265,14 +331,14 @@ export const posReconcileNightly = onSchedule(
     timeZone: 'America/Bogota',
     timeoutSeconds: 3600,
     memory: '1GiB',
-    secrets: [posToken],
+    secrets: TENANT_SECRETS,
     // 1 reintento: si el primer intento falla por timeout transitorio o
     // rate-limit del POS a la hora del cron, el scheduler lo vuelve a
     // disparar con backoff. Mejor que perder un día entero de datos.
     retryCount: 1,
   },
   async () => {
-    await runReconcile({ token: posToken.value() })
+    await runReconcile({})
   },
 )
 
@@ -292,7 +358,7 @@ export const posReconcileOnDemand = onCall<OnDemandData>(
   {
     timeoutSeconds: 3600,
     memory: '1GiB',
-    secrets: [posToken],
+    secrets: TENANT_SECRETS,
     cors: [
       'https://businesshub.myvnc.com',
       'http://134.65.233.213',
@@ -308,6 +374,16 @@ export const posReconcileOnDemand = onCall<OnDemandData>(
     const { companyId, days } = req.data ?? {}
     if (!companyId || typeof companyId !== 'string') {
       throw new HttpsError('invalid-argument', 'companyId es requerido')
+    }
+
+    let tenantId: TenantId
+    try {
+      tenantId = await resolveCompanyTenant(companyId)
+    } catch (err) {
+      throw new HttpsError(
+        'failed-precondition',
+        err instanceof Error ? err.message : String(err),
+      )
     }
 
     const metaRef = db
@@ -344,7 +420,7 @@ export const posReconcileOnDemand = onCall<OnDemandData>(
 
     try {
       return await runReconcile({
-        token: posToken.value(),
+        tenantId,
         targetCompanyIds: [companyId],
         days: typeof days === 'number' && days > 0 && days <= 365 ? days : DEFAULT_RECONCILE_DAYS,
       })

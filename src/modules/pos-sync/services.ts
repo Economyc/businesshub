@@ -10,6 +10,7 @@ const PROXY_URL = import.meta.env.PROD
   : ((import.meta.env.VITE_POS_PROXY_URL as string) || '/api/pos')
 
 export interface ServerReconcileStats {
+  tenantId: string
   companyId: string
   localIds: number[]
   ventasFetched: number
@@ -48,6 +49,7 @@ export async function triggerServerReconcile(
 
 export interface RebuildMonthResult {
   month: string
+  tenantId: string
   companyId: string
   localIds: number[]
   salesDocsDeleted: number
@@ -93,11 +95,18 @@ export class PosRateLimitError extends Error {
   }
 }
 
-async function callProxy<T>(action: string, params?: Record<string, unknown>): Promise<{ data: T; mensajes: string[] }> {
+// Multi-tenant: el proxy recibe `companyId` para resolver el tenant POS
+// correspondiente (token + domainId). Todos los métodos del `posService`
+// exigen companyId — pasar null/undefined dispara error claro del proxy.
+async function callProxy<T>(
+  companyId: string,
+  action: string,
+  params?: Record<string, unknown>,
+): Promise<{ data: T; mensajes: string[] }> {
   const res = await fetch(PROXY_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action, params }),
+    body: JSON.stringify({ action, companyId, params }),
   })
 
   if (!res.ok) {
@@ -128,17 +137,17 @@ function wait(ms: number): Promise<void> {
 }
 
 export const posService = {
-  getDominio: async () => {
-    const { data } = await callProxy<PosDominioData>('dominio')
+  getDominio: async (companyId: string) => {
+    const { data } = await callProxy<PosDominioData>(companyId, 'dominio')
     return data
   },
 
-  getVentas: async (localId: number, f1: string, f2: string) => {
+  getVentas: async (companyId: string, localId: number, f1: string, f2: string) => {
     let pagina = 1
     const allVentas: PosVenta[] = []
     while (true) {
       if (pagina > 1) await wait(API_DELAY)
-      const { data } = await callProxy<Record<string, PosVenta> | PosVenta[]>('ventas', {
+      const { data } = await callProxy<Record<string, PosVenta> | PosVenta[]>(companyId, 'ventas', {
         local_id: localId, f1, f2, pagina,
       })
       const page = Array.isArray(data) ? data : Object.values(data)
@@ -149,11 +158,15 @@ export const posService = {
     return allVentas
   },
 
-  getVentasBatch: async (localIds: number[], f1: string, f2: string) => {
+  getVentasBatch: async (companyId: string, localIds: number[], f1: string, f2: string) => {
     const res = await fetch(PROXY_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'ventas-batch', params: { local_ids: localIds, f1, f2 } }),
+      body: JSON.stringify({
+        action: 'ventas-batch',
+        companyId,
+        params: { local_ids: localIds, f1, f2 },
+      }),
     })
 
     if (!res.ok) {
@@ -177,8 +190,8 @@ export const posService = {
     return json.data
   },
 
-  getCatalogo: async (localId: number) => {
-    const { data } = await callProxy<PosProducto[]>('catalogo', { local_id: localId })
+  getCatalogo: async (companyId: string, localId: number) => {
+    const { data } = await callProxy<PosProducto[]>(companyId, 'catalogo', { local_id: localId })
     return (Array.isArray(data) ? data : Object.values(data)) as PosProducto[]
   },
 }

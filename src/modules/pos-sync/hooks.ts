@@ -231,7 +231,8 @@ async function fetchVentasWithCache({
   const runChunk = async (chunk: { start: string; end: string }) => {
     const chunkF1 = `${chunk.start} 00:00:00`
     const chunkF2 = `${chunk.end} 23:59:59`
-    const result = await posService.getVentasBatch(localIds, chunkF1, chunkF2)
+    if (!companyId) throw new Error('companyId requerido para getVentasBatch')
+    const result = await posService.getVentasBatch(companyId, localIds, chunkF1, chunkF2)
     if (result.rateLimited) rateLimited = true
 
     // Group new ventas by date_local key
@@ -330,15 +331,27 @@ async function fetchVentasWithCache({
 }
 
 export function usePosLocales() {
+  const { selectedCompany } = useCompany()
+  const companyId = selectedCompany?.id
   const [locales, setLocales] = useState<PosLocal[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    // Cada company pertenece a un tenant POS distinto (Blue, Filipo, …); los
+    // locales visibles dependen de la company activa. Al cambiar de company
+    // reseteamos para que el matching company↔local no use el dominio viejo.
+    if (!companyId) {
+      setLocales([])
+      setLoading(false)
+      return
+    }
     let cancelled = false
+    setLocales([])
+    setError(null)
     setLoading(true)
     posService
-      .getDominio()
+      .getDominio(companyId)
       .then((data) => {
         if (!cancelled) setLocales(data?.locales ?? [])
       })
@@ -351,7 +364,7 @@ export function usePosLocales() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [companyId])
 
   return { locales, loading, error }
 }
@@ -502,7 +515,8 @@ export function usePosCatalogo() {
 
   const fetchFromPos = useCallback(
     async (localId: number): Promise<void> => {
-      const data = await posService.getCatalogo(localId)
+      if (!companyId) throw new Error('companyId requerido para getCatalogo')
+      const data = await posService.getCatalogo(companyId, localId)
       setProductos(data)
       const now = new Date()
       setLastUpdated(now)

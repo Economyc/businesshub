@@ -1,5 +1,7 @@
+import { type TenantId } from './pos-tenants.js';
 export declare const DEFAULT_RECONCILE_DAYS = 32;
 export interface ReconcileStats {
+    tenantId: TenantId;
     companyId: string;
     localIds: number[];
     ventasFetched: number;

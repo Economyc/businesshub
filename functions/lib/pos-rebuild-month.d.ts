@@ -1,5 +1,7 @@
+import { type TenantId } from './pos-tenants.js';
 export interface RebuildMonthResult {
     month: string;
+    tenantId: TenantId;
     companyId: string;
     localIds: number[];
     salesDocsDeleted: number;
