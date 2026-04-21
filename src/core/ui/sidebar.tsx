@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
-import { BarChart3, Users, Briefcase, DollarSign, Home, ChevronsLeft, Building2, Tags, BadgeCheck, Network, Handshake, ClipboardList, FileSignature, Wallet, Receipt, Gift, ChevronRight, ChevronsUpDown, Check, MapPin, LogOut, Settings, Landmark, Boxes, UserRound, Bot, List, ShoppingCart, Package, Target, Scale, FileText, Shield, RefreshCw, Megaphone, Lock, LockOpen, LayoutDashboard, Store, PieChart } from 'lucide-react'
+import { BarChart3, Users, Briefcase, DollarSign, Home, ChevronsLeft, Building2, Tags, BadgeCheck, Network, Handshake, ClipboardList, FileSignature, Wallet, Receipt, Gift, ChevronRight, ChevronsUpDown, Check, MapPin, LogOut, Settings, Landmark, Boxes, UserRound, Bot, List, ShoppingCart, Package, Target, Scale, FileText, Shield, RefreshCw, Megaphone, Lock, LockOpen, LayoutDashboard, Store, PieChart, LayoutGrid } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { CommandPalette } from '@/core/ui/command-palette'
 import { CompanyLogo } from '@/core/ui/company-logo'
@@ -557,6 +557,17 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                         <AvatarPicker config={avatarConfig} onConfigChange={setAvatarConfig} />
                         <div className="border-t border-border/60" />
                         <ThemeToggle />
+                        <div className="border-t border-border/60" />
+                        <button
+                          onClick={() => {
+                            setUserMenuOpen(false)
+                            navigate('/')
+                          }}
+                          className="w-full flex items-center gap-2.5 px-4 py-3 rounded-lg text-body text-mid-gray hover:text-dark-graphite transition-colors duration-150"
+                        >
+                          <LayoutGrid size={16} strokeWidth={1.5} />
+                          Mis compañías
+                        </button>
                         {can('settings', 'read') && (
                           <>
                             <div className="border-t border-border/60" />
