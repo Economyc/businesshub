@@ -1,11 +1,13 @@
-import { query, where, getDocs } from 'firebase/firestore'
+import { collection, query, where, getDocs } from 'firebase/firestore'
 import { queryClient } from '@/core/query/query-client'
+import { db } from '@/core/firebase/config'
 import { companyCollection } from '@/core/firebase/helpers'
 import { isAnulada, ventaMonto } from '@/modules/pos-sync/utils/sales-calculations'
 import { findMatchingLocal } from '@/modules/pos-sync/company-mapping'
 import { posService } from '@/modules/pos-sync/services'
 import type { Company } from '@/core/types'
 import type { Closing } from '@/modules/closings/types'
+import type { PosVenta } from '@/modules/pos-sync/types'
 
 export interface DaySales {
   today: number
@@ -33,10 +35,55 @@ async function fetchClosingSum(companyId: string, dateStr: string): Promise<numb
   }, 0)
 }
 
-// Replica el pipeline del Home/POS Sync: getDominio → match local → getVentasBatch
-// en tiempo real → filtrar por id_local, descartar anuladas, sumar ventaMonto.
+function sumVentasByDate(
+  ventas: PosVenta[],
+  allowedIds: Set<number>,
+  today: string,
+  yesterday: string,
+): DaySales {
+  let todayTotal = 0
+  let yTotal = 0
+  for (const v of ventas) {
+    if (!allowedIds.has(v.id_local)) continue
+    if (isAnulada(v)) continue
+    const date = v.fecha?.slice(0, 10)
+    if (!date) continue
+    const amount = ventaMonto(v)
+    if (date === today) todayTotal += amount
+    else if (date === yesterday) yTotal += amount
+  }
+  return { today: todayTotal, yesterday: yTotal }
+}
+
+// Lee ventas directamente del cache de Firestore (hidratado por el cron
+// nocturno para ayer y por visitas previas al Home para hoy). Sin llamada POS.
+async function readCacheTotals(
+  companyId: string,
+  allowedIds: Set<number>,
+  today: string,
+  yesterday: string,
+): Promise<DaySales> {
+  const ref = collection(db, 'companies', companyId, 'pos-sales-cache')
+  const snap = await getDocs(
+    query(ref, where('date', '>=', yesterday), where('date', '<=', today)),
+  )
+  const ventas: PosVenta[] = []
+  for (const d of snap.docs) {
+    const data = d.data() as { ventas?: PosVenta[] }
+    if (data.ventas?.length) ventas.push(...data.ventas)
+  }
+  return sumVentasByDate(ventas, allowedIds, today, yesterday)
+}
+
+// Replica el pipeline del Home/POS Sync con 3 capas de fallback:
+//   1) POS live (getVentasBatch) — datos al segundo, igual que Home
+//   2) Cache Firestore (pos-sales-cache) — si el POS falla por rate-limit,
+//      timeout o red, leemos los datos que el cron nocturno + visitas previas
+//      al Home ya dejaron hidratados
+//   3) Closings — última opción para compañías sin POS configurado
 // Garantiza que el KPI del selector cuadre 1:1 con lo que muestra el Home
-// al aplicar filtro "Hoy" sobre la misma compañía.
+// al aplicar filtro "Hoy", y que compañías con POS nunca colapsen a $0 por
+// un fallo transitorio de red.
 export async function fetchCompanySales(
   company: Company,
   today: string,
@@ -53,25 +100,17 @@ export async function fetchCompanySales(
       : locales.map((l) => Number(l.local_id))
     const allowedIds = new Set(localIds)
 
-    const result = await posService.getVentasBatch(
-      company.id,
-      localIds,
-      `${yesterday} 00:00:00`,
-      `${today} 23:59:59`,
-    )
-
-    let todayTotal = 0
-    let yTotal = 0
-    for (const v of result.ventas) {
-      if (!allowedIds.has(v.id_local)) continue
-      if (isAnulada(v)) continue
-      const date = v.fecha?.slice(0, 10)
-      if (!date) continue
-      const amount = ventaMonto(v)
-      if (date === today) todayTotal += amount
-      else if (date === yesterday) yTotal += amount
+    try {
+      const result = await posService.getVentasBatch(
+        company.id,
+        localIds,
+        `${yesterday} 00:00:00`,
+        `${today} 23:59:59`,
+      )
+      return sumVentasByDate(result.ventas, allowedIds, today, yesterday)
+    } catch {
+      return readCacheTotals(company.id, allowedIds, today, yesterday)
     }
-    return { today: todayTotal, yesterday: yTotal }
   } catch {
     const [t, y] = await Promise.all([
       fetchClosingSum(company.id, today),
