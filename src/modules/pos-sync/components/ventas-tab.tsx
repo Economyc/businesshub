@@ -37,6 +37,7 @@ interface VentasTabProps {
   allLocalIds: number[]
   locales: PosLocal[]
   localLabel: string | null
+  localDisplayNames: Map<number, string>
 }
 
 function getEstadoTone(estado: string | undefined): 'positive' | 'warning' | 'neutral' {
@@ -68,7 +69,7 @@ const TONE_CLASSES: Record<string, string> = {
   neutral: 'bg-bone text-graphite',
 }
 
-export function VentasTab({ localIds, allLocalIds, locales, localLabel }: VentasTabProps) {
+export function VentasTab({ localIds, allLocalIds, localLabel, localDisplayNames }: VentasTabProps) {
   const { startDate, endDate } = useDateRange()
   const startDateStr = toDateStr(startDate)
   const endDateStr = toDateStr(endDate)
@@ -89,11 +90,7 @@ export function VentasTab({ localIds, allLocalIds, locales, localLabel }: Ventas
     refetch()
   }
 
-  const localNameMap = useMemo(() => {
-    const map = new Map<number, string>()
-    locales.forEach((l) => map.set(Number(l.local_id), l.local_descripcion))
-    return map
-  }, [locales])
+  const localNameMap = localDisplayNames
 
   const filteredVentas = useMemo(() => {
     let result = ventas

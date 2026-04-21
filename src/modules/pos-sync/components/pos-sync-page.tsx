@@ -35,6 +35,7 @@ export function PosSyncPage() {
     locales,
     localIds: activeLocalIds,
     localLabel,
+    localDisplayNames,
     loading: loadingLocales,
     error: localesError,
   } = useCompanyLocalIds()
@@ -80,6 +81,7 @@ export function PosSyncPage() {
           allLocalIds={activeLocalIds}
           locales={locales}
           localLabel={localLabel}
+          localDisplayNames={localDisplayNames}
         />
       )}
       {locales.length > 0 && activeTab === 'catalogo' && (
@@ -91,6 +93,7 @@ export function PosSyncPage() {
           allLocalIds={activeLocalIds}
           locales={locales}
           localLabel={localLabel}
+          localDisplayNames={localDisplayNames}
         />
       )}
       {activeTab === 'cache' && isAdmin && <CacheStatusTab />}

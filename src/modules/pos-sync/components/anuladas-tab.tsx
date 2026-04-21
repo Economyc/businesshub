@@ -16,9 +16,10 @@ interface AnuladasTabProps {
   allLocalIds: number[]
   locales: PosLocal[]
   localLabel: string | null
+  localDisplayNames: Map<number, string>
 }
 
-export function AnuladasTab({ localIds, allLocalIds, locales, localLabel }: AnuladasTabProps) {
+export function AnuladasTab({ localIds, allLocalIds, localLabel, localDisplayNames }: AnuladasTabProps) {
   const [selectedVenta, setSelectedVenta] = useState<PosVenta | null>(null)
   const { startDate, endDate } = useDateRange()
   const startDateStr = toDateStr(startDate)
@@ -34,11 +35,7 @@ export function AnuladasTab({ localIds, allLocalIds, locales, localLabel }: Anul
     refetch()
   }
 
-  const localNameMap = useMemo(() => {
-    const map = new Map<number, string>()
-    locales.forEach((l) => map.set(Number(l.local_id), l.local_descripcion))
-    return map
-  }, [locales])
+  const localNameMap = localDisplayNames
 
   const anuladas = useMemo(() => {
     const localSet = new Set(localIds)

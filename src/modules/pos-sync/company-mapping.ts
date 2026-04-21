@@ -63,6 +63,10 @@ export interface UseCompanyLocalIdsResult {
   localLabel: string | null
   locales: PosLocal[]
   matchedLocal: PosLocal | null
+  // Map localId → nombre a mostrar. Para el local que matchea con la company
+  // activa, usamos `company.location` (ej. "Belen" en vez de "FILIPO"). Los
+  // demás locales mantienen su `local_descripcion` original.
+  localDisplayNames: Map<number, string>
   loading: boolean
   error: string | null
 }
@@ -81,7 +85,23 @@ export function useCompanyLocalIds(): UseCompanyLocalIdsResult {
     return locales.map((l) => Number(l.local_id))
   }, [matchedLocal, locales])
 
-  const localName = matchedLocal?.local_descripcion ?? null
+  const aliasName = selectedCompany?.location ?? null
+  const matchedId = matchedLocal ? Number(matchedLocal.local_id) : null
+
+  const localDisplayNames = useMemo(() => {
+    const map = new Map<number, string>()
+    for (const l of locales) {
+      const id = Number(l.local_id)
+      if (matchedId != null && id === matchedId && aliasName) {
+        map.set(id, aliasName)
+      } else {
+        map.set(id, l.local_descripcion)
+      }
+    }
+    return map
+  }, [locales, matchedId, aliasName])
+
+  const localName = matchedLocal ? aliasName ?? matchedLocal.local_descripcion : null
   const localLabel = localName ?? (locales.length > 0 ? `${locales.length} locales` : null)
 
   return {
@@ -90,6 +110,7 @@ export function useCompanyLocalIds(): UseCompanyLocalIdsResult {
     localLabel,
     locales,
     matchedLocal,
+    localDisplayNames,
     loading,
     error,
   }
