@@ -1,6 +1,10 @@
 import { initializeApp } from 'firebase/app'
 import { getAuth } from 'firebase/auth'
-import { initializeFirestore } from 'firebase/firestore'
+import {
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+} from 'firebase/firestore'
 import { getFunctions } from 'firebase/functions'
 import { getStorage } from 'firebase/storage'
 
@@ -15,13 +19,19 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig)
 export const auth = getAuth(app)
+// Persistence local (IndexedDB): lecturas repetidas sirven desde el browser
+// sin red. Home antes hacía 4 `getDocs` paralelos a Firestore por red para
+// leer el cache de ventas POS — con miles de docs tardaba segundos. Con
+// persistence, la segunda carga es instantánea y la red solo trae deltas.
+// `persistentMultipleTabManager` evita conflicto si el usuario abre varias
+// pestañas del Hub a la vez.
 // Auto-detect long-polling: el SDK detecta proxies/firewalls que buffean
-// streams HTTP y cambia de WebChannel streaming a XHR long-polling. El path
-// (/Listen/channel y /Write/channel) NO cambia, solo el transporte, así que
-// esto no evade adblockers que matcheen por URL pattern — pero sí evita
-// timeouts en redes corporativas con proxies que rompen streaming.
+// streams HTTP y cambia de WebChannel streaming a XHR long-polling.
 export const db = initializeFirestore(app, {
   experimentalAutoDetectLongPolling: true,
+  localCache: persistentLocalCache({
+    tabManager: persistentMultipleTabManager(),
+  }),
 })
 export const functions = getFunctions(app)
 export const storage = getStorage(app)

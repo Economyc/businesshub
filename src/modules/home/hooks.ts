@@ -204,12 +204,27 @@ export function useDashboardData() {
     enabled: localIds.length > 0,
   })
 
+  // Las queries background NO arrancan hasta que la del filtro tenga datos.
+  // Sin esto, las 4 queries competían al montar por ancho de banda a Firestore
+  // y al POS, y la del filtro tardaba lo mismo que la más pesada.
+  // 600ms de buffer después de que el filtro esté listo — suficiente para que
+  // React haya pintado los KPIs antes de arrancar fetches adicionales.
+  const [backgroundEnabled, setBackgroundEnabled] = useState(false)
+  useEffect(() => {
+    if (posIsPending) return
+    if (localIds.length === 0) return
+    const id = setTimeout(() => setBackgroundEnabled(true), 600)
+    return () => clearTimeout(id)
+  }, [posIsPending, localIds.length])
+
+  const backgroundEnabledFlag = backgroundEnabled && localIds.length > 0
+
   // Query 2 — Periodo anterior para comparación (background)
   const { ventas: prevPeriodVentas, refetch: prevPeriodRefetch } = usePosVentas({
     localIds,
     startDate: prevStartStr,
     endDate: prevEndStr,
-    enabled: localIds.length > 0,
+    enabled: backgroundEnabledFlag,
   })
 
   // Query 3 — Año actual completo (background)
@@ -217,7 +232,7 @@ export function useDashboardData() {
     localIds,
     startDate: currentYearStart,
     endDate: todayStr,
-    enabled: localIds.length > 0,
+    enabled: backgroundEnabledFlag,
   })
 
   // Query 4 — Año anterior completo (background)
@@ -225,7 +240,7 @@ export function useDashboardData() {
     localIds,
     startDate: prevYearStart,
     endDate: prevYearEnd,
-    enabled: localIds.length > 0,
+    enabled: backgroundEnabledFlag,
   })
 
   // Dedup por ID: las 4 queries pueden solaparse (ej. filtro "Mes" cae dentro
