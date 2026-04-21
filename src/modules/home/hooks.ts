@@ -813,19 +813,19 @@ export function useDashboardData() {
     return { overdueItems, budgetExceeded, expiringContracts }
   }, [receivables, payables, budgetComparison, suppliers, contracts])
 
-  // Carga progresiva por KPI/sección. Cada card aparece en cuanto su propia
-  // fuente está lista, en vez de esperar a que la más lenta termine.
-  // Ventas solo necesita POS (cold load); gastos/costo necesitan transacciones
-  // (collection entera sin límite, puede ser pesada); por cobrar necesita
-  // cartera; gráfica necesita POS+closings+transacciones; alertas necesitan
-  // cartera+budget+suppliers+contracts.
+  // Todas las secciones del Home bloquean hasta que las ventas del filtro
+  // carguen, aunque su propia fuente (transacciones, cartera, alerts) ya esté
+  // lista. El usuario prefiere ver todo el dashboard aparecer de golpe que
+  // ver piezas parciales mientras espera el KPI principal. Si ventas tarda
+  // menos que transactions/cartera/etc., cada sección sigue con su skeleton
+  // individual — raro en la práctica porque POS suele ser lo más pesado.
   const ventasLoading = posColdLoading
-  const gastosLoading = txLoading
-  const costoLoading = txLoading
-  const porCobrarLoading = carteraLoading
-  const chartLoading = txLoading || closingsLoading || posColdLoading
+  const gastosLoading = posColdLoading || txLoading
+  const costoLoading = posColdLoading || txLoading
+  const porCobrarLoading = posColdLoading || carteraLoading
+  const chartLoading = posColdLoading || txLoading || closingsLoading
   const alertsLoading =
-    carteraLoading || budgetLoading || suppliersLoading || contractsLoading
+    posColdLoading || carteraLoading || budgetLoading || suppliersLoading || contractsLoading
 
   const syncStatus = useMemo<DashboardSyncStatus>(
     () => ({
