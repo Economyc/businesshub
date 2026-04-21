@@ -16,28 +16,43 @@ function normalize(str: string | null | undefined): string {
     .trim()
 }
 
-// Matching estricto: aceptamos match exacto (nombre completo o location como
-// sustring significativa del nombre del local), pero rechazamos coincidencias
-// parciales que puedan mezclar locales con nombres compartidos. Si no hay
-// match limpio devolvemos null y `useCompanyLocalIds` recurre a todos los
-// locales — mejor mostrar todo junto que asignar al local equivocado.
+function escapeRegex(s: string): string {
+  return s.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')
+}
+
+// Matching estricto en 3 niveles de confidence:
+//   1) Exact: `<name> <location>` == local_descripcion (ej. "Blue Manila")
+//   2) Location as word: desc contiene la location como palabra (ej. "BLUE MANILA"
+//      contiene "manila")
+//   3) Name as unique word: desc contiene el name como palabra Y es el único
+//      local que lo cumple (ej. Filipo Belen → "FILIPO" es el único local con
+//      "filipo"; el otro es "RANA BRAVA CAFÉ"). Sin este nivel, tenants cuya
+//      marca no incluye la location en el nombre del POS quedan sin match.
+// Si ninguno resuelve inequívocamente, `useCompanyLocalIds` cae al fallback
+// de "todos los locales" — mejor mostrar todo que asignar al local equivocado.
 export function findMatchingLocal(
   locales: PosLocal[],
   company: CompanyLike | null | undefined,
 ): PosLocal | null {
   if (!company || !company.location || locales.length === 0) return null
+  if (!company.name) return null
 
-  const companyNorm = normalize(`${company.name ?? ''} ${company.location}`)
+  const nameNorm = normalize(company.name)
   const locationNorm = normalize(company.location)
+  const companyNorm = normalize(`${company.name} ${company.location}`)
 
   const exact = locales.find((l) => normalize(l.local_descripcion) === companyNorm)
   if (exact) return exact
 
-  // Match estricto por location: el nombre del local debe contener la location
-  // como palabra completa (delimitada por borde o espacio), no sustring.
-  const locWord = new RegExp(`(^|\\s)${locationNorm.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}($|\\s)`)
-  const locMatch = locales.find((l) => locWord.test(normalize(l.local_descripcion)))
+  const locWordRe = new RegExp(`(^|\\s)${escapeRegex(locationNorm)}($|\\s)`)
+  const locMatch = locales.find((l) => locWordRe.test(normalize(l.local_descripcion)))
   if (locMatch) return locMatch
+
+  if (nameNorm) {
+    const nameWordRe = new RegExp(`(^|\\s)${escapeRegex(nameNorm)}($|\\s)`)
+    const nameMatches = locales.filter((l) => nameWordRe.test(normalize(l.local_descripcion)))
+    if (nameMatches.length === 1) return nameMatches[0]
+  }
 
   return null
 }
