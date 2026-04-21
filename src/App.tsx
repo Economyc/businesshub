@@ -20,6 +20,7 @@ import { ClosingList } from '@/modules/closings/routes'
 import { ContractList, TemplateList, ContractGenerate, ContractDetail } from '@/modules/contracts/routes'
 import { PurchaseList, PurchaseForm, PurchaseDetail, ProductList, ProductDetail } from '@/modules/purchases/routes'
 import { HomePage } from '@/modules/home/routes'
+import { CompanySelectorPage } from '@/modules/home/company-selector-page'
 import { CarteraDashboard } from '@/modules/cartera/routes'
 import { PayrollList, PayrollDetail } from '@/modules/payroll/routes'
 import { SettlementList, SettlementDetail } from '@/modules/prestaciones/routes'
@@ -55,6 +56,16 @@ function ProtectedRoute() {
   )
 }
 
+function ProtectedShellless() {
+  const { user } = useAuth()
+  if (!user) return <Navigate to="/login" replace />
+  return (
+    <PermissionsProvider>
+      <Outlet />
+    </PermissionsProvider>
+  )
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -63,8 +74,10 @@ export default function App() {
         <CompanyProvider>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            <Route element={<ProtectedShellless />}>
+              <Route path="/" element={<CompanySelectorPage />} />
+            </Route>
             <Route element={<ProtectedRoute />}>
-              <Route path="/" element={<Navigate to="/home" replace />} />
               <Route element={<DateRangeProvider><Outlet /></DateRangeProvider>}>
                 <Route path="/home" element={<Suspense fallback={<Loading />}><HomePage /></Suspense>} />
               </Route>

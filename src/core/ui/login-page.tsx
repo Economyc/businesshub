@@ -31,7 +31,7 @@ export function LoginPage() {
   const [submitting, setSubmitting] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
 
-  if (user) return <Navigate to="/home" replace />
+  if (user) return <Navigate to="/" replace />
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
