@@ -12,6 +12,7 @@ import { useAuth } from '@/core/hooks/use-auth'
 import { useAvatarConfig } from '@/core/hooks/use-avatar-config'
 import { useCompany } from '@/core/hooks/use-company'
 import { usePermissions } from '@/core/hooks/use-permissions'
+import { prefetchRoute, resetPrefetchCache } from '@/core/utils/prefetch'
 import type { ModuleKey } from '@/core/types/permissions'
 
 interface NavItem {
@@ -153,6 +154,34 @@ export function Sidebar({ onNavClick }: SidebarProps) {
     if (isSettingsRoute) setSettingsOpen(true)
     else setSettingsOpen(false)
   }, [isSettingsRoute])
+
+  // Al cambiar de company, limpiar el set de rutas ya prefetcheadas para que el
+  // próximo hover dispare el prefetch con el nuevo companyId.
+  useEffect(() => {
+    resetPrefetchCache()
+  }, [selectedCompany?.id])
+
+  // Debounce de 150ms para prefetch on-hover: distingue hover casual (pasar el
+  // cursor de A a B en <100ms, no se dispara nada) de hover con intención de
+  // click (>150ms, dispara prefetch). Patrón usado por Next.js, React Router v7
+  // y GitHub. Evita saturar Firestore con reads que no termina usando el usuario.
+  const prefetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const handlePrefetchEnter = (path: string) => {
+    if (prefetchTimerRef.current) clearTimeout(prefetchTimerRef.current)
+    prefetchTimerRef.current = setTimeout(() => {
+      prefetchRoute(path, selectedCompany?.id)
+      prefetchTimerRef.current = null
+    }, 150)
+  }
+  const handlePrefetchLeave = () => {
+    if (prefetchTimerRef.current) {
+      clearTimeout(prefetchTimerRef.current)
+      prefetchTimerRef.current = null
+    }
+  }
+  useEffect(() => () => {
+    if (prefetchTimerRef.current) clearTimeout(prefetchTimerRef.current)
+  }, [])
 
   // Close finance panel when leaving finance routes; don't auto-open
   useEffect(() => {
@@ -416,6 +445,9 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                                 <button
                                   key={to}
                                   onClick={onClick}
+                                  onMouseEnter={() => handlePrefetchEnter(to)}
+                                  onMouseLeave={handlePrefetchLeave}
+                                  onFocus={() => prefetchRoute(to, selectedCompany?.id)}
                                   className={cn(
                                     'group/nav relative flex items-center gap-2.5 py-2.5 text-body transition-all duration-150 w-full',
                                     section.title ? 'pl-8 pr-5' : 'px-5',
@@ -440,6 +472,9 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                                 key={to}
                                 to={to}
                                 onClick={onNavClick}
+                                onMouseEnter={() => handlePrefetchEnter(to)}
+                                onMouseLeave={handlePrefetchLeave}
+                                onFocus={() => prefetchRoute(to, selectedCompany?.id)}
                                 className={({ isActive }) =>
                                   cn(
                                     'group/nav relative flex items-center gap-2.5 py-2.5 text-body transition-all duration-150',
@@ -581,6 +616,8 @@ export function Sidebar({ onNavClick }: SidebarProps) {
               to={to}
               end={end}
               onClick={() => { onNavClick?.(); setFinanceOpen(false) }}
+              onMouseEnter={() => prefetchRoute(to, selectedCompany?.id)}
+              onFocus={() => prefetchRoute(to, selectedCompany?.id)}
               className={({ isActive }) =>
                 cn(
                   'flex items-center gap-2.5 px-4 py-2.5 text-body transition-all duration-150 whitespace-nowrap',
@@ -622,6 +659,8 @@ export function Sidebar({ onNavClick }: SidebarProps) {
               to={to}
               end={end}
               onClick={() => { onNavClick?.(); setAnalyticsOpen(false) }}
+              onMouseEnter={() => prefetchRoute(to, selectedCompany?.id)}
+              onFocus={() => prefetchRoute(to, selectedCompany?.id)}
               className={({ isActive }) =>
                 cn(
                   'flex items-center gap-2.5 px-4 py-2.5 text-body transition-all duration-150 whitespace-nowrap',
@@ -662,6 +701,8 @@ export function Sidebar({ onNavClick }: SidebarProps) {
               key={to}
               to={to}
               onClick={onNavClick}
+              onMouseEnter={() => prefetchRoute(to, selectedCompany?.id)}
+              onFocus={() => prefetchRoute(to, selectedCompany?.id)}
               className={({ isActive }) =>
                 cn(
                   'flex items-center gap-2.5 px-4 py-2.5 text-body transition-all duration-150 whitespace-nowrap',
