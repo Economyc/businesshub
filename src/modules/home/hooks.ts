@@ -219,28 +219,37 @@ export function useDashboardData() {
 
   const backgroundEnabledFlag = backgroundEnabled && localIds.length > 0
 
-  // Query 2 — Periodo anterior para comparación (background)
+  // Las 3 queries background son `readCacheOnly`: leen cache Firestore pero no
+  // fetchean al POS ni escriben. Solo la query del filtro (prioritaria) tiene
+  // permiso de escritura. Sin esto, cambiar de company disparaba ~540 writes
+  // (cada query saves sus días) → el SDK Firestore emitía resource-exhausted
+  // al llenar la cola interna. El cron nocturno del server hidrata estos
+  // rangos, así que si falta data temporalmente el próximo día queda cubierta.
+  // Query 2 — Periodo anterior para comparación (background, read-only)
   const { ventas: prevPeriodVentas, refetch: prevPeriodRefetch } = usePosVentas({
     localIds,
     startDate: prevStartStr,
     endDate: prevEndStr,
     enabled: backgroundEnabledFlag,
+    readCacheOnly: true,
   })
 
-  // Query 3 — Año actual completo (background)
+  // Query 3 — Año actual completo (background, read-only)
   const { ventas: currentYearVentas, refetch: currentYearRefetch } = usePosVentas({
     localIds,
     startDate: currentYearStart,
     endDate: todayStr,
     enabled: backgroundEnabledFlag,
+    readCacheOnly: true,
   })
 
-  // Query 4 — Año anterior completo (background)
+  // Query 4 — Año anterior completo (background, read-only)
   const { ventas: prevYearVentas, refetch: prevYearRefetch } = usePosVentas({
     localIds,
     startDate: prevYearStart,
     endDate: prevYearEnd,
     enabled: backgroundEnabledFlag,
+    readCacheOnly: true,
   })
 
   // Dedup por ID: las 4 queries pueden solaparse (ej. filtro "Mes" cae dentro

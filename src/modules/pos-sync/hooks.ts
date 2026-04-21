@@ -99,6 +99,11 @@ interface FetchArgs {
   startDate: string
   endDate: string
   force?: boolean
+  // Si true: solo lee cache Firestore, no llama al POS ni escribe. Usado por
+  // queries background de Home (año actual, año anterior, periodo anterior)
+  // para no saturar el buffer de writes del SDK cuando el usuario navega
+  // entre companies. El cron nocturno del server hidrata esos rangos.
+  readCacheOnly?: boolean
   onProgress?: (p: FetchProgress | null) => void
   onPartial?: (partial: FetchResult) => void
 }
@@ -121,6 +126,7 @@ async function fetchVentasWithCache({
   startDate,
   endDate,
   force = false,
+  readCacheOnly = false,
   onProgress,
   onPartial,
 }: FetchArgs): Promise<FetchResult> {
@@ -144,6 +150,13 @@ async function fetchVentasWithCache({
     } catch {
       // Cache read failed — fall through to full fetch
     }
+  }
+
+  // Modo read-only: usado por queries background. No fetch al POS ni writes;
+  // si falta data, `usePosAnalytics`/Home verán un rango incompleto hasta que
+  // el cron nocturno del server o la query prioritaria del filtro lo hidrate.
+  if (readCacheOnly) {
+    return { ventas: cachedVentas, fromCache: true, rateLimited: false }
   }
 
   // Si el server está reconciliando en este momento, no competir por el token
@@ -374,6 +387,7 @@ interface UsePosVentasParams {
   startDate: string
   endDate: string
   enabled?: boolean
+  readCacheOnly?: boolean
 }
 
 export function usePosVentas({
@@ -381,6 +395,7 @@ export function usePosVentas({
   startDate,
   endDate,
   enabled = true,
+  readCacheOnly = false,
 }: UsePosVentasParams) {
   const { selectedCompany } = useCompany()
   const companyId = selectedCompany?.id
@@ -427,6 +442,7 @@ export function usePosVentas({
         startDate,
         endDate,
         force,
+        readCacheOnly,
         onProgress: setProgress,
         onPartial: (partial) => {
           queryClient.setQueryData<FetchResult>(queryKey, partial)
