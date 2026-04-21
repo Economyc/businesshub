@@ -13,6 +13,7 @@ import { useAvatarConfig } from '@/core/hooks/use-avatar-config'
 import { useCompany } from '@/core/hooks/use-company'
 import { usePermissions } from '@/core/hooks/use-permissions'
 import { prefetchRoute, resetPrefetchCache } from '@/core/utils/prefetch'
+import { prefetchSelectorSales } from '@/modules/home/selector-sales'
 import type { ModuleKey } from '@/core/types/permissions'
 
 interface NavItem {
@@ -563,6 +564,8 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                             setUserMenuOpen(false)
                             navigate('/')
                           }}
+                          onMouseEnter={() => prefetchSelectorSales(companies)}
+                          onFocus={() => prefetchSelectorSales(companies)}
                           className="w-full flex items-center gap-2.5 px-4 py-3 rounded-lg text-body text-mid-gray hover:text-dark-graphite transition-colors duration-150"
                         >
                           <LayoutGrid size={16} strokeWidth={1.5} />

@@ -19,6 +19,7 @@ import { fileToBase64Thumb } from '@/core/utils/image'
 import { cacheGet, cacheSet } from '@/core/utils/cache'
 import { preloadLogos } from '@/core/utils/logo-cache'
 import { prefetchHomeData } from '@/core/utils/prefetch'
+import { prefetchSelectorSales } from '@/modules/home/selector-sales'
 
 interface CompanyContextValue {
   companies: Company[]
@@ -192,6 +193,13 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (selectedCompany?.id) prefetchHomeData(selectedCompany.id)
   }, [selectedCompany?.id])
+
+  // Prefetch de ventas hoy/ayer para el selector post-login. Dispara las
+  // llamadas POS en cuanto cargan las companies (≤1s post-login) para que
+  // al aterrizar en `/` las tarjetas ya tengan data y el skeleton sea breve.
+  useEffect(() => {
+    if (companies.length > 1) prefetchSelectorSales(companies)
+  }, [companies])
 
   const selectCompany = useCallback((company: Company) => {
     setSelectedCompany(company)
