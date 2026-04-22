@@ -92,7 +92,17 @@ export function CompanySelectorPage() {
 
   const logosReady = useLogosReady(companies)
   const salesReady = !salesQuery.isLoading
-  const allReady = companies.length > 0 && salesReady && logosReady
+
+  // Safety net: si por algún motivo salesReady o logosReady no se resuelven,
+  // revelamos después de 1.5s para que el user nunca vea una pantalla vacía.
+  const [timeoutElapsed, setTimeoutElapsed] = useState(false)
+  useEffect(() => {
+    const t = setTimeout(() => setTimeoutElapsed(true), 1500)
+    return () => clearTimeout(t)
+  }, [])
+
+  const allReady =
+    companies.length > 0 && ((salesReady && logosReady) || timeoutElapsed)
 
   const firstName =
     user?.displayName?.split(' ')[0] ??

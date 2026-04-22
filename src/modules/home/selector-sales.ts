@@ -7,7 +7,7 @@ import { findMatchingLocal } from '@/modules/pos-sync/company-mapping'
 import { posService } from '@/modules/pos-sync/services'
 import type { Company } from '@/core/types'
 import type { Closing } from '@/modules/closings/types'
-import type { PosVenta } from '@/modules/pos-sync/types'
+import type { PosVenta, PosLocal } from '@/modules/pos-sync/types'
 
 export interface DaySales {
   today: number
@@ -17,6 +17,7 @@ export interface DaySales {
 export type SelectorSalesMap = Record<string, DaySales>
 
 export const SELECTOR_SALES_STALE_MS = 5 * 60 * 1000
+const DOMINIO_STALE_MS = 60 * 60 * 1000 // 1h — los locales del tenant casi nunca cambian
 
 export function ymd(offsetDays = 0): string {
   const d = new Date()
@@ -27,6 +28,10 @@ export function ymd(offsetDays = 0): string {
 export function selectorSalesKey(companyIds: string[], today: string) {
   const sorted = [...companyIds].sort().join(',')
   return ['selector-sales-all', sorted, today] as const
+}
+
+function tenantDominioKey(tenantId: string) {
+  return ['tenant-dominio', tenantId] as const
 }
 
 async function fetchClosingSum(companyId: string, dateStr: string): Promise<number> {
@@ -88,76 +93,44 @@ async function fetchClosingsDaySales(
   return { today: t, yesterday: y }
 }
 
-// Procesa todas las companies de un mismo tenant POS en UNA llamada batch.
-// Antes: N companies → N llamadas POS paralelas compartiendo el mismo token,
-// una chocaba contra el rate-limit ("solicitud en ejecución") y caía a cache
-// vacío mostrando $0. Ahora: 1 getDominio + 1 getVentasBatch con todos los
-// localIds del tenant, y repartimos los resultados por company según el match.
-async function fetchTenantSales(
-  tenantCompanies: Company[],
-  today: string,
-  yesterday: string,
-): Promise<Map<string, DaySales>> {
-  const out = new Map<string, DaySales>()
-  const pivot = tenantCompanies[0]
-
-  let locales: Awaited<ReturnType<typeof posService.getDominio>>['locales'] | null = null
-  try {
-    const dominio = await posService.getDominio(pivot.id)
-    locales = dominio?.locales ?? []
-  } catch {
-    locales = null
-  }
-
-  if (!locales || locales.length === 0) {
-    // Sin dominio → closings por compañía
-    await Promise.all(
-      tenantCompanies.map(async (c) => {
-        out.set(c.id, await fetchClosingsDaySales(c.id, today, yesterday))
-      }),
-    )
-    return out
-  }
-
-  // Mapeo company → localIds permitidos
-  const companyLocals = new Map<string, Set<number>>()
-  const allLocalIds = new Set<number>()
-  for (const c of tenantCompanies) {
-    const matched = findMatchingLocal(locales, c)
-    const ids = matched
-      ? [Number(matched.local_id)]
-      : locales.map((l) => Number(l.local_id))
-    companyLocals.set(c.id, new Set(ids))
-    for (const id of ids) allLocalIds.add(id)
-  }
-
-  try {
-    const res = await posService.getVentasBatch(
-      pivot.id,
-      [...allLocalIds],
-      `${yesterday} 00:00:00`,
-      `${today} 23:59:59`,
-    )
-    for (const c of tenantCompanies) {
-      const allowed = companyLocals.get(c.id)!
-      out.set(c.id, sumVentasByDate(res.ventas, allowed, today, yesterday))
-    }
-  } catch {
-    // POS falló para el tenant entero → cache Firestore por compañía en paralelo
-    await Promise.all(
-      tenantCompanies.map(async (c) => {
-        const allowed = companyLocals.get(c.id)!
-        out.set(c.id, await readCacheTotals(c.id, allowed, today, yesterday))
-      }),
-    )
-  }
-
-  return out
+// getDominio por tenant, cacheado en queryClient. El dominio cambia muy rara
+// vez (solo si se crea/quita un local), así que 1h de staleTime es seguro y
+// evita repetir el roundtrip al POS en cada entrada al selector.
+async function getTenantLocales(
+  tenantId: string,
+  pivotCompanyId: string,
+): Promise<PosLocal[]> {
+  return queryClient.fetchQuery({
+    queryKey: tenantDominioKey(tenantId),
+    queryFn: async () => {
+      const dominio = await posService.getDominio(pivotCompanyId)
+      return dominio?.locales ?? []
+    },
+    staleTime: DOMINIO_STALE_MS,
+  })
 }
 
-// Una sola función, una sola query, una sola revelación en UI.
-// Agrupa por posTenantId para que cada tenant haga exactamente 1 llamada POS
-// (con todos sus locales). Companies sin tenant caen a closings.
+function computeAllowedIds(locales: PosLocal[], company: Company): Set<number> {
+  if (locales.length === 0) return new Set()
+  const matched = findMatchingLocal(locales, company)
+  const ids = matched
+    ? [Number(matched.local_id)]
+    : locales.map((l) => Number(l.local_id))
+  return new Set(ids)
+}
+
+// ESTRATEGIA CACHE-FIRST:
+// El selector lee exclusivamente del cache Firestore `pos-sales-cache`, que
+// hidratan (a) el cron nocturno con los días cerrados y (b) las visitas al
+// Home con "hoy". Paralelo, sin rate-limit, sin llamadas POS lentas.
+//
+// Trade-off: "hoy" puede estar desfasado ~30-60 min si nadie visitó el Home.
+// Para el caso "ventas hoy" del selector, es aceptable. El Home sigue siendo
+// la fuente real-time. Si el cache está vacío para hoy, la tarjeta muestra 0
+// y eso fuerza al user a entrar al Home, que al cargar hidrata el cache.
+//
+// Con este cambio: 1 getDominio paralelo por tenant (~500ms, cacheable 1h)
+// + N reads Firestore paralelos (~200ms). Total <1s aun en frío.
 export async function fetchAllCompaniesSales(
   companies: Company[],
   today: string,
@@ -166,6 +139,7 @@ export async function fetchAllCompaniesSales(
   const result: SelectorSalesMap = {}
   for (const c of companies) result[c.id] = { today: 0, yesterday: 0 }
 
+  // Agrupar por tenant para resolver dominios una vez cada uno
   const byTenant = new Map<string, Company[]>()
   const noTenant: Company[] = []
   for (const c of companies) {
@@ -178,20 +152,48 @@ export async function fetchAllCompaniesSales(
     }
   }
 
-  const tenantJobs = [...byTenant.values()].map(async (group) => {
-    const map = await fetchTenantSales(group, today, yesterday)
-    for (const [id, sales] of map) result[id] = sales
-  })
-  const closingJobs = noTenant.map(async (c) => {
-    result[c.id] = await fetchClosingsDaySales(c.id, today, yesterday)
-  })
+  // 1) getDominio por tenant, en paralelo. Best-effort: si falla, las
+  //    compañías de ese tenant se quedan en 0 (closings sería overkill aquí).
+  const tenantLocales = new Map<string, PosLocal[]>()
+  await Promise.all(
+    [...byTenant.entries()].map(async ([tid, comps]) => {
+      try {
+        const locales = await getTenantLocales(tid, comps[0].id)
+        tenantLocales.set(tid, locales)
+      } catch {
+        tenantLocales.set(tid, [])
+      }
+    }),
+  )
 
-  await Promise.all([...tenantJobs, ...closingJobs])
+  // 2) Reads de cache Firestore + closings, todo en paralelo
+  await Promise.all([
+    ...companies
+      .filter((c) => c.posTenantId)
+      .map(async (c) => {
+        const locales = tenantLocales.get(c.posTenantId!) ?? []
+        const allowed = computeAllowedIds(locales, c)
+        if (allowed.size === 0) return
+        try {
+          result[c.id] = await readCacheTotals(c.id, allowed, today, yesterday)
+        } catch {
+          // cache read falló → dejar en 0
+        }
+      }),
+    ...noTenant.map(async (c) => {
+      try {
+        result[c.id] = await fetchClosingsDaySales(c.id, today, yesterday)
+      } catch {
+        // closings falló → dejar en 0
+      }
+    }),
+  ])
+
   return result
 }
 
-// Idempotente: si ya hay data fresca dentro de SELECTOR_SALES_STALE_MS,
-// React Query no redispara fetch. Seguro de llamar en onMouseEnter y post-login.
+// Idempotente. Llamable post-login (useEffect en CompanyProvider) y on-hover
+// (sidebar "Mis compañías") para tener data lista al aterrizar en el selector.
 const prefetchedAt = new Map<string, number>()
 
 export function prefetchSelectorSales(companies: Company[]): void {
