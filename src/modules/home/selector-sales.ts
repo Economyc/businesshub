@@ -192,6 +192,80 @@ export async function fetchAllCompaniesSales(
   return result
 }
 
+// Refresh en background desde el POS live. Actualiza queryClient para que el
+// selector re-renderice con los valores frescos sin bloquear el render inicial.
+// Rate-limited cliente-side (5 min) para no spamear el POS en cada visita.
+// Solo pide "hoy" (1 día) — minimiza páginas que el backend tiene que iterar.
+const liveRefreshedAt = new Map<string, number>()
+
+export async function refreshLiveSales(
+  companies: Company[],
+  today: string,
+  yesterday: string,
+): Promise<void> {
+  if (companies.length === 0) return
+  const ids = companies.map((c) => c.id)
+  const key = `${[...ids].sort().join(',')}_${today}`
+  const now = Date.now()
+  if (now - (liveRefreshedAt.get(key) ?? 0) < SELECTOR_SALES_STALE_MS) return
+  liveRefreshedAt.set(key, now)
+
+  const byTenant = new Map<string, Company[]>()
+  for (const c of companies) {
+    if (!c.posTenantId) continue
+    const list = byTenant.get(c.posTenantId) ?? []
+    list.push(c)
+    byTenant.set(c.posTenantId, list)
+  }
+  if (byTenant.size === 0) return
+
+  const queryKey = selectorSalesKey(ids, today)
+  const current =
+    queryClient.getQueryData<SelectorSalesMap>(queryKey) ?? {}
+  const next: SelectorSalesMap = { ...current }
+
+  await Promise.all(
+    [...byTenant.values()].map(async (comps) => {
+      const pivot = comps[0]
+      try {
+        const locales = await getTenantLocales(pivot.posTenantId!, pivot.id)
+        if (locales.length === 0) return
+
+        const companyAllowed = new Map<string, Set<number>>()
+        const allIds = new Set<number>()
+        for (const c of comps) {
+          const allowed = computeAllowedIds(locales, c)
+          companyAllowed.set(c.id, allowed)
+          for (const id of allowed) allIds.add(id)
+        }
+        if (allIds.size === 0) return
+
+        // Pedimos sólo hoy para minimizar el tiempo del POS.
+        // Ayer ya viene del cache Firestore (cron nocturno).
+        const res = await posService.getVentasBatch(
+          pivot.id,
+          [...allIds],
+          `${today} 00:00:00`,
+          `${today} 23:59:59`,
+        )
+        for (const c of comps) {
+          const allowed = companyAllowed.get(c.id)!
+          const live = sumVentasByDate(res.ventas, allowed, today, yesterday)
+          // Mergeamos: "today" del POS live, "yesterday" del cache (más estable).
+          next[c.id] = {
+            today: live.today,
+            yesterday: next[c.id]?.yesterday ?? 0,
+          }
+        }
+      } catch {
+        // POS falló → dejamos los valores del cache sin tocar
+      }
+    }),
+  )
+
+  queryClient.setQueryData(queryKey, next)
+}
+
 // Idempotente. Llamable post-login (useEffect en CompanyProvider) y on-hover
 // (sidebar "Mis compañías") para tener data lista al aterrizar en el selector.
 const prefetchedAt = new Map<string, number>()

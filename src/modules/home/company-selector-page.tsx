@@ -8,6 +8,7 @@ import { CompanyLogo } from '@/core/ui/company-logo'
 import { formatCurrency } from '@/core/utils/format'
 import {
   fetchAllCompaniesSales,
+  refreshLiveSales,
   selectorSalesKey,
   SELECTOR_SALES_STALE_MS,
   ymd,
@@ -89,6 +90,13 @@ export function CompanySelectorPage() {
     staleTime: SELECTOR_SALES_STALE_MS,
     enabled: companies.length > 0,
   })
+
+  // Refresh en background desde POS live (solo hoy). Dispara después del
+  // primer render con cache para mantener UX fluida. Rate-limited internamente.
+  useEffect(() => {
+    if (companies.length === 0) return
+    refreshLiveSales(companies, today, yesterday).catch(() => {})
+  }, [companies, today, yesterday])
 
   const logosReady = useLogosReady(companies)
   const salesReady = !salesQuery.isLoading
