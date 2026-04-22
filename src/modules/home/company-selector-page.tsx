@@ -35,6 +35,9 @@ export function CompanySelectorPage() {
     })),
   })
 
+  const allSalesReady =
+    companies.length > 0 && salesQueries.every((q) => !q.isLoading)
+
   const firstName =
     user?.displayName?.split(' ')[0] ??
     user?.email?.split('@')[0] ??
@@ -84,7 +87,7 @@ export function CompanySelectorPage() {
             const data = q?.data
             const todayVal = data?.today ?? 0
             const yVal = data?.yesterday ?? 0
-            const isLoadingKpi = Boolean(q?.isLoading)
+            const isLoadingKpi = !allSalesReady
             const delta = yVal > 0 ? ((todayVal - yVal) / yVal) * 100 : null
             const up = (delta ?? 0) >= 0
 
