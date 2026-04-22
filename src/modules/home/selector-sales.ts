@@ -14,6 +14,8 @@ export interface DaySales {
   yesterday: number
 }
 
+export type SelectorSalesMap = Record<string, DaySales>
+
 export const SELECTOR_SALES_STALE_MS = 5 * 60 * 1000
 
 export function ymd(offsetDays = 0): string {
@@ -22,8 +24,9 @@ export function ymd(offsetDays = 0): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-export function selectorSalesKey(companyId: string, today: string) {
-  return ['selector-sales', companyId, today] as const
+export function selectorSalesKey(companyIds: string[], today: string) {
+  const sorted = [...companyIds].sort().join(',')
+  return ['selector-sales-all', sorted, today] as const
 }
 
 async function fetchClosingSum(companyId: string, dateStr: string): Promise<number> {
@@ -55,8 +58,6 @@ function sumVentasByDate(
   return { today: todayTotal, yesterday: yTotal }
 }
 
-// Lee ventas directamente del cache de Firestore (hidratado por el cron
-// nocturno para ayer y por visitas previas al Home para hoy). Sin llamada POS.
 async function readCacheTotals(
   companyId: string,
   allowedIds: Set<number>,
@@ -75,49 +76,118 @@ async function readCacheTotals(
   return sumVentasByDate(ventas, allowedIds, today, yesterday)
 }
 
-// Replica el pipeline del Home/POS Sync con 3 capas de fallback:
-//   1) POS live (getVentasBatch) — datos al segundo, igual que Home
-//   2) Cache Firestore (pos-sales-cache) — si el POS falla por rate-limit,
-//      timeout o red, leemos los datos que el cron nocturno + visitas previas
-//      al Home ya dejaron hidratados
-//   3) Closings — última opción para compañías sin POS configurado
-// Garantiza que el KPI del selector cuadre 1:1 con lo que muestra el Home
-// al aplicar filtro "Hoy", y que compañías con POS nunca colapsen a $0 por
-// un fallo transitorio de red.
-export async function fetchCompanySales(
-  company: Company,
+async function fetchClosingsDaySales(
+  companyId: string,
   today: string,
   yesterday: string,
 ): Promise<DaySales> {
-  try {
-    const dominio = await posService.getDominio(company.id)
-    const locales = dominio?.locales ?? []
-    if (locales.length === 0) throw new Error('sin locales')
+  const [t, y] = await Promise.all([
+    fetchClosingSum(companyId, today),
+    fetchClosingSum(companyId, yesterday),
+  ])
+  return { today: t, yesterday: y }
+}
 
-    const matched = findMatchingLocal(locales, company)
-    const localIds = matched
+// Procesa todas las companies de un mismo tenant POS en UNA llamada batch.
+// Antes: N companies → N llamadas POS paralelas compartiendo el mismo token,
+// una chocaba contra el rate-limit ("solicitud en ejecución") y caía a cache
+// vacío mostrando $0. Ahora: 1 getDominio + 1 getVentasBatch con todos los
+// localIds del tenant, y repartimos los resultados por company según el match.
+async function fetchTenantSales(
+  tenantCompanies: Company[],
+  today: string,
+  yesterday: string,
+): Promise<Map<string, DaySales>> {
+  const out = new Map<string, DaySales>()
+  const pivot = tenantCompanies[0]
+
+  let locales: Awaited<ReturnType<typeof posService.getDominio>>['locales'] | null = null
+  try {
+    const dominio = await posService.getDominio(pivot.id)
+    locales = dominio?.locales ?? []
+  } catch {
+    locales = null
+  }
+
+  if (!locales || locales.length === 0) {
+    // Sin dominio → closings por compañía
+    await Promise.all(
+      tenantCompanies.map(async (c) => {
+        out.set(c.id, await fetchClosingsDaySales(c.id, today, yesterday))
+      }),
+    )
+    return out
+  }
+
+  // Mapeo company → localIds permitidos
+  const companyLocals = new Map<string, Set<number>>()
+  const allLocalIds = new Set<number>()
+  for (const c of tenantCompanies) {
+    const matched = findMatchingLocal(locales, c)
+    const ids = matched
       ? [Number(matched.local_id)]
       : locales.map((l) => Number(l.local_id))
-    const allowedIds = new Set(localIds)
+    companyLocals.set(c.id, new Set(ids))
+    for (const id of ids) allLocalIds.add(id)
+  }
 
-    try {
-      const result = await posService.getVentasBatch(
-        company.id,
-        localIds,
-        `${yesterday} 00:00:00`,
-        `${today} 23:59:59`,
-      )
-      return sumVentasByDate(result.ventas, allowedIds, today, yesterday)
-    } catch {
-      return readCacheTotals(company.id, allowedIds, today, yesterday)
+  try {
+    const res = await posService.getVentasBatch(
+      pivot.id,
+      [...allLocalIds],
+      `${yesterday} 00:00:00`,
+      `${today} 23:59:59`,
+    )
+    for (const c of tenantCompanies) {
+      const allowed = companyLocals.get(c.id)!
+      out.set(c.id, sumVentasByDate(res.ventas, allowed, today, yesterday))
     }
   } catch {
-    const [t, y] = await Promise.all([
-      fetchClosingSum(company.id, today),
-      fetchClosingSum(company.id, yesterday),
-    ])
-    return { today: t, yesterday: y }
+    // POS falló para el tenant entero → cache Firestore por compañía en paralelo
+    await Promise.all(
+      tenantCompanies.map(async (c) => {
+        const allowed = companyLocals.get(c.id)!
+        out.set(c.id, await readCacheTotals(c.id, allowed, today, yesterday))
+      }),
+    )
   }
+
+  return out
+}
+
+// Una sola función, una sola query, una sola revelación en UI.
+// Agrupa por posTenantId para que cada tenant haga exactamente 1 llamada POS
+// (con todos sus locales). Companies sin tenant caen a closings.
+export async function fetchAllCompaniesSales(
+  companies: Company[],
+  today: string,
+  yesterday: string,
+): Promise<SelectorSalesMap> {
+  const result: SelectorSalesMap = {}
+  for (const c of companies) result[c.id] = { today: 0, yesterday: 0 }
+
+  const byTenant = new Map<string, Company[]>()
+  const noTenant: Company[] = []
+  for (const c of companies) {
+    if (c.posTenantId) {
+      const list = byTenant.get(c.posTenantId) ?? []
+      list.push(c)
+      byTenant.set(c.posTenantId, list)
+    } else {
+      noTenant.push(c)
+    }
+  }
+
+  const tenantJobs = [...byTenant.values()].map(async (group) => {
+    const map = await fetchTenantSales(group, today, yesterday)
+    for (const [id, sales] of map) result[id] = sales
+  })
+  const closingJobs = noTenant.map(async (c) => {
+    result[c.id] = await fetchClosingsDaySales(c.id, today, yesterday)
+  })
+
+  await Promise.all([...tenantJobs, ...closingJobs])
+  return result
 }
 
 // Idempotente: si ya hay data fresca dentro de SELECTOR_SALES_STALE_MS,
@@ -128,16 +198,15 @@ export function prefetchSelectorSales(companies: Company[]): void {
   if (companies.length === 0) return
   const today = ymd(0)
   const yesterday = ymd(-1)
+  const ids = companies.map((c) => c.id)
+  const key = `${[...ids].sort().join(',')}_${today}`
   const now = Date.now()
-  for (const c of companies) {
-    const key = `${c.id}_${today}`
-    const last = prefetchedAt.get(key) ?? 0
-    if (now - last < SELECTOR_SALES_STALE_MS) continue
-    prefetchedAt.set(key, now)
-    queryClient.prefetchQuery({
-      queryKey: selectorSalesKey(c.id, today),
-      queryFn: () => fetchCompanySales(c, today, yesterday),
-      staleTime: SELECTOR_SALES_STALE_MS,
-    })
-  }
+  const last = prefetchedAt.get(key) ?? 0
+  if (now - last < SELECTOR_SALES_STALE_MS) return
+  prefetchedAt.set(key, now)
+  queryClient.prefetchQuery({
+    queryKey: selectorSalesKey(ids, today),
+    queryFn: () => fetchAllCompaniesSales(companies, today, yesterday),
+    staleTime: SELECTOR_SALES_STALE_MS,
+  })
 }

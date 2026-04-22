@@ -1,15 +1,70 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useQueries } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { MapPin, Plus, LogOut, ArrowUpRight } from 'lucide-react'
 import { useCompany } from '@/core/hooks/use-company'
 import { useAuth } from '@/core/hooks/use-auth'
 import { CompanyLogo } from '@/core/ui/company-logo'
 import { formatCurrency } from '@/core/utils/format'
-import { fetchCompanySales, selectorSalesKey, SELECTOR_SALES_STALE_MS, ymd } from './selector-sales'
+import {
+  fetchAllCompaniesSales,
+  selectorSalesKey,
+  SELECTOR_SALES_STALE_MS,
+  ymd,
+} from './selector-sales'
 import { cn } from '@/lib/utils'
 import type { Company } from '@/core/types'
 
+
+// Precarga logos en paralelo y resuelve cuando todos terminan (o fallan).
+// Timeout de seguridad para no bloquear el render si una URL está rota.
+function useLogosReady(companies: Company[]): boolean {
+  const urls = useMemo(() => {
+    const list: string[] = []
+    for (const c of companies) {
+      const url = c.logo ?? c.logoThumb
+      if (url) list.push(url)
+    }
+    return list
+  }, [companies])
+
+  const [ready, setReady] = useState(urls.length === 0)
+
+  useEffect(() => {
+    if (urls.length === 0) {
+      setReady(true)
+      return
+    }
+    setReady(false)
+    let settled = 0
+    let done = false
+    const finish = () => {
+      if (done) return
+      done = true
+      setReady(true)
+    }
+    const timeout = setTimeout(finish, 2500)
+    for (const url of urls) {
+      const img = new Image()
+      const onSettle = () => {
+        settled++
+        if (settled === urls.length) {
+          clearTimeout(timeout)
+          finish()
+        }
+      }
+      img.onload = onSettle
+      img.onerror = onSettle
+      img.src = url
+    }
+    return () => {
+      clearTimeout(timeout)
+      done = true
+    }
+  }, [urls])
+
+  return ready
+}
 
 export function CompanySelectorPage() {
   const { companies, loading, selectCompany, addCompany } = useCompany()
@@ -26,17 +81,18 @@ export function CompanySelectorPage() {
 
   const today = ymd(0)
   const yesterday = ymd(-1)
+  const companyIds = useMemo(() => companies.map((c) => c.id), [companies])
 
-  const salesQueries = useQueries({
-    queries: companies.map((c) => ({
-      queryKey: selectorSalesKey(c.id, today),
-      queryFn: () => fetchCompanySales(c, today, yesterday),
-      staleTime: SELECTOR_SALES_STALE_MS,
-    })),
+  const salesQuery = useQuery({
+    queryKey: selectorSalesKey(companyIds, today),
+    queryFn: () => fetchAllCompaniesSales(companies, today, yesterday),
+    staleTime: SELECTOR_SALES_STALE_MS,
+    enabled: companies.length > 0,
   })
 
-  const allSalesReady =
-    companies.length > 0 && salesQueries.every((q) => !q.isLoading)
+  const logosReady = useLogosReady(companies)
+  const salesReady = !salesQuery.isLoading
+  const allReady = companies.length > 0 && salesReady && logosReady
 
   const firstName =
     user?.displayName?.split(' ')[0] ??
@@ -81,13 +137,16 @@ export function CompanySelectorPage() {
       </div>
 
       <div className="max-w-[1320px] mx-auto px-12 pt-40 pb-28">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {companies.map((c, i) => {
-            const q = salesQueries[i]
-            const data = q?.data
+        <div
+          className={cn(
+            'grid grid-cols-1 md:grid-cols-2 gap-5 transition-opacity duration-300',
+            allReady ? 'opacity-100' : 'opacity-0',
+          )}
+        >
+          {companies.map((c) => {
+            const data = salesQuery.data?.[c.id]
             const todayVal = data?.today ?? 0
             const yVal = data?.yesterday ?? 0
-            const isLoadingKpi = !allSalesReady
             const delta = yVal > 0 ? ((todayVal - yVal) / yVal) * 100 : null
             const up = (delta ?? 0) >= 0
 
@@ -149,9 +208,9 @@ export function CompanySelectorPage() {
                       Ventas hoy
                     </span>
                     <span className="text-kpi font-semibold text-dark-graphite tabular-nums tracking-[-0.02em] leading-tight">
-                      {isLoadingKpi ? '…' : formatCurrency(todayVal)}
+                      {formatCurrency(todayVal)}
                     </span>
-                    {delta !== null && !isLoadingKpi && (
+                    {delta !== null && (
                       <span
                         className={cn(
                           'inline-flex items-center gap-1 text-caption font-medium px-2 py-0.5 rounded-full',

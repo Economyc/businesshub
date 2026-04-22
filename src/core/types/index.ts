@@ -9,6 +9,7 @@ export interface Company {
   logo?: string
   logoThumb?: string
   categories?: string[]
+  posTenantId?: string
   createdAt: Timestamp
 }
 
