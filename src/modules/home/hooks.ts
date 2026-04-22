@@ -407,12 +407,18 @@ export function useDashboardData() {
     setForceReconcileTick((t) => t + 1)
   }, [selectedCompany?.id, startDate, endDate])
 
-  // Polling al flag `inProgress` del server. Usamos getDoc con setInterval
-  // en vez de onSnapshot porque varios adblockers bloquean el endpoint
-  // `firestore.googleapis.com/.../channel` que usa el long-poll de
-  // onSnapshot (ERR_BLOCKED_BY_CLIENT). `getDoc` va por REST y no lo
-  // bloquean. 30s de latencia es trivial para reconciles que tardan
-  // 15-40 min.
+  // Polling al flag `inProgress` del server con backoff adaptativo.
+  // Usamos getDoc con setTimeout recursivo (no setInterval) para poder
+  // ajustar el intervalo en runtime:
+  //  - Reconcile activo o transición reciente: poll cada 30s (alta
+  //    frecuencia para detectar cuándo termina).
+  //  - Tras N ciclos consecutivos sin actividad: escalar a 60s → 2min →
+  //    5min (cap). Evita gastar ~960 reads/día por usuario ocioso.
+  //  - Reset a 30s cuando el usuario dispara reconcile manual
+  //    (`firingRef.current`) o al cambiar de company.
+  // Usamos getDoc en vez de onSnapshot porque varios adblockers bloquean
+  // el endpoint `firestore.googleapis.com/.../channel` que usa el
+  // long-poll (ERR_BLOCKED_BY_CLIENT). getDoc va por REST.
   useEffect(() => {
     if (!selectedCompany?.id) return
     const ref = doc(
@@ -425,7 +431,25 @@ export function useDashboardData() {
     let cancelled = false
     let prevInProgress = false
     let pollFailures = 0
+    let inactiveCycles = 0
+    let timeoutId: ReturnType<typeof setTimeout> | null = null
     const MAX_POLL_FAILURES = 3
+    const POLL_INTERVALS = [30_000, 60_000, 120_000, 300_000] as const
+    const INACTIVE_THRESHOLD = 3 // tras 3 polls consecutivos "inactivo", escalar
+
+    const nextDelay = (): number => {
+      if (firingRef.current) return POLL_INTERVALS[0]
+      const step = Math.min(
+        Math.floor(inactiveCycles / INACTIVE_THRESHOLD),
+        POLL_INTERVALS.length - 1,
+      )
+      return POLL_INTERVALS[step]
+    }
+
+    const scheduleNext = () => {
+      if (cancelled) return
+      timeoutId = setTimeout(poll, nextDelay())
+    }
 
     const poll = async () => {
       if (cancelled) return
@@ -435,6 +459,8 @@ export function useDashboardData() {
         if (cancelled) return
         if (!snap.exists()) {
           prevInProgress = false
+          inactiveCycles += 1
+          scheduleNext()
           return
         }
         const data = snap.data() as { inProgress?: boolean; startedAt?: Timestamp }
@@ -445,6 +471,13 @@ export function useDashboardData() {
         if (prevInProgress && !active) {
           refetchAllPos()
         }
+        // Cualquier actividad (propia o del server) resetea el contador
+        // para volver a poll rápido por si hay más transiciones cerca.
+        if (active || prevInProgress) {
+          inactiveCycles = 0
+        } else {
+          inactiveCycles += 1
+        }
         prevInProgress = active
       } catch {
         // Si el getDoc falla N veces consecutivas (adblocker, offline, reglas),
@@ -452,18 +485,19 @@ export function useDashboardData() {
         // usuario vea datos sin saber que hay reconcile corriendo que que
         // quede mirando "Rellenando históricos..." para siempre.
         pollFailures += 1
+        inactiveCycles += 1
         if (pollFailures >= MAX_POLL_FAILURES && !firingRef.current) {
           setReconcilingHistoric(false)
           prevInProgress = false
         }
       }
+      scheduleNext()
     }
 
     poll()
-    const id = setInterval(poll, 30 * 1000)
     return () => {
       cancelled = true
-      clearInterval(id)
+      if (timeoutId) clearTimeout(timeoutId)
     }
   }, [selectedCompany?.id, refetchAllPos])
 

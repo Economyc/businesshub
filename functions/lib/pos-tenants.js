@@ -41,10 +41,26 @@ export function listTenantIds() {
 function isTenantId(value) {
     return typeof value === 'string' && value in TENANT_CONFIG;
 }
+// Cache in-memory de `companyId → tenantId` dentro de una instancia warm de
+// Cloud Function. El tenant de una company cambia muy raramente (operación
+// manual), así que un TTL de 15 min es seguro y evita un `getDoc` a Firestore
+// en cada request del proxy/reconcile. Después del TTL vuelve a leer —
+// suficiente para que un cambio manual se refleje en < 15 min sin deploy.
+//
+// Clave `companyId`; valor `{ tenantId, expiresAt }`. Si la company
+// desaparece (caso raro), expira naturalmente y la próxima lectura lanza
+// el error esperado.
+const TENANT_CACHE_TTL_MS = 15 * 60 * 1000;
+const tenantCache = new Map();
 // Resuelve el tenant de una company. Falla ruidosamente si el campo no existe
 // o es desconocido — un error acá es recuperable (añadir el campo), pero
 // sincronizar con el POS equivocado produce data corrupta silenciosamente.
 export async function resolveCompanyTenant(companyId) {
+    const now = Date.now();
+    const cached = tenantCache.get(companyId);
+    if (cached && cached.expiresAt > now) {
+        return cached.tenantId;
+    }
     const snap = await db.collection('companies').doc(companyId).get();
     if (!snap.exists) {
         throw new Error(`Company ${companyId} no existe en Firestore`);
@@ -55,6 +71,7 @@ export async function resolveCompanyTenant(companyId) {
         throw new Error(`Company ${companyId} no tiene posTenantId válido ` +
             `(valor=${JSON.stringify(raw)}). Tenants válidos: ${listTenantIds().join(', ')}`);
     }
+    tenantCache.set(companyId, { tenantId: raw, expiresAt: now + TENANT_CACHE_TTL_MS });
     return raw;
 }
 // Agrupa todas las companies por tenant. Companies sin posTenantId se

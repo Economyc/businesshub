@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { RefreshCw, Loader2, AlertCircle } from 'lucide-react'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
@@ -10,11 +11,23 @@ import { useDashboardData } from '../hooks'
 import type { DashboardSyncStatus } from '../hooks'
 import { HomeFiltersProvider } from '../context/home-filters-context'
 import { KPICardsRow } from './kpi-cards-row'
-import { SalesTrendChart } from './sales-trend-chart'
-import { MonthProjectionTile } from './month-projection-tile'
-import { AlertsPanel } from './alerts-panel'
 import { QuickActions } from './quick-actions'
 import { CajaFilter } from './caja-filter'
+
+// Lazy-load de componentes pesados: SalesTrendChart arrastra recharts (~400KB
+// gzipped), AlertsPanel y MonthProjectionTile dependen de motion/radix. Los
+// KPIs aparecen primero y el usuario puede verlos antes de que terminen de
+// descargar estos chunks. Fallback: los mismos skeletons que ya usa el Home
+// durante la carga de datos — no hay flash visual.
+const SalesTrendChart = lazy(() =>
+  import('./sales-trend-chart').then((m) => ({ default: m.SalesTrendChart })),
+)
+const MonthProjectionTile = lazy(() =>
+  import('./month-projection-tile').then((m) => ({ default: m.MonthProjectionTile })),
+)
+const AlertsPanel = lazy(() =>
+  import('./alerts-panel').then((m) => ({ default: m.AlertsPanel })),
+)
 
 const CACHE_STALE_MS = 2 * 60 * 60 * 1000 // 2 horas
 
@@ -205,19 +218,31 @@ function HomePageContent() {
           costoLoading={costoLoading}
           porCobrarLoading={porCobrarLoading}
         />
-        {!chartLoading && projection.applicable && <MonthProjectionTile projection={projection} />}
+        {!chartLoading && projection.applicable && (
+          <Suspense fallback={<SalesTrendSkeleton />}>
+            <MonthProjectionTile projection={projection} />
+          </Suspense>
+        )}
         {chartLoading ? (
           <SalesTrendSkeleton />
         ) : (
-          <SalesTrendChart
-            data={salesTrend}
-            startDate={startDate}
-            endDate={endDate}
-            projection={projection.applicable ? projection.futurePoints : undefined}
-          />
+          <Suspense fallback={<SalesTrendSkeleton />}>
+            <SalesTrendChart
+              data={salesTrend}
+              startDate={startDate}
+              endDate={endDate}
+              projection={projection.applicable ? projection.futurePoints : undefined}
+            />
+          </Suspense>
         )}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {alertsLoading ? <AlertsSkeleton /> : <AlertsPanel alerts={alerts} />}
+          {alertsLoading ? (
+            <AlertsSkeleton />
+          ) : (
+            <Suspense fallback={<AlertsSkeleton />}>
+              <AlertsPanel alerts={alerts} />
+            </Suspense>
+          )}
           <QuickActions />
         </div>
       </div>

@@ -1,18 +1,19 @@
 import { useQuery } from '@tanstack/react-query'
 import { fetchCollection, fetchDocument } from '@/core/firebase/helpers'
 import { useCompany } from './use-company'
-import type { QueryConstraint } from 'firebase/firestore'
 
-export function useCollection<T>(
-  collectionName: string,
-  ...constraints: QueryConstraint[]
-) {
+// `useCollection` trae la colección completa de la company activa sin filtros.
+// No acepta `QueryConstraint` porque el `queryKey` no puede serializarlos de
+// forma estable: dos llamadas con where distintos producirían la misma key y
+// React Query deduplicaría pisando datos entre pantallas. Si necesitas filtrar,
+// crea un hook específico con queryKey explícito (ej. useTransactionsInRange).
+export function useCollection<T>(collectionName: string) {
   const { selectedCompany } = useCompany()
   const companyId = selectedCompany?.id
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['firestore', companyId, collectionName],
-    queryFn: () => fetchCollection<T>(companyId!, collectionName, ...constraints),
+    queryFn: () => fetchCollection<T>(companyId!, collectionName),
     enabled: !!companyId,
   })
 

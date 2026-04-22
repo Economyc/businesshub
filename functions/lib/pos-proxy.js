@@ -1,16 +1,49 @@
 import { onRequest } from 'firebase-functions/v2/https';
-import { buildUrl, fetchPosApi, extractVentas, fetchAllPagesForLocal, } from './pos-client.js';
+import { buildUrl, fetchPosApi, extractVentas, fetchAllPagesForLocal, delay, } from './pos-client.js';
 import { TENANT_SECRETS, getTenantDomainId, getTenantToken, resolveCompanyTenant, } from './pos-tenants.js';
+// Delay escalonado entre arranques de locales cuando hay > 1. El POS
+// rate-limitea por token, pero permite algo de pipelining — mientras un
+// local procesa su request en el servidor POS, el siguiente puede empezar
+// a transitar. Un stagger de 1.5s evita colisiones iniciales sin matar el
+// paralelismo. En el peor caso (POS rechaza concurrencia completa) el
+// retry loop de fetchAllPagesForLocal se activa y aún así el wall-clock
+// es mejor que el serial puro porque las páginas subsecuentes se
+// pipelinean. Escalamos N locales × ~3s → ~N×1.5s + max(3s).
+const LOCAL_STAGGER_MS = 1500;
 async function fetchVentasBatch(token, domainId, localIds, f1, f2) {
+    // Con 1 solo local no hay beneficio del stagger — llamada directa.
+    if (localIds.length === 1) {
+        const result = await fetchAllPagesForLocal(token, domainId, localIds[0], f1, f2);
+        return {
+            ventas: result.ventas,
+            rateLimited: result.rateLimited,
+            endpoint: 'obtenerVentasPorIntegracion',
+        };
+    }
+    // Stagger + allSettled: un local que falle (rate-limit tras 3 retries o
+    // network error) no aborta los demás. El serial previo devolvía las
+    // ventas acumuladas hasta el fallo; con paralelo staggered recuperamos
+    // las ventas de TODOS los locales que tuvieron éxito.
+    const tasks = localIds.map((lid, i) => delay(i * LOCAL_STAGGER_MS).then(() => fetchAllPagesForLocal(token, domainId, lid, f1, f2)));
+    const settled = await Promise.allSettled(tasks);
     const allVentas = [];
-    for (const lid of localIds) {
-        const result = await fetchAllPagesForLocal(token, domainId, lid, f1, f2);
-        allVentas.push(...result.ventas);
-        if (result.rateLimited) {
-            return { ventas: allVentas, rateLimited: true, endpoint: 'obtenerVentasPorIntegracion' };
+    let anyRateLimited = false;
+    for (const r of settled) {
+        if (r.status === 'fulfilled') {
+            allVentas.push(...r.value.ventas);
+            if (r.value.rateLimited)
+                anyRateLimited = true;
+        }
+        else {
+            console.warn('[pos-proxy] local fetch failed', r.reason);
+            anyRateLimited = true;
         }
     }
-    return { ventas: allVentas, rateLimited: false, endpoint: 'obtenerVentasPorIntegracion' };
+    return {
+        ventas: allVentas,
+        rateLimited: anyRateLimited,
+        endpoint: 'obtenerVentasPorIntegracion',
+    };
 }
 export const posProxy = onRequest({
     cors: true,
