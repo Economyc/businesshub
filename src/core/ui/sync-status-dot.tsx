@@ -4,6 +4,10 @@ interface SyncStatusDotProps {
   fromCache: boolean
   hasLocals?: boolean
   onRefresh?: () => void
+  // `true` si detectamos que la última sincronización bajó significativamente
+  // vs el resultado previo (chunks fallaron). Dot rojo pulsante avisa al
+  // usuario que los números pueden no reflejar la realidad.
+  degraded?: boolean
 }
 
 function formatTime(d: Date): string {
@@ -16,6 +20,7 @@ export function SyncStatusDot({
   fromCache,
   hasLocals = true,
   onRefresh,
+  degraded = false,
 }: SyncStatusDotProps) {
   if (!hasLocals) {
     return (
@@ -38,17 +43,25 @@ export function SyncStatusDot({
   }
 
   const timeLabel = lastUpdated ? formatTime(lastUpdated) : null
+  // Degraded prioriza sobre fromCache: si el fetch se quedó corto (chunks
+  // fallaron o guard anti-degradación se activó), mostrar dot rojo pulsante
+  // con CTA a sincronizar. Pseado sobre el resto de estados porque ignora
+  // la diferencia cache/live — ambos pueden estar degradados.
   const dotColor = !lastUpdated
     ? 'bg-mid-gray/40'
-    : fromCache
-      ? 'bg-amber-500'
-      : 'bg-emerald-500'
+    : degraded
+      ? 'bg-negative-text animate-pulse'
+      : fromCache
+        ? 'bg-amber-500'
+        : 'bg-emerald-500'
   const baseTitle = !lastUpdated
     ? 'Sin datos'
-    : fromCache
-      ? `Cache · ${timeLabel}`
-      : `En vivo · ${timeLabel}`
-  const title = onRefresh ? `${baseTitle} · clic para forzar actualización` : baseTitle
+    : degraded
+      ? `Datos incompletos · ${timeLabel} · clic para reintentar`
+      : fromCache
+        ? `Cache · ${timeLabel}`
+        : `En vivo · ${timeLabel}`
+  const title = onRefresh && !degraded ? `${baseTitle} · clic para forzar actualización` : baseTitle
 
   if (!onRefresh) {
     return (

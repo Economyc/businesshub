@@ -76,6 +76,10 @@ export interface DashboardSyncStatus {
   fromCache: boolean
   hasLocals: boolean
   onRefresh?: () => void
+  // `true` si el último fetch bajó significativamente vs el previo (chunks
+  // POS fallaron, guard anti-degradación se activó). La UI muestra dot rojo
+  // y banner para que el usuario sepa que los KPIs pueden ser incompletos.
+  degraded: boolean
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────
@@ -195,6 +199,7 @@ export function useDashboardData() {
     isPending: posIsPending,
     lastUpdated: posLastUpdated,
     fromCache: posFromCache,
+    degraded: posDegraded,
     forceRefresh: posForceRefresh,
     refetch: filterRefetch,
   } = usePosVentas({
@@ -842,11 +847,12 @@ export function useDashboardData() {
       lastUpdated: posLastUpdated,
       fromCache: posFromCache,
       hasLocals: localIds.length > 0,
+      degraded: posDegraded,
       onRefresh: () => {
         posForceRefresh()
       },
     }),
-    [posLoading, posLastUpdated, posFromCache, localIds.length, posForceRefresh],
+    [posLoading, posLastUpdated, posFromCache, posDegraded, localIds.length, posForceRefresh],
   )
 
   const comparisonLabel = useMemo(

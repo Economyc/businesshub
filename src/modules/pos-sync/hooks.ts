@@ -49,6 +49,11 @@ interface FetchResult {
   ventas: PosVenta[]
   fromCache: boolean
   rateLimited: boolean
+  // `true` cuando detectamos que el fetch bajó significativamente vs el
+  // resultado previo (ej. chunks fallaron, guard anti-degradación se activó).
+  // El UI muestra dot amarillo para avisar al usuario que puede estar viendo
+  // datos incompletos.
+  degraded?: boolean
 }
 
 function fmtDate(d: Date): string {
@@ -241,6 +246,23 @@ async function fetchVentasWithCache({
   let completed = 0
   let aborted = false
 
+  // Fallback helper: si un chunk falla completamente (HTTP 500, network,
+  // parse error antes del loop interno), recuperamos del cache los ventas
+  // de sus (date, localId) para que los días no queden huérfanos en
+  // `accumulated`. Sin esto, días con cache válido desaparecían de la UI
+  // cada vez que falla una tanda. Marca también el resultado como degradado.
+  let chunksRecoveredFromCache = 0
+  const restoreChunkFromCache = (chunk: { start: string; end: string }) => {
+    for (const date of enumerateDates(chunk.start, chunk.end)) {
+      for (const lid of localIds) {
+        const key = `${date}_${lid}`
+        const prevGroup = previousVentasByKey.get(key)
+        if (prevGroup && prevGroup.length > 0) accumulated.push(...prevGroup)
+      }
+    }
+    chunksRecoveredFromCache += 1
+  }
+
   const runChunk = async (chunk: { start: string; end: string }) => {
     const chunkF1 = `${chunk.start} 00:00:00`
     const chunkF2 = `${chunk.end} 23:59:59`
@@ -312,7 +334,8 @@ async function fetchVentasWithCache({
     // queryFn con error y React Query no reintenta errores no-rate-limit, así
     // que la UI quedaba con skeleton para siempre.
     const results = await Promise.allSettled(batch.map(runChunk))
-    for (const r of results) {
+    for (let idx = 0; idx < results.length; idx++) {
+      const r = results[idx]
       if (r.status === 'fulfilled') {
         completed += 1
         continue
@@ -324,11 +347,15 @@ async function fetchVentasWithCache({
         }
         rateLimited = true
         aborted = true
+        // Aun en rate-limit, recuperar cache del chunk para no dejar huecos.
+        restoreChunkFromCache(batch[idx])
       } else {
-        // Error de red/servidor en un chunk individual: marcar parcial y seguir.
+        // Error de red/servidor en un chunk individual: marcar parcial,
+        // recuperar cache de sus días y seguir.
         // eslint-disable-next-line no-console
-        console.warn('[pos-sync] chunk failed, continuing with partial data', r.reason)
+        console.warn('[pos-sync] chunk failed, restoring cache for range', batch[idx], r.reason)
         rateLimited = true
+        restoreChunkFromCache(batch[idx])
       }
     }
     if (aborted) break
@@ -340,7 +367,8 @@ async function fetchVentasWithCache({
   }
 
   onProgress?.(null)
-  return { ventas: accumulated, fromCache: false, rateLimited }
+  const degraded = chunksRecoveredFromCache > 0
+  return { ventas: accumulated, fromCache: false, rateLimited, degraded }
 }
 
 export function usePosLocales() {
@@ -448,12 +476,41 @@ export function usePosVentas({
           queryClient.setQueryData<FetchResult>(queryKey, partial)
         },
       })
+      // Guard anti-degradación global: si el resultado nuevo baja > 20% vs el
+      // previo (y el previo no estaba vacío), asumir que es parcial y
+      // preservar el previo. El refetch cada 5 min puede traer menos ventas
+      // si chunks fallan silenciosos; sin este guard, la UI caía de 174M a
+      // 124M al primer fallo y quedaba así hasta que el usuario recargara.
+      // El umbral 0.8 es coherente con PARTIAL_RESPONSE_THRESHOLD del cache
+      // por día×local, pero aplicado al resultado completo de la query.
+      // No aplica en `force` (el usuario pidió refresh explícito) ni cuando
+      // el previo tenía muy pocas ventas (< 20 — cualquier delta ahí es ruido
+      // normal, no degradación).
+      const DEGRADATION_THRESHOLD = 0.8
+      const MIN_PREV_FOR_GUARD = 20
+      if (
+        !force &&
+        previous &&
+        previous.ventas.length >= MIN_PREV_FOR_GUARD &&
+        result.ventas.length < previous.ventas.length * DEGRADATION_THRESHOLD
+      ) {
+        // eslint-disable-next-line no-console
+        console.warn(
+          `[pos-sync] degradación detectada: nuevo=${result.ventas.length} < previo=${previous.ventas.length}. Preservando previo.`,
+          { queryKey, rateLimited: result.rateLimited },
+        )
+        return {
+          ...previous,
+          rateLimited: result.rateLimited,
+          degraded: true,
+        }
+      }
       if (
         result.ventas.length === 0 &&
         previous &&
         previous.ventas.length > 0
       ) {
-        return { ...previous, rateLimited: result.rateLimited }
+        return { ...previous, rateLimited: result.rateLimited, degraded: true }
       }
       return result
     },
@@ -483,6 +540,10 @@ export function usePosVentas({
     rateLimited: (data?.rateLimited ?? false) || hardRateLimited,
     lastUpdated: query.dataUpdatedAt ? new Date(query.dataUpdatedAt) : null,
     fromCache: data?.fromCache ?? false,
+    // `true` si detectamos que el fetch se quedó corto vs el previo (chunks
+    // fallaron o guard anti-degradación se activó). El Home muestra dot
+    // amarillo para avisar al usuario que los números pueden no ser reales.
+    degraded: data?.degraded ?? false,
     progress,
     refetch,
     forceRefresh,

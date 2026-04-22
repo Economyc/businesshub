@@ -45,6 +45,36 @@ function PosCacheStaleBanner({ syncStatus }: { syncStatus: DashboardSyncStatus }
   )
 }
 
+// Banner rojo cuando el fetch de POS se quedó corto vs el previo. A diferencia
+// del stale banner (datos viejos pero íntegros), aquí los datos mostrados son
+// potencialmente incompletos porque algún chunk falló. El CTA fuerza un
+// refetch limpio ignorando cache local para recalcular desde cero.
+function PosDegradedBanner({ syncStatus }: { syncStatus: DashboardSyncStatus }) {
+  const { degraded, loading, onRefresh, hasLocals } = syncStatus
+  if (!hasLocals || !degraded) return null
+  return (
+    <div className="bg-negative-bg text-negative-text rounded-xl px-4 py-3 text-body mb-4 flex items-center justify-between gap-3">
+      <div className="flex items-center gap-2">
+        <AlertCircle size={16} className="shrink-0" />
+        <span>
+          La última sincronización con POS quedó incompleta. Los totales pueden no reflejar la realidad — intenta de nuevo.
+        </span>
+      </div>
+      {onRefresh && (
+        <button
+          type="button"
+          onClick={onRefresh}
+          disabled={loading}
+          className="shrink-0 flex items-center gap-1.5 text-caption font-medium hover:underline disabled:opacity-50"
+        >
+          {loading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+          Reintentar
+        </button>
+      )}
+    </div>
+  )
+}
+
 function SalesTrendSkeleton() {
   return (
     <div className="bg-surface rounded-xl card-elevated p-6">
@@ -122,6 +152,7 @@ function HomePageContent() {
           </div>
         </PageHeader>
       </div>
+      <PosDegradedBanner syncStatus={syncStatus} />
       <PosCacheStaleBanner syncStatus={syncStatus} />
       {reconcilingHistoric && (
         <div className="bg-info-bg text-info-text rounded-xl px-4 py-3 text-body mb-4 flex items-center gap-2">
