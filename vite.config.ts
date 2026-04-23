@@ -22,7 +22,11 @@ export default defineConfig({
             'firebase/functions',
             'firebase/storage',
           ],
-          charts: ['recharts'],
+          // recharts NO va aqui: al agruparlo en chunk fijo, Vite lo marca
+          // como modulepreload en index.html (400K descargados al boot aunque
+          // solo lo usen dashboards lazy). Dejandolo sin manualChunk, Rollup
+          // lo empaqueta con el chunk del modulo que lo importa (analytics/*,
+          // home kpi charts) y solo carga cuando el usuario abre esa ruta.
           motion: ['framer-motion'],
           radix: ['@radix-ui/react-tooltip', '@base-ui/react'],
         },
