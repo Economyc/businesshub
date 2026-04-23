@@ -98,14 +98,16 @@ No usar `rounded-md`, `rounded-sm`, `rounded-3xl`+.
 
 ## 6. Elevación
 
-Sólo 2 niveles:
+**No hay elevación.** El sistema es plano. Las cards se distinguen únicamente por borde 1px sobre el fondo — nunca por sombra.
 
-1. **Card principal:** clase `card-elevated` (sombra sutil + un solo borde 1px). Definida en `src/index.css`.
-2. **Card secundaria:** `border border-border/60 bg-card-bg`. Sin sombra.
+Dos formas equivalentes, ambas sin sombra:
 
-**Borde delgado (1px real).** `card-elevated` aplica un único `border: 1px solid var(--color-border)` y una sombra suave. No duplicar el borde con un `box-shadow` tipo `0 0 0 1px var(--color-border)` — ese patrón visualmente suma 2px y engrosa el edge. La intención del sistema es un borde delgado y sobrio.
+1. **Card principal:** clase `card-elevated` → un único `border: 1px solid var(--color-border)`. Definida en `src/index.css`.
+2. **Card secundaria:** `border border-border/60 bg-card-bg`.
 
-Nada de `shadow-md/lg/xl/2xl`. Si crees necesitar más elevación, probablemente sobra un nivel de anidación.
+**Borde delgado (1px real).** `card-elevated` aplica sólo borde. No agregar `box-shadow` de ningún tipo — ni sombra suave, ni el patrón `0 0 0 1px var(--color-border)` que duplica el edge a 2px visuales. La intención es borde sobrio y superficie plana.
+
+Prohibido: `shadow-sm/md/lg/xl/2xl` en cualquier card. Si crees necesitar elevación, probablemente sobra un nivel de anidación o falta separar con spacing.
 
 ---
 
@@ -187,7 +189,7 @@ Rompen el sistema. Rechazar en review:
 - ❌ `text-3xl`, `text-4xl`, `text-5xl` en dashboards
 - ❌ `font-bold`, `font-black`
 - ❌ Colores hex hardcodeados (`#5a7a5a`, `#fff`, `rgb(...)`)
-- ❌ `shadow-lg`, `shadow-xl`, gradientes (`bg-gradient-*`)
+- ❌ Cualquier `shadow-*` en cards (sistema plano, sólo borde) — incluye `shadow-sm/md/lg/xl`, gradientes (`bg-gradient-*`)
 - ❌ `box-shadow: 0 0 0 1px ...` duplicando el `border` (engrosa el edge a 2px)
 - ❌ Emojis como iconos decorativos
 - ❌ `p-3`, `p-5`, `gap-5`, `space-y-5` (valores fuera de la escala)

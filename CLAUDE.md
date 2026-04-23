@@ -22,7 +22,7 @@ Reglas duras (resumen; detalle completo en el doc):
 - Tipografía en escalas fijas `text-caption/body/subheading/heading/kpi`. Nunca `text-2xl+` ni `font-bold`.
 - Colores solo vía tokens (`bg-bone`, `text-graphite`, `bg-positive-bg`, etc.). Nunca hex hardcodeado.
 - Spacing múltiplos de 4 (`gap-2/4/6`, `p-4/6`). Radius solo `rounded-lg/xl/2xl/full`.
-- Elevación solo `card-elevated` o `border-border/60`. Nada de `shadow-lg+` ni gradientes.
+- Sistema plano: cards sólo con borde 1px (`card-elevated` o `border-border/60`). Nada de `shadow-*` ni gradientes.
 - Charts usan `src/core/ui/chart-colors.ts`.
 - Antes de crear un componente nuevo, buscar primero en `src/components/ui/` y `src/core/ui/`.
 
