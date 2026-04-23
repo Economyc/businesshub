@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
-import { Suspense } from 'react'
+import { lazy, Suspense } from 'react'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClient } from '@/core/query/query-client'
 import { Skeleton } from '@/core/ui/skeleton'
@@ -11,10 +11,6 @@ import { GeneralDashboard, PosDashboard, CostsDashboard, PurchasesDashboard, Pay
 import { EmployeeList, EmployeeProfile } from '@/modules/talent/routes'
 import { SupplierList, SupplierDetail } from '@/modules/suppliers/routes'
 import { TransactionList, ImportView, CashFlowView, IncomeStatementView, BudgetView, RecurringList, ReconciliationView, ReconciliationDetail } from '@/modules/finance/routes'
-import { SettingsCompanies } from '@/core/ui/settings-companies'
-import { SettingsCategories } from '@/core/ui/settings-categories'
-import { SettingsRoles } from '@/core/ui/settings-roles'
-import { SettingsDepartments } from '@/core/ui/settings-departments'
 import { PartnerList } from '@/modules/partners/routes'
 import { ClosingList } from '@/modules/closings/routes'
 import { ContractList, TemplateList, ContractGenerate, ContractDetail } from '@/modules/contracts/routes'
@@ -30,7 +26,14 @@ import { PosSyncPage } from '@/modules/pos-sync/routes'
 import { InfluencerList } from '@/modules/marketing/influencers/routes'
 import { PermissionsProvider } from '@/core/ui/permissions-provider'
 import { PermissionRoute } from '@/core/ui/permission-route'
-import { SettingsTeam } from '@/core/ui/settings-team'
+import { ErrorBoundary } from '@/core/ui/error-boundary'
+
+// Settings: lazy para sacarlos del bundle inicial (solo los usan admins).
+const SettingsCompanies = lazy(() => import('@/core/ui/settings-companies').then(m => ({ default: m.SettingsCompanies })))
+const SettingsCategories = lazy(() => import('@/core/ui/settings-categories').then(m => ({ default: m.SettingsCategories })))
+const SettingsRoles = lazy(() => import('@/core/ui/settings-roles').then(m => ({ default: m.SettingsRoles })))
+const SettingsDepartments = lazy(() => import('@/core/ui/settings-departments').then(m => ({ default: m.SettingsDepartments })))
+const SettingsTeam = lazy(() => import('@/core/ui/settings-team').then(m => ({ default: m.SettingsTeam })))
 
 function Loading() {
   return (
@@ -51,7 +54,9 @@ function ProtectedRoute() {
   if (!user) return <Navigate to="/login" replace />
   return (
     <PermissionsProvider>
-      <Layout />
+      <ErrorBoundary>
+        <Layout />
+      </ErrorBoundary>
     </PermissionsProvider>
   )
 }
@@ -61,7 +66,9 @@ function ProtectedShellless() {
   if (!user) return <Navigate to="/login" replace />
   return (
     <PermissionsProvider>
-      <Outlet />
+      <ErrorBoundary>
+        <Outlet />
+      </ErrorBoundary>
     </PermissionsProvider>
   )
 }

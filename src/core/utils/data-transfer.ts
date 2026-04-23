@@ -1,6 +1,10 @@
-import * as XLSX from 'xlsx'
 import Papa from 'papaparse'
 import { saveAs } from 'file-saver'
+
+// `xlsx` pesa ~300KB gzip — lo cargamos dinámicamente al primer uso para
+// sacarlo del bundle inicial. Los dashboards no lo necesitan hasta que el
+// usuario exporte/importe.
+const loadXLSX = () => import('xlsx')
 
 // ─── Field Schema ───
 
@@ -27,7 +31,8 @@ export interface ValidationResult<T> {
 
 // ─── Export ───
 
-export function exportToExcel<T>(data: T[], fields: FieldDef[], filename: string) {
+export async function exportToExcel<T>(data: T[], fields: FieldDef[], filename: string) {
+  const XLSX = await loadXLSX()
   const headers = fields.map((f) => f.header)
   const rows = data.map((item) =>
     fields.map((f) => {
@@ -63,7 +68,8 @@ export function exportToCSV<T>(data: T[], fields: FieldDef[], filename: string) 
   saveAs(blob, `${filename}.csv`)
 }
 
-export function downloadTemplate(fields: FieldDef[], filename: string) {
+export async function downloadTemplate(fields: FieldDef[], filename: string) {
+  const XLSX = await loadXLSX()
   const headers = fields.map((f) => f.header)
   const example = fields.map((f) => {
     if (f.enumValues) return f.enumValues[0]
@@ -98,6 +104,7 @@ export async function parseFile(file: File): Promise<Record<string, string>[]> {
   }
 
   // Excel
+  const XLSX = await loadXLSX()
   const buffer = await file.arrayBuffer()
   const wb = XLSX.read(buffer, { type: 'array' })
   const sheet = wb.Sheets[wb.SheetNames[0]]

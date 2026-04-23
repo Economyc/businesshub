@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { doc, getDoc, Timestamp } from 'firebase/firestore'
+import { useQuery } from '@tanstack/react-query'
 import { db } from '@/core/firebase/config'
 import { useCollection } from '@/core/hooks/use-firestore'
 import { useTransactions, classifyExpense } from '@/modules/finance/hooks'
@@ -408,98 +409,105 @@ export function useDashboardData() {
   }, [selectedCompany?.id, startDate, endDate])
 
   // Polling al flag `inProgress` del server con backoff adaptativo.
-  // Usamos getDoc con setTimeout recursivo (no setInterval) para poder
-  // ajustar el intervalo en runtime:
-  //  - Reconcile activo o transición reciente: poll cada 30s (alta
-  //    frecuencia para detectar cuándo termina).
-  //  - Tras N ciclos consecutivos sin actividad: escalar a 60s → 2min →
-  //    5min (cap). Evita gastar ~960 reads/día por usuario ocioso.
-  //  - Reset a 30s cuando el usuario dispara reconcile manual
-  //    (`firingRef.current`) o al cambiar de company.
+  // Usamos useQuery con `refetchInterval` dinámico:
+  //  - Reconcile activo o transición reciente: poll cada 30s.
+  //  - Tras N ciclos sin actividad: escalar 60s → 2min → 5min. Evita
+  //    gastar ~960 reads/día por usuario ocioso.
+  //  - `refetchIntervalInBackground: false` pausa el poll cuando el tab
+  //    no está visible (ahorro extra en tabs abandonados).
   // Usamos getDoc en vez de onSnapshot porque varios adblockers bloquean
-  // el endpoint `firestore.googleapis.com/.../channel` que usa el
-  // long-poll (ERR_BLOCKED_BY_CLIENT). getDoc va por REST.
+  // el endpoint `firestore.googleapis.com/.../channel` del long-poll.
+  const RECONCILE_POLL_INTERVALS = [30_000, 60_000, 120_000, 300_000] as const
+  const RECONCILE_INACTIVE_THRESHOLD = 3
+  const RECONCILE_MAX_POLL_FAILURES = 3
+  const RECONCILE_STUCK_MS = 60 * 60 * 1000
+
+  const reconcileInactiveCyclesRef = useRef(0)
+  const reconcilePollFailuresRef = useRef(0)
+  const reconcilePrevInProgressRef = useRef(false)
+
+  // Reset de contadores al cambiar de company (la query se reinstancia, pero
+  // los refs sobreviven al re-render).
   useEffect(() => {
-    if (!selectedCompany?.id) return
-    const ref = doc(
-      db,
-      'companies',
-      selectedCompany.id,
-      'settings',
-      'pos-reconcile-meta',
-    )
-    let cancelled = false
-    let prevInProgress = false
-    let pollFailures = 0
-    let inactiveCycles = 0
-    let timeoutId: ReturnType<typeof setTimeout> | null = null
-    const MAX_POLL_FAILURES = 3
-    const POLL_INTERVALS = [30_000, 60_000, 120_000, 300_000] as const
-    const INACTIVE_THRESHOLD = 3 // tras 3 polls consecutivos "inactivo", escalar
+    reconcileInactiveCyclesRef.current = 0
+    reconcilePollFailuresRef.current = 0
+    reconcilePrevInProgressRef.current = false
+  }, [selectedCompany?.id])
 
-    const nextDelay = (): number => {
-      if (firingRef.current) return POLL_INTERVALS[0]
-      const step = Math.min(
-        Math.floor(inactiveCycles / INACTIVE_THRESHOLD),
-        POLL_INTERVALS.length - 1,
+  const reconcileMetaQuery = useQuery({
+    queryKey: ['pos-reconcile-meta', selectedCompany?.id],
+    enabled: !!selectedCompany?.id,
+    queryFn: async () => {
+      const ref = doc(
+        db,
+        'companies',
+        selectedCompany!.id,
+        'settings',
+        'pos-reconcile-meta',
       )
-      return POLL_INTERVALS[step]
-    }
-
-    const scheduleNext = () => {
-      if (cancelled) return
-      timeoutId = setTimeout(poll, nextDelay())
-    }
-
-    const poll = async () => {
-      if (cancelled) return
-      try {
-        const snap = await getDoc(ref)
-        pollFailures = 0
-        if (cancelled) return
-        if (!snap.exists()) {
-          prevInProgress = false
-          inactiveCycles += 1
-          scheduleNext()
-          return
-        }
-        const data = snap.data() as { inProgress?: boolean; startedAt?: Timestamp }
-        const startedMs = data.startedAt?.toMillis?.() ?? 0
-        const stuck = startedMs > 0 && Date.now() - startedMs > 60 * 60 * 1000
-        const active = !!data.inProgress && !stuck
-        setReconcilingHistoric((prev) => (firingRef.current ? prev : active))
-        if (prevInProgress && !active) {
-          refetchAllPos()
-        }
-        // Cualquier actividad (propia o del server) resetea el contador
-        // para volver a poll rápido por si hay más transiciones cerca.
-        if (active || prevInProgress) {
-          inactiveCycles = 0
-        } else {
-          inactiveCycles += 1
-        }
-        prevInProgress = active
-      } catch {
-        // Si el getDoc falla N veces consecutivas (adblocker, offline, reglas),
-        // asumir que no podemos coordinar y quitar el banner — peor que el
-        // usuario vea datos sin saber que hay reconcile corriendo que que
-        // quede mirando "Rellenando históricos..." para siempre.
-        pollFailures += 1
-        inactiveCycles += 1
-        if (pollFailures >= MAX_POLL_FAILURES && !firingRef.current) {
-          setReconcilingHistoric(false)
-          prevInProgress = false
-        }
+      const snap = await getDoc(ref)
+      if (!snap.exists()) return { inProgress: false, startedMs: 0 }
+      const data = snap.data() as { inProgress?: boolean; startedAt?: Timestamp }
+      return {
+        inProgress: !!data.inProgress,
+        startedMs: data.startedAt?.toMillis?.() ?? 0,
       }
-      scheduleNext()
-    }
+    },
+    refetchInterval: () => {
+      if (firingRef.current) return RECONCILE_POLL_INTERVALS[0]
+      const step = Math.min(
+        Math.floor(reconcileInactiveCyclesRef.current / RECONCILE_INACTIVE_THRESHOLD),
+        RECONCILE_POLL_INTERVALS.length - 1,
+      )
+      return RECONCILE_POLL_INTERVALS[step]
+    },
+    refetchIntervalInBackground: false,
+    retry: 0,
+    staleTime: 0,
+    gcTime: 60_000,
+  })
 
-    poll()
-    return () => {
-      cancelled = true
-      if (timeoutId) clearTimeout(timeoutId)
+  useEffect(() => {
+    if (reconcileMetaQuery.isError) {
+      // Si getDoc falla N veces consecutivas (adblocker, offline, reglas),
+      // quitar el banner — peor que el usuario vea datos sin saber que hay
+      // reconcile corriendo que quede mirando "Rellenando históricos..." eterno.
+      reconcilePollFailuresRef.current += 1
+      reconcileInactiveCyclesRef.current += 1
+      if (
+        reconcilePollFailuresRef.current >= RECONCILE_MAX_POLL_FAILURES &&
+        !firingRef.current
+      ) {
+        setReconcilingHistoric(false)
+        reconcilePrevInProgressRef.current = false
+      }
+      return
     }
-  }, [selectedCompany?.id, refetchAllPos])
+    const meta = reconcileMetaQuery.data
+    if (!meta) return
+    reconcilePollFailuresRef.current = 0
+    const stuck =
+      meta.startedMs > 0 && Date.now() - meta.startedMs > RECONCILE_STUCK_MS
+    const active = meta.inProgress && !stuck
+    setReconcilingHistoric((prev) => (firingRef.current ? prev : active))
+    if (reconcilePrevInProgressRef.current && !active) {
+      refetchAllPos()
+    }
+    // Cualquier actividad (propia o del server) resetea el contador para
+    // volver a poll rápido por si hay más transiciones cerca.
+    if (active || reconcilePrevInProgressRef.current) {
+      reconcileInactiveCyclesRef.current = 0
+    } else {
+      reconcileInactiveCyclesRef.current += 1
+    }
+    reconcilePrevInProgressRef.current = active
+  }, [
+    reconcileMetaQuery.data,
+    reconcileMetaQuery.isError,
+    reconcileMetaQuery.dataUpdatedAt,
+    reconcileMetaQuery.errorUpdatedAt,
+    refetchAllPos,
+  ])
 
   // Cajas disponibles dentro del rango visible [startDate..endDate]
   const cajasDisponibles = useMemo<Array<[string, number]>>(() => {

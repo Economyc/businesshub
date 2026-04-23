@@ -1,6 +1,9 @@
-import jsPDF from 'jspdf'
-import * as XLSX from 'xlsx'
 import { saveAs } from 'file-saver'
+
+// Carga dinámica — jspdf (~180KB) y xlsx (~300KB) solo se descargan al
+// generar un reporte, no al abrir el agente.
+const loadJsPDF = () => import('jspdf').then((m) => m.default)
+const loadXLSX = () => import('xlsx')
 
 interface ReportSection {
   heading: string
@@ -20,7 +23,8 @@ interface KpiData {
 
 // ─── PDF Export ───
 
-export function exportToPDF(title: string, sections: ReportSection[]) {
+export async function exportToPDF(title: string, sections: ReportSection[]) {
+  const jsPDF = await loadJsPDF()
   const doc = new jsPDF()
   let y = 20
 
@@ -122,7 +126,8 @@ export function exportToPDF(title: string, sections: ReportSection[]) {
 
 // ─── Excel Export ───
 
-export function exportToExcel(title: string, sections: ReportSection[]) {
+export async function exportToExcel(title: string, sections: ReportSection[]) {
+  const XLSX = await loadXLSX()
   const wb = XLSX.utils.book_new()
 
   for (const section of sections) {

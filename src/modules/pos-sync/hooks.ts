@@ -476,27 +476,26 @@ export function usePosVentas({
           queryClient.setQueryData<FetchResult>(queryKey, partial)
         },
       })
-      // Guard anti-degradación global: si el resultado nuevo baja > 20% vs el
-      // previo (y el previo no estaba vacío), asumir que es parcial y
-      // preservar el previo. El refetch cada 5 min puede traer menos ventas
-      // si chunks fallan silenciosos; sin este guard, la UI caía de 174M a
-      // 124M al primer fallo y quedaba así hasta que el usuario recargara.
-      // El umbral 0.8 es coherente con PARTIAL_RESPONSE_THRESHOLD del cache
-      // por día×local, pero aplicado al resultado completo de la query.
-      // No aplica en `force` (el usuario pidió refresh explícito) ni cuando
-      // el previo tenía muy pocas ventas (< 20 — cualquier delta ahí es ruido
-      // normal, no degradación).
-      const DEGRADATION_THRESHOLD = 0.8
+      // Guard anti-degradación global con 2 niveles:
+      //  - DROP_HARD (> 20%): muy probable chunk failed → preservar previo,
+      //    marcar degraded. Evita que el usuario vea 174M → 124M falsamente.
+      //  - DROP_SOFT (> 10%): posible degradación menor → mostrar nuevos,
+      //    pero marcar degraded (dot amarillo) para advertir al usuario.
+      //    Antes un 15% de caída se colaba como fresca sin aviso.
+      // No aplica en `force` (refresh explícito) ni con previo < 20 ventas.
+      const DEGRADATION_HARD_THRESHOLD = 0.8
+      const DEGRADATION_SOFT_THRESHOLD = 0.9
       const MIN_PREV_FOR_GUARD = 20
+      const prevCount = previous?.ventas.length ?? 0
+      const prevQualifies = !force && previous && prevCount >= MIN_PREV_FOR_GUARD
+
       if (
-        !force &&
-        previous &&
-        previous.ventas.length >= MIN_PREV_FOR_GUARD &&
-        result.ventas.length < previous.ventas.length * DEGRADATION_THRESHOLD
+        prevQualifies &&
+        result.ventas.length < prevCount * DEGRADATION_HARD_THRESHOLD
       ) {
         // eslint-disable-next-line no-console
         console.warn(
-          `[pos-sync] degradación detectada: nuevo=${result.ventas.length} < previo=${previous.ventas.length}. Preservando previo.`,
+          `[pos-sync] degradación fuerte: nuevo=${result.ventas.length} < previo=${prevCount}. Preservando previo.`,
           { queryKey, rateLimited: result.rateLimited },
         )
         return {
@@ -511,6 +510,18 @@ export function usePosVentas({
         previous.ventas.length > 0
       ) {
         return { ...previous, rateLimited: result.rateLimited, degraded: true }
+      }
+      // Degradación suave: mostrar datos nuevos pero advertir
+      if (
+        prevQualifies &&
+        result.ventas.length < prevCount * DEGRADATION_SOFT_THRESHOLD
+      ) {
+        // eslint-disable-next-line no-console
+        console.warn(
+          `[pos-sync] degradación suave: nuevo=${result.ventas.length} vs previo=${prevCount}.`,
+          { queryKey, rateLimited: result.rateLimited },
+        )
+        return { ...result, degraded: true }
       }
       return result
     },

@@ -1,7 +1,5 @@
 import { useState, type RefObject } from 'react'
 import { Download } from 'lucide-react'
-import html2canvas from 'html2canvas'
-import { jsPDF } from 'jspdf'
 
 interface ExportPDFProps {
   targetRef: RefObject<HTMLDivElement | null>
@@ -14,6 +12,12 @@ export function ExportPDF({ targetRef }: ExportPDFProps) {
     if (!targetRef.current || exporting) return
     setExporting(true)
     try {
+      // Carga dinámica: html2canvas + jspdf pesan ~250KB combinado.
+      // Los dashboards no los necesitan hasta que el usuario exporte.
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+        import('html2canvas'),
+        import('jspdf'),
+      ])
       const canvas = await html2canvas(targetRef.current, {
         scale: 2,
         useCORS: true,

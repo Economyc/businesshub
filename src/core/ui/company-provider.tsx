@@ -1,4 +1,4 @@
-import { createContext, useState, useCallback, useEffect, type ReactNode } from 'react'
+import { createContext, useState, useCallback, useEffect, useRef, type ReactNode } from 'react'
 import {
   collection,
   doc,
@@ -18,8 +18,9 @@ import { slugify, DEFAULT_CATEGORIES, migrateOldCategories } from '@/core/utils/
 import { fileToBase64Thumb } from '@/core/utils/image'
 import { cacheGet, cacheSet } from '@/core/utils/cache'
 import { preloadLogos } from '@/core/utils/logo-cache'
-import { prefetchHomeData } from '@/core/utils/prefetch'
+import { prefetchHomeData, resetPrefetchCache } from '@/core/utils/prefetch'
 import { prefetchSelectorSales } from '@/modules/home/selector-sales'
+import { queryClient } from '@/core/query/query-client'
 
 interface CompanyContextValue {
   companies: Company[]
@@ -186,6 +187,31 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
     }
     load()
   }, [])
+
+  // Al cambiar de company, limpiar todo el cache React Query scopeado al
+  // tenant anterior. `removeQueries` (no `invalidate`) evita refetch de data
+  // que ya no se va a usar — un invalidate dispararía refetch de las queries
+  // viejas antes de marcarlas como gc-eligibles, gastando lecturas Firestore
+  // innecesarias. También reseteamos el dedup de prefetch para permitir el
+  // precache del nuevo tenant en el siguiente hover.
+  const prevCompanyIdRef = useRef<string | null>(null)
+  useEffect(() => {
+    const prev = prevCompanyIdRef.current
+    const next = selectedCompany?.id ?? null
+    if (prev && prev !== next) {
+      queryClient.removeQueries({
+        predicate: (q) => {
+          const key = q.queryKey as unknown[]
+          // Todas nuestras keys scopeadas por tenant tienen el id en la
+          // segunda posición: ['firestore', companyId, ...], ['pos-ventas',
+          // companyId, ...], ['pos-reconcile-meta', companyId], etc.
+          return key.length >= 2 && key[1] === prev
+        },
+      })
+      resetPrefetchCache()
+    }
+    prevCompanyIdRef.current = next
+  }, [selectedCompany?.id])
 
   // Prefetch de colecciones de Home en cuanto haya company activa.
   // Dispara queries en paralelo a la cascada de providers para que

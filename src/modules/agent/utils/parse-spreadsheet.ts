@@ -1,5 +1,6 @@
-import * as XLSX from 'xlsx'
 import Papa from 'papaparse'
+
+const loadXLSX = () => import('xlsx')
 
 /**
  * Parses an Excel or CSV file and returns a text representation
@@ -13,6 +14,7 @@ export async function parseSpreadsheetToText(file: File): Promise<string> {
 }
 
 async function parseExcel(file: File): Promise<string> {
+  const XLSX = await loadXLSX()
   const buffer = await file.arrayBuffer()
   const workbook = XLSX.read(buffer, { type: 'array' })
 

@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { Upload, ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react'
 import { Timestamp } from 'firebase/firestore'
 import Papa from 'papaparse'
-import * as XLSX from 'xlsx'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
 import { useCompany } from '@/core/hooks/use-company'
@@ -123,6 +122,8 @@ export function ImportView() {
         },
       })
     } else if (name.endsWith('.xlsx') || name.endsWith('.xls')) {
+      // Carga dinámica — xlsx (~300KB) solo se descarga al subir archivo.
+      const XLSX = await import('xlsx')
       const buffer = await selected.arrayBuffer()
       const wb = XLSX.read(buffer, { type: 'array' })
       const sheet = wb.Sheets[wb.SheetNames[0]]

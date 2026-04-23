@@ -1,6 +1,5 @@
 import { useCollection } from '@/core/hooks/use-firestore'
 import { usePaginatedCollection } from '@/core/hooks/use-paginated-collection'
-import { useRealtimeSync } from '@/core/hooks/use-realtime-sync'
 import { orderBy } from 'firebase/firestore'
 import type { Closing, Discount } from './types'
 
@@ -9,7 +8,6 @@ export function useClosings() {
 }
 
 export function usePaginatedClosings() {
-  useRealtimeSync('closings')
   return usePaginatedCollection<Closing>('closings', 50, orderBy('createdAt', 'desc'))
 }
 
