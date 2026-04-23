@@ -331,30 +331,18 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                   onClick={() => setCompanyOpen(!companyOpen)}
                   aria-haspopup="listbox"
                   aria-expanded={companyOpen}
-                  className={cn(
-                    'w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg border transition-colors duration-150',
-                    companyOpen
-                      ? 'bg-smoke border-border'
-                      : 'bg-card-bg border-border/60 hover:bg-smoke hover:border-border'
-                  )}
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg bg-smoke dark:bg-smoke hover:bg-selector-bg dark:hover:bg-selector-bg shadow-sm transition-all duration-150"
                 >
                   <CompanyLogo company={selectedCompany} />
                   <div className="min-w-0 flex-1 text-left">
-                    <div className="text-body font-medium text-dark-graphite truncate leading-tight">
-                      {selectedCompany?.name ?? '—'}
-                    </div>
                     {selectedCompany?.location && (
-                      <div className="flex items-center gap-1 text-caption text-mid-gray truncate leading-tight mt-0.5">
-                        <MapPin size={10} strokeWidth={1.5} className="shrink-0" />
-                        <span className="truncate">{selectedCompany.location}</span>
+                      <div className="flex items-center gap-0.5 text-body font-medium text-dark-graphite truncate">
+                        <MapPin size={11} />
+                        {selectedCompany.location}
                       </div>
                     )}
                   </div>
-                  <ChevronsUpDown
-                    size={14}
-                    strokeWidth={1.5}
-                    className={cn('shrink-0 transition-colors duration-150', companyOpen ? 'text-graphite' : 'text-mid-gray')}
-                  />
+                  <ChevronsUpDown size={14} className="text-mid-gray shrink-0" />
                 </button>
 
                 {companyOpen && (
