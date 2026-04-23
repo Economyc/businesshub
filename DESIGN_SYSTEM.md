@@ -100,8 +100,10 @@ No usar `rounded-md`, `rounded-sm`, `rounded-3xl`+.
 
 Sólo 2 niveles:
 
-1. **Card principal:** clase `card-elevated` (sombra sutil + border). Definida en `src/index.css`.
+1. **Card principal:** clase `card-elevated` (sombra sutil + un solo borde 1px). Definida en `src/index.css`.
 2. **Card secundaria:** `border border-border/60 bg-card-bg`. Sin sombra.
+
+**Borde delgado (1px real).** `card-elevated` aplica un único `border: 1px solid var(--color-border)` y una sombra suave. No duplicar el borde con un `box-shadow` tipo `0 0 0 1px var(--color-border)` — ese patrón visualmente suma 2px y engrosa el edge. La intención del sistema es un borde delgado y sobrio.
 
 Nada de `shadow-md/lg/xl/2xl`. Si crees necesitar más elevación, probablemente sobra un nivel de anidación.
 
@@ -186,6 +188,7 @@ Rompen el sistema. Rechazar en review:
 - ❌ `font-bold`, `font-black`
 - ❌ Colores hex hardcodeados (`#5a7a5a`, `#fff`, `rgb(...)`)
 - ❌ `shadow-lg`, `shadow-xl`, gradientes (`bg-gradient-*`)
+- ❌ `box-shadow: 0 0 0 1px ...` duplicando el `border` (engrosa el edge a 2px)
 - ❌ Emojis como iconos decorativos
 - ❌ `p-3`, `p-5`, `gap-5`, `space-y-5` (valores fuera de la escala)
 - ❌ Cards con alturas desiguales en la misma fila
