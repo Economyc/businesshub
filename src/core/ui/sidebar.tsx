@@ -329,48 +329,78 @@ export function Sidebar({ onNavClick }: SidebarProps) {
               <div className="relative">
                 <button
                   onClick={() => setCompanyOpen(!companyOpen)}
-                  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg bg-smoke dark:bg-smoke hover:bg-selector-bg dark:hover:bg-selector-bg shadow-sm transition-all duration-150"
+                  aria-haspopup="listbox"
+                  aria-expanded={companyOpen}
+                  className={cn(
+                    'w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg border transition-colors duration-150',
+                    companyOpen
+                      ? 'bg-smoke border-border'
+                      : 'bg-card-bg border-border/60 hover:bg-smoke hover:border-border'
+                  )}
                 >
                   <CompanyLogo company={selectedCompany} />
                   <div className="min-w-0 flex-1 text-left">
+                    <div className="text-body font-medium text-dark-graphite truncate leading-tight">
+                      {selectedCompany?.name ?? '—'}
+                    </div>
                     {selectedCompany?.location && (
-                      <div className="flex items-center gap-0.5 text-body font-medium text-dark-graphite truncate">
-                        <MapPin size={11} />
-                        {selectedCompany.location}
+                      <div className="flex items-center gap-1 text-caption text-mid-gray truncate leading-tight mt-0.5">
+                        <MapPin size={10} strokeWidth={1.5} className="shrink-0" />
+                        <span className="truncate">{selectedCompany.location}</span>
                       </div>
                     )}
                   </div>
-                  <ChevronsUpDown size={14} className="text-mid-gray shrink-0" />
+                  <ChevronsUpDown
+                    size={14}
+                    strokeWidth={1.5}
+                    className={cn('shrink-0 transition-colors duration-150', companyOpen ? 'text-graphite' : 'text-mid-gray')}
+                  />
                 </button>
 
                 {companyOpen && (
-                  <div className="absolute left-0 top-full mt-2 min-w-[250px] bg-surface-elevated border border-border rounded-xl shadow-lg z-50 py-1.5 overflow-hidden">
-                    {companies.map((company) => (
-                      <button
-                        key={company.id}
-                        onClick={() => { selectCompany(company); setCompanyOpen(false) }}
-                        className={cn(
-                          'w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors duration-100',
-                          selectedCompany?.id === company.id
-                            ? 'bg-bone'
-                            : 'hover:bg-bone/50'
-                        )}
-                      >
-                        <CompanyLogo company={company} />
-                        <div className="min-w-0 flex-1">
-                          <div className="text-body text-dark-graphite truncate">{company.name}</div>
-                          {company.location && (
-                            <div className="flex items-center gap-0.5 text-[11px] text-mid-gray truncate">
-                              <MapPin size={9} />
-                              {company.location}
+                  <div
+                    role="listbox"
+                    className="card-elevated absolute left-0 top-full mt-2 min-w-full w-max max-w-[280px] bg-card-bg rounded-xl z-50 overflow-hidden"
+                  >
+                    <div className="px-3 pt-2 pb-1 text-caption text-mid-gray">
+                      Cambiar compañía
+                    </div>
+                    <div className="max-h-80 overflow-y-auto py-1">
+                      {companies.map((company) => {
+                        const isActive = selectedCompany?.id === company.id
+                        return (
+                          <button
+                            key={company.id}
+                            role="option"
+                            aria-selected={isActive}
+                            onClick={() => { selectCompany(company); setCompanyOpen(false) }}
+                            className={cn(
+                              'relative w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors duration-100',
+                              isActive ? 'bg-bone' : 'hover:bg-bone/60'
+                            )}
+                          >
+                            {isActive && (
+                              <span aria-hidden className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-full bg-graphite" />
+                            )}
+                            <CompanyLogo company={company} />
+                            <div className="min-w-0 flex-1">
+                              <div className={cn('text-body truncate leading-tight', isActive ? 'text-dark-graphite font-medium' : 'text-graphite')}>
+                                {company.name}
+                              </div>
+                              {company.location && (
+                                <div className="flex items-center gap-1 text-caption text-mid-gray truncate leading-tight mt-0.5">
+                                  <MapPin size={10} strokeWidth={1.5} className="shrink-0" />
+                                  <span className="truncate">{company.location}</span>
+                                </div>
+                              )}
                             </div>
-                          )}
-                        </div>
-                        {selectedCompany?.id === company.id && (
-                          <Check size={14} className="text-graphite shrink-0" />
-                        )}
-                      </button>
-                    ))}
+                            {isActive && (
+                              <Check size={14} strokeWidth={2} className="text-graphite shrink-0" />
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
                   </div>
                 )}
               </div>
