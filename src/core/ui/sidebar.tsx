@@ -351,63 +351,47 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                   <div
                     ref={companyDropdownRef}
                     role="listbox"
-                    className="fixed top-4 z-50 w-[260px] animate-in fade-in slide-in-from-left-2 duration-200"
+                    className="card-elevated fixed top-4 z-50 min-w-[240px] max-w-[280px] bg-card-bg rounded-xl overflow-hidden animate-in fade-in slide-in-from-left-2 duration-200"
                     style={{ left: 208 }}
                   >
-                    <div className="bg-bone border border-border rounded-xl shadow-lg p-2">
-                      {/* Main card */}
-                      <div className="bg-surface-elevated rounded-lg border border-border/60 shadow-sm overflow-hidden">
-                        {/* Active company header */}
-                        <div className="flex items-center gap-3 px-4 py-4">
-                          <CompanyLogo company={selectedCompany} size="md" />
-                          <div className="min-w-0">
-                            <div className="text-body font-medium text-dark-graphite truncate">
-                              {selectedCompany?.name ?? '—'}
-                            </div>
-                            {selectedCompany?.location && (
-                              <div className="flex items-center gap-1 text-caption text-mid-gray truncate">
-                                <MapPin size={10} strokeWidth={1.5} className="shrink-0" />
-                                <span className="truncate">{selectedCompany.location}</span>
-                              </div>
+                    <div className="px-3 pt-2 pb-1 text-caption text-mid-gray">
+                      Cambiar compañía
+                    </div>
+                    <div className="max-h-80 overflow-y-auto py-1">
+                      {companies.map((company) => {
+                        const isActive = selectedCompany?.id === company.id
+                        return (
+                          <button
+                            key={company.id}
+                            role="option"
+                            aria-selected={isActive}
+                            onClick={() => { selectCompany(company); setCompanyOpen(false) }}
+                            className={cn(
+                              'relative w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors duration-100',
+                              isActive ? 'bg-bone' : 'hover:bg-bone/60'
                             )}
-                          </div>
-                        </div>
-                        <div className="border-t border-border/60" />
-                        {/* Company list */}
-                        <div className="max-h-72 overflow-y-auto py-1">
-                          {companies.map((company) => {
-                            const isActive = selectedCompany?.id === company.id
-                            return (
-                              <button
-                                key={company.id}
-                                role="option"
-                                aria-selected={isActive}
-                                onClick={() => { selectCompany(company); setCompanyOpen(false) }}
-                                className={cn(
-                                  'w-full flex items-center gap-2.5 px-4 py-2 text-left transition-colors duration-100',
-                                  isActive ? 'bg-bone/60' : 'hover:bg-bone/40'
-                                )}
-                              >
-                                <CompanyLogo company={company} />
-                                <div className="min-w-0 flex-1">
-                                  <div className={cn('text-body truncate leading-tight', isActive ? 'text-dark-graphite font-medium' : 'text-graphite')}>
-                                    {company.name}
-                                  </div>
-                                  {company.location && (
-                                    <div className="flex items-center gap-1 text-caption text-mid-gray truncate leading-tight mt-0.5">
-                                      <MapPin size={10} strokeWidth={1.5} className="shrink-0" />
-                                      <span className="truncate">{company.location}</span>
-                                    </div>
-                                  )}
+                          >
+                            {isActive && (
+                              <span aria-hidden className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-full bg-graphite" />
+                            )}
+                            <CompanyLogo company={company} />
+                            <div className="min-w-0 flex-1">
+                              <div className={cn('text-body truncate leading-tight', isActive ? 'text-dark-graphite font-medium' : 'text-graphite')}>
+                                {company.name}
+                              </div>
+                              {company.location && (
+                                <div className="flex items-center gap-1 text-caption text-mid-gray truncate leading-tight mt-0.5">
+                                  <MapPin size={10} strokeWidth={1.5} className="shrink-0" />
+                                  <span className="truncate">{company.location}</span>
                                 </div>
-                                {isActive && (
-                                  <Check size={14} strokeWidth={2} className="text-graphite shrink-0" />
-                                )}
-                              </button>
-                            )
-                          })}
-                        </div>
-                      </div>
+                              )}
+                            </div>
+                            {isActive && (
+                              <Check size={14} strokeWidth={2} className="text-graphite shrink-0" />
+                            )}
+                          </button>
+                        )
+                      })}
                     </div>
                   </div>
                 )}
