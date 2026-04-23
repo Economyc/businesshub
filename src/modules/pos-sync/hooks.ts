@@ -547,6 +547,10 @@ export function usePosVentas({
     // Distinto de `loading` (isFetching), que se activa en cada refetch.
     // El Home usa esto para decidir si mostrar skeleton vs datos parciales.
     isPending: query.isPending,
+    // `isPlaceholderData` es true cuando React Query está devolviendo data de
+    // una queryKey previa (keepPreviousData). Útil para distinguir "data real
+    // de esta query" vs "data stale de query anterior" al cambiar company.
+    isPlaceholderData: query.isPlaceholderData,
     error: query.error && !hardRateLimited ? query.error.message : null,
     rateLimited: (data?.rateLimited ?? false) || hardRateLimited,
     lastUpdated: query.dataUpdatedAt ? new Date(query.dataUpdatedAt) : null,

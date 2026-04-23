@@ -198,6 +198,7 @@ export function useDashboardData() {
     ventas: filterVentas,
     loading: posLoading,
     isPending: posIsPending,
+    isPlaceholderData: posIsPlaceholderData,
     lastUpdated: posLastUpdated,
     fromCache: posFromCache,
     degraded: posDegraded,
@@ -274,6 +275,28 @@ export function useDashboardData() {
     return out
   }, [filterVentas, prevPeriodVentas, currentYearVentas, prevYearVentas])
 
+  // Tracking de cambio de compañía: al cambiar, `keepPreviousData` de React
+  // Query devuelve data de la compañía anterior como placeholder hasta que
+  // el fetch real complete. Eso hacía que los KPIs (ej. Ventas — Este mes)
+  // mostraran números de la compañía anterior por ~1s antes de actualizarse.
+  // Forzamos skeleton durante la transición. No afecta cambios de filtro de
+  // fecha dentro de la misma company (ahí keepPreviousData sigue vigente).
+  const companyIdRef = useRef<string | undefined>(selectedCompany?.id)
+  const [companySwitching, setCompanySwitching] = useState(false)
+  useEffect(() => {
+    const current = selectedCompany?.id
+    if (companyIdRef.current !== current) {
+      companyIdRef.current = current
+      if (current) setCompanySwitching(true)
+    }
+  }, [selectedCompany?.id])
+  useEffect(() => {
+    // Apagar al llegar data real de la nueva company (ya no es placeholder).
+    if (companySwitching && !posIsPlaceholderData && !posIsPending) {
+      setCompanySwitching(false)
+    }
+  }, [companySwitching, posIsPlaceholderData, posIsPending])
+
   // Solo skeleton en la primera carga sin data/placeholder. Antes usábamos
   // `posLoading && posVentas.length === 0` que mantenía el skeleton eterno
   // cuando un chunk fallaba (queryFn terminaba en error y data quedaba vacía).
@@ -281,7 +304,8 @@ export function useDashboardData() {
   // `useCompanyLocalIds` resuelve después de las queries Firestore, por lo
   // que el skeleton se apagaba brevemente antes de que la query POS se
   // habilitara. Mantenemos el skeleton hasta saber si hay locales.
-  const posColdLoading = localIdsLoading || (posIsPending && localIds.length > 0)
+  const posColdLoading =
+    localIdsLoading || (posIsPending && localIds.length > 0) || companySwitching
 
   // Suma de ventas POS válidas (excluye anuladas) agrupadas por día YYYY-MM-DD.
   // Solo el total neto del comprobante — así cuadra 1:1 con el reporte del POS
