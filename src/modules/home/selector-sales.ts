@@ -220,10 +220,11 @@ export async function refreshLiveSales(
   if (byTenant.size === 0) return
 
   const queryKey = selectorSalesKey(ids, today)
-  const current =
-    queryClient.getQueryData<SelectorSalesMap>(queryKey) ?? {}
-  const next: SelectorSalesMap = { ...current }
 
+  // Actualización incremental por tenant. Cada tenant que termina su fetch
+  // live escribe su parte en queryClient sin esperar al resto — un tenant
+  // lento/caído no bloquea a los rápidos. Usamos el updater functional para
+  // mergear contra el estado actual en vez de un snapshot capturado arriba.
   await Promise.all(
     [...byTenant.values()].map(async (comps) => {
       const pivot = comps[0]
@@ -248,22 +249,25 @@ export async function refreshLiveSales(
           `${today} 00:00:00`,
           `${today} 23:59:59`,
         )
-        for (const c of comps) {
-          const allowed = companyAllowed.get(c.id)!
-          const live = sumVentasByDate(res.ventas, allowed, today, yesterday)
-          // Mergeamos: "today" del POS live, "yesterday" del cache (más estable).
-          next[c.id] = {
-            today: live.today,
-            yesterday: next[c.id]?.yesterday ?? 0,
+        queryClient.setQueryData<SelectorSalesMap>(queryKey, (prev) => {
+          const base = prev ?? {}
+          const updated: SelectorSalesMap = { ...base }
+          for (const c of comps) {
+            const allowed = companyAllowed.get(c.id)!
+            const live = sumVentasByDate(res.ventas, allowed, today, yesterday)
+            // Mergeamos: "today" del POS live, "yesterday" del cache (más estable).
+            updated[c.id] = {
+              today: live.today,
+              yesterday: base[c.id]?.yesterday ?? 0,
+            }
           }
-        }
+          return updated
+        })
       } catch {
-        // POS falló → dejamos los valores del cache sin tocar
+        // POS falló o timeout → dejamos los valores del cache sin tocar
       }
     }),
   )
-
-  queryClient.setQueryData(queryKey, next)
 }
 
 // Idempotente. Llamable post-login (useEffect en CompanyProvider) y on-hover

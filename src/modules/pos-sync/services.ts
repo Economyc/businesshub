@@ -95,6 +95,13 @@ export class PosRateLimitError extends Error {
   }
 }
 
+// Timeout defensivo para cualquier call individual al proxy POS. El POS puede
+// quedarse "pensando" varios minutos si el tenant está saturado o encolando;
+// sin timeout, el refresh del selector se clavaba hasta 3 min. 30s alcanza
+// para cualquier página / dominio / batch razonable; si falla, el caller
+// decide (los refresh en background dejan los valores del cache intactos).
+const POS_FETCH_TIMEOUT_MS = 30_000
+
 // Multi-tenant: el proxy recibe `companyId` para resolver el tenant POS
 // correspondiente (token + domainId). Todos los métodos del `posService`
 // exigen companyId — pasar null/undefined dispara error claro del proxy.
@@ -107,6 +114,7 @@ async function callProxy<T>(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ action, companyId, params }),
+    signal: AbortSignal.timeout(POS_FETCH_TIMEOUT_MS),
   })
 
   if (!res.ok) {
@@ -167,6 +175,7 @@ export const posService = {
         companyId,
         params: { local_ids: localIds, f1, f2 },
       }),
+      signal: AbortSignal.timeout(POS_FETCH_TIMEOUT_MS),
     })
 
     if (!res.ok) {
