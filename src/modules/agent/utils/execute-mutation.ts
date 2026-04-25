@@ -1,6 +1,6 @@
 import { Timestamp } from 'firebase/firestore'
 import { httpsCallable } from 'firebase/functions'
-import { functions } from '@/core/firebase/config'
+import { getAppFunctions } from '@/core/firebase/config'
 import { talentService } from '@/modules/talent/services'
 import { supplierService } from '@/modules/suppliers/services'
 import { financeService, budgetService } from '@/modules/finance/services'
@@ -356,6 +356,7 @@ export async function executeMutation(
 
     case 'triggerPosReconcile': {
       const days = Math.min(Number(args.days) || 7, 32)
+      const functions = await getAppFunctions()
       const fn = httpsCallable<{ companyId: string; days: number }, { ventasWritten: number; daysWritten: number }>(
         functions,
         'posReconcileOnDemand',

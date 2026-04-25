@@ -13,7 +13,7 @@ import { TableSkeleton } from '@/core/ui/skeleton'
 import { LoadMoreButton } from '@/core/ui/load-more-button'
 import { formatCurrency } from '@/core/utils/format'
 import { parseCategory } from '@/core/utils/categories'
-import { useCompany } from '@/core/hooks/use-company'
+import { useSettings } from '@/core/hooks/use-settings'
 import { usePermissions } from '@/core/hooks/use-permissions'
 import { usePaginatedTransactions, useRecurringGenerator } from '../hooks'
 import { useDateRange } from '../context/date-range-context'
@@ -43,7 +43,7 @@ export function TransactionList() {
   const { data: transactions, loading, loadingMore, hasMore, totalCount, loadMore, refetch } = usePaginatedTransactions()
   useRecurringGenerator()
   const { startDate, endDate } = useDateRange()
-  const { categories: categoryItems } = useCompany()
+  const { categories: categoryItems } = useSettings()
   const { can } = usePermissions()
   const canEdit = can('finance', 'create')
   const [search, setSearch] = useState('')

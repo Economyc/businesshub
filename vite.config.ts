@@ -15,12 +15,15 @@ export default defineConfig({
       output: {
         manualChunks: {
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          // firebase-vendor solo lleva lo que se usa al boot (app, auth,
+          // firestore). functions y storage estan en lazy getters dentro de
+          // config.ts (`getAppFunctions`, `getAppStorage`) para que Rollup los
+          // ponga en chunks separados, cargados solo cuando un modulo lazy
+          // (agent, pos-sync, talent, settings) los necesita.
           'firebase-vendor': [
             'firebase/app',
             'firebase/auth',
             'firebase/firestore',
-            'firebase/functions',
-            'firebase/storage',
           ],
           // recharts NO va aqui: al agruparlo en chunk fijo, Vite lo marca
           // como modulepreload en index.html (400K descargados al boot aunque
@@ -29,6 +32,11 @@ export default defineConfig({
           // home kpi charts) y solo carga cuando el usuario abre esa ruta.
           motion: ['framer-motion'],
           radix: ['@radix-ui/react-tooltip', '@base-ui/react'],
+          // lucide-react se usa desde el primer render (sidebar, topbar, login,
+          // mobile-nav, home). Agruparlo en chunk fijo evita que cada modulo
+          // empaquete su propia copia de los iconos compartidos. Tree-shaking
+          // sigue activo: solo entran al chunk los iconos realmente importados.
+          lucide: ['lucide-react'],
         },
       },
     },

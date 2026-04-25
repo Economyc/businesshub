@@ -1,5 +1,5 @@
 import { httpsCallable } from 'firebase/functions'
-import { functions } from '@/core/firebase/config'
+import { getAppFunctions } from '@/core/firebase/config'
 import type { PosDominioData, PosVenta, PosProducto } from './types'
 
 // En prod usamos un path relativo (`/api/pos`) que nginx en Oracle reenvía
@@ -39,6 +39,7 @@ export async function triggerServerReconcile(
   companyId: string,
   days = 32,
 ): Promise<ServerReconcileResult> {
+  const functions = await getAppFunctions()
   const fn = httpsCallable<{ companyId: string; days: number }, ServerReconcileResult>(
     functions,
     'posReconcileOnDemand',
@@ -70,6 +71,7 @@ export async function rebuildCacheMonth(
   companyId: string,
   month: string,
 ): Promise<RebuildMonthResult> {
+  const functions = await getAppFunctions()
   const fn = httpsCallable<{ companyId: string; month: string }, RebuildMonthResult>(
     functions,
     'posRebuildMonth',

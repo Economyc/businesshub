@@ -5,8 +5,8 @@ import {
   persistentLocalCache,
   persistentMultipleTabManager,
 } from 'firebase/firestore'
-import { getFunctions } from 'firebase/functions'
-import { getStorage } from 'firebase/storage'
+import type { Functions } from 'firebase/functions'
+import type { FirebaseStorage } from 'firebase/storage'
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -31,7 +31,32 @@ export const db = initializeFirestore(app, {
   experimentalAutoDetectLongPolling: true,
   localCache: persistentLocalCache({
     tabManager: persistentMultipleTabManager(),
+    // Cap de 50MB en IndexedDB. Default Firestore es 40MB pero crecía sin
+    // limite con persistence + cache POS de 90 dias + transacciones. En
+    // tablets/movil con poco storage causaba quota exceeded silencioso.
+    cacheSizeBytes: 50 * 1024 * 1024,
   }),
 })
-export const functions = getFunctions(app)
-export const storage = getStorage(app)
+
+// `firebase/functions` y `firebase/storage` solo los usan modulos lazy
+// (agent, pos-sync, talent, logo-picker, settings). Los importamos
+// dinamicamente para que NO entren al chunk firebase-vendor inicial: el
+// browser solo descarga ese codigo cuando el usuario abre el modulo
+// correspondiente. Ganancia ~30-40KB minified al boot.
+let functionsPromise: Promise<Functions> | null = null
+export function getAppFunctions(): Promise<Functions> {
+  if (!functionsPromise) {
+    functionsPromise = import('firebase/functions').then((mod) =>
+      mod.getFunctions(app),
+    )
+  }
+  return functionsPromise
+}
+
+let storagePromise: Promise<FirebaseStorage> | null = null
+export function getAppStorage(): Promise<FirebaseStorage> {
+  if (!storagePromise) {
+    storagePromise = import('firebase/storage').then((mod) => mod.getStorage(app))
+  }
+  return storagePromise
+}

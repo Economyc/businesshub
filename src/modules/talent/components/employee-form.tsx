@@ -7,6 +7,7 @@ import { SelectInput } from '@/core/ui/select-input'
 import { CurrencyInput } from '@/core/ui/currency-input'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 import { useCompany } from '@/core/hooks/use-company'
+import { useSettings } from '@/core/hooks/use-settings'
 import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { modalVariants } from '@/core/animations/variants'
 import { talentService } from '../services'
@@ -29,7 +30,8 @@ interface EmployeeFormProps {
 }
 
 export function EmployeeForm({ open, onClose, employee }: EmployeeFormProps) {
-  const { selectedCompany, roles, departments } = useCompany()
+  const { selectedCompany } = useCompany()
+  const { roles, departments } = useSettings()
   const [deleteOpen, setDeleteOpen] = useState(false)
   const isEditing = !!employee
 

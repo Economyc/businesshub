@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
-import { useCompany } from '@/core/hooks/use-company'
+import { useSettings } from '@/core/hooks/use-settings'
 
 const inputClass =
   'w-full px-3 py-2.5 rounded-[10px] border border-input-border bg-input-bg text-body text-graphite placeholder:text-mid-gray/60 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200'
@@ -63,7 +63,7 @@ function InlineEdit({ value, onSave, className }: { value: string; onSave: (v: s
 }
 
 export function SettingsCategories() {
-  const { categories, addCategory, removeCategory, updateCategory, addSubcategory, removeSubcategory, updateSubcategory } = useCompany()
+  const { categories, addCategory, removeCategory, updateCategory, addSubcategory, removeSubcategory, updateSubcategory } = useSettings()
 
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [newCatName, setNewCatName] = useState('')

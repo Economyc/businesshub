@@ -1,7 +1,6 @@
 import { collection, addDoc, deleteDoc, doc, getDocs, query, orderBy, Timestamp } from 'firebase/firestore'
 import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
-import { db } from '@/core/firebase/config'
-import { storage } from '@/core/firebase/config'
+import { db, getAppStorage } from '@/core/firebase/config'
 import { fetchCollection, fetchDocument, createDocument, updateDocument, removeDocument } from '@/core/firebase/helpers'
 import type { Employee, EmployeeFormData, EmployeeDocument, DocumentCategory } from './types'
 
@@ -32,6 +31,7 @@ export const talentService = {
     category: DocumentCategory,
   ): Promise<string> {
     const path = `employees/${companyId}/${employeeId}/${Date.now()}_${file.name}`
+    const storage = await getAppStorage()
     const fileRef = storageRef(storage, path)
     await uploadBytes(fileRef, file)
     const url = await getDownloadURL(fileRef)
@@ -59,6 +59,7 @@ export const talentService = {
   ): Promise<string> {
     const safeName = contractName.replace(/[^a-zA-ZáéíóúñÁÉÍÓÚÑ0-9\s]/g, '').trim().replace(/\s+/g, '_')
     const path = `employees/${companyId}/${employeeId}/${Date.now()}_Contrato_${safeName}.pdf`
+    const storage = await getAppStorage()
     const fileRef = storageRef(storage, path)
     await uploadBytes(fileRef, blob)
     const url = await getDownloadURL(fileRef)
@@ -85,6 +86,7 @@ export const talentService = {
     storagePath: string,
   ): Promise<void> {
     try {
+      const storage = await getAppStorage()
       await deleteObject(storageRef(storage, storagePath))
     } catch {
       // File may already be deleted from storage

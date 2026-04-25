@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useCollection } from '@/core/hooks/use-firestore'
-import { useCompany } from '@/core/hooks/use-company'
+import { useSettings } from '@/core/hooks/use-settings'
 import { useDateRange } from '@/modules/finance/context/date-range-context'
 import { usePosVentas } from '@/modules/pos-sync/hooks'
 import { useCompanyLocalIds } from '@/modules/pos-sync/company-mapping'
@@ -135,7 +135,7 @@ export function useMonthlyBreakdown(): { data: MonthlyDataPoint[]; loading: bool
 export function useCategoryBreakdown(): { categories: CategoryCost[]; loading: boolean } {
   const { startDate, endDate } = useDateRange()
   const { data: transactions, loading } = useCollection<Transaction>('transactions')
-  const { categories: categoryItems } = useCompany()
+  const { categories: categoryItems } = useSettings()
 
   const categories = useMemo<CategoryCost[]>(() => {
     const byCategory: Record<string, number> = {}
@@ -172,7 +172,7 @@ export function useCategoryBreakdown(): { categories: CategoryCost[]; loading: b
 export function useCostStructure(): { kpis: CostStructureKPIs; categories: CategoryCost[]; monthlyCosts: MonthlyCostPoint[]; loading: boolean } {
   const { startDate, endDate } = useDateRange()
   const { data: transactions, loading } = useCollection<Transaction>('transactions')
-  const { categories: categoryItems } = useCompany()
+  const { categories: categoryItems } = useSettings()
 
   const result = useMemo(() => {
     const { prevStart, prevEnd } = getPreviousPeriod(startDate, endDate)

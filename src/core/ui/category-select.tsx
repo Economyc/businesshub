@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { ChevronDown, ChevronRight, Check, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useCompany } from '@/core/hooks/use-company'
+import { useSettings } from '@/core/hooks/use-settings'
 import { parseCategory, formatCategory } from '@/core/utils/categories'
 
 interface CategorySelectProps {
@@ -13,7 +13,7 @@ interface CategorySelectProps {
 }
 
 export function CategorySelect({ value, onChange, placeholder = 'Seleccionar categoría...', allowCustom = false, className }: CategorySelectProps) {
-  const { categories } = useCompany()
+  const { categories } = useSettings()
   const [open, setOpen] = useState(false)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [customMode, setCustomMode] = useState(false)

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { Upload, ImageIcon, X, Loader2, Check, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { storage } from '@/core/firebase/config'
+import { getAppStorage } from '@/core/firebase/config'
 import { fileToBase64Thumb } from '@/core/utils/image'
 import { getCachedLogoUrls, addLogoToCache, preloadLogos, deleteLogo, getLogoStoragePath } from '@/core/utils/logo-cache'
 import { useCompany } from '@/core/hooks/use-company'
@@ -61,6 +61,7 @@ export function LogoPicker({ value, onChange, companyId }: LogoPickerProps) {
     if (!file) return
     setUploading(true)
     try {
+      const storage = await getAppStorage()
       const fileRef = storageRef(storage, `logos/${companyId}/${file.name}`)
       const [thumb] = await Promise.all([
         fileToBase64Thumb(file),
@@ -115,7 +116,7 @@ export function LogoPicker({ value, onChange, companyId }: LogoPickerProps) {
           className="w-10 h-10 rounded-[10px] border border-input-border bg-bone/30 flex items-center justify-center overflow-hidden shrink-0 hover:border-graphite/30 transition-colors cursor-pointer"
         >
           {value ? (
-            <img src={value} alt="Logo" className="w-full h-full object-cover" />
+            <img src={value} alt="Logo" loading="lazy" decoding="async" className="w-full h-full object-cover" />
           ) : (
             <ImageIcon size={18} strokeWidth={1.5} className="text-mid-gray/40" />
           )}
@@ -196,7 +197,7 @@ export function LogoPicker({ value, onChange, companyId }: LogoPickerProps) {
                           isDeleting && 'opacity-50 pointer-events-none'
                         )}
                       >
-                        <img src={url} alt="" className="w-full h-full object-cover" />
+                        <img src={url} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
                         {isSelected && (
                           <div className="absolute inset-0 bg-graphite/20 flex items-center justify-center">
                             <Check size={14} strokeWidth={2.5} className="text-white drop-shadow" />

@@ -1,8 +1,8 @@
-import { useCompany } from '@/core/hooks/use-company'
+import { useSettings } from '@/core/hooks/use-settings'
 import { SettingsList } from './settings-list'
 
 export function SettingsDepartments() {
-  const { departments, addDepartment, removeDepartment, updateDepartment } = useCompany()
+  const { departments, addDepartment, removeDepartment, updateDepartment } = useSettings()
 
   return (
     <SettingsList

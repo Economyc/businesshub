@@ -1,5 +1,5 @@
 import { ref as storageRef, listAll, getDownloadURL, deleteObject } from 'firebase/storage'
-import { storage } from '@/core/firebase/config'
+import { getAppStorage } from '@/core/firebase/config'
 import { cacheGet, cacheSet } from '@/core/utils/cache'
 
 const CACHE_KEY = 'logo-urls'
@@ -48,6 +48,7 @@ async function _preload() {
 
   try {
     // Fetch fresh list from Firebase Storage
+    const storage = await getAppStorage()
     const logosRoot = storageRef(storage, 'logos')
     const rootResult = await listAll(logosRoot)
     const folderResults = await Promise.all(
@@ -99,6 +100,7 @@ function removeLogoFromCache(url: string) {
 export async function deleteLogo(url: string): Promise<void> {
   const path = pathMap.get(url)
   if (path) {
+    const storage = await getAppStorage()
     await deleteObject(storageRef(storage, path))
   }
   removeLogoFromCache(url)

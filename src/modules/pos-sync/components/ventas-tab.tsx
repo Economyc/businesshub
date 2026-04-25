@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useRef } from 'react'
+import { memo, useCallback, useMemo, useState, useEffect, useRef } from 'react'
 import { Search, RefreshCw, Loader2, MapPin, Receipt, Heart, Clock, TrendingUp } from 'lucide-react'
 import { motion, useReducedMotion, useMotionValue, useTransform, animate, type Variants } from 'framer-motion'
 import { DataTable, type Column } from '@/core/ui/data-table'
@@ -86,9 +86,9 @@ export function VentasTab({ localIds, allLocalIds, localLabel, localDisplayNames
   const [selectedVenta, setSelectedVenta] = useState<PosVenta | null>(null)
   const isMultiLocal = localIds.length > 1
 
-  function handleConsultar() {
+  const handleConsultar = useCallback(() => {
     refetch()
-  }
+  }, [refetch])
 
   const localNameMap = localDisplayNames
 
@@ -279,7 +279,7 @@ export function VentasTab({ localIds, allLocalIds, localLabel, localDisplayNames
     return list.map((v) => ({ ...v, id: v.ID ?? String(Math.random()) }))
   }
 
-  const totalStats = calcTotals(filteredVentas)
+  const totalStats = useMemo(() => calcTotals(filteredVentas), [filteredVentas])
   const hasData = ventas.length > 0
   const showSkeleton = loading && !hasData
 
@@ -462,7 +462,7 @@ interface HeroPanelProps {
   hasData: boolean
 }
 
-function HeroPanel({
+const HeroPanel = memo(function HeroPanel({
   localLabel,
   stats,
   loading,
@@ -531,7 +531,7 @@ function HeroPanel({
       />
     </div>
   )
-}
+})
 
 function CountUp({ value, format, disabled }: { value: number; format: (n: number) => string; disabled: boolean }) {
   const mv = useMotionValue(disabled ? value : 0)
@@ -600,7 +600,7 @@ const cardVariants: Variants = {
   }),
 }
 
-function SummaryCards({
+const SummaryCards = memo(function SummaryCards({
   stats,
   prefersReducedMotion,
 }: {
@@ -639,4 +639,4 @@ function SummaryCards({
       })}
     </motion.div>
   )
-}
+})

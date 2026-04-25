@@ -2,11 +2,12 @@ import { useState, useEffect, useRef } from 'react'
 import { X, Plus, MapPin, Trash2, ChevronDown, Check, Upload, ImageIcon } from 'lucide-react'
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { cn } from '@/lib/utils'
-import { storage } from '@/core/firebase/config'
+import { getAppStorage } from '@/core/firebase/config'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 import { useCompany } from '@/core/hooks/use-company'
+import { useSettings } from '@/core/hooks/use-settings'
 import { CompanyLogo } from '@/core/ui/company-logo'
 
 const inputClass =
@@ -22,7 +23,8 @@ interface CompanyForm {
 }
 
 export function SettingsPage() {
-  const { companies, categories, updateCompany, deleteCompany, addCompany, addCategory, removeCategory } = useCompany()
+  const { companies, updateCompany, deleteCompany, addCompany } = useCompany()
+  const { categories, addCategory, removeCategory } = useSettings()
 
   // --- Company editing ---
   const [forms, setForms] = useState<CompanyForm[]>([])
@@ -92,6 +94,7 @@ export function SettingsPage() {
     if (!file || !activeForm) return
     setUploading(true)
     try {
+      const storage = await getAppStorage()
       const fileRef = storageRef(storage, `logos/${activeForm.id}/${file.name}`)
       await uploadBytes(fileRef, file)
       const url = await getDownloadURL(fileRef)
@@ -261,7 +264,7 @@ export function SettingsPage() {
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-[10px] border border-input-border bg-bone/30 flex items-center justify-center overflow-hidden shrink-0">
                         {activeForm.logo ? (
-                          <img src={activeForm.logo} alt="Logo" className="w-full h-full object-cover" />
+                          <img src={activeForm.logo} alt="Logo" loading="lazy" decoding="async" className="w-full h-full object-cover" />
                         ) : (
                           <ImageIcon size={18} strokeWidth={1.5} className="text-mid-gray/40" />
                         )}

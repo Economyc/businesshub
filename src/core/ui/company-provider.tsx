@@ -21,17 +21,27 @@ import { prefetchHomeData, resetPrefetchCache } from '@/core/utils/prefetch'
 import { prefetchSelectorSales } from '@/modules/home/selector-sales'
 import { queryClient } from '@/core/query/query-client'
 
+// Split en dos contextos para evitar re-renders globales:
+//  - CompanyContext: companies + selectedCompany. Lo consumen 49 archivos.
+//  - SettingsContext: categories + roles + departments. Lo consumen ~9 archivos
+//    (settings UIs, employee-form, transaction-list, analytics).
+// Antes era un unico contexto: editar un departamento gatillaba re-render en
+// los 58 consumers. Ahora cada Provider memoiza su value con sus propias deps,
+// asi cambios en settings solo re-renderizan a quien usa SettingsContext.
 interface CompanyContextValue {
   companies: Company[]
   selectedCompany: Company | null
-  categories: CategoryItem[]
-  roles: string[]
-  departments: string[]
   loading: boolean
   selectCompany: (company: Company) => void
   updateCompany: (id: string, updates: Partial<Pick<Company, 'name' | 'location' | 'color' | 'logo' | 'logoThumb'>>) => void
   deleteCompany: (id: string) => void
   addCompany: () => Promise<string>
+}
+
+interface SettingsContextValue {
+  categories: CategoryItem[]
+  roles: string[]
+  departments: string[]
   addCategory: (name: string, color?: string) => void
   removeCategory: (id: string) => void
   updateCategory: (id: string, updates: Partial<Pick<CategoryItem, 'name' | 'color'>>) => void
@@ -47,6 +57,7 @@ interface CompanyContextValue {
 }
 
 export const CompanyContext = createContext<CompanyContextValue | null>(null)
+export const SettingsContext = createContext<SettingsContextValue | null>(null)
 
 const companiesRef = collection(db, 'companies')
 const categoriesDocRef = doc(db, 'settings', 'categories')
@@ -438,21 +449,28 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
-  // Memoizamos el value para que los consumers de useCompany() no se re-rendereen
-  // por culpa de un objeto literal nuevo en cada render del provider. Las funciones
-  // ya están con useCallback (estables), así que las deps reales son los datos.
-  const value = useMemo<CompanyContextValue>(
+  // Memoizamos cada value con sus propias deps. Cuando un usuario edita un
+  // departamento, solo `settingsValue` cambia identidad — `companyValue`
+  // mantiene la misma referencia y los 49 consumers de useCompany() no
+  // re-renderean.
+  const companyValue = useMemo<CompanyContextValue>(
     () => ({
-      companies, selectedCompany, categories, roles, departments, loading,
+      companies, selectedCompany, loading,
       selectCompany, updateCompany, deleteCompany, addCompany,
+    }),
+    [companies, selectedCompany, loading, selectCompany, updateCompany, deleteCompany, addCompany],
+  )
+
+  const settingsValue = useMemo<SettingsContextValue>(
+    () => ({
+      categories, roles, departments,
       addCategory, removeCategory, updateCategory,
       addSubcategory, removeSubcategory, updateSubcategory,
       addRole, removeRole, updateRole,
       addDepartment, removeDepartment, updateDepartment,
     }),
     [
-      companies, selectedCompany, categories, roles, departments, loading,
-      selectCompany, updateCompany, deleteCompany, addCompany,
+      categories, roles, departments,
       addCategory, removeCategory, updateCategory,
       addSubcategory, removeSubcategory, updateSubcategory,
       addRole, removeRole, updateRole,
@@ -461,8 +479,10 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   )
 
   return (
-    <CompanyContext.Provider value={value}>
-      {children}
+    <CompanyContext.Provider value={companyValue}>
+      <SettingsContext.Provider value={settingsValue}>
+        {children}
+      </SettingsContext.Provider>
     </CompanyContext.Provider>
   )
 }
