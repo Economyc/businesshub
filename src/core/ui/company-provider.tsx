@@ -1,4 +1,4 @@
-import { createContext, useState, useCallback, useEffect, useRef, type ReactNode } from 'react'
+import { createContext, useState, useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react'
 import {
   collection,
   doc,
@@ -87,12 +87,22 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(!cachedCompanies)
 
   // --- Fetch fresh data from Firestore in background ---
+  // Las 4 lecturas (companies, categories, roles, departments) van en paralelo
+  // — antes iban en serie, sumaban 4 RTTs antes de poder mostrar nada. Los
+  // thumbnails de logos se generan fire-and-forget al final, ya no bloquean
+  // la carga del selector de empresas.
   useEffect(() => {
     async function load() {
       try {
-        // Fetch companies
-        const snapshot = await getDocs(companiesRef)
-        let loaded: Company[] = snapshot.docs.map((d) => ({
+        const [companiesSnap, catSnap, rolesSnap, depsSnap] = await Promise.all([
+          getDocs(companiesRef),
+          getDoc(categoriesDocRef),
+          getDoc(rolesDocRef),
+          getDoc(departmentsDocRef),
+        ])
+
+        // ─── Companies ───
+        let loaded: Company[] = companiesSnap.docs.map((d) => ({
           id: d.id,
           ...d.data(),
         })) as Company[]
@@ -112,36 +122,17 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
           }
         }
 
-        // Generate missing logo thumbnails via fetch→blob (CORS-safe)
-        // Await all before caching so thumbs are never overwritten
-        const thumbVersion = cacheGet<number>('thumbVer') ?? 0
-        const thumbJobs = loaded
-          .filter((c) => c.logo && (!c.logoThumb || thumbVersion < 6))
-          .map(async (c) => {
-            try {
-              const res = await fetch(c.logo!)
-              const blob = await res.blob()
-              const thumb = await fileToBase64Thumb(new File([blob], 'logo', { type: blob.type }))
-              await updateDoc(doc(db, 'companies', c.id), { logoThumb: thumb })
-              c.logoThumb = thumb
-            } catch { /* skip — will retry next load */ }
-          })
-        if (thumbJobs.length) await Promise.all(thumbJobs)
-        cacheSet('thumbVer', 6)
-
         cacheSet('companies', loaded)
         setCompanies(loaded)
         setSelectedCompany((prev) => {
           if (prev) {
-            // Update selected company with fresh data
             const fresh = loaded.find((c) => c.id === prev.id)
             return fresh ?? loaded[0] ?? null
           }
           return loaded[0] ?? null
         })
 
-        // Fetch categories
-        const catSnap = await getDoc(categoriesDocRef)
+        // ─── Categories ───
         if (catSnap.exists()) {
           const data = catSnap.data()
           if (data.list && !data.categories) {
@@ -160,20 +151,43 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
           setCategories([...DEFAULT_CATEGORIES])
         }
 
-        // Fetch roles
-        const rolesSnap = await getDoc(rolesDocRef)
+        // ─── Roles ───
         if (rolesSnap.exists()) {
           const r = rolesSnap.data().list ?? []
           cacheSet('roles', r)
           setRoles(r)
         }
 
-        // Fetch departments
-        const depsSnap = await getDoc(departmentsDocRef)
+        // ─── Departments ───
         if (depsSnap.exists()) {
           const d = depsSnap.data().list ?? []
           cacheSet('departments', d)
           setDepartments(d)
+        }
+
+        // ─── Thumbnails de logos: fire-and-forget ───
+        // Antes esto era bloqueante (Promise.all con await). Ya no: el selector
+        // muestra el logo grande mientras los thumbs se generan en background
+        // y aparecen al recargar. fetch+canvas son caros, no deben bloquear UI.
+        const thumbVersion = cacheGet<number>('thumbVer') ?? 0
+        const pending = loaded.filter((c) => c.logo && (!c.logoThumb || thumbVersion < 6))
+        if (pending.length) {
+          void Promise.all(
+            pending.map(async (c) => {
+              try {
+                const res = await fetch(c.logo!)
+                const blob = await res.blob()
+                const thumb = await fileToBase64Thumb(new File([blob], 'logo', { type: blob.type }))
+                await updateDoc(doc(db, 'companies', c.id), { logoThumb: thumb })
+                c.logoThumb = thumb
+              } catch { /* skip — will retry next load */ }
+            }),
+          ).then(() => {
+            cacheSet('companies', loaded)
+            cacheSet('thumbVer', 6)
+          })
+        } else {
+          cacheSet('thumbVer', 6)
         }
       } catch (err) {
         console.error('Error loading data:', err)
@@ -424,15 +438,30 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
-  return (
-    <CompanyContext.Provider value={{
+  // Memoizamos el value para que los consumers de useCompany() no se re-rendereen
+  // por culpa de un objeto literal nuevo en cada render del provider. Las funciones
+  // ya están con useCallback (estables), así que las deps reales son los datos.
+  const value = useMemo<CompanyContextValue>(
+    () => ({
       companies, selectedCompany, categories, roles, departments, loading,
       selectCompany, updateCompany, deleteCompany, addCompany,
       addCategory, removeCategory, updateCategory,
       addSubcategory, removeSubcategory, updateSubcategory,
       addRole, removeRole, updateRole,
       addDepartment, removeDepartment, updateDepartment,
-    }}>
+    }),
+    [
+      companies, selectedCompany, categories, roles, departments, loading,
+      selectCompany, updateCompany, deleteCompany, addCompany,
+      addCategory, removeCategory, updateCategory,
+      addSubcategory, removeSubcategory, updateSubcategory,
+      addRole, removeRole, updateRole,
+      addDepartment, removeDepartment, updateDepartment,
+    ],
+  )
+
+  return (
+    <CompanyContext.Provider value={value}>
       {children}
     </CompanyContext.Provider>
   )

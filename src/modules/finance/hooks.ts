@@ -3,9 +3,10 @@ import { useQuery } from '@tanstack/react-query'
 import { useCollection, useDocument } from '@/core/hooks/use-firestore'
 import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { usePaginatedCollection } from '@/core/hooks/use-paginated-collection'
-import { orderBy } from 'firebase/firestore'
+import { orderBy, where, Timestamp } from 'firebase/firestore'
 import { useCompany } from '@/core/hooks/use-company'
 import { queryClient } from '@/core/query/query-client'
+import { fetchCollection } from '@/core/firebase/helpers'
 import { budgetService, bankStatementService } from './services'
 import { generatePendingTransactions } from './recurring-generator'
 import { autoMatch } from './utils/reconciliation-matcher'
@@ -17,6 +18,65 @@ export function useTransactions() {
 
 export function usePaginatedTransactions() {
   return usePaginatedCollection<Transaction>('transactions', 50, orderBy('date', 'desc'))
+}
+
+// Hook que solo trae las transacciones del rango [start, end].
+// Sustituye el patrón "leer toda la colección y filtrar in-memory" en las
+// vistas que ya tienen un DateRangePicker (Cash Flow, Income Statement,
+// Budget, Finance Summary). Con miles de transacciones esto pasa de bajar
+// 5-10 MB cada vez a bajar solo lo del período.
+export function useTransactionsInRange(startDate: Date, endDate: Date) {
+  const { selectedCompany } = useCompany()
+  const companyId = selectedCompany?.id
+  const startMs = startDate.getTime()
+  const endMs = endDate.getTime()
+
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ['firestore', companyId, 'transactions', 'range', startMs, endMs],
+    queryFn: () =>
+      fetchCollection<Transaction>(
+        companyId!,
+        'transactions',
+        where('date', '>=', Timestamp.fromMillis(startMs)),
+        where('date', '<=', Timestamp.fromMillis(endMs)),
+      ),
+    enabled: !!companyId,
+  })
+
+  return {
+    data: data ?? [],
+    loading: isLoading,
+    error: error as Error | null,
+    refetch,
+  }
+}
+
+// Variante que trae todo hasta `endDate` (incluido). Necesario para Cash Flow,
+// que debe calcular saldo de apertura sumando transacciones anteriores al
+// período. Aún así reduce volumen vs leer la colección entera si el rango
+// está cerca del presente.
+export function useTransactionsUntil(endDate: Date) {
+  const { selectedCompany } = useCompany()
+  const companyId = selectedCompany?.id
+  const endMs = endDate.getTime()
+
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ['firestore', companyId, 'transactions', 'until', endMs],
+    queryFn: () =>
+      fetchCollection<Transaction>(
+        companyId!,
+        'transactions',
+        where('date', '<=', Timestamp.fromMillis(endMs)),
+      ),
+    enabled: !!companyId,
+  })
+
+  return {
+    data: data ?? [],
+    loading: isLoading,
+    error: error as Error | null,
+    refetch,
+  }
 }
 
 export function useRecurringTransactions() {
@@ -38,17 +98,15 @@ export function useRecurringGenerator() {
 }
 
 export function useFinanceSummary(startDate: Date, endDate: Date) {
-  const { data: transactions, loading } = useTransactions()
+  // Solo trae el rango — Firestore filtra por índice, el navegador no recibe
+  // las transacciones fuera del período.
+  const { data: transactions, loading } = useTransactionsInRange(startDate, endDate)
 
   const summary = useMemo(() => {
-    const filtered = transactions.filter((t) => {
-      const d = t.date?.toDate?.()
-      return d && d >= startDate && d <= endDate
-    })
-    const income = filtered.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0)
-    const expenses = filtered.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
+    const income = transactions.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0)
+    const expenses = transactions.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
     return { income, expenses, balance: income - expenses }
-  }, [transactions, startDate.getTime(), endDate.getTime()])
+  }, [transactions])
 
   return { summary, loading }
 }
@@ -73,7 +131,10 @@ export interface CashFlowData {
 }
 
 export function useCashFlow(startDate: Date, endDate: Date) {
-  const { data: transactions, loading } = useTransactions()
+  // Trae todo hasta endDate. Necesitamos las anteriores al período para
+  // calcular el saldo de apertura, así que no podemos limitarnos al rango.
+  // Aún así, recorta toda la historia futura al endDate.
+  const { data: transactions, loading } = useTransactionsUntil(endDate)
 
   const cashFlow = useMemo<CashFlowData>(() => {
     const periodStart = startDate
@@ -245,17 +306,10 @@ function buildSection(label: string, txs: Transaction[]): IncomeStatementSection
 }
 
 export function useIncomeStatement(startDate: Date, endDate: Date) {
-  const { data: transactions, loading } = useTransactions()
+  // Solo el rango — Firestore filtra antes de mandar.
+  const { data: periodTxs, loading } = useTransactionsInRange(startDate, endDate)
 
   const statement = useMemo<IncomeStatementData>(() => {
-    const periodStart = startDate
-    const periodEnd = endDate
-
-    const periodTxs = transactions.filter((t) => {
-      const d = t.date?.toDate?.()
-      return d && d >= periodStart && d <= periodEnd
-    })
-
     const incomeTxs = periodTxs.filter((t) => t.type === 'income')
     const expenseTxs = periodTxs.filter((t) => t.type === 'expense')
 
@@ -307,7 +361,7 @@ export function useIncomeStatement(startDate: Date, endDate: Date) {
       netMargin,
       transactionCount: periodTxs.length,
     }
-  }, [transactions, startDate.getTime(), endDate.getTime()])
+  }, [periodTxs])
 
   return { statement, loading }
 }
@@ -352,18 +406,11 @@ export function useBudget() {
 }
 
 export function useBudgetComparison(startDate: Date, endDate: Date) {
-  const { data: transactions, loading: txLoading } = useTransactions()
+  // Solo el rango — Firestore filtra antes de mandar.
+  const { data: periodTxs, loading: txLoading } = useTransactionsInRange(startDate, endDate)
   const { config, loading: budgetLoading, save, refetch } = useBudget()
 
   const comparison = useMemo<BudgetComparisonData>(() => {
-    const periodStart = startDate
-    const periodEnd = endDate
-
-    const periodTxs = transactions.filter((t) => {
-      const d = t.date?.toDate?.()
-      return d && d >= periodStart && d <= periodEnd
-    })
-
     // Group actual amounts by category+type
     const actualMap = new Map<string, number>()
     for (const t of periodTxs) {
@@ -422,7 +469,7 @@ export function useBudgetComparison(startDate: Date, endDate: Date) {
       budgetedBalance: incomeRows.reduce((s, r) => s + r.budgeted, 0) - expenseRows.reduce((s, r) => s + r.budgeted, 0),
       actualBalance: incomeRows.reduce((s, r) => s + r.actual, 0) - expenseRows.reduce((s, r) => s + r.actual, 0),
     }
-  }, [transactions, config, startDate.getTime(), endDate.getTime()])
+  }, [periodTxs, config])
 
   return {
     comparison,

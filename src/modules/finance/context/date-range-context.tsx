@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react'
+import { createContext, useContext, useState, useCallback, useMemo, type ReactNode } from 'react'
 
 interface DateRange {
   start: Date
@@ -168,8 +168,13 @@ export function DateRangeProvider({ children }: { children: ReactNode }) {
     ? formatRangeLabel(startDate, endDate)
     : getPresetLabel(activePreset)
 
+  const value = useMemo<DateRangeContextValue>(
+    () => ({ startDate, endDate, activePreset, presetLabel, setPreset, setCustomRange }),
+    [startDate, endDate, activePreset, presetLabel, setPreset, setCustomRange],
+  )
+
   return (
-    <DateRangeContext.Provider value={{ startDate, endDate, activePreset, presetLabel, setPreset, setCustomRange }}>
+    <DateRangeContext.Provider value={value}>
       {children}
     </DateRangeContext.Provider>
   )

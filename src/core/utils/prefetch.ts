@@ -110,23 +110,6 @@ export function resetPrefetchCache(): void {
   prefetchedPaths.clear()
 }
 
-// ─── Idle prefetch de todos los chunks + colecciones de Home ────────────────
-// Se llama una vez tras el primer render autenticado.
-
-export function prefetchRoutes() {
-  const run = () => {
-    Promise.all(
-      Object.values(CHUNK_BY_PATH).map((fn) => fn().catch(() => {})),
-    )
-  }
-
-  if ('requestIdleCallback' in window) {
-    requestIdleCallback(run)
-  } else {
-    setTimeout(run, 200)
-  }
-}
-
 // Colecciones que HomePage consume al montarse a través de useCollection<T>(name).
 // queryKey espejo exacto de src/core/hooks/use-firestore.ts → ['firestore', companyId, name].
 // queryFn idéntica a la del hook, sin constraints (igual que useCollection sin args).

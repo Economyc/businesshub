@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useMemo, useCallback, type ReactNode } from 'react'
 import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
@@ -6,7 +6,6 @@ import {
   type User,
 } from 'firebase/auth'
 import { auth } from '@/core/firebase/config'
-import { prefetchRoutes } from '@/core/utils/prefetch'
 import { Skeleton } from '@/core/ui/skeleton'
 
 interface AuthContextValue {
@@ -26,18 +25,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, (u) => {
       setUser(u)
       setLoading(false)
-      if (u) prefetchRoutes()
     })
     return unsubscribe
   }, [])
 
-  async function login(email: string, password: string) {
+  const login = useCallback(async (email: string, password: string) => {
     await signInWithEmailAndPassword(auth, email, password)
-  }
+  }, [])
 
-  async function logout() {
+  const logout = useCallback(async () => {
     await signOut(auth)
-  }
+  }, [])
+
+  const value = useMemo(
+    () => ({ user, loading, login, logout }),
+    [user, loading, login, logout],
+  )
 
   if (loading) {
     return (
@@ -52,7 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   )
