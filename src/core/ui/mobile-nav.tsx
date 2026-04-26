@@ -274,7 +274,7 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
                           size={14}
                           strokeWidth={1.5}
                           className={cn(
-                            'text-mid-gray/40 group-hover/section:text-mid-gray transition-all duration-200',
+                            'mr-1 text-mid-gray/40 group-hover/section:text-mid-gray transition-all duration-200',
                             isOpen && 'rotate-90'
                           )}
                         />
@@ -319,7 +319,7 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
                                     {label}
                                     <ChevronRight
                                       size={14}
-                                      className={cn('ml-auto text-mid-gray transition-transform duration-200', isExpanded && 'rotate-90')}
+                                      className={cn('ml-auto mr-1 text-mid-gray transition-transform duration-200', isExpanded && 'rotate-90')}
                                     />
                                   </button>
                                   <AnimatePresence initial={false}>
