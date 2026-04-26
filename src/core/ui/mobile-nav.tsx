@@ -237,6 +237,12 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
                           <CompanyLogo company={company} />
                           <div className="flex-1 min-w-0 text-left">
                             <div className="text-body text-dark-graphite truncate">{company.name}</div>
+                            {company.location && (
+                              <div className="flex items-center gap-0.5 text-caption text-mid-gray truncate">
+                                <MapPin size={10} className="shrink-0" />
+                                <span className="truncate">{company.location}</span>
+                              </div>
+                            )}
                           </div>
                           {selectedCompany?.id === company.id && (
                             <Check size={14} className="text-graphite shrink-0" />
