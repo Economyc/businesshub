@@ -116,6 +116,13 @@ interface FetchArgs {
 const PARALLEL_CHUNKS = 2
 const SAVE_CACHE_TIMEOUT_MS = 15_000
 
+// Reintento para errores transitorios del POS: si el primer fetch aborta por
+// timeout (AbortSignal), cae por red, o el servidor responde 5xx, esperar
+// CHUNK_RETRY_DELAY_MS y reintentar 1 sola vez antes de caer al cache. La
+// mayoría de fallas del POS de restaurant.pe son saturaciones momentáneas
+// que ceden en pocos segundos.
+const CHUNK_RETRY_DELAY_MS = 2_500
+
 function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
   return Promise.race([
     p,
@@ -123,6 +130,24 @@ function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
       setTimeout(() => reject(new Error(`${label} timeout ${ms}ms`)), ms),
     ),
   ])
+}
+
+// Identifica errores transitorios donde reintentar tiene sentido. Excluye
+// PosRateLimitError porque el servidor pidió esperar explícitamente y los
+// errores 4xx porque son semánticos (auth, params malos).
+function isTransientChunkError(err: unknown): boolean {
+  if (err instanceof PosRateLimitError) return false
+  const e = err as { name?: string; message?: string } | null
+  if (!e) return false
+  if (e.name === 'AbortError' || e.name === 'TimeoutError') return true
+  if (e.name === 'TypeError') return true // network failure típico
+  const msg = e.message ?? ''
+  if (/HTTP 5\d{2}/.test(msg)) return true
+  return false
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 async function fetchVentasWithCache({
@@ -333,7 +358,22 @@ async function fetchVentasWithCache({
     // los demás. El fetch YTD son 4 chunks — con `all`, un solo fallo devolvía
     // queryFn con error y React Query no reintenta errores no-rate-limit, así
     // que la UI quedaba con skeleton para siempre.
-    const results = await Promise.allSettled(batch.map(runChunk))
+    //
+    // Reintento single-shot por chunk: si el primer intento aborta por timeout
+    // o falla con 5xx/red, esperar CHUNK_RETRY_DELAY_MS y reintentar. El
+    // segundo fallo cae al fallback de cache (restoreChunkFromCache abajo).
+    const runChunkWithRetry = async (chunk: { start: string; end: string }) => {
+      try {
+        return await runChunk(chunk)
+      } catch (err) {
+        if (!isTransientChunkError(err)) throw err
+        // eslint-disable-next-line no-console
+        console.warn('[pos-sync] chunk transient error, retrying once', chunk, err)
+        await delay(CHUNK_RETRY_DELAY_MS)
+        return await runChunk(chunk)
+      }
+    }
+    const results = await Promise.allSettled(batch.map(runChunkWithRetry))
     for (let idx = 0; idx < results.length; idx++) {
       const r = results[idx]
       if (r.status === 'fulfilled') {
