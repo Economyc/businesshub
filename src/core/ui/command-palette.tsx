@@ -393,7 +393,7 @@ export function CommandPalette() {
       >
         <Search size={14} strokeWidth={1.5} />
         <span className="flex-1 text-left">Buscar...</span>
-        <kbd className="flex items-center gap-0.5 rounded border border-border bg-surface-elevated px-1 py-0.5 text-[10px] font-medium">
+        <kbd className="flex items-center gap-0.5 rounded border border-border/60 bg-graphite/5 px-1 py-0.5 text-[10px] font-medium text-mid-gray">
           Ctrl K
         </kbd>
       </button>
