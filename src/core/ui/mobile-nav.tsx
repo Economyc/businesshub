@@ -287,34 +287,35 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
                           animate={{ height: 'auto', opacity: 1 }}
                           exit={{ height: 0, opacity: 0 }}
                           transition={{ duration: 0.2 }}
-                          className="overflow-hidden relative"
+                          className="overflow-hidden"
                         >
-                          {/* Tree connector lines — per-item curved */}
-                          {visibleItems.map(({ to, label, icon: Icon }, itemIdx) => {
-                            const isLastItem = itemIdx === visibleItems.length - 1
+                          {visibleItems.map(({ to, label, icon: Icon }) => {
+                            const inSection = !!section.title
+                            const itemClass = inSection
+                              ? 'flex items-center gap-3 mx-3 px-3 pl-9 py-2.5 rounded-xl text-body transition-all duration-150'
+                              : 'flex items-center gap-3 mx-3 px-3 py-3 rounded-xl text-[15px] transition-all duration-150'
+                            const itemIconSize = inSection ? 16 : 20
+                            const subItemClass = inSection
+                              ? 'flex items-center gap-3 mx-3 px-3 pl-14 py-2.5 rounded-xl text-body transition-all duration-150'
+                              : 'flex items-center gap-3 mx-3 px-3 pl-9 py-2.5 rounded-xl text-body transition-all duration-150'
+
                             if (to === '/finance' || to === '/analytics') {
                               const isExpanded = to === '/finance' ? financeExpanded : analyticsExpanded
                               const setExpanded = to === '/finance' ? setFinanceExpanded : setAnalyticsExpanded
                               const subItems = to === '/finance' ? FINANCE_ITEMS : ANALYTICS_ITEMS
                               const isOnRoute = location.pathname.startsWith(to)
                               return (
-                                <div key={to} className={section.title ? 'relative' : ''}>
-                                  {section.title && (
-                                    <>
-                                      <div className="absolute left-[30px] top-0 h-[24px] w-[4px] border-l-[1.5px] border-b-[1.5px] border-border rounded-bl-[4px]" />
-                                      {!isLastItem && <div className="absolute left-[30px] top-[24px] bottom-0 w-[1.5px] bg-border" />}
-                                    </>
-                                  )}
+                                <div key={to}>
                                   <button
                                     onClick={() => setExpanded(!isExpanded)}
                                     className={cn(
-                                      'w-full flex items-center gap-3 mx-3 px-3 py-3 rounded-xl text-[15px] transition-all duration-150',
+                                      'w-full ' + itemClass,
                                       isOnRoute
                                         ? 'text-dark-graphite font-medium bg-bone'
                                         : 'text-graphite/70 active:bg-bone/50'
                                     )}
                                   >
-                                    <Icon size={20} strokeWidth={1.5} />
+                                    <Icon size={itemIconSize} strokeWidth={1.5} />
                                     {label}
                                     <ChevronRight
                                       size={14}
@@ -338,7 +339,7 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
                                             onClick={handleNav}
                                             className={({ isActive }) =>
                                               cn(
-                                                'flex items-center gap-3 mx-3 px-3 pl-9 py-2.5 rounded-xl text-body transition-all duration-150',
+                                                subItemClass,
                                                 isActive
                                                   ? 'text-dark-graphite font-medium bg-bone'
                                                   : 'text-graphite/70 active:bg-bone/50'
@@ -356,29 +357,22 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
                               )
                             }
                             return (
-                              <div key={to} className={section.title ? 'relative' : ''}>
-                                {section.title && (
-                                  <>
-                                    <div className="absolute left-[30px] top-0 h-1/2 w-[4px] border-l-[1.5px] border-b-[1.5px] border-border rounded-bl-[4px]" />
-                                    {!isLastItem && <div className="absolute left-[30px] top-1/2 bottom-0 w-[1.5px] bg-border" />}
-                                  </>
-                                )}
-                                <NavLink
-                                  to={to}
-                                  onClick={handleNav}
-                                  className={({ isActive }) =>
-                                    cn(
-                                      'flex items-center gap-3 mx-3 px-3 py-3 rounded-xl text-[15px] transition-all duration-150',
-                                      isActive
-                                        ? 'text-dark-graphite font-medium bg-bone'
-                                        : 'text-graphite/70 active:bg-bone/50'
-                                    )
-                                  }
-                                >
-                                  <Icon size={20} strokeWidth={1.5} />
-                                  {label}
-                                </NavLink>
-                              </div>
+                              <NavLink
+                                key={to}
+                                to={to}
+                                onClick={handleNav}
+                                className={({ isActive }) =>
+                                  cn(
+                                    itemClass,
+                                    isActive
+                                      ? 'text-dark-graphite font-medium bg-bone'
+                                      : 'text-graphite/70 active:bg-bone/50'
+                                  )
+                                }
+                              >
+                                <Icon size={itemIconSize} strokeWidth={1.5} />
+                                {label}
+                              </NavLink>
                             )
                           })}
                         </motion.div>
