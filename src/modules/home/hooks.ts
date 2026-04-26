@@ -3,9 +3,9 @@ import { doc, getDoc, Timestamp } from 'firebase/firestore'
 import { useQuery } from '@tanstack/react-query'
 import { db } from '@/core/firebase/config'
 import { useCollection } from '@/core/hooks/use-firestore'
-import { useTransactions, classifyExpense } from '@/modules/finance/hooks'
+import { useTransactionsInRange, classifyExpense } from '@/modules/finance/hooks'
 import { useClosings } from '@/modules/closings/hooks'
-import { useCarteraItems, useCarteraSummary } from '@/modules/cartera/hooks'
+import { useCarteraOverview } from '@/modules/cartera/hooks'
 import { useBudgetComparison } from '@/modules/finance/hooks'
 import { useDateRange } from '@/modules/finance/context/date-range-context'
 import { usePosVentas } from '@/modules/pos-sync/hooks'
@@ -145,10 +145,23 @@ export function useDashboardData() {
   const { startDate, endDate, activePreset } = useDateRange()
   const { selectedCaja, setSelectedCaja } = useHomeFilters()
   const { selectedCompany } = useCompany()
-  const { data: transactions, loading: txLoading } = useTransactions()
+  // Rango de transacciones: cubre filtro actual, periodo previo y mes anterior
+  // (este último para projections). Antes se descargaba la colección entera.
+  const transactionsRangeStart = useMemo(() => {
+    const durationMs = Math.max(0, endDate.getTime() - startDate.getTime())
+    const prev = new Date(startDate.getTime() - durationMs - 1)
+    const lastMonth = new Date(endDate.getFullYear(), endDate.getMonth() - 1, 1)
+    return prev < lastMonth ? prev : lastMonth
+  }, [startDate, endDate])
+  const { data: transactions, loading: txLoading } = useTransactionsInRange(
+    transactionsRangeStart,
+    endDate,
+  )
   const { data: closings, loading: closingsLoading } = useClosings()
-  const { receivables, payables, loading: carteraLoading } = useCarteraItems()
-  const { summary: carteraSummary } = useCarteraSummary()
+  // Resumen denormalizado escrito por carteraSummaryNightly. Tiene desfase
+  // de hasta 24h pero evita descargar transactions+purchases+payments en el
+  // Home. La pantalla /cartera mantiene la data live para detalle.
+  const { overview: carteraOverview, loading: carteraLoading } = useCarteraOverview()
   const { data: suppliers, loading: suppliersLoading } = useCollection<Supplier>('suppliers')
   const { data: contracts, loading: contractsLoading } = useCollection<Contract>('contracts')
   const { localIds, loading: localIdsLoading } = useCompanyLocalIds()
@@ -662,9 +675,10 @@ export function useDashboardData() {
       })
       .reduce((s, t) => s + t.amount, 0)
 
-    // Cuentas por cobrar (estado actual, no depende del filtro)
-    const porCobrar = carteraSummary.totalReceivables
-    const overdueCount = receivables.filter((r) => r.status === 'overdue').length
+    // Cuentas por cobrar (resumen precalculado por Cloud Function)
+    const porCobrar = carteraOverview.totalReceivables
+    const overdueCount = carteraOverview.receivablesOverdueCount
+    const pendingCount = carteraOverview.receivablesPendingCount
 
     return {
       ventasHoy: ventas,
@@ -677,10 +691,10 @@ export function useDashboardData() {
       costoChange: pctChange(costo, costoPrev),
       costoTrend: costo >= costoPrev ? 'up' : 'down',
       porCobrar,
-      porCobrarChange: overdueCount > 0 ? `${overdueCount} vencidas` : porCobrar > 0 ? `${receivables.filter((r) => r.status === 'pending').length} pendientes` : 'Al día',
+      porCobrarChange: overdueCount > 0 ? `${overdueCount} vencidas` : porCobrar > 0 ? `${pendingCount} pendientes` : 'Al día',
       porCobrarTrend: overdueCount > 0 ? 'down' : porCobrar > 0 ? 'neutral' : 'up',
     }
-  }, [transactions, closings, posSalesByDate, carteraSummary, receivables, startDate, endDate, prevStart, prevEnd])
+  }, [transactions, closings, posSalesByDate, carteraOverview, startDate, endDate, prevStart, prevEnd])
 
   // ─── Sales Trend (filtered by date range) ──────────────────────
   const salesTrend = useMemo<SalesTrendPoint[]>(() => {
@@ -840,14 +854,14 @@ export function useDashboardData() {
 
   // ─── Alerts ─────────────────────────────────────────────────────
   const alerts = useMemo<DashboardAlerts>(() => {
-    // Overdue items
+    // Overdue items (top N del resumen precalculado)
     const overdueItems: AlertItem[] = [
-      ...receivables.filter((r) => r.status === 'overdue').map((r) => ({
+      ...carteraOverview.overdueReceivables.map((r) => ({
         id: r.id,
         label: r.concept,
         detail: formatCurrencyShort(r.balance),
       })),
-      ...payables.filter((p) => p.status === 'overdue').map((p) => ({
+      ...carteraOverview.overduePayables.map((p) => ({
         id: p.id,
         label: p.concept,
         detail: formatCurrencyShort(p.balance),
@@ -891,7 +905,7 @@ export function useDashboardData() {
     }
 
     return { overdueItems, budgetExceeded, expiringContracts }
-  }, [receivables, payables, budgetComparison, suppliers, contracts])
+  }, [carteraOverview, budgetComparison, suppliers, contracts])
 
   // Todas las secciones del Home bloquean hasta que las ventas del filtro
   // carguen, aunque su propia fuente (transacciones, cartera, alerts) ya esté

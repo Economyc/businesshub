@@ -85,7 +85,7 @@ export function SalesTrendChart({ data, startDate, endDate, projection }: SalesT
         </div>
       ) : (
         <div className="h-[150px] sm:h-[200px]">
-        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+        <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
           <AreaChart data={rows} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eeece9" vertical={false} />
             <XAxis

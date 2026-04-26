@@ -5,7 +5,7 @@ import { SelectInput } from '@/core/ui/select-input'
 import { DateInput } from '@/core/ui/date-input'
 import { modalVariants } from '@/core/animations/variants'
 import { useCompany } from '@/core/hooks/use-company'
-import { useCollection } from '@/core/hooks/use-firestore'
+import { useActiveEmployees } from '@/modules/talent/hooks'
 import { formatCurrency } from '@/core/utils/format'
 import { calculateSettlementItem, calculateSettlementTotals } from '../calculator'
 import { useSettlementMutation } from '../hooks'
@@ -15,7 +15,6 @@ import {
   type SettlementStatus,
   type SettlementItem,
 } from '../types'
-import type { Employee } from '@/modules/talent/types'
 
 const labelClass = 'block text-caption uppercase tracking-wider text-mid-gray mb-1'
 
@@ -31,7 +30,7 @@ interface SettlementFormProps {
 
 export function SettlementForm({ open, onClose }: SettlementFormProps) {
   const { selectedCompany } = useCompany()
-  const { data: employees } = useCollection<Employee>('employees')
+  const { data: activeEmployees } = useActiveEmployees()
   const saveMutation = useSettlementMutation()
 
   const now = new Date()
@@ -43,10 +42,6 @@ export function SettlementForm({ open, onClose }: SettlementFormProps) {
   const [excludedIds, setExcludedIds] = useState<Set<string>>(new Set())
   const [expandedEmployee, setExpandedEmployee] = useState<string | null>(null)
 
-  const activeEmployees = useMemo(
-    () => employees.filter((e) => e.status === 'active'),
-    [employees],
-  )
 
   const termDate = type === 'liquidacion_definitiva' && terminationDate
     ? new Date(terminationDate + 'T12:00:00')

@@ -39,21 +39,19 @@ const CHUNK_BY_PATH: Record<string, () => Promise<unknown>> = {
 
 // Colecciones Firestore principales que cada ruta consume vía `useCollection`.
 // queryKey espejo exacto de src/core/hooks/use-firestore.ts → ['firestore', companyId, name].
-// React Query ya dedup por staleTime (2min) — spam de hovers es barato.
+//
+// REGLA: solo prefetchear catálogos LIVIANOS (suppliers, contracts, employees,
+// products, partners, closings, contract_templates). Las colecciones que
+// crecen sin tope con el tiempo (transactions, purchases, payments) NO se
+// prefetchean — saturaban la red al hover/login con canales de varios MB
+// que dejaban a las queries reales del módulo compitiendo por ancho de banda.
+// Esas colecciones se cargan on-demand cuando el módulo monta, y persistence
+// + staleTime 5min hacen que la 2da visita sea instantánea.
 const COLLECTIONS_BY_PATH: Record<string, readonly string[]> = {
-  '/home': ['transactions', 'closings', 'payments', 'suppliers', 'contracts', 'purchases'],
-  '/analytics': ['transactions', 'purchases'],
-  '/analytics/costs': ['transactions'],
-  '/analytics/purchases': ['purchases'],
-  '/analytics/payroll': ['employees', 'transactions'],
-  '/finance': ['transactions'],
-  '/finance/cash-flow': ['transactions'],
-  '/finance/income-statement': ['transactions'],
-  '/finance/budget': ['transactions'],
+  '/home': ['closings', 'suppliers', 'contracts'],
+  '/analytics/payroll': ['employees'],
   '/finance/reconciliation': ['bank-statements'],
-  '/finance/purchases': ['purchases'],
   '/finance/purchases/products': ['products'],
-  '/cartera': ['payments'],
   '/closings': ['closings'],
   '/payroll': ['payrolls', 'employees'],
   '/prestaciones': ['settlements', 'employees'],
@@ -110,10 +108,12 @@ export function resetPrefetchCache(): void {
   prefetchedPaths.clear()
 }
 
-// Colecciones que HomePage consume al montarse a través de useCollection<T>(name).
-// queryKey espejo exacto de src/core/hooks/use-firestore.ts → ['firestore', companyId, name].
-// queryFn idéntica a la del hook, sin constraints (igual que useCollection sin args).
-const HOME_COLLECTIONS = ['transactions', 'closings', 'payments', 'suppliers', 'contracts', 'purchases'] as const
+// Colecciones que HomePage consume al montarse y que vale la pena precalentar.
+// Solo catálogos chicos: suppliers, contracts, closings. transactions/purchases/
+// payments se EXCLUYEN — son las grandes y saturaban la red en background.
+// Se cargan on-demand al montar el módulo, persistence + staleTime cubren las
+// visitas siguientes.
+const HOME_COLLECTIONS = ['closings', 'suppliers', 'contracts'] as const
 
 export function prefetchHomeData(companyId: string) {
   if (!companyId) return

@@ -10,7 +10,7 @@ import { CurrencyInput } from '@/core/ui/currency-input'
 import { useCompany } from '@/core/hooks/use-company'
 import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { useTemplates } from '../hooks'
-import { useCollection } from '@/core/hooks/use-firestore'
+import { useActiveEmployees } from '@/modules/talent/hooks'
 import { contractService } from '../services'
 import { resolvePlaceholders, numberToWords } from '../defaults/placeholders'
 import { ContractPreview } from './contract-preview'
@@ -18,7 +18,6 @@ import { ContractExport, generatePDFBlob } from './contract-export'
 import { ContractsTabs } from './contracts-tabs'
 import type { ContractMetadata, ContractClause, ContractFormData } from '../types'
 import { talentService } from '@/modules/talent/services'
-import type { Employee } from '@/modules/talent/types'
 import type { ContractStatus } from '@/core/types'
 
 const inputClass =
@@ -31,7 +30,7 @@ export function ContractGenerate() {
   const navigate = useNavigate()
   const { selectedCompany } = useCompany()
   const { data: templates } = useTemplates()
-  const { data: employees } = useCollection<Employee>('employees')
+  const { data: employees } = useActiveEmployees()
 
   const [step, setStep] = useState(0)
   const [selectedTemplateId, setSelectedTemplateId] = useState('')

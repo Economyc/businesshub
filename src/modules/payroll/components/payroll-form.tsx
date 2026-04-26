@@ -4,14 +4,13 @@ import { X, ChevronDown, ChevronUp } from 'lucide-react'
 import { SelectInput } from '@/core/ui/select-input'
 import { modalVariants } from '@/core/animations/variants'
 import { useCompany } from '@/core/hooks/use-company'
-import { useCollection } from '@/core/hooks/use-firestore'
+import { useActiveEmployees } from '@/modules/talent/hooks'
 import { formatCurrency } from '@/core/utils/format'
 import { calculatePayrollItem, calculatePayrollTotals } from '../calculator'
 import { usePayrollMutation } from '../hooks'
 import { syncPayrollTransaction } from '../transaction-generator'
 import { PayrollItemForm } from './payroll-item-form'
 import { MONTH_NAMES, type PayrollItem, type PayrollStatus, type OvertimeEntry, type PayrollDeduction } from '../types'
-import type { Employee } from '@/modules/talent/types'
 
 const labelClass = 'block text-caption uppercase tracking-wider text-mid-gray mb-1'
 
@@ -22,7 +21,7 @@ interface PayrollFormProps {
 
 export function PayrollForm({ open, onClose }: PayrollFormProps) {
   const { selectedCompany } = useCompany()
-  const { data: employees } = useCollection<Employee>('employees')
+  const { data: activeEmployees } = useActiveEmployees()
   const saveMutation = usePayrollMutation()
 
   const now = new Date()
@@ -35,11 +34,6 @@ export function PayrollForm({ open, onClose }: PayrollFormProps) {
   const [employeeOvertime, setEmployeeOvertime] = useState<Record<string, OvertimeEntry[]>>({})
   const [employeeDeductions, setEmployeeDeductions] = useState<Record<string, PayrollDeduction[]>>({})
   const [expandedEmployee, setExpandedEmployee] = useState<string | null>(null)
-
-  const activeEmployees = useMemo(
-    () => employees.filter((e) => e.status === 'active'),
-    [employees],
-  )
 
   const items: PayrollItem[] = useMemo(
     () =>

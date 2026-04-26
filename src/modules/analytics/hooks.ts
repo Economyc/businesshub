@@ -4,6 +4,8 @@ import { useSettings } from '@/core/hooks/use-settings'
 import { useDateRange } from '@/modules/finance/context/date-range-context'
 import { usePosVentas } from '@/modules/pos-sync/hooks'
 import { useCompanyLocalIds } from '@/modules/pos-sync/company-mapping'
+import { useTransactionsInRange } from '@/modules/finance/hooks'
+import { usePurchasesInRange } from '@/modules/purchases/hooks'
 import {
   calcTotals,
   isAnulada,
@@ -12,8 +14,6 @@ import {
   type PosTotals,
 } from '@/modules/pos-sync/utils/sales-calculations'
 import { getCostGroup, COST_GROUP_LABELS, calcChange, getMonthsBetween } from './services'
-import type { Transaction } from '@/modules/finance/types'
-import type { Purchase } from '@/modules/purchases/types'
 import type { Employee } from '@/modules/talent/types'
 import type {
   AnalyticsKPIs,
@@ -49,8 +49,12 @@ function getPreviousPeriod(start: Date, end: Date): { prevStart: Date; prevEnd: 
 
 export function useAnalyticsKPIs(): { kpis: AnalyticsKPIs; loading: boolean } {
   const { startDate, endDate } = useDateRange()
-  const { data: transactions, loading: txLoading } = useCollection<Transaction>('transactions')
-  const { data: purchases, loading: purLoading } = useCollection<Purchase>('purchases')
+  // Acota el fetch a [prevStart..endDate]: cubre el período actual y el
+  // anterior (para comparativos) en una sola query. Antes se leía la
+  // colección entera y se filtraba in-memory.
+  const { prevStart } = useMemo(() => getPreviousPeriod(startDate, endDate), [startDate, endDate])
+  const { data: transactions, loading: txLoading } = useTransactionsInRange(prevStart, endDate)
+  const { data: purchases, loading: purLoading } = usePurchasesInRange(prevStart, endDate)
 
   const loading = txLoading || purLoading
 
@@ -96,8 +100,8 @@ export function useAnalyticsKPIs(): { kpis: AnalyticsKPIs; loading: boolean } {
 
 export function useMonthlyBreakdown(): { data: MonthlyDataPoint[]; loading: boolean } {
   const { startDate, endDate } = useDateRange()
-  const { data: transactions, loading: txLoading } = useCollection<Transaction>('transactions')
-  const { data: purchases, loading: purLoading } = useCollection<Purchase>('purchases')
+  const { data: transactions, loading: txLoading } = useTransactionsInRange(startDate, endDate)
+  const { data: purchases, loading: purLoading } = usePurchasesInRange(startDate, endDate)
 
   const loading = txLoading || purLoading
 
@@ -134,7 +138,7 @@ export function useMonthlyBreakdown(): { data: MonthlyDataPoint[]; loading: bool
 
 export function useCategoryBreakdown(): { categories: CategoryCost[]; loading: boolean } {
   const { startDate, endDate } = useDateRange()
-  const { data: transactions, loading } = useCollection<Transaction>('transactions')
+  const { data: transactions, loading } = useTransactionsInRange(startDate, endDate)
   const { categories: categoryItems } = useSettings()
 
   const categories = useMemo<CategoryCost[]>(() => {
@@ -171,7 +175,8 @@ export function useCategoryBreakdown(): { categories: CategoryCost[]; loading: b
 
 export function useCostStructure(): { kpis: CostStructureKPIs; categories: CategoryCost[]; monthlyCosts: MonthlyCostPoint[]; loading: boolean } {
   const { startDate, endDate } = useDateRange()
-  const { data: transactions, loading } = useCollection<Transaction>('transactions')
+  const { prevStart } = useMemo(() => getPreviousPeriod(startDate, endDate), [startDate, endDate])
+  const { data: transactions, loading } = useTransactionsInRange(prevStart, endDate)
   const { categories: categoryItems } = useSettings()
 
   const result = useMemo(() => {
@@ -264,7 +269,8 @@ export function usePurchaseAnalytics(): {
   loading: boolean
 } {
   const { startDate, endDate } = useDateRange()
-  const { data: purchases, loading } = useCollection<Purchase>('purchases')
+  const { prevStart } = useMemo(() => getPreviousPeriod(startDate, endDate), [startDate, endDate])
+  const { data: purchases, loading } = usePurchasesInRange(prevStart, endDate)
 
   const result = useMemo(() => {
     const { prevStart, prevEnd } = getPreviousPeriod(startDate, endDate)
@@ -343,8 +349,9 @@ export function usePayrollAnalytics(): {
   loading: boolean
 } {
   const { startDate, endDate } = useDateRange()
+  const { prevStart } = useMemo(() => getPreviousPeriod(startDate, endDate), [startDate, endDate])
   const { data: employees, loading: empLoading } = useCollection<Employee>('employees')
-  const { data: transactions, loading: txLoading } = useCollection<Transaction>('transactions')
+  const { data: transactions, loading: txLoading } = useTransactionsInRange(prevStart, endDate)
 
   const loading = empLoading || txLoading
 

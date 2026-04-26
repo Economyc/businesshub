@@ -1,11 +1,80 @@
 import { useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { doc, getDoc, type Timestamp } from 'firebase/firestore'
 import { useCollection } from '@/core/hooks/use-firestore'
+import { useCompany } from '@/core/hooks/use-company'
+import { db } from '@/core/firebase/config'
 import { useTransactions } from '@/modules/finance/hooks'
 import { usePurchases } from '@/modules/purchases/hooks'
 import type { Payment, CarteraItem, CarteraSummary } from './types'
 
 export function usePayments() {
   return useCollection<Payment>('payments')
+}
+
+// Resumen denormalizado escrito por la Cloud Function `carteraSummaryNightly`.
+// El Home lo consume en vez de useCarteraItems/useCarteraSummary para evitar
+// descargar transactions+purchases+payments completos. Tiene hasta 24h de
+// desfase frente a los datos en vivo; la pantalla /cartera sigue usando los
+// hooks live para mostrar detalle interactivo.
+export interface CarteraOverviewItem {
+  id: string
+  concept: string
+  balance: number
+  daysOutstanding: number
+}
+
+export interface CarteraOverview {
+  totalReceivables: number
+  totalPayables: number
+  netPosition: number
+  overdueTotal: number
+  receivablesOverdueCount: number
+  receivablesPendingCount: number
+  payablesOverdueCount: number
+  payablesPendingCount: number
+  overdueReceivables: CarteraOverviewItem[]
+  overduePayables: CarteraOverviewItem[]
+  computedAt: Timestamp | null
+}
+
+const EMPTY_OVERVIEW: CarteraOverview = {
+  totalReceivables: 0,
+  totalPayables: 0,
+  netPosition: 0,
+  overdueTotal: 0,
+  receivablesOverdueCount: 0,
+  receivablesPendingCount: 0,
+  payablesOverdueCount: 0,
+  payablesPendingCount: 0,
+  overdueReceivables: [],
+  overduePayables: [],
+  computedAt: null,
+}
+
+export function useCarteraOverview() {
+  const { selectedCompany } = useCompany()
+  const companyId = selectedCompany?.id
+
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ['cartera-overview', companyId],
+    queryFn: async (): Promise<CarteraOverview> => {
+      const ref = doc(db, 'companies', companyId!, 'summary', 'cartera')
+      const snap = await getDoc(ref)
+      if (!snap.exists()) return EMPTY_OVERVIEW
+      const raw = snap.data() as Partial<CarteraOverview>
+      return { ...EMPTY_OVERVIEW, ...raw }
+    },
+    enabled: !!companyId,
+    staleTime: 5 * 60 * 1000,
+  })
+
+  return {
+    overview: data ?? EMPTY_OVERVIEW,
+    loading: isLoading,
+    error: error as Error | null,
+    refetch,
+  }
 }
 
 function daysBetween(from: Date, to: Date): number {

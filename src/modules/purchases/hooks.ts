@@ -1,7 +1,10 @@
 import { useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useCollection, useDocument } from '@/core/hooks/use-firestore'
 import { usePaginatedCollection } from '@/core/hooks/use-paginated-collection'
-import { orderBy } from 'firebase/firestore'
+import { orderBy, where, Timestamp } from 'firebase/firestore'
+import { useCompany } from '@/core/hooks/use-company'
+import { fetchCollection } from '@/core/firebase/helpers'
 import type { Product, Purchase } from './types'
 
 // --- Basic hooks ---
@@ -16,6 +19,36 @@ export function useProduct(id: string | undefined) {
 
 export function usePurchases() {
   return useCollection<Purchase>('purchases')
+}
+
+// Solo trae las compras del rango [start, end]. Reemplaza el patrón "leer toda
+// la colección y filtrar in-memory" en analytics/finance, que con miles de
+// compras bajaba MBs cada vez. Espejo de useTransactionsInRange.
+export function usePurchasesInRange(startDate: Date, endDate: Date) {
+  const { selectedCompany } = useCompany()
+  const companyId = selectedCompany?.id
+  const startMs = startDate.getTime()
+  const endMs = endDate.getTime()
+
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ['firestore', companyId, 'purchases', 'range', startMs, endMs],
+    queryFn: () =>
+      fetchCollection<Purchase>(
+        companyId!,
+        'purchases',
+        where('date', '>=', Timestamp.fromMillis(startMs)),
+        where('date', '<=', Timestamp.fromMillis(endMs)),
+      ),
+    enabled: !!companyId,
+    staleTime: 5 * 60 * 1000,
+  })
+
+  return {
+    data: data ?? [],
+    loading: isLoading,
+    error: error as Error | null,
+    refetch,
+  }
 }
 
 export function usePurchase(id: string | undefined) {
