@@ -140,19 +140,21 @@ function HomePageContent() {
   return (
     <PageTransition>
       {/* Mobile greeting header */}
-      <div className="sm:hidden mb-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-dark-graphite tracking-tight">
+      <div className="sm:hidden mb-5 flex flex-col gap-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-heading font-medium text-dark-graphite tracking-tight">
               Hola, {firstName}
             </h1>
-            <p className="text-sm text-mid-gray font-semibold mt-0.5">{todayLabel}</p>
+            <p className="text-body text-mid-gray mt-0.5">{todayLabel}</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="pt-2 shrink-0">
             <SyncStatusDot {...syncStatus} />
-            <CajaFilter cajas={cajasDisponibles} />
-            <DateRangePicker />
           </div>
+        </div>
+        <div className="flex items-center gap-2 overflow-x-auto -mx-4 px-4">
+          <CajaFilter cajas={cajasDisponibles} />
+          <DateRangePicker />
         </div>
       </div>
       {/* Desktop PageHeader */}
