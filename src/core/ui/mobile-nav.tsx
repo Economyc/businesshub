@@ -1,20 +1,23 @@
 import { useState, useEffect } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { BarChart3, Users, Briefcase, DollarSign, Home, Handshake, ClipboardList, FileSignature, X, ChevronRight, Building2, Tags, BadgeCheck, Network, ChevronsUpDown, Check, MapPin, Wallet, Receipt, Gift, LogOut, Bot, Landmark, Boxes, UserRound, List, ShoppingCart, Package, Target, Repeat, Scale, FileText } from 'lucide-react'
+import { BarChart3, Users, Briefcase, DollarSign, Home, Handshake, ClipboardList, FileSignature, X, ChevronRight, Building2, Tags, BadgeCheck, Network, ChevronsUpDown, Check, MapPin, Wallet, Receipt, Gift, LogOut, Bot, Landmark, Boxes, UserRound, List, ShoppingCart, Package, Target, Repeat, Scale, FileText, Megaphone, RefreshCw, Shield, LayoutDashboard, Store, PieChart, LayoutGrid } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useCompany } from '@/core/hooks/use-company'
 import { useAuth } from '@/core/hooks/use-auth'
+import { usePermissions } from '@/core/hooks/use-permissions'
 import { CompanyLogo } from '@/core/ui/company-logo'
 import { ThemeToggle } from '@/core/ui/theme-toggle'
 import { AvatarPicker } from '@/core/ui/avatar-picker'
 import { UserAvatar } from '@/core/ui/user-avatar'
 import { useAvatarConfig } from '@/core/hooks/use-avatar-config'
+import type { ModuleKey } from '@/core/types/permissions'
 
 interface NavItem {
   to: string
   label: string
   icon: typeof Home
+  moduleKey?: ModuleKey
 }
 
 interface NavSection {
@@ -26,41 +29,56 @@ interface NavSection {
 const NAV_SECTIONS: NavSection[] = [
   {
     items: [
-      { to: '/home', label: 'Home', icon: Home },
-      { to: '/analytics', label: 'Análisis', icon: BarChart3 },
-      { to: '/agent', label: 'Asistente AI', icon: Bot },
+      { to: '/home', label: 'Home', icon: Home, moduleKey: 'home' },
+      { to: '/agent', label: 'Asistente AI', icon: Bot, moduleKey: 'agent' },
+      { to: '/analytics', label: 'Análisis', icon: BarChart3, moduleKey: 'analytics' },
     ],
   },
   {
     title: 'Contabilidad',
     icon: Landmark,
     items: [
-      { to: '/finance', label: 'Finanzas', icon: DollarSign },
-      { to: '/cartera', label: 'Cartera', icon: Wallet },
-      { to: '/closings', label: 'Cierres de Caja', icon: ClipboardList },
-      { to: '/payroll', label: 'Nomina', icon: Receipt },
-      { to: '/prestaciones', label: 'Prestaciones', icon: Gift },
+      { to: '/finance', label: 'Finanzas', icon: DollarSign, moduleKey: 'finance' },
+      { to: '/cartera', label: 'Cartera', icon: Wallet, moduleKey: 'cartera' },
+      { to: '/closings', label: 'Cierres de Caja', icon: ClipboardList, moduleKey: 'closings' },
+      { to: '/payroll', label: 'Nomina', icon: Receipt, moduleKey: 'payroll' },
+      { to: '/prestaciones', label: 'Prestaciones', icon: Gift, moduleKey: 'prestaciones' },
     ],
   },
   {
     title: 'Gestión',
     icon: Boxes,
     items: [
-      { to: '/contracts', label: 'Contratos', icon: FileSignature },
-      { to: '/partners', label: 'Socios', icon: Handshake },
+      { to: '/contracts', label: 'Contratos', icon: FileSignature, moduleKey: 'contracts' },
+      { to: '/partners', label: 'Socios', icon: Handshake, moduleKey: 'partners' },
     ],
   },
   {
     title: 'Personas',
     icon: UserRound,
     items: [
-      { to: '/talent', label: 'Equipo', icon: Users },
-      { to: '/suppliers', label: 'Proveedores', icon: Briefcase },
+      { to: '/talent', label: 'Equipo', icon: Users, moduleKey: 'talent' },
+      { to: '/suppliers', label: 'Proveedores', icon: Briefcase, moduleKey: 'suppliers' },
+    ],
+  },
+  {
+    title: 'Mercadeo',
+    icon: Megaphone,
+    items: [
+      { to: '/marketing/influencers', label: 'Influencers', icon: Users, moduleKey: 'marketing' },
+    ],
+  },
+  {
+    title: 'Integraciones',
+    icon: RefreshCw,
+    items: [
+      { to: '/pos-sync', label: 'POS Sync', icon: RefreshCw },
     ],
   },
 ]
 
 const SETTINGS_ITEMS = [
+  { to: '/settings/team', label: 'Equipo', icon: Shield },
   { to: '/settings/companies', label: 'Compañías', icon: Building2 },
   { to: '/settings/categories', label: 'Categorías', icon: Tags },
   { to: '/settings/roles', label: 'Cargos', icon: BadgeCheck },
@@ -76,6 +94,14 @@ const FINANCE_ITEMS: (NavItem & { end?: boolean })[] = [
   { to: '/finance/income-statement', label: 'Estado de Resultados', icon: FileText },
   { to: '/finance/budget', label: 'Presupuesto', icon: Target },
   { to: '/finance/reconciliation', label: 'Conciliacion', icon: Scale },
+]
+
+const ANALYTICS_ITEMS: (NavItem & { end?: boolean })[] = [
+  { to: '/analytics', label: 'General', icon: LayoutDashboard, end: true },
+  { to: '/analytics/pos', label: 'POS', icon: Store },
+  { to: '/analytics/costs', label: 'Costos', icon: PieChart },
+  { to: '/analytics/purchases', label: 'Compras', icon: ShoppingCart },
+  { to: '/analytics/payroll', label: 'Nómina', icon: Users },
 ]
 
 interface MobileNavProps {
@@ -96,10 +122,12 @@ function getActiveSections(pathname: string): Set<string> {
 export function MobileNav({ open, onClose }: MobileNavProps) {
   const { companies, selectedCompany, selectCompany } = useCompany()
   const { user, logout } = useAuth()
+  const { can } = usePermissions()
   const { config: avatarConfig, setConfig: setAvatarConfig } = useAvatarConfig(user?.uid)
   const [companyOpen, setCompanyOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [financeExpanded, setFinanceExpanded] = useState(() => window.location.pathname.startsWith('/finance'))
+  const [analyticsExpanded, setAnalyticsExpanded] = useState(() => window.location.pathname.startsWith('/analytics'))
   const [openSections, setOpenSections] = useState<Set<string>>(() => getActiveSections(window.location.pathname))
   const location = useLocation()
 
@@ -224,6 +252,9 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
             {/* Navigation */}
             <div className="flex-1 overflow-y-auto overflow-x-hidden py-2" style={{ touchAction: 'pan-y', overscrollBehaviorX: 'none' }}>
               {NAV_SECTIONS.map((section, sIdx) => {
+                const visibleItems = section.items.filter(({ moduleKey }) => !moduleKey || can(moduleKey, 'read'))
+                if (visibleItems.length === 0) return null
+
                 const isOpen = !section.title || openSections.has(section.title)
                 return (
                   <div key={section.title ?? sIdx}>
@@ -259,9 +290,13 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
                           className="overflow-hidden relative"
                         >
                           {/* Tree connector lines — per-item curved */}
-                          {section.items.map(({ to, label, icon: Icon }, itemIdx) => {
-                            const isLastItem = itemIdx === section.items.length - 1
-                            if (to === '/finance') {
+                          {visibleItems.map(({ to, label, icon: Icon }, itemIdx) => {
+                            const isLastItem = itemIdx === visibleItems.length - 1
+                            if (to === '/finance' || to === '/analytics') {
+                              const isExpanded = to === '/finance' ? financeExpanded : analyticsExpanded
+                              const setExpanded = to === '/finance' ? setFinanceExpanded : setAnalyticsExpanded
+                              const subItems = to === '/finance' ? FINANCE_ITEMS : ANALYTICS_ITEMS
+                              const isOnRoute = location.pathname.startsWith(to)
                               return (
                                 <div key={to} className={section.title ? 'relative' : ''}>
                                   {section.title && (
@@ -271,10 +306,10 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
                                     </>
                                   )}
                                   <button
-                                    onClick={() => setFinanceExpanded(!financeExpanded)}
+                                    onClick={() => setExpanded(!isExpanded)}
                                     className={cn(
                                       'w-full flex items-center gap-3 mx-3 px-3 py-3 rounded-xl text-[15px] transition-all duration-150',
-                                      location.pathname.startsWith('/finance')
+                                      isOnRoute
                                         ? 'text-dark-graphite font-medium bg-bone'
                                         : 'text-graphite/70 active:bg-bone/50'
                                     )}
@@ -283,11 +318,11 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
                                     {label}
                                     <ChevronRight
                                       size={14}
-                                      className={cn('ml-auto text-mid-gray transition-transform duration-200', financeExpanded && 'rotate-90')}
+                                      className={cn('ml-auto text-mid-gray transition-transform duration-200', isExpanded && 'rotate-90')}
                                     />
                                   </button>
                                   <AnimatePresence initial={false}>
-                                    {financeExpanded && (
+                                    {isExpanded && (
                                       <motion.div
                                         initial={{ height: 0, opacity: 0 }}
                                         animate={{ height: 'auto', opacity: 1 }}
@@ -295,11 +330,11 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
                                         transition={{ duration: 0.2 }}
                                         className="overflow-hidden"
                                       >
-                                        {FINANCE_ITEMS.map((fi) => (
+                                        {subItems.map((si) => (
                                           <NavLink
-                                            key={fi.to}
-                                            to={fi.to}
-                                            end={fi.end}
+                                            key={si.to}
+                                            to={si.to}
+                                            end={si.end}
                                             onClick={handleNav}
                                             className={({ isActive }) =>
                                               cn(
@@ -310,8 +345,8 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
                                               )
                                             }
                                           >
-                                            <fi.icon size={16} strokeWidth={1.5} />
-                                            {fi.label}
+                                            <si.icon size={16} strokeWidth={1.5} />
+                                            {si.label}
                                           </NavLink>
                                         ))}
                                       </motion.div>
@@ -386,27 +421,40 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
                       <div className="mx-3 my-1 border-t border-border/60" />
                       <ThemeToggle />
                       <div className="mx-3 my-1 border-t border-border/60" />
-                      <div className="px-3 pt-1 pb-1">
-                        <span className="text-[10px] font-semibold uppercase tracking-wider text-mid-gray/60">Configuración</span>
-                      </div>
-                      {SETTINGS_ITEMS.map(({ to, label, icon: Icon }) => (
-                        <NavLink
-                          key={to}
-                          to={to}
-                          onClick={handleNav}
-                          className={({ isActive }) =>
-                            cn(
-                              'flex items-center gap-3 px-3 pl-6 py-2.5 rounded-xl text-body transition-all duration-150',
-                              isActive
-                                ? 'text-dark-graphite font-medium bg-bone'
-                                : 'text-graphite/70 active:bg-bone/50'
-                            )
-                          }
-                        >
-                          <Icon size={16} strokeWidth={1.5} />
-                          {label}
-                        </NavLink>
-                      ))}
+                      <NavLink
+                        to="/"
+                        onClick={handleNav}
+                        className="flex items-center gap-3 px-3 pl-6 py-2.5 rounded-xl text-body text-graphite/70 active:bg-bone/50 transition-all duration-150"
+                      >
+                        <LayoutGrid size={16} strokeWidth={1.5} />
+                        Mis compañías
+                      </NavLink>
+                      {can('settings', 'read') && (
+                        <>
+                          <div className="mx-3 my-1 border-t border-border/60" />
+                          <div className="px-3 pt-1 pb-1">
+                            <span className="text-[10px] font-semibold uppercase tracking-wider text-mid-gray/60">Configuración</span>
+                          </div>
+                          {SETTINGS_ITEMS.map(({ to, label, icon: Icon }) => (
+                            <NavLink
+                              key={to}
+                              to={to}
+                              onClick={handleNav}
+                              className={({ isActive }) =>
+                                cn(
+                                  'flex items-center gap-3 px-3 pl-6 py-2.5 rounded-xl text-body transition-all duration-150',
+                                  isActive
+                                    ? 'text-dark-graphite font-medium bg-bone'
+                                    : 'text-graphite/70 active:bg-bone/50'
+                                )
+                              }
+                            >
+                              <Icon size={16} strokeWidth={1.5} />
+                              {label}
+                            </NavLink>
+                          ))}
+                        </>
+                      )}
                       <div className="mx-3 my-1 border-t border-border/60" />
                       <button
                         onClick={() => {
