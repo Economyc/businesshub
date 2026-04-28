@@ -18,7 +18,7 @@ La implementación de tokens vive en `src/index.css` (Tailwind v4 `@theme`). Est
 
 ## 2. Tipografía
 
-**Fuente:** `Google Sans` (via `--font-sans`). Siempre heredada — no aplicar `font-*` custom.
+**Fuente:** `Inter` (via `--font-sans`). Siempre heredada — no aplicar `font-*` custom.
 
 **Escalas permitidas** (clases Tailwind v4 generadas por `@theme`):
 
@@ -195,7 +195,7 @@ Rompen el sistema. Rechazar en review:
 - ❌ `p-3`, `p-5`, `gap-5`, `space-y-5` (valores fuera de la escala)
 - ❌ Cards con alturas desiguales en la misma fila
 - ❌ Iconos > 24px fuera de empty states
-- ❌ Fuente distinta a Google Sans
+- ❌ Fuente distinta a Inter
 - ❌ `dark:bg-*` cuando ya existe token neutro
 - ❌ Crear componente en el módulo cuando existe en `src/core/ui/` o `src/components/ui/`
 
