@@ -52,7 +52,7 @@ export function KPICard({ label, value, format = 'number', change, trend, compar
       className="bg-surface rounded-xl p-3 sm:p-[18px] card-elevated overflow-hidden"
     >
       <div className="flex justify-between items-center mb-2">
-        <span className="text-caption uppercase tracking-wider text-mid-gray truncate mr-1">{label}</span>
+        <span className="text-caption text-mid-gray truncate mr-1">{label}</span>
         {Icon && <Icon size={16} strokeWidth={1.5} className="text-smoke" />}
       </div>
       <div className="text-lg sm:text-kpi font-extrabold text-dark-graphite truncate">{formattedValue}</div>

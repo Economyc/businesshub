@@ -34,15 +34,10 @@ export function MonthProjectionTile({ projection }: MonthProjectionTileProps) {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         {/* Valor proyectado */}
         <div className="min-w-0">
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <div className="flex items-center gap-1.5">
-              <TrendingUp size={14} strokeWidth={1.5} className="text-mid-gray" />
-              <span className="text-caption uppercase tracking-wider text-mid-gray">
-                Proyección fin de mes
-              </span>
-            </div>
-            <span className="text-caption uppercase tracking-wider px-2 py-0.5 rounded-full bg-smoke text-mid-gray">
-              Estimado
+          <div className="flex items-center gap-1.5 mb-1">
+            <TrendingUp size={14} strokeWidth={1.5} className="text-mid-gray" />
+            <span className="text-caption text-mid-gray">
+              Proyección fin de mes
             </span>
           </div>
           <div className="flex flex-wrap items-baseline gap-2">
@@ -71,7 +66,7 @@ export function MonthProjectionTile({ projection }: MonthProjectionTileProps) {
 
         {/* Real acumulado + progreso dual */}
         <div className="sm:text-right sm:min-w-[240px]">
-          <div className="text-caption uppercase tracking-wider text-mid-gray mb-1">
+          <div className="text-caption text-mid-gray mb-1">
             Real acumulado
           </div>
           <div className="text-subheading font-medium text-dark-graphite mb-2">
