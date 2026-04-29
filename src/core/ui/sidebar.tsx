@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { BarChart3, Users, Briefcase, DollarSign, Home, ChevronsLeft, Building2, Tags, BadgeCheck, Network, Handshake, ClipboardList, FileSignature, Wallet, Receipt, Gift, ChevronRight, ChevronsUpDown, Check, MapPin, LogOut, Settings, Landmark, Boxes, UserRound, Bot, List, ShoppingCart, Package, Target, Scale, FileText, Shield, RefreshCw, Megaphone, Lock, LockOpen, LayoutDashboard, Store, PieChart, LayoutGrid } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { HoverHint } from '@/components/ui/tooltip'
 import { CommandPalette } from '@/core/ui/command-palette'
 import { CompanyLogo } from '@/core/ui/company-logo'
 import { ThemeToggle } from '@/core/ui/theme-toggle'
@@ -530,16 +531,17 @@ export function Sidebar({ onNavClick }: SidebarProps) {
             {/* Bottom — Notifications + User menu */}
             <div className="border-t border-border mx-4 pt-1">
               <div className="flex items-center justify-between py-2 px-1">
-                <button
-                  onClick={toggleAutoHide}
-                  className="p-1.5 rounded-md text-mid-gray/60 hover:text-graphite hover:bg-smoke transition-colors duration-150 cursor-pointer"
-                  title={autoHide ? 'Fijar sidebar' : 'Auto-ocultar sidebar'}
-                  aria-label={autoHide ? 'Fijar sidebar' : 'Auto-ocultar sidebar'}
-                >
-                  {autoHide
-                    ? <LockOpen size={15} strokeWidth={1.5} />
-                    : <Lock size={15} strokeWidth={1.5} />}
-                </button>
+                <HoverHint label={autoHide ? 'Fijar sidebar' : 'Auto-ocultar sidebar'} side="right">
+                  <button
+                    onClick={toggleAutoHide}
+                    className="p-1.5 rounded-md text-mid-gray/60 hover:text-graphite hover:bg-smoke transition-colors duration-150 cursor-pointer"
+                    aria-label={autoHide ? 'Fijar sidebar' : 'Auto-ocultar sidebar'}
+                  >
+                    {autoHide
+                      ? <LockOpen size={15} strokeWidth={1.5} />
+                      : <Lock size={15} strokeWidth={1.5} />}
+                  </button>
+                </HoverHint>
                 <NotificationBell
                   dropdownPosition="fixed"
                   fixedStyle={{ bottom: 60, left: 208 }}

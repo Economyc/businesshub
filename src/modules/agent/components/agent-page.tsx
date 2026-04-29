@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Bot, RotateCcw } from 'lucide-react'
 import type { UIMessage } from 'ai'
 import { useCompany } from '@/core/hooks/use-company'
+import { HoverHint } from '@/components/ui/tooltip'
 import { AgentChat } from './agent-chat'
 import { ConversationHistory } from './conversation-history'
 import { conversationService } from '../services'
@@ -91,13 +92,14 @@ export function AgentPage() {
             onSelect={handleLoadConversation}
             onDelete={handleDeleteConversation}
           />
-          <button
-            onClick={handleNewConversation}
-            className="w-8 h-8 flex items-center justify-center rounded-full text-mid-gray hover:text-graphite hover:bg-bone transition-colors active:scale-95"
-            title="Nueva conversación"
-          >
-            <RotateCcw size={16} strokeWidth={1.5} />
-          </button>
+          <HoverHint label="Nueva conversación">
+            <button
+              onClick={handleNewConversation}
+              className="w-8 h-8 flex items-center justify-center rounded-full text-mid-gray hover:text-graphite hover:bg-bone transition-colors active:scale-95"
+            >
+              <RotateCcw size={16} strokeWidth={1.5} />
+            </button>
+          </HoverHint>
         </div>
       </div>
       <AgentChat

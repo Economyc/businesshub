@@ -6,6 +6,7 @@ import { getAppStorage } from '@/core/firebase/config'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
+import { HoverHint } from '@/components/ui/tooltip'
 import { useCompany } from '@/core/hooks/use-company'
 import { useSettings } from '@/core/hooks/use-settings'
 import { CompanyLogo } from '@/core/ui/company-logo'
@@ -302,14 +303,15 @@ export function SettingsPage() {
               </div>
 
               <div className="flex items-center gap-3 mt-3 pt-3 border-t border-border">
-                <button
-                  type="button"
-                  onClick={() => setConfirmDeleteCompany(true)}
-                  className="p-2 rounded-lg text-mid-gray hover:text-red-500 hover:bg-red-50 transition-all duration-150"
-                  title="Eliminar compañía"
-                >
-                  <Trash2 size={15} strokeWidth={1.5} />
-                </button>
+                <HoverHint label="Eliminar compañía">
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDeleteCompany(true)}
+                    className="p-2 rounded-lg text-mid-gray hover:text-red-500 hover:bg-red-50 transition-all duration-150"
+                  >
+                    <Trash2 size={15} strokeWidth={1.5} />
+                  </button>
+                </HoverHint>
                 <div className="flex items-center gap-3 ml-auto">
                   <button
                     type="button"

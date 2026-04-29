@@ -7,6 +7,7 @@ import { CategorySelect } from '@/core/ui/category-select'
 import { SelectInput } from '@/core/ui/select-input'
 import { CurrencyInput } from '@/core/ui/currency-input'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
+import { HoverHint } from '@/components/ui/tooltip'
 import { modalVariants } from '@/core/animations/variants'
 import { useCompany } from '@/core/hooks/use-company'
 import { useFirestoreMutation } from '@/core/query/use-mutation'
@@ -156,13 +157,14 @@ export function RecurringForm({ open, recurringId, onClose, onSaved }: Recurring
                 </h2>
                 <div className="flex items-center gap-1">
                   {recurringId && !loading && (
-                    <button
-                      onClick={() => setShowDelete(true)}
-                      className="p-1.5 rounded-lg text-mid-gray hover:text-red-500 hover:bg-red-50 transition-all duration-150"
-                      title="Eliminar"
-                    >
-                      <Trash2 size={16} strokeWidth={1.5} />
-                    </button>
+                    <HoverHint label="Eliminar">
+                      <button
+                        onClick={() => setShowDelete(true)}
+                        className="p-1.5 rounded-lg text-mid-gray hover:text-red-500 hover:bg-red-50 transition-all duration-150"
+                      >
+                        <Trash2 size={16} strokeWidth={1.5} />
+                      </button>
+                    </HoverHint>
                   )}
                   <button
                     onClick={onClose}

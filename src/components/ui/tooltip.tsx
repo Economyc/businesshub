@@ -8,6 +8,38 @@ const Tooltip = TooltipPrimitive.Root
 
 const TooltipTrigger = TooltipPrimitive.Trigger
 
+type HoverHintProps = {
+  label: React.ReactNode
+  children: React.ReactElement
+  side?: 'top' | 'right' | 'bottom' | 'left'
+  align?: 'start' | 'center' | 'end'
+  sideOffset?: number
+  delayDuration?: number
+  className?: string
+  disabled?: boolean
+}
+
+function HoverHint({
+  label,
+  children,
+  side,
+  align,
+  sideOffset,
+  delayDuration = 250,
+  className,
+  disabled,
+}: HoverHintProps) {
+  if (disabled || label == null || label === '') return children
+  return (
+    <Tooltip delayDuration={delayDuration}>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent side={side} align={align} sideOffset={sideOffset} className={className}>
+        {label}
+      </TooltipContent>
+    </Tooltip>
+  )
+}
+
 const TooltipContent = React.forwardRef<
   React.ComponentRef<typeof TooltipPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Content>
@@ -29,4 +61,4 @@ const TooltipContent = React.forwardRef<
 ))
 TooltipContent.displayName = TooltipPrimitive.Content.displayName
 
-export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider }
+export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider, HoverHint }

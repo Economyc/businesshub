@@ -6,6 +6,7 @@ import { FinanceTabs } from './finance-tabs'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
 import { EmptyState } from '@/core/ui/empty-state'
+import { HoverHint } from '@/components/ui/tooltip'
 import { TableSkeleton } from '@/core/ui/skeleton'
 import { SearchInput } from '@/core/ui/search-input'
 import { formatCurrency } from '@/core/utils/format'
@@ -148,13 +149,14 @@ export function RecurringList() {
                   {formatDate(rec.nextDueDate)}
                 </div>
                 <div className="px-3 py-3.5 flex items-center justify-center">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); toggleActive(rec) }}
-                    className={`p-1.5 rounded-lg transition-all duration-150 ${rec.isActive ? 'text-positive-text hover:bg-positive-bg' : 'text-mid-gray hover:bg-bone'}`}
-                    title={rec.isActive ? 'Pausar' : 'Activar'}
-                  >
-                    {rec.isActive ? <Play size={15} strokeWidth={2} /> : <Pause size={15} strokeWidth={2} />}
-                  </button>
+                  <HoverHint label={rec.isActive ? 'Pausar' : 'Activar'}>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); toggleActive(rec) }}
+                      className={`p-1.5 rounded-lg transition-all duration-150 ${rec.isActive ? 'text-positive-text hover:bg-positive-bg' : 'text-mid-gray hover:bg-bone'}`}
+                    >
+                      {rec.isActive ? <Play size={15} strokeWidth={2} /> : <Pause size={15} strokeWidth={2} />}
+                    </button>
+                  </HoverHint>
                 </div>
               </div>
             )

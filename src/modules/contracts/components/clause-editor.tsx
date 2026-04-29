@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ChevronUp, ChevronDown, Trash2, Lock } from 'lucide-react'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
+import { HoverHint } from '@/components/ui/tooltip'
 import type { ClauseDefinition } from '../types'
 
 const inputClass =
@@ -96,15 +97,16 @@ export function ClauseEditor({
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setConfirmOpen(true)}
-          disabled={clause.isRequired}
-          className="p-1.5 rounded-lg text-mid-gray hover:text-red-500 hover:bg-red-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-150"
-          title={clause.isRequired ? 'No se puede eliminar una cláusula obligatoria' : 'Eliminar cláusula'}
-        >
-          <Trash2 size={14} strokeWidth={1.5} />
-        </button>
+        <HoverHint label={clause.isRequired ? 'No se puede eliminar una cláusula obligatoria' : 'Eliminar cláusula'}>
+          <button
+            type="button"
+            onClick={() => setConfirmOpen(true)}
+            disabled={clause.isRequired}
+            className="p-1.5 rounded-lg text-mid-gray hover:text-red-500 hover:bg-red-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-150"
+          >
+            <Trash2 size={14} strokeWidth={1.5} />
+          </button>
+        </HoverHint>
       </div>
 
       <ConfirmDialog

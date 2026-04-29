@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Loader2, RefreshCw, AlertTriangle, CheckCircle2, Database, Building2 } from 'lucide-react'
 import { DataTable, type Column } from '@/core/ui/data-table'
 import { EmptyState } from '@/core/ui/empty-state'
+import { HoverHint } from '@/components/ui/tooltip'
 import { useCompany } from '@/core/hooks/use-company'
 import { usePermissions } from '@/core/hooks/use-permissions'
 import { formatCurrency } from '@/core/utils/format'
@@ -171,15 +172,16 @@ export function CacheStatusTab() {
           const isBusy = rebuildingMonth === r.month
           const anyBusy = rebuildingMonth !== null
           return (
-            <button
-              onClick={() => setConfirmMonth(r.month)}
-              disabled={anyBusy}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-bone hover:bg-bone/70 disabled:opacity-50 text-caption font-semibold text-graphite transition-colors"
-              title="Purga el cache del mes y lo vuelve a descargar del POS en ventanas de 15 días"
-            >
-              {isBusy ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
-              {isBusy ? 'Reconstruyendo…' : 'Reconstruir'}
-            </button>
+            <HoverHint label="Purga el cache del mes y lo vuelve a descargar del POS en ventanas de 15 días">
+              <button
+                onClick={() => setConfirmMonth(r.month)}
+                disabled={anyBusy}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-bone hover:bg-bone/70 disabled:opacity-50 text-caption font-semibold text-graphite transition-colors"
+              >
+                {isBusy ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+                {isBusy ? 'Reconstruyendo…' : 'Reconstruir'}
+              </button>
+            </HoverHint>
           )
         },
       },

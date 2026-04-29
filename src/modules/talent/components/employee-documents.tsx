@@ -7,6 +7,7 @@ import { useCompany } from '@/core/hooks/use-company'
 import { SelectInput } from '@/core/ui/select-input'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 import { EmptyState } from '@/core/ui/empty-state'
+import { HoverHint } from '@/components/ui/tooltip'
 import { Skeleton } from '@/core/ui/skeleton'
 import { useEmployeeDocuments } from '../hooks'
 import { talentService } from '../services'
@@ -256,27 +257,30 @@ export function EmployeeDocuments({ employeeId }: Props) {
                   </p>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
-                  <button
-                    onClick={() => window.open(d.url, '_blank')}
-                    title="Vista previa"
-                    className="p-2 rounded-lg text-mid-gray hover:text-graphite hover:bg-bone transition-colors"
-                  >
-                    <ExternalLink size={16} strokeWidth={1.5} />
-                  </button>
-                  <button
-                    onClick={() => handleDownload(d)}
-                    title="Descargar"
-                    className="p-2 rounded-lg text-mid-gray hover:text-graphite hover:bg-bone transition-colors"
-                  >
-                    <Download size={16} strokeWidth={1.5} />
-                  </button>
-                  <button
-                    onClick={() => setDeleteTarget(d)}
-                    title="Eliminar"
-                    className="p-2 rounded-lg text-mid-gray hover:text-negative-text hover:bg-negative-bg transition-colors"
-                  >
-                    <Trash2 size={16} strokeWidth={1.5} />
-                  </button>
+                  <HoverHint label="Vista previa">
+                    <button
+                      onClick={() => window.open(d.url, '_blank')}
+                      className="p-2 rounded-lg text-mid-gray hover:text-graphite hover:bg-bone transition-colors"
+                    >
+                      <ExternalLink size={16} strokeWidth={1.5} />
+                    </button>
+                  </HoverHint>
+                  <HoverHint label="Descargar">
+                    <button
+                      onClick={() => handleDownload(d)}
+                      className="p-2 rounded-lg text-mid-gray hover:text-graphite hover:bg-bone transition-colors"
+                    >
+                      <Download size={16} strokeWidth={1.5} />
+                    </button>
+                  </HoverHint>
+                  <HoverHint label="Eliminar">
+                    <button
+                      onClick={() => setDeleteTarget(d)}
+                      className="p-2 rounded-lg text-mid-gray hover:text-negative-text hover:bg-negative-bg transition-colors"
+                    >
+                      <Trash2 size={16} strokeWidth={1.5} />
+                    </button>
+                  </HoverHint>
                 </div>
               </div>
             )

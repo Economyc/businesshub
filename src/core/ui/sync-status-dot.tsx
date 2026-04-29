@@ -1,3 +1,5 @@
+import { HoverHint } from '@/components/ui/tooltip'
+
 interface SyncStatusDotProps {
   loading: boolean
   lastUpdated: Date | null
@@ -24,21 +26,23 @@ export function SyncStatusDot({
 }: SyncStatusDotProps) {
   if (!hasLocals) {
     return (
-      <span
-        className="inline-block w-2 h-2 rounded-full bg-mid-gray/40"
-        title="Sin POS vinculado"
-        aria-label="Sin POS vinculado"
-      />
+      <HoverHint label="Sin POS vinculado">
+        <span
+          className="inline-block w-2 h-2 rounded-full bg-mid-gray/40"
+          aria-label="Sin POS vinculado"
+        />
+      </HoverHint>
     )
   }
 
   if (loading) {
     return (
-      <span
-        className="inline-block w-2 h-2 rounded-full bg-amber-500 animate-pulse"
-        title="Actualizando…"
-        aria-label="Actualizando"
-      />
+      <HoverHint label="Actualizando…">
+        <span
+          className="inline-block w-2 h-2 rounded-full bg-amber-500 animate-pulse"
+          aria-label="Actualizando"
+        />
+      </HoverHint>
     )
   }
 
@@ -65,21 +69,23 @@ export function SyncStatusDot({
 
   if (!onRefresh) {
     return (
-      <span
-        className={`inline-block w-2 h-2 rounded-full ${dotColor}`}
-        title={baseTitle}
-        aria-label={baseTitle}
-      />
+      <HoverHint label={baseTitle}>
+        <span
+          className={`inline-block w-2 h-2 rounded-full ${dotColor}`}
+          aria-label={baseTitle}
+        />
+      </HoverHint>
     )
   }
 
   return (
-    <button
-      type="button"
-      onClick={onRefresh}
-      className={`inline-block w-2 h-2 rounded-full ${dotColor} hover:ring-2 hover:ring-offset-1 hover:ring-mid-gray/40 transition`}
-      title={title}
-      aria-label={title}
-    />
+    <HoverHint label={title}>
+      <button
+        type="button"
+        onClick={onRefresh}
+        className={`inline-block w-2 h-2 rounded-full ${dotColor} hover:ring-2 hover:ring-offset-1 hover:ring-mid-gray/40 transition`}
+        aria-label={title}
+      />
+    </HoverHint>
   )
 }

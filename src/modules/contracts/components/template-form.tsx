@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { X, Trash2, Plus } from 'lucide-react'
 import { SelectInput } from '@/core/ui/select-input'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
+import { HoverHint } from '@/components/ui/tooltip'
 import { useCompany } from '@/core/hooks/use-company'
 import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { modalVariants } from '@/core/animations/variants'
@@ -300,14 +301,15 @@ export function TemplateForm({ open, onClose, template }: TemplateFormProps) {
                 {/* Footer */}
                 <div className="flex items-center gap-3 px-6 py-4 border-t border-border shrink-0">
                   {isEditing && !template?.isDefault && (
-                    <button
-                      type="button"
-                      onClick={() => setDeleteOpen(true)}
-                      className="p-2 rounded-lg text-mid-gray hover:text-red-500 hover:bg-red-50 transition-all duration-150"
-                      title="Eliminar plantilla"
-                    >
-                      <Trash2 size={15} strokeWidth={1.5} />
-                    </button>
+                    <HoverHint label="Eliminar plantilla">
+                      <button
+                        type="button"
+                        onClick={() => setDeleteOpen(true)}
+                        className="p-2 rounded-lg text-mid-gray hover:text-red-500 hover:bg-red-50 transition-all duration-150"
+                      >
+                        <Trash2 size={15} strokeWidth={1.5} />
+                      </button>
+                    </HoverHint>
                   )}
                   <div className="flex items-center gap-3 ml-auto">
                     <button

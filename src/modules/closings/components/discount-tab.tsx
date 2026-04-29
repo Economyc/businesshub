@@ -8,6 +8,7 @@ import { DataTable } from '@/core/ui/data-table'
 import { EmptyState } from '@/core/ui/empty-state'
 import { TableSkeleton } from '@/core/ui/skeleton'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
+import { HoverHint } from '@/components/ui/tooltip'
 import { formatCurrency } from '@/core/utils/format'
 import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { useDiscounts } from '../hooks'
@@ -195,20 +196,22 @@ export function DiscountTab() {
       width: '80px',
       render: (d: Discount) => (
         <div className="flex items-center gap-1">
-          <button
-            onClick={(e) => { e.stopPropagation(); handleEdit(d) }}
-            className="p-1.5 rounded-lg text-mid-gray hover:text-graphite hover:bg-bone transition-all duration-150"
-            title="Editar"
-          >
-            <SquarePen size={14} strokeWidth={1.5} />
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); setDeleteTarget(d) }}
-            className="p-1.5 rounded-lg text-mid-gray hover:text-red-500 hover:bg-red-50 transition-all duration-150"
-            title="Eliminar"
-          >
-            <Trash2 size={14} strokeWidth={1.5} />
-          </button>
+          <HoverHint label="Editar">
+            <button
+              onClick={(e) => { e.stopPropagation(); handleEdit(d) }}
+              className="p-1.5 rounded-lg text-mid-gray hover:text-graphite hover:bg-bone transition-all duration-150"
+            >
+              <SquarePen size={14} strokeWidth={1.5} />
+            </button>
+          </HoverHint>
+          <HoverHint label="Eliminar">
+            <button
+              onClick={(e) => { e.stopPropagation(); setDeleteTarget(d) }}
+              className="p-1.5 rounded-lg text-mid-gray hover:text-red-500 hover:bg-red-50 transition-all duration-150"
+            >
+              <Trash2 size={14} strokeWidth={1.5} />
+            </button>
+          </HoverHint>
         </div>
       ),
     },

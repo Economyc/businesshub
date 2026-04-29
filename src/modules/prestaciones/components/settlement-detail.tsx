@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Download, Trash2, CheckCircle2 } from 'lucide-react'
 import { PageTransition } from '@/core/ui/page-transition'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
+import { HoverHint } from '@/components/ui/tooltip'
 import { formatCurrency } from '@/core/utils/format'
 import { TableSkeleton } from '@/core/ui/skeleton'
 import { useCompany } from '@/core/hooks/use-company'
@@ -113,13 +114,14 @@ export function SettlementDetail() {
                 Marcar Pagada
               </button>
             )}
-            <button
-              onClick={() => setDeleteOpen(true)}
-              className="p-2 rounded-lg text-mid-gray hover:text-red-500 hover:bg-red-50 transition-all"
-              title="Eliminar"
-            >
-              <Trash2 size={15} strokeWidth={1.5} />
-            </button>
+            <HoverHint label="Eliminar">
+              <button
+                onClick={() => setDeleteOpen(true)}
+                className="p-2 rounded-lg text-mid-gray hover:text-red-500 hover:bg-red-50 transition-all"
+              >
+                <Trash2 size={15} strokeWidth={1.5} />
+              </button>
+            </HoverHint>
           </div>
         )}
       </div>

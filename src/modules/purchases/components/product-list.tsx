@@ -7,6 +7,7 @@ import { FilterPopover } from '@/core/ui/filter-popover'
 import { DataTable } from '@/core/ui/data-table'
 import { StatusBadge } from '@/core/ui/status-badge'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
+import { HoverHint } from '@/components/ui/tooltip'
 import { EmptyState } from '@/core/ui/empty-state'
 import { TableSkeleton } from '@/core/ui/skeleton'
 import { formatCurrency } from '@/core/utils/format'
@@ -98,20 +99,22 @@ export function ProductList() {
       width: '80px',
       render: (p: Product) => canEdit ? (
         <div className="flex items-center gap-1">
-          <button
-            onClick={(e) => { e.stopPropagation(); handleEdit(p) }}
-            className="p-1.5 rounded-lg text-mid-gray hover:text-graphite hover:bg-bone transition-colors"
-            title="Editar"
-          >
-            <Pencil size={14} strokeWidth={1.5} />
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); setDeletingProduct(p) }}
-            className="p-1.5 rounded-lg text-mid-gray hover:text-red-500 hover:bg-red-50 transition-colors"
-            title="Eliminar"
-          >
-            <Trash2 size={14} strokeWidth={1.5} />
-          </button>
+          <HoverHint label="Editar">
+            <button
+              onClick={(e) => { e.stopPropagation(); handleEdit(p) }}
+              className="p-1.5 rounded-lg text-mid-gray hover:text-graphite hover:bg-bone transition-colors"
+            >
+              <Pencil size={14} strokeWidth={1.5} />
+            </button>
+          </HoverHint>
+          <HoverHint label="Eliminar">
+            <button
+              onClick={(e) => { e.stopPropagation(); setDeletingProduct(p) }}
+              className="p-1.5 rounded-lg text-mid-gray hover:text-red-500 hover:bg-red-50 transition-colors"
+            >
+              <Trash2 size={14} strokeWidth={1.5} />
+            </button>
+          </HoverHint>
         </div>
       ) : null,
     },

@@ -4,6 +4,7 @@ import { ArrowLeft, Zap, Check, X, Search } from 'lucide-react'
 import { Timestamp } from 'firebase/firestore'
 import { PageTransition } from '@/core/ui/page-transition'
 import { TableSkeleton } from '@/core/ui/skeleton'
+import { HoverHint } from '@/components/ui/tooltip'
 import { formatCurrency } from '@/core/utils/format'
 import { useCompany } from '@/core/hooks/use-company'
 import { useReconciliation } from '../hooks'
@@ -264,13 +265,14 @@ export function ReconciliationDetail() {
                           {entry.type === 'credit' ? '+' : '-'}{formatCurrency(entry.amount)}
                         </span>
                         {isMatched && (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleUnmatch(entry.id) }}
-                            className="p-1 rounded text-mid-gray/50 hover:text-red-500 hover:bg-red-50 transition-colors"
-                            title="Deshacer conciliacion"
-                          >
-                            <X size={12} strokeWidth={2} />
-                          </button>
+                          <HoverHint label="Deshacer conciliacion">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleUnmatch(entry.id) }}
+                              className="p-1 rounded text-mid-gray/50 hover:text-red-500 hover:bg-red-50 transition-colors"
+                            >
+                              <X size={12} strokeWidth={2} />
+                            </button>
+                          </HoverHint>
                         )}
                       </div>
                     </div>

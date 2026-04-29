@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { ChevronDown, ChevronRight, Check, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { HoverHint } from '@/components/ui/tooltip'
 import { useSettings } from '@/core/hooks/use-settings'
 import { parseCategory, formatCategory } from '@/core/utils/categories'
 
@@ -145,14 +146,15 @@ export function CategorySelect({ value, onChange, placeholder = 'Seleccionar cat
                     {isSelected && <Check size={14} className="text-graphite shrink-0" />}
                   </button>
                   {hasSubs && isExpanded && (
-                    <button
-                      type="button"
-                      onClick={() => handleSelectParentOnly(cat.name)}
-                      className="px-2 py-1 mr-1 text-[11px] text-mid-gray hover:text-graphite hover:bg-bone rounded transition-colors"
-                      title={`Solo "${cat.name}"`}
-                    >
-                      Todas
-                    </button>
+                    <HoverHint label={`Solo "${cat.name}"`}>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectParentOnly(cat.name)}
+                        className="px-2 py-1 mr-1 text-[11px] text-mid-gray hover:text-graphite hover:bg-bone rounded transition-colors"
+                      >
+                        Todas
+                      </button>
+                    </HoverHint>
                   )}
                 </div>
 

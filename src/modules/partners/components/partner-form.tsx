@@ -4,6 +4,7 @@ import { X, Trash2 } from 'lucide-react'
 import { CurrencyInput } from '@/core/ui/currency-input'
 import { SelectInput } from '@/core/ui/select-input'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
+import { HoverHint } from '@/components/ui/tooltip'
 import { useCompany } from '@/core/hooks/use-company'
 import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { modalVariants } from '@/core/animations/variants'
@@ -236,14 +237,15 @@ export function PartnerForm({ open, onClose, partner }: PartnerFormProps) {
 
               <div className="flex items-center gap-3 mt-6 pt-5 border-t border-border">
                 {isEditing && (
-                  <button
-                    type="button"
-                    onClick={() => setDeleteOpen(true)}
-                    className="p-2 rounded-lg text-mid-gray hover:text-red-500 hover:bg-red-50 transition-all duration-150"
-                    title="Eliminar socio"
-                  >
-                    <Trash2 size={15} strokeWidth={1.5} />
-                  </button>
+                  <HoverHint label="Eliminar socio">
+                    <button
+                      type="button"
+                      onClick={() => setDeleteOpen(true)}
+                      className="p-2 rounded-lg text-mid-gray hover:text-red-500 hover:bg-red-50 transition-all duration-150"
+                    >
+                      <Trash2 size={15} strokeWidth={1.5} />
+                    </button>
+                  </HoverHint>
                 )}
                 <div className="flex items-center gap-3 ml-auto">
                   <button

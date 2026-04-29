@@ -9,6 +9,7 @@ import { EmptyState } from '@/core/ui/empty-state'
 import { formatCurrency } from '@/core/utils/format'
 import { TableSkeleton } from '@/core/ui/skeleton'
 import { LoadMoreButton } from '@/core/ui/load-more-button'
+import { HoverHint } from '@/components/ui/tooltip'
 import { usePermissions } from '@/core/hooks/use-permissions'
 import { KPICard } from '@/core/ui/kpi-card'
 import { staggerContainer } from '@/core/animations/variants'
@@ -100,7 +101,9 @@ function CanjeCell({ visit }: { visit: InfluencerVisit }) {
         : 'Canje completo'
   return (
     <div className="flex items-center gap-2 min-w-0">
-      <span title={title} className={`shrink-0 w-2 h-2 rounded-full ${dot}`} />
+      <HoverHint label={title}>
+        <span className={`shrink-0 w-2 h-2 rounded-full ${dot}`} />
+      </HoverHint>
       <div className="flex flex-col min-w-0">
         <span className="text-dark-graphite font-medium truncate">{formatCurrency(visit.order.total)}</span>
         <span className="text-[10px] text-mid-gray truncate">{visit.order.documento}</span>

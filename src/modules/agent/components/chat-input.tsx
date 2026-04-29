@@ -1,6 +1,7 @@
 import { useRef, useState, type FormEvent, type KeyboardEvent, type DragEvent } from 'react'
 import { Send, Paperclip, Square, X, FileSpreadsheet, Image as ImageIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { HoverHint } from '@/components/ui/tooltip'
 import { isImageFile, isSpreadsheetFile } from '../utils/image-preprocessing'
 
 interface ChatInputProps {
@@ -111,14 +112,15 @@ export function ChatInput({ input, onInputChange, onSubmit, onSendWithFiles, isL
       )}
 
       <div className="flex items-end gap-2 px-3 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          className="shrink-0 w-10 h-10 flex items-center justify-center rounded-full text-mid-gray hover:text-graphite hover:bg-bone transition-colors active:scale-95"
-          title="Adjuntar archivo (imagen o Excel)"
-        >
-          <Paperclip size={20} strokeWidth={1.5} />
-        </button>
+        <HoverHint label="Adjuntar archivo (imagen o Excel)">
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="shrink-0 w-10 h-10 flex items-center justify-center rounded-full text-mid-gray hover:text-graphite hover:bg-bone transition-colors active:scale-95"
+          >
+            <Paperclip size={20} strokeWidth={1.5} />
+          </button>
+        </HoverHint>
         <input
           ref={fileInputRef}
           type="file"
@@ -153,14 +155,15 @@ export function ChatInput({ input, onInputChange, onSubmit, onSendWithFiles, isL
         </div>
 
         {isLoading ? (
-          <button
-            type="button"
-            onClick={onStop}
-            className="shrink-0 w-10 h-10 flex items-center justify-center rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors active:scale-95"
-            title="Detener"
-          >
-            <Square size={18} strokeWidth={1.5} />
-          </button>
+          <HoverHint label="Detener">
+            <button
+              type="button"
+              onClick={onStop}
+              className="shrink-0 w-10 h-10 flex items-center justify-center rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors active:scale-95"
+            >
+              <Square size={18} strokeWidth={1.5} />
+            </button>
+          </HoverHint>
         ) : (
           <button
             type="button"

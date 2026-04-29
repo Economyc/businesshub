@@ -15,6 +15,7 @@ import {
   ymd,
 } from './selector-sales'
 import { cn } from '@/lib/utils'
+import { HoverHint } from '@/components/ui/tooltip'
 import type { Company } from '@/core/types'
 
 
@@ -135,24 +136,26 @@ export function CompanySelectorPage() {
       </p>
 
       <div className="fixed top-[72px] right-8 z-10 flex items-center gap-1">
-        <button
-          type="button"
-          onClick={handleCreate}
-          className="w-9 h-9 rounded-lg grid place-items-center text-mid-gray hover:bg-smoke hover:text-dark-graphite transition-colors"
-          title="Crear compañía"
-          aria-label="Crear compañía"
-        >
-          <Plus className="w-[18px] h-[18px]" strokeWidth={1.5} />
-        </button>
-        <button
-          type="button"
-          onClick={() => logout()}
-          className="w-9 h-9 rounded-lg grid place-items-center text-mid-gray hover:bg-smoke hover:text-dark-graphite transition-colors"
-          title="Cerrar sesión"
-          aria-label="Cerrar sesión"
-        >
-          <LogOut className="w-[18px] h-[18px]" strokeWidth={1.5} />
-        </button>
+        <HoverHint label="Crear compañía">
+          <button
+            type="button"
+            onClick={handleCreate}
+            className="w-9 h-9 rounded-lg grid place-items-center text-mid-gray hover:bg-smoke hover:text-dark-graphite transition-colors"
+            aria-label="Crear compañía"
+          >
+            <Plus className="w-[18px] h-[18px]" strokeWidth={1.5} />
+          </button>
+        </HoverHint>
+        <HoverHint label="Cerrar sesión">
+          <button
+            type="button"
+            onClick={() => logout()}
+            className="w-9 h-9 rounded-lg grid place-items-center text-mid-gray hover:bg-smoke hover:text-dark-graphite transition-colors"
+            aria-label="Cerrar sesión"
+          >
+            <LogOut className="w-[18px] h-[18px]" strokeWidth={1.5} />
+          </button>
+        </HoverHint>
       </div>
 
       <div className="max-w-[1320px] mx-auto px-12 pt-40 pb-28">

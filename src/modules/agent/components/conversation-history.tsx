@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Clock, Trash2, MessageSquare } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { HoverHint } from '@/components/ui/tooltip'
 import type { Conversation } from '../types'
 
 interface ConversationHistoryProps {
@@ -60,19 +61,20 @@ export function ConversationHistory({ conversations, activeConversationId, onSel
 
   return (
     <div ref={containerRef} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="w-8 h-8 flex items-center justify-center rounded-full text-mid-gray hover:text-graphite hover:bg-bone transition-colors active:scale-95 relative"
-        title="Historial de conversaciones"
-      >
-        <Clock size={16} strokeWidth={1.5} />
-        {conversations.length > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-graphite text-white text-[9px] font-bold flex items-center justify-center">
-            {conversations.length > 9 ? '9+' : conversations.length}
-          </span>
-        )}
-      </button>
+      <HoverHint label="Historial de conversaciones">
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          className="w-8 h-8 flex items-center justify-center rounded-full text-mid-gray hover:text-graphite hover:bg-bone transition-colors active:scale-95 relative"
+        >
+          <Clock size={16} strokeWidth={1.5} />
+          {conversations.length > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-graphite text-white text-[9px] font-bold flex items-center justify-center">
+              {conversations.length > 9 ? '9+' : conversations.length}
+            </span>
+          )}
+        </button>
+      </HoverHint>
 
       {open && (
         <div className="absolute top-full right-0 mt-2 w-72 z-50 rounded-xl border border-border bg-card-bg shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 duration-100">
@@ -109,14 +111,15 @@ export function ConversationHistory({ conversations, activeConversationId, onSel
                       </span>
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={(e) => handleDelete(e, conv.id)}
-                    className="shrink-0 w-6 h-6 mr-2 mt-2.5 flex items-center justify-center rounded text-mid-gray/0 group-hover:text-mid-gray hover:!text-destructive transition-colors"
-                    title="Eliminar"
-                  >
-                    <Trash2 size={13} />
-                  </button>
+                  <HoverHint label="Eliminar">
+                    <button
+                      type="button"
+                      onClick={(e) => handleDelete(e, conv.id)}
+                      className="shrink-0 w-6 h-6 mr-2 mt-2.5 flex items-center justify-center rounded text-mid-gray/0 group-hover:text-mid-gray hover:!text-destructive transition-colors"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </HoverHint>
                 </div>
               ))}
             </div>

@@ -27,6 +27,7 @@ import { InfluencerList } from '@/modules/marketing/influencers/routes'
 import { PermissionsProvider } from '@/core/ui/permissions-provider'
 import { PermissionRoute } from '@/core/ui/permission-route'
 import { ErrorBoundary } from '@/core/ui/error-boundary'
+import { TooltipProvider } from '@/components/ui/tooltip'
 
 // Settings: lazy para sacarlos del bundle inicial (solo los usan admins).
 const SettingsCompanies = lazy(() => import('@/core/ui/settings-companies').then(m => ({ default: m.SettingsCompanies })))
@@ -79,6 +80,7 @@ export default function App() {
       <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <CompanyProvider>
+          <TooltipProvider delayDuration={250} skipDelayDuration={300}>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route element={<ProtectedShellless />}>
@@ -148,6 +150,7 @@ export default function App() {
               </Route>
             </Route>
           </Routes>
+          </TooltipProvider>
         </CompanyProvider>
       </AuthProvider>
       </QueryClientProvider>

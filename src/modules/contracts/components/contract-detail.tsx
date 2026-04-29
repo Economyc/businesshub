@@ -7,6 +7,7 @@ import { PageHeader } from '@/core/ui/page-header'
 import { StatusBadge } from '@/core/ui/status-badge'
 import { SelectInput } from '@/core/ui/select-input'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
+import { HoverHint } from '@/components/ui/tooltip'
 import { useCompany } from '@/core/hooks/use-company'
 import { usePermissions } from '@/core/hooks/use-permissions'
 import { useFirestoreMutation } from '@/core/query/use-mutation'
@@ -243,13 +244,14 @@ export function ContractDetail() {
               Imprimir
             </button>
             {canEdit && (
-              <button
-                onClick={() => setDeleteOpen(true)}
-                className="p-2 rounded-lg text-mid-gray hover:text-red-500 hover:bg-red-50 transition-all duration-150"
-                title="Eliminar contrato"
-              >
-                <Trash2 size={15} strokeWidth={1.5} />
-              </button>
+              <HoverHint label="Eliminar contrato">
+                <button
+                  onClick={() => setDeleteOpen(true)}
+                  className="p-2 rounded-lg text-mid-gray hover:text-red-500 hover:bg-red-50 transition-all duration-150"
+                >
+                  <Trash2 size={15} strokeWidth={1.5} />
+                </button>
+              </HoverHint>
             )}
           </div>
         </div>
