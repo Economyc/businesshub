@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
-import { BarChart3, Users, Briefcase, DollarSign, Home, ChevronsLeft, Building2, Tags, BadgeCheck, Network, Handshake, ClipboardList, FileSignature, Wallet, Receipt, Gift, ChevronRight, ChevronsUpDown, Check, MapPin, LogOut, Settings, Landmark, Boxes, UserRound, Bot, List, ShoppingCart, Package, Target, Scale, FileText, Shield, RefreshCw, Megaphone, Lock, LockOpen, LayoutDashboard, Store, PieChart, LayoutGrid } from 'lucide-react'
+import { BarChart3, Users, Briefcase, DollarSign, Home, ChevronsLeft, Building2, Tags, BadgeCheck, Network, Handshake, ClipboardList, FileSignature, Wallet, Receipt, Gift, ChevronRight, ChevronsUpDown, Check, MapPin, LogOut, Settings, Bot, List, ShoppingCart, Package, Target, Scale, FileText, Shield, RefreshCw, Megaphone, Lock, LockOpen, LayoutDashboard, Store, PieChart, LayoutGrid } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { HoverHint } from '@/components/ui/tooltip'
 import { CommandPalette } from '@/core/ui/command-palette'
@@ -26,7 +26,6 @@ interface NavItem {
 
 interface NavSection {
   title?: string
-  icon?: typeof Home
   items: NavItem[]
 }
 
@@ -40,7 +39,6 @@ const NAV_SECTIONS: NavSection[] = [
   },
   {
     title: 'Contabilidad',
-    icon: Landmark,
     items: [
       { to: '/finance', label: 'Finanzas', icon: DollarSign, moduleKey: 'finance' },
       { to: '/cartera', label: 'Cartera', icon: Wallet, moduleKey: 'cartera' },
@@ -50,32 +48,18 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: 'Gestión',
-    icon: Boxes,
+    title: 'Operaciones',
     items: [
       { to: '/contracts', label: 'Contratos', icon: FileSignature, moduleKey: 'contracts' },
       { to: '/partners', label: 'Socios', icon: Handshake, moduleKey: 'partners' },
-    ],
-  },
-  {
-    title: 'Personas',
-    icon: UserRound,
-    items: [
       { to: '/talent', label: 'Equipo', icon: Users, moduleKey: 'talent' },
       { to: '/suppliers', label: 'Proveedores', icon: Briefcase, moduleKey: 'suppliers' },
     ],
   },
   {
-    title: 'Mercadeo',
-    icon: Megaphone,
+    title: 'Otros',
     items: [
-      { to: '/marketing/influencers', label: 'Influencers', icon: Users, moduleKey: 'marketing' },
-    ],
-  },
-  {
-    title: 'Integraciones',
-    icon: RefreshCw,
-    items: [
+      { to: '/marketing/influencers', label: 'Influencers', icon: Megaphone, moduleKey: 'marketing' },
       { to: '/pos-sync', label: 'POS Sync', icon: RefreshCw },
     ],
   },
@@ -411,7 +395,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
             >
               {permissionsLoading ? (
                 <div className="flex flex-col gap-1">
-                  {[3, 5, 2, 2, 1, 1].map((count, sIdx) => (
+                  {[3, 5, 4, 2].map((count, sIdx) => (
                     <div key={sIdx} className="flex flex-col gap-1 mb-2">
                       {sIdx > 0 && (
                         <div className="h-8 mx-5 my-1 rounded-md bg-smoke animate-pulse" />
@@ -434,16 +418,15 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                         <button
                           onClick={() => toggleSection(section.title!)}
                           className={cn(
-                            'group/section w-full flex items-center gap-2.5 py-2.5 px-5 text-body transition-all duration-150',
+                            'group/section w-full flex items-center gap-2.5 py-2.5 px-5 mt-2 text-body transition-all duration-150',
                             isOpen
                               ? 'text-dark-graphite font-medium'
                               : 'text-graphite/70 hover:bg-card-bg hover:text-graphite'
                           )}
                         >
-                          {section.icon && <section.icon size={16} strokeWidth={1.5} />}
                           <span className="flex-1 text-left">{section.title}</span>
                           <ChevronRight
-                            size={14}
+                            size={13}
                             strokeWidth={1.5}
                             className={cn(
                               'text-mid-gray/40 group-hover/section:text-mid-gray transition-all duration-200',
@@ -459,9 +442,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                         )}
                       >
                         <div className="overflow-hidden relative">
-                          {visibleItems.map(({ to, label, icon: Icon }, itemIdx) => {
-                            const isLastItem = itemIdx === visibleItems.length - 1
-
+                          {visibleItems.map(({ to, label, icon: Icon }) => {
                             if (to === '/finance' || to === '/analytics') {
                               const isPanelRoute = to === '/finance' ? isFinanceRoute : isAnalyticsRoute
                               const onClick = to === '/finance' ? handleFinanceClick : handleAnalyticsClick
@@ -473,21 +454,15 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                                   onMouseLeave={handlePrefetchLeave}
                                   onFocus={() => prefetchRoute(to, selectedCompany?.id)}
                                   className={cn(
-                                    'group/nav relative flex items-center gap-2.5 py-2.5 text-body transition-all duration-150 w-full',
-                                    section.title ? 'pl-8 pr-5' : 'px-5',
+                                    'group/nav relative flex items-center gap-2.5 px-5 text-body transition-all duration-150 w-full',
+                                    section.title ? 'py-2' : 'py-2.5',
                                     isPanelRoute
-                                      ? 'text-dark-graphite font-medium bg-bone border-r-2 border-graphite'
+                                      ? 'text-dark-graphite font-medium shadow-[inset_2px_0_0_var(--color-dark-graphite)]'
                                       : 'text-graphite/70 hover:bg-card-bg hover:text-graphite'
                                   )}
                                 >
-                                  {section.title && (
-                                    <>
-                                      <div className="absolute left-[27px] top-0 h-1/2 w-[4px] border-l-[1.5px] border-b-[1.5px] border-graphite/20 rounded-bl-[4px]" />
-                                      {!isLastItem && <div className="absolute left-[27px] top-1/2 bottom-0 w-[1.5px] bg-graphite/20" />}
-                                    </>
-                                  )}
                                   <Icon size={16} strokeWidth={1.5} />
-                                  {label}
+                                  <span className={section.title ? 'ml-3' : ''}>{label}</span>
                                 </button>
                               )
                             }
@@ -501,22 +476,16 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                                 onFocus={() => prefetchRoute(to, selectedCompany?.id)}
                                 className={({ isActive }) =>
                                   cn(
-                                    'group/nav relative flex items-center gap-2.5 py-2.5 text-body transition-all duration-150',
-                                    section.title ? 'pl-8 pr-5' : 'px-5',
+                                    'group/nav relative flex items-center gap-2.5 px-5 text-body transition-all duration-150',
+                                    section.title ? 'py-2' : 'py-2.5',
                                     isActive
-                                      ? 'text-dark-graphite font-medium bg-bone border-r-2 border-graphite'
+                                      ? 'text-dark-graphite font-medium shadow-[inset_2px_0_0_var(--color-dark-graphite)]'
                                       : 'text-graphite/70 hover:bg-card-bg hover:text-graphite'
                                   )
                                 }
                               >
-                                {section.title && (
-                                  <>
-                                    <div className="absolute left-[27px] top-0 h-1/2 w-[4px] border-l-[1.5px] border-b-[1.5px] border-graphite/20 rounded-bl-[4px]" />
-                                    {!isLastItem && <div className="absolute left-[27px] top-1/2 bottom-0 w-[1.5px] bg-graphite/20" />}
-                                  </>
-                                )}
                                 <Icon size={16} strokeWidth={1.5} />
-                                {label}
+                                <span className={section.title ? 'ml-3' : ''}>{label}</span>
                               </NavLink>
                             )
                           })}
