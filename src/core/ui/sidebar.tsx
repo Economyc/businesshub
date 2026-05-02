@@ -454,7 +454,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                                   onMouseLeave={handlePrefetchLeave}
                                   onFocus={() => prefetchRoute(to, selectedCompany?.id)}
                                   className={cn(
-                                    'group/nav relative flex items-center gap-2.5 px-5 text-body transition-all duration-150 w-full',
+                                    'group/nav relative flex items-center gap-2.5 px-3 mx-2 rounded-lg text-body transition-all duration-150 w-[calc(100%-1rem)]',
                                     section.title ? 'py-2' : 'py-2.5',
                                     isPanelRoute
                                       ? 'text-dark-graphite font-medium bg-smoke'
@@ -476,7 +476,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                                 onFocus={() => prefetchRoute(to, selectedCompany?.id)}
                                 className={({ isActive }) =>
                                   cn(
-                                    'group/nav relative flex items-center gap-2.5 px-5 text-body transition-all duration-150',
+                                    'group/nav relative flex items-center gap-2.5 px-3 mx-2 rounded-lg text-body transition-all duration-150',
                                     section.title ? 'py-2' : 'py-2.5',
                                     isActive
                                       ? 'text-dark-graphite font-medium bg-smoke'
@@ -627,7 +627,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
               onFocus={() => prefetchRoute(to, selectedCompany?.id)}
               className={({ isActive }) =>
                 cn(
-                  'flex items-center gap-2.5 px-4 py-2.5 text-body transition-all duration-150 whitespace-nowrap',
+                  'flex items-center gap-2.5 px-3 mx-2 py-2.5 rounded-lg text-body transition-all duration-150 whitespace-nowrap',
                   isActive
                     ? 'text-dark-graphite font-medium bg-bone/80'
                     : 'text-graphite/70 hover:bg-bone/50 hover:text-graphite'
@@ -670,7 +670,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
               onFocus={() => prefetchRoute(to, selectedCompany?.id)}
               className={({ isActive }) =>
                 cn(
-                  'flex items-center gap-2.5 px-4 py-2.5 text-body transition-all duration-150 whitespace-nowrap',
+                  'flex items-center gap-2.5 px-3 mx-2 py-2.5 rounded-lg text-body transition-all duration-150 whitespace-nowrap',
                   isActive
                     ? 'text-dark-graphite font-medium bg-bone/80'
                     : 'text-graphite/70 hover:bg-bone/50 hover:text-graphite'
@@ -712,7 +712,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
               onFocus={() => prefetchRoute(to, selectedCompany?.id)}
               className={({ isActive }) =>
                 cn(
-                  'flex items-center gap-2.5 px-4 py-2.5 text-body transition-all duration-150 whitespace-nowrap',
+                  'flex items-center gap-2.5 px-3 mx-2 py-2.5 rounded-lg text-body transition-all duration-150 whitespace-nowrap',
                   isActive
                     ? 'text-dark-graphite font-medium bg-bone/80'
                     : 'text-graphite/70 hover:bg-bone/50 hover:text-graphite'
