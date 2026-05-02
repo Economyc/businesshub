@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
-import { BarChart3, Users, Briefcase, DollarSign, Home, ChevronsLeft, Building2, Tags, BadgeCheck, Network, Handshake, ClipboardList, FileSignature, Wallet, Receipt, Gift, ChevronRight, ChevronsUpDown, Check, MapPin, LogOut, Settings, Bot, List, ShoppingCart, Package, Target, Scale, FileText, Shield, RefreshCw, Megaphone, Lock, LockOpen, LayoutDashboard, Store, PieChart, LayoutGrid } from 'lucide-react'
+import { Users, Briefcase, DollarSign, Home, ChevronsLeft, Building2, Tags, BadgeCheck, Network, Handshake, ClipboardList, FileSignature, Wallet, Receipt, Gift, ChevronRight, ChevronsUpDown, Check, MapPin, LogOut, Settings, Bot, List, ShoppingCart, Package, Target, Scale, FileText, Shield, RefreshCw, Megaphone, Lock, LockOpen, LayoutDashboard, Store, PieChart, LayoutGrid } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { HoverHint } from '@/components/ui/tooltip'
 import { CommandPalette } from '@/core/ui/command-palette'
@@ -20,7 +20,7 @@ import type { ModuleKey } from '@/core/types/permissions'
 interface NavItem {
   to: string
   label: string
-  icon: typeof Home
+  icon?: typeof Home
   moduleKey?: ModuleKey
 }
 
@@ -34,7 +34,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { to: '/home', label: 'Home', icon: Home, moduleKey: 'home' },
       { to: '/agent', label: 'Asistente AI', icon: Bot, moduleKey: 'agent' },
-      { to: '/analytics', label: 'Análisis', icon: BarChart3, moduleKey: 'analytics' },
+      { to: '/analytics', label: 'Análisis', moduleKey: 'analytics' },
     ],
   },
   {
@@ -73,7 +73,7 @@ const SETTINGS_ITEMS = [
   { to: '/settings/departments', label: 'Departamentos', icon: Network },
 ]
 
-const FINANCE_ITEMS: (NavItem & { end?: boolean })[] = [
+const FINANCE_ITEMS: (Omit<NavItem, 'icon'> & { icon: typeof Home; end?: boolean })[] = [
   { to: '/finance', label: 'Transacciones', icon: List, end: true },
   { to: '/finance/purchases', label: 'Compras', icon: ShoppingCart, end: true },
   { to: '/finance/purchases/products', label: 'Insumos', icon: Package },
@@ -83,7 +83,7 @@ const FINANCE_ITEMS: (NavItem & { end?: boolean })[] = [
   { to: '/finance/reconciliation', label: 'Conciliacion', icon: Scale },
 ]
 
-const ANALYTICS_ITEMS: (NavItem & { end?: boolean })[] = [
+const ANALYTICS_ITEMS: (Omit<NavItem, 'icon'> & { icon: typeof Home; end?: boolean })[] = [
   { to: '/analytics', label: 'General', icon: LayoutDashboard, end: true },
   { to: '/analytics/pos', label: 'POS', icon: Store },
   { to: '/analytics/costs', label: 'Costos', icon: PieChart },
@@ -461,7 +461,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                                       : 'text-graphite/70 hover:bg-card-bg hover:text-graphite'
                                   )}
                                 >
-                                  <Icon size={16} strokeWidth={1.5} />
+                                  {Icon && <Icon size={16} strokeWidth={1.5} />}
                                   <span className={section.title ? 'ml-3' : ''}>{label}</span>
                                 </button>
                               )
@@ -484,7 +484,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                                   )
                                 }
                               >
-                                <Icon size={16} strokeWidth={1.5} />
+                                {Icon && <Icon size={16} strokeWidth={1.5} />}
                                 <span className={section.title ? 'ml-3' : ''}>{label}</span>
                               </NavLink>
                             )
