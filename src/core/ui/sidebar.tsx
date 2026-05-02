@@ -479,7 +479,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                                     'group/nav relative flex items-center gap-2.5 px-5 text-body transition-all duration-150',
                                     section.title ? 'py-2' : 'py-2.5',
                                     isActive
-                                      ? 'text-dark-graphite font-medium shadow-[inset_2px_0_0_var(--color-dark-graphite)]'
+                                      ? 'text-dark-graphite font-medium bg-bone/80'
                                       : 'text-graphite/70 hover:bg-card-bg hover:text-graphite'
                                   )
                                 }
