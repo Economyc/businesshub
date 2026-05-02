@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
-import { Users, Briefcase, DollarSign, Home, ChevronsLeft, Building2, Tags, BadgeCheck, Network, Handshake, ClipboardList, FileSignature, Wallet, Receipt, Gift, ChevronRight, ChevronsUpDown, Check, MapPin, LogOut, Settings, Bot, List, ShoppingCart, Package, Target, Scale, FileText, Shield, RefreshCw, Megaphone, Lock, LockOpen, LayoutDashboard, Store, PieChart, LayoutGrid } from 'lucide-react'
+import { Users, Briefcase, DollarSign, Home, ChevronsLeft, Building2, Tags, BadgeCheck, Network, Handshake, ClipboardList, FileSignature, Wallet, Receipt, Gift, ChevronRight, ChevronsUpDown, Check, MapPin, LogOut, Settings, List, ShoppingCart, Package, Target, Scale, FileText, Shield, RefreshCw, Megaphone, Lock, LockOpen, LayoutDashboard, Store, PieChart, LayoutGrid } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { HoverHint } from '@/components/ui/tooltip'
 import { CommandPalette } from '@/core/ui/command-palette'
@@ -32,8 +32,8 @@ interface NavSection {
 const NAV_SECTIONS: NavSection[] = [
   {
     items: [
-      { to: '/home', label: 'Home', icon: Home, moduleKey: 'home' },
-      { to: '/agent', label: 'Asistente AI', icon: Bot, moduleKey: 'agent' },
+      { to: '/home', label: 'Home', moduleKey: 'home' },
+      { to: '/agent', label: 'Asistente AI', moduleKey: 'agent' },
       { to: '/analytics', label: 'Análisis', moduleKey: 'analytics' },
     ],
   },
