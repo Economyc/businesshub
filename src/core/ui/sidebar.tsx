@@ -57,9 +57,14 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: 'Otros',
+    title: 'Mercadeo',
     items: [
       { to: '/marketing/influencers', label: 'Influencers', icon: Megaphone, moduleKey: 'marketing' },
+    ],
+  },
+  {
+    title: 'Integraciones',
+    items: [
       { to: '/pos-sync', label: 'POS Sync', icon: RefreshCw },
     ],
   },
