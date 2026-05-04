@@ -67,7 +67,7 @@ export function SettlementList() {
       header: 'Estado',
       width: '0.8fr',
       render: (s: SettlementRecord) => (
-        <span className={`inline-flex px-2.5 py-0.5 rounded-full text-caption font-medium border ${SETTLEMENT_STATUS_COLORS[s.status]}`}>
+        <span className={`inline-flex px-2.5 py-0.5 rounded-full text-caption font-medium ${SETTLEMENT_STATUS_COLORS[s.status]}`}>
           {SETTLEMENT_STATUS_LABELS[s.status]}
         </span>
       ),
@@ -80,7 +80,7 @@ export function SettlementList() {
         {canEdit && (
           <button
             onClick={() => setShowForm(true)}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg btn-primary text-body font-medium transition-all duration-200"
           >
             <Plus size={15} strokeWidth={2} />
             Nueva Liquidacion

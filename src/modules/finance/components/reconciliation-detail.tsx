@@ -1,8 +1,9 @@
 import { useState, useMemo, useCallback } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Zap, Check, X, Search } from 'lucide-react'
+import { useParams } from 'react-router-dom'
+import { Zap, Check, X, Search } from 'lucide-react'
 import { Timestamp } from 'firebase/firestore'
 import { PageTransition } from '@/core/ui/page-transition'
+import { PageHeader } from '@/core/ui/page-header'
 import { TableSkeleton } from '@/core/ui/skeleton'
 import { HoverHint } from '@/components/ui/tooltip'
 import { formatCurrency } from '@/core/utils/format'
@@ -21,7 +22,6 @@ type FilterTab = 'all' | 'matched' | 'unmatched'
 
 export function ReconciliationDetail() {
   const { id } = useParams<{ id: string }>()
-  const navigate = useNavigate()
   const { selectedCompany } = useCompany()
   const {
     statement,
@@ -153,35 +153,28 @@ export function ReconciliationDetail() {
 
   return (
     <PageTransition>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate('/finance/reconciliation')}
-            className="p-2 rounded-lg text-mid-gray hover:text-graphite hover:bg-bone transition-colors"
-          >
-            <ArrowLeft size={18} strokeWidth={1.5} />
-          </button>
-          <div>
-            <h1 className="text-heading font-semibold text-dark-graphite">{statement.fileName}</h1>
-            <div className="flex items-center gap-2 mt-1">
-              <span className={`inline-flex px-2.5 py-0.5 rounded-full text-caption font-medium border ${RECONCILIATION_STATUS_COLORS[statement.status]}`}>
-                {RECONCILIATION_STATUS_LABELS[statement.status]}
-              </span>
-              <span className="text-caption text-mid-gray">{statement.periodStart} a {statement.periodEnd}</span>
-              {statement.bankName && <span className="text-caption text-mid-gray">— {statement.bankName}</span>}
-            </div>
+      <PageHeader
+        title={statement.fileName}
+        backTo="/finance/reconciliation"
+        subtitle={
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={`inline-flex px-2.5 py-0.5 rounded-full text-caption font-medium ${RECONCILIATION_STATUS_COLORS[statement.status]}`}>
+              {RECONCILIATION_STATUS_LABELS[statement.status]}
+            </span>
+            <span className="text-caption text-mid-gray">{statement.periodStart} a {statement.periodEnd}</span>
+            {statement.bankName && <span className="text-caption text-mid-gray">— {statement.bankName}</span>}
           </div>
-        </div>
+        }
+      >
         <button
           onClick={handleAutoMatch}
           disabled={autoMatching}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] btn-primary text-body font-medium transition-all hover:-translate-y-px hover:shadow-md disabled:opacity-60"
+          className="flex items-center gap-1.5 px-4 py-2 rounded-lg btn-primary text-body font-medium transition-all disabled:opacity-60"
         >
           <Zap size={14} strokeWidth={1.5} />
           {autoMatching ? 'Conciliando...' : 'Auto-conciliar'}
         </button>
-      </div>
+      </PageHeader>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">

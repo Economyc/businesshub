@@ -15,7 +15,7 @@ export function Topbar({ onMenuToggle }: TopbarProps) {
       >
         <Menu size={20} strokeWidth={1.5} />
       </button>
-      <Link to="/home" className="flex-1 text-heading font-bold text-dark-graphite tracking-tight hover:opacity-70 transition-opacity">
+      <Link to="/home" className="flex-1 text-heading font-semibold text-dark-graphite tracking-tight hover:opacity-70 transition-opacity">
         Business<span className="font-light text-mid-gray">Hub</span>
       </Link>
       <NotificationBell />

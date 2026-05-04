@@ -6,7 +6,7 @@ import { PageHeader } from '@/core/ui/page-header'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 
 const inputClass =
-  'w-full px-3 py-2.5 rounded-[10px] border border-input-border bg-input-bg text-body text-graphite placeholder:text-mid-gray/60 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200'
+  'w-full px-3 py-2.5 rounded-lg border border-input-border bg-input-bg text-body text-graphite placeholder:text-mid-gray/60 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200'
 
 function InlineEdit({ value, onSave, className }: { value: string; onSave: (v: string) => void; className?: string }) {
   const [editing, setEditing] = useState(false)
@@ -134,7 +134,7 @@ export function SettingsList({ title, items, onAdd, onRemove, onUpdate, placehol
           type="button"
           onClick={handleAdd}
           disabled={!newName.trim()}
-          className="shrink-0 flex items-center gap-1 px-3 py-2.5 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-40 disabled:cursor-not-allowed"
+          className="shrink-0 flex items-center gap-1 px-3 py-2.5 rounded-lg btn-primary text-body font-medium transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <Plus size={14} strokeWidth={2} />
         </button>

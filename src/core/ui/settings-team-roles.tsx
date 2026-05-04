@@ -249,7 +249,7 @@ function RolePermissionSheet({
           <div className="pt-4 border-t border-border">
             <button
               onClick={onDelete}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-[10px] text-body font-medium text-negative-text border border-red-200 hover:bg-red-50 transition-all duration-200"
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-body font-medium text-negative-text border border-red-200 hover:bg-red-50 transition-all duration-200"
             >
               <Trash2 size={14} />
               Eliminar rol
@@ -265,14 +265,14 @@ function RolePermissionSheet({
           <div className="flex gap-2">
             <button
               onClick={() => setDraft(JSON.parse(JSON.stringify(role)))}
-              className="px-3 py-1.5 rounded-[10px] text-body font-medium border border-input-border text-graphite hover:bg-bone transition-all"
+              className="px-3 py-1.5 rounded-lg text-body font-medium border border-input-border text-graphite hover:bg-bone transition-all"
             >
               Cancelar
             </button>
             <button
               onClick={handleSave}
               disabled={saving || !draft.label.trim()}
-              className="px-4 py-1.5 rounded-[10px] text-body font-medium btn-primary transition-all hover:-translate-y-px hover:shadow-md disabled:opacity-40 flex items-center gap-1.5"
+              className="px-4 py-1.5 rounded-lg text-body font-medium btn-primary transition-all disabled:opacity-40 flex items-center gap-1.5"
             >
               {saving && <Loader2 size={13} className="animate-spin" />}
               Guardar
@@ -334,7 +334,7 @@ export function SettingsTeamRoles() {
           <button
             onClick={handleCreateRole}
             disabled={creating}
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-40"
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg btn-primary text-body font-medium transition-all duration-200 disabled:opacity-40"
           >
             {creating ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} strokeWidth={2} />}
             Crear rol
@@ -353,7 +353,7 @@ export function SettingsTeamRoles() {
           return (
             <div
               key={role.id}
-              className="text-left bg-surface card-elevated rounded-xl p-4 hover:shadow-md transition-all duration-200 hover:-translate-y-px group relative"
+              className="text-left bg-surface card-elevated rounded-xl p-4 hover:border-border-hover transition-colors duration-200 group relative"
             >
               <button
                 onClick={() => setSelectedRole(role)}

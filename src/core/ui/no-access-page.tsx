@@ -11,7 +11,7 @@ export function NoAccessPage() {
         <div className="w-16 h-16 rounded-2xl bg-red-50 flex items-center justify-center mb-4">
           <ShieldX size={28} className="text-negative-text" />
         </div>
-        <h1 className="text-heading font-bold text-dark-graphite mb-2">
+        <h1 className="text-heading font-semibold text-dark-graphite mb-2">
           Acceso restringido
         </h1>
         <p className="text-body text-mid-gray mb-6 max-w-md">
@@ -19,7 +19,7 @@ export function NoAccessPage() {
         </p>
         <button
           onClick={() => navigate('/home')}
-          className="px-5 py-2.5 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md"
+          className="px-5 py-2.5 rounded-lg btn-primary text-body font-medium transition-all duration-200"
         >
           Ir al inicio
         </button>

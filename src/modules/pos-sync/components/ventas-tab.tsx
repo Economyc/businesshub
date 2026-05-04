@@ -335,7 +335,7 @@ export function VentasTab({ localIds, allLocalIds, localLabel, localDisplayNames
       {hasData && (
         <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
           <div className="inline-flex items-center gap-2 flex-wrap">
-            <div className="inline-flex items-center gap-1 bg-input-bg border border-input-border rounded-[10px] p-1">
+            <div className="inline-flex items-center gap-1 bg-input-bg border border-input-border rounded-lg p-1">
               <SegmentedFilter
                 ariaLabel="Tipo de comprobante"
                 options={docOptions}
@@ -345,7 +345,7 @@ export function VentasTab({ localIds, allLocalIds, localLabel, localDisplayNames
               />
             </div>
             {cajasDisponibles.length > 1 && (
-              <div className="inline-flex items-center gap-1 bg-input-bg border border-input-border rounded-[10px] p-1">
+              <div className="inline-flex items-center gap-1 bg-input-bg border border-input-border rounded-lg p-1">
                 <SegmentedFilter
                   ariaLabel="Caja"
                   options={cajaOptions}
@@ -355,7 +355,7 @@ export function VentasTab({ localIds, allLocalIds, localLabel, localDisplayNames
               </div>
             )}
           </div>
-          <div className="relative inline-flex items-center gap-2 h-10 pl-3.5 pr-2 bg-input-bg border border-input-border rounded-[10px] min-w-[240px] flex-1 md:flex-none md:w-[280px] focus-within:border-border-hover transition-colors">
+          <div className="relative inline-flex items-center gap-2 h-10 pl-3.5 pr-2 bg-input-bg border border-input-border rounded-lg min-w-[240px] flex-1 md:flex-none md:w-[280px] focus-within:border-border-hover transition-colors">
             <Search size={15} strokeWidth={1.5} className="text-mid-gray shrink-0" />
             <input
               type="text"
@@ -400,7 +400,7 @@ export function VentasTab({ localIds, allLocalIds, localLabel, localDisplayNames
           />
           <button
             onClick={handleConsultar}
-            className="mt-2 flex items-center gap-2 h-9 px-4 bg-dark-graphite text-white rounded-[10px] text-caption font-medium hover:bg-graphite transition-colors"
+            className="mt-2 flex items-center gap-2 h-9 px-4 bg-dark-graphite text-white rounded-lg text-caption font-medium hover:bg-graphite transition-colors"
           >
             <RefreshCw size={14} />
             Consultar

@@ -4,7 +4,7 @@ import { Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '@/core/hooks/use-auth'
 
 const inputClass =
-  'w-full px-3 py-2.5 rounded-[10px] border border-input-border bg-input-bg text-body text-graphite placeholder:text-mid-gray/60 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200'
+  'w-full px-3 py-2.5 rounded-lg border border-input-border bg-input-bg text-body text-graphite placeholder:text-mid-gray/60 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200'
 
 function getErrorMessage(code: string): string {
   switch (code) {
@@ -104,7 +104,7 @@ export function LoginPage() {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full py-2.5 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full py-2.5 rounded-lg btn-primary text-body font-medium transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {submitting ? 'Ingresando...' : 'Iniciar sesión'}
             </button>

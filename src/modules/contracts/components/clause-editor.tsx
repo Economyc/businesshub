@@ -5,7 +5,7 @@ import { HoverHint } from '@/components/ui/tooltip'
 import type { ClauseDefinition } from '../types'
 
 const inputClass =
-  'w-full px-3 py-2.5 rounded-[10px] border border-input-border bg-input-bg text-body text-graphite placeholder:text-mid-gray/60 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200'
+  'w-full px-3 py-2.5 rounded-lg border border-input-border bg-input-bg text-body text-graphite placeholder:text-mid-gray/60 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200'
 const labelClass = 'block text-caption uppercase tracking-wider text-mid-gray mb-1'
 
 const categoryLabels: Record<ClauseDefinition['category'], string> = {

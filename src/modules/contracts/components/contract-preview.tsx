@@ -67,11 +67,11 @@ function renderSignatureBlock(clause: ContractClause) {
 
   return (
     <div key={clause.id}>
-      <h3 className="text-[13px] font-semibold text-gray-900 mb-1.5">
+      <h3 className="text-[13px] font-semibold text-dark-graphite mb-1.5">
         {clause.title}
       </h3>
       {intro && (
-        <p className="text-[13px] text-gray-700 leading-relaxed mb-8">
+        <p className="text-[13px] text-graphite leading-relaxed mb-8">
           {highlightUnresolved(intro)}
         </p>
       )}
@@ -81,9 +81,9 @@ function renderSignatureBlock(clause: ContractClause) {
             <span
               key={i}
               className={`text-[13px] ${
-                line.startsWith('____') ? 'text-gray-900 mb-1' :
-                line === 'EL EMPLEADOR' ? 'font-semibold text-gray-900' :
-                'text-gray-700'
+                line.startsWith('____') ? 'text-dark-graphite mb-1' :
+                line === 'EL EMPLEADOR' ? 'font-semibold text-dark-graphite' :
+                'text-graphite'
               }`}
             >
               {highlightUnresolved(line)}
@@ -95,9 +95,9 @@ function renderSignatureBlock(clause: ContractClause) {
             <span
               key={i}
               className={`text-[13px] ${
-                line.startsWith('____') ? 'text-gray-900 mb-1' :
-                line === 'EL TRABAJADOR' ? 'font-semibold text-gray-900' :
-                'text-gray-700'
+                line.startsWith('____') ? 'text-dark-graphite mb-1' :
+                line === 'EL TRABAJADOR' ? 'font-semibold text-dark-graphite' :
+                'text-graphite'
               }`}
             >
               {highlightUnresolved(line)}
@@ -114,10 +114,10 @@ function renderClause(clause: ContractClause) {
   if (isSignatureClause(clause)) return renderSignatureBlock(clause)
   return (
     <div key={clause.id}>
-      <h3 className="text-[13px] font-semibold text-gray-900 mb-1.5">
+      <h3 className="text-[13px] font-semibold text-dark-graphite mb-1.5">
         {clause.title}
       </h3>
-      <p className="text-[13px] text-gray-700 leading-relaxed whitespace-pre-wrap">
+      <p className="text-[13px] text-graphite leading-relaxed whitespace-pre-wrap">
         {highlightUnresolved(clause.content)}
       </p>
     </div>
@@ -190,7 +190,7 @@ export function ContractPreview({ clauses, title }: ContractPreviewProps) {
         {pages.map((pageContent, pageIdx) => (
           <div
             key={pageIdx}
-            className="contract-page bg-white rounded-lg border border-gray-200 shadow-sm print:border-none print:shadow-none print:rounded-none"
+            className="contract-page bg-white rounded-lg border border-border print:border-none print:rounded-none"
             style={{
               width: PAGE_WIDTH,
               minHeight: PAGE_HEIGHT + PAGE_PADDING_Y * 2,
@@ -199,7 +199,7 @@ export function ContractPreview({ clauses, title }: ContractPreviewProps) {
             }}
           >
             {pageIdx === 0 && title && (
-              <h1 className="text-center text-[15px] font-bold text-gray-900 mb-6 uppercase tracking-wide">
+              <h1 className="text-center text-[15px] font-bold text-dark-graphite mb-6 uppercase tracking-wide">
                 {title}
               </h1>
             )}
@@ -225,7 +225,7 @@ export function ContractPreview({ clauses, title }: ContractPreviewProps) {
             }}
           >
             {title && (
-              <h1 className="text-center text-[15px] font-bold text-gray-900 mb-6 uppercase tracking-wide">
+              <h1 className="text-center text-[15px] font-bold text-dark-graphite mb-6 uppercase tracking-wide">
                 {title}
               </h1>
             )}

@@ -11,6 +11,7 @@ import { formatCurrency } from '@/core/utils/format'
 import { usePermissions } from '@/core/hooks/use-permissions'
 import { usePayrolls } from '../hooks'
 import { PayrollForm } from './payroll-form'
+import { statusPill } from '@/core/ui/status-colors'
 import type { PayrollRecord, PayrollStatus } from '../types'
 
 const STATUS_LABELS: Record<PayrollStatus, string> = {
@@ -20,9 +21,9 @@ const STATUS_LABELS: Record<PayrollStatus, string> = {
 }
 
 const STATUS_COLORS: Record<PayrollStatus, string> = {
-  draft: 'bg-amber-50 text-amber-700 border-amber-200',
-  approved: 'bg-blue-50 text-blue-700 border-blue-200',
-  paid: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  draft: statusPill.warning,
+  approved: statusPill.info,
+  paid: statusPill.positive,
 }
 
 export function PayrollList() {
@@ -83,7 +84,7 @@ export function PayrollList() {
       header: 'Estado',
       width: '0.8fr',
       render: (p: PayrollRecord) => (
-        <span className={`inline-flex px-2.5 py-0.5 rounded-full text-caption font-medium border ${STATUS_COLORS[p.status]}`}>
+        <span className={`inline-flex px-2.5 py-0.5 rounded-full text-caption font-medium ${STATUS_COLORS[p.status]}`}>
           {STATUS_LABELS[p.status]}
         </span>
       ),
@@ -96,7 +97,7 @@ export function PayrollList() {
         {canEdit && (
           <button
             onClick={() => setShowForm(true)}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg btn-primary text-body font-medium transition-all duration-200"
           >
             <Plus size={15} strokeWidth={2} />
             Nueva Nomina

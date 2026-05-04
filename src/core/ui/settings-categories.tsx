@@ -7,7 +7,7 @@ import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 import { useSettings } from '@/core/hooks/use-settings'
 
 const inputClass =
-  'w-full px-3 py-2.5 rounded-[10px] border border-input-border bg-input-bg text-body text-graphite placeholder:text-mid-gray/60 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200'
+  'w-full px-3 py-2.5 rounded-lg border border-input-border bg-input-bg text-body text-graphite placeholder:text-mid-gray/60 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200'
 
 function InlineEdit({ value, onSave, className }: { value: string; onSave: (v: string) => void; className?: string }) {
   const [editing, setEditing] = useState(false)
@@ -231,7 +231,7 @@ export function SettingsCategories() {
                             type="button"
                             onClick={() => handleAddSubcategory(cat.id)}
                             disabled={!newSubInputs[cat.id]?.trim()}
-                            className="shrink-0 flex items-center gap-1 px-3 py-2.5 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-40 disabled:cursor-not-allowed"
+                            className="shrink-0 flex items-center gap-1 px-3 py-2.5 rounded-lg btn-primary text-body font-medium transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
                           >
                             <Plus size={14} strokeWidth={2} />
                           </button>
@@ -255,7 +255,7 @@ export function SettingsCategories() {
       {/* Add new category */}
       <div className="mt-4 flex items-center gap-2">
         <label
-          className="w-10 h-10 rounded-[10px] border border-input-border cursor-pointer shrink-0 transition-all hover:border-border-hover hover:shadow-sm"
+          className="w-10 h-10 rounded-lg border border-input-border cursor-pointer shrink-0 transition-all hover:border-border-hover hover:shadow-sm"
           style={{ backgroundColor: newCatColor }}
         >
           <input
@@ -276,7 +276,7 @@ export function SettingsCategories() {
           type="button"
           onClick={handleAddCategory}
           disabled={!newCatName.trim()}
-          className="shrink-0 flex items-center gap-1 px-3 py-2.5 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-40 disabled:cursor-not-allowed"
+          className="shrink-0 flex items-center gap-1 px-3 py-2.5 rounded-lg btn-primary text-body font-medium transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <Plus size={14} strokeWidth={2} />
         </button>

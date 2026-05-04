@@ -224,7 +224,7 @@ export function CommandPalette() {
           type: 'transaction',
           label: tx.concept,
           description: `${tx.type === 'income' ? 'Ingreso' : 'Egreso'} · ${formatCurrency(tx.amount)} · ${tx.category}`,
-          icon: <DollarSign size={ICON_SIZE} strokeWidth={STROKE} className={tx.type === 'income' ? 'text-emerald-500' : 'text-red-400'} />,
+          icon: <DollarSign size={ICON_SIZE} strokeWidth={STROKE} className={tx.type === 'income' ? 'text-positive-text' : 'text-negative-text'} />,
           to: '/finance',
         })
       }
@@ -242,7 +242,7 @@ export function CommandPalette() {
           type: 'supplier',
           label: sup.name,
           description: `${sup.category} · ${sup.contactName}`,
-          icon: <Briefcase size={ICON_SIZE} strokeWidth={STROKE} className="text-orange-500" />,
+          icon: <Briefcase size={ICON_SIZE} strokeWidth={STROKE} className="text-mid-gray" />,
           to: `/suppliers/${sup.id}`,
         })
       }

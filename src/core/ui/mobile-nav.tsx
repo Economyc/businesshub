@@ -185,7 +185,7 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
           >
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-              <span className="text-subheading font-bold text-dark-graphite tracking-tight">
+              <span className="text-subheading font-semibold text-dark-graphite tracking-tight">
                 Business<span className="font-light text-mid-gray">Hub</span>
               </span>
               <button

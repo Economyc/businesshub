@@ -16,7 +16,7 @@ import { discountService } from '../services'
 import type { Discount, DiscountType, DiscountReason } from '../types'
 
 const inputClass =
-  'w-full px-3 py-2.5 rounded-[10px] border border-input-border bg-input-bg text-body text-graphite placeholder:text-mid-gray/60 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200'
+  'w-full px-3 py-2.5 rounded-lg border border-input-border bg-input-bg text-body text-graphite placeholder:text-mid-gray/60 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200'
 const labelClass = 'block text-caption uppercase tracking-wider text-mid-gray mb-1'
 
 const TYPE_OPTIONS = [
@@ -300,7 +300,7 @@ export function DiscountTab() {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full sm:w-auto px-5 py-3 sm:py-2.5 rounded-xl btn-primary text-body font-bold transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full sm:w-auto px-5 py-3 sm:py-2.5 rounded-xl btn-primary text-body font-bold transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {submitting ? 'Guardando...' : editing ? 'Actualizar' : 'Guardar Descuento'}
             </button>

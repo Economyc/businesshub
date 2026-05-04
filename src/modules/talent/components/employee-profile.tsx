@@ -21,7 +21,7 @@ import { EmployeeDocuments } from './employee-documents'
 import type { EmployeeFormData } from '../types'
 
 const inputClass =
-  'w-full px-3 py-2.5 rounded-[10px] border border-input-border bg-input-bg text-body text-graphite placeholder:text-mid-gray/60 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200'
+  'w-full px-3 py-2.5 rounded-lg border border-input-border bg-input-bg text-body text-graphite placeholder:text-mid-gray/60 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200'
 const labelClass = 'block text-caption uppercase tracking-wider text-mid-gray mb-1'
 
 function formatDate(ts: Timestamp | undefined): string {
@@ -172,14 +172,14 @@ export function EmployeeProfile() {
           <>
             <button
               onClick={startEditing}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-[10px] border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
             >
               <Edit size={14} strokeWidth={1.5} />
               Editar
             </button>
             <button
               onClick={() => setDeleteOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-[10px] border border-negative-text text-negative-text text-body font-medium transition-all duration-200 hover:bg-negative-bg"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-negative-text text-negative-text text-body font-medium transition-all duration-200 hover:bg-negative-bg"
             >
               <Trash2 size={14} strokeWidth={1.5} />
               Eliminar
@@ -294,13 +294,13 @@ export function EmployeeProfile() {
               <button
                 onClick={handleSave}
                 disabled={updateMutation.isPending}
-                className="px-5 py-2.5 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
+                className="px-5 py-2.5 rounded-lg btn-primary text-body font-medium transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {updateMutation.isPending ? 'Guardando...' : 'Guardar Cambios'}
               </button>
               <button
                 onClick={() => setEditing(false)}
-                className="px-5 py-2.5 rounded-[10px] border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
+                className="px-5 py-2.5 rounded-lg border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
               >
                 Cancelar
               </button>

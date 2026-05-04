@@ -263,7 +263,7 @@ export function ContractExport({ clauses, title, employeeName }: ContractExportP
       <button
         onClick={handlePDF}
         disabled={exportingPdf}
-        className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone disabled:opacity-60"
+        className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone disabled:opacity-60"
       >
         <Download size={14} strokeWidth={1.5} />
         {exportingPdf ? 'Exportando...' : 'PDF'}
@@ -271,7 +271,7 @@ export function ContractExport({ clauses, title, employeeName }: ContractExportP
       <button
         onClick={handleWord}
         disabled={exportingWord}
-        className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone disabled:opacity-60"
+        className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone disabled:opacity-60"
       >
         <FileText size={14} strokeWidth={1.5} />
         {exportingWord ? 'Exportando...' : 'Word'}

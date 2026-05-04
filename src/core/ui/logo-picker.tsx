@@ -113,7 +113,7 @@ export function LogoPicker({ value, onChange, companyId }: LogoPickerProps) {
         <button
           type="button"
           onClick={() => setOpen(!open)}
-          className="w-10 h-10 rounded-[10px] border border-input-border bg-bone/30 flex items-center justify-center overflow-hidden shrink-0 hover:border-graphite/30 transition-colors cursor-pointer"
+          className="w-10 h-10 rounded-lg border border-input-border bg-bone/30 flex items-center justify-center overflow-hidden shrink-0 hover:border-graphite/30 transition-colors cursor-pointer"
         >
           {value ? (
             <img src={value} alt="Logo" loading="lazy" decoding="async" className="w-full h-full object-cover" />
@@ -190,7 +190,7 @@ export function LogoPicker({ value, onChange, companyId }: LogoPickerProps) {
                         type="button"
                         onClick={() => selectLogo(url)}
                         className={cn(
-                          'group relative w-full aspect-square rounded-lg border overflow-hidden transition-all hover:shadow-md bg-white flex items-center justify-center',
+                          'group relative w-full aspect-square rounded-lg border overflow-hidden transition-colors hover:border-border-hover bg-white flex items-center justify-center',
                           isSelected
                             ? 'border-graphite ring-2 ring-graphite/20'
                             : 'border-border hover:border-graphite/30',

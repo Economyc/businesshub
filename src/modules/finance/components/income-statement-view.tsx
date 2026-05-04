@@ -14,6 +14,7 @@ import { KPICard } from '@/core/ui/kpi-card'
 import { staggerContainer } from '@/core/animations/variants'
 import { formatCurrency } from '@/core/utils/format'
 import { DashboardSkeleton } from '@/core/ui/skeleton'
+import { EmptyState } from '@/core/ui/empty-state'
 import { useIncomeStatement } from '../hooks'
 import { useDateRange } from '../context/date-range-context'
 
@@ -341,9 +342,11 @@ export function IncomeStatementView() {
 
           {/* Resumen del período */}
           {statement.transactionCount === 0 && (
-            <div className="text-center py-8 text-caption text-mid-gray mt-4">
-              No hay transacciones registradas en este período
-            </div>
+            <EmptyState
+              icon={DollarSign}
+              title="Sin transacciones en el período"
+              description="Ajusta el rango de fechas o registra movimientos para ver el estado de resultados."
+            />
           )}
         </>
       )}

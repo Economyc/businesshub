@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Download, Trash2, CheckCircle2 } from 'lucide-react'
+import { Download, Trash2, CheckCircle2 } from 'lucide-react'
 import { PageTransition } from '@/core/ui/page-transition'
+import { PageHeader } from '@/core/ui/page-header'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
+import { statusPill } from '@/core/ui/status-colors'
 import { HoverHint } from '@/components/ui/tooltip'
 import { formatCurrency } from '@/core/utils/format'
 import { TableSkeleton } from '@/core/ui/skeleton'
@@ -20,9 +22,9 @@ const STATUS_LABELS: Record<PayrollStatus, string> = {
 }
 
 const STATUS_COLORS: Record<PayrollStatus, string> = {
-  draft: 'bg-amber-50 text-amber-700 border-amber-200',
-  approved: 'bg-blue-50 text-blue-700 border-blue-200',
-  paid: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  draft: statusPill.warning,
+  approved: statusPill.info,
+  paid: statusPill.positive,
 }
 
 export function PayrollDetail() {
@@ -89,32 +91,22 @@ export function PayrollDetail() {
 
   return (
     <PageTransition>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate('/payroll')}
-            className="p-2 rounded-lg text-mid-gray hover:text-graphite hover:bg-bone transition-colors"
-          >
-            <ArrowLeft size={18} strokeWidth={1.5} />
-          </button>
-          <div>
-            <h1 className="text-heading font-semibold text-dark-graphite">
-              {payroll.periodLabel}
-            </h1>
-            <span className={`inline-flex px-2.5 py-0.5 rounded-full text-caption font-medium border mt-1 ${STATUS_COLORS[payroll.status]}`}>
-              {STATUS_LABELS[payroll.status]}
-            </span>
-          </div>
-        </div>
-
+      <PageHeader
+        title={payroll.periodLabel}
+        backTo="/payroll"
+        subtitle={
+          <span className={`inline-flex px-2.5 py-0.5 rounded-full text-caption font-medium ${STATUS_COLORS[payroll.status]}`}>
+            {STATUS_LABELS[payroll.status]}
+          </span>
+        }
+      >
         {canEdit && (
-          <div className="flex items-center gap-2">
+          <>
             {payroll.status === 'draft' && (
               <button
                 onClick={handleApprove}
                 disabled={updateMutation.isPending}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] border border-blue-200 text-blue-700 text-body font-medium transition-all hover:bg-blue-50"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-info-bg text-info-text text-body font-medium transition-colors hover:opacity-90"
               >
                 <CheckCircle2 size={14} strokeWidth={1.5} />
                 Aprobar
@@ -124,7 +116,7 @@ export function PayrollDetail() {
               <button
                 onClick={handleMarkPaid}
                 disabled={updateMutation.isPending}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] btn-primary text-body font-medium transition-all hover:-translate-y-px hover:shadow-md"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg btn-primary text-body font-medium transition-colors"
               >
                 <CheckCircle2 size={14} strokeWidth={1.5} />
                 Marcar Pagada
@@ -133,14 +125,14 @@ export function PayrollDetail() {
             <HoverHint label="Eliminar">
               <button
                 onClick={() => setDeleteOpen(true)}
-                className="p-2 rounded-lg text-mid-gray hover:text-red-500 hover:bg-red-50 transition-all"
+                className="p-2 rounded-lg text-mid-gray hover:text-negative-text hover:bg-negative-bg transition-colors"
               >
                 <Trash2 size={15} strokeWidth={1.5} />
               </button>
             </HoverHint>
-          </div>
+          </>
         )}
-      </div>
+      </PageHeader>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -152,7 +144,7 @@ export function PayrollDetail() {
         ].map((kpi) => (
           <div key={kpi.label} className="bg-surface-elevated rounded-xl border border-border p-4">
             <div className="text-caption text-mid-gray">{kpi.label}</div>
-            <div className={`text-subheading font-semibold mt-1 ${kpi.red ? 'text-red-500' : 'text-dark-graphite'}`}>
+            <div className={`text-subheading font-semibold mt-1 ${kpi.red ? 'text-negative-text' : 'text-dark-graphite'}`}>
               {kpi.value}
             </div>
           </div>

@@ -52,11 +52,11 @@ export function AlertsPanel({ alerts }: AlertsPanelProps) {
 
   return (
     <div className="bg-surface rounded-xl card-elevated p-[18px]">
-      <h2 className="text-body font-bold text-dark-graphite mb-3">Alertas</h2>
+      <h2 className="text-body font-semibold text-dark-graphite mb-3">Alertas</h2>
 
       {!hasAlerts ? (
         <div className="flex flex-col items-center justify-center py-8 text-mid-gray">
-          <CheckCircle size={32} strokeWidth={1.5} className="mb-2 text-emerald-400" />
+          <CheckCircle size={20} strokeWidth={1.5} className="mb-2 text-positive-text" />
           <span className="text-caption">Sin alertas activas</span>
         </div>
       ) : (
@@ -64,8 +64,8 @@ export function AlertsPanel({ alerts }: AlertsPanelProps) {
           {overdueItems.length > 0 && (
             <AlertSection
               icon={AlertTriangle}
-              color="text-red-500"
-              borderColor="border-red-400"
+              color="text-negative-text"
+              borderColor="border-negative-text"
               title={`${overdueItems.length} pago${overdueItems.length > 1 ? 's' : ''} vencido${overdueItems.length > 1 ? 's' : ''}`}
               items={overdueItems}
               actionLabel="Ver cartera"
@@ -76,8 +76,8 @@ export function AlertsPanel({ alerts }: AlertsPanelProps) {
           {budgetExceeded.length > 0 && (
             <AlertSection
               icon={TrendingUp}
-              color="text-amber-500"
-              borderColor="border-amber-400"
+              color="text-warning-text"
+              borderColor="border-warning-text"
               title={`${budgetExceeded.length} categoría${budgetExceeded.length > 1 ? 's' : ''} sobre presupuesto`}
               items={budgetExceeded}
               actionLabel="Ver presupuesto"
@@ -88,8 +88,8 @@ export function AlertsPanel({ alerts }: AlertsPanelProps) {
           {expiringContracts.length > 0 && (
             <AlertSection
               icon={FileWarning}
-              color="text-orange-500"
-              borderColor="border-orange-400"
+              color="text-warning-text"
+              borderColor="border-warning-text"
               title={`${expiringContracts.length} contrato${expiringContracts.length > 1 ? 's' : ''} por vencer`}
               items={expiringContracts}
               actionLabel="Ver contratos"

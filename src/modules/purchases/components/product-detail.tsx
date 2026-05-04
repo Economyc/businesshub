@@ -7,6 +7,7 @@ import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
 import { formatCurrency } from '@/core/utils/format'
 import { Skeleton } from '@/core/ui/skeleton'
+import { EmptyChart } from '@/modules/analytics/components/shared/empty-chart'
 import { useProduct, useProductPriceHistory } from '../hooks'
 
 const COLORS = ['#3d3d3d', '#5a7a5a', '#9a6a6a', '#6a6a9a', '#9a8a5a', '#5a8a8a', '#8a5a7a']
@@ -92,7 +93,7 @@ export function ProductDetail() {
         <div className="bg-surface rounded-xl card-elevated p-6">
           <h2 className="text-subheading font-medium text-dark-graphite mb-4">Historial de Precios</h2>
           {priceData.history.length === 0 ? (
-            <div className="flex items-center justify-center h-[250px] text-body text-mid-gray">Sin datos de compra</div>
+            <EmptyChart message="Sin datos de compra" hint="Registra una compra para ver el historial" height={250} />
           ) : (
             <ResponsiveContainer width="100%" height={250}>
               <LineChart data={priceData.history} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
@@ -110,7 +111,7 @@ export function ProductDetail() {
         <div className="bg-surface rounded-xl card-elevated p-6">
           <h2 className="text-subheading font-medium text-dark-graphite mb-4">Comparación entre Proveedores</h2>
           {priceData.supplierComparison.length === 0 ? (
-            <div className="flex items-center justify-center h-[250px] text-body text-mid-gray">Sin datos</div>
+            <EmptyChart message="Sin proveedores comparables" hint="Necesitas compras de varios proveedores" height={250} />
           ) : (
             <ResponsiveContainer width="100%" height={250}>
               <BarChart

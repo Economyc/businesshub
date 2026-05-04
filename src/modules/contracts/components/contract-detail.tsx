@@ -144,7 +144,7 @@ export function ContractDetail() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => navigate('/contracts')}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
             >
               <ArrowLeft size={15} strokeWidth={1.5} />
               Volver
@@ -194,7 +194,7 @@ export function ContractDetail() {
               {!editing ? (
                 <button
                   onClick={startEditing}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
                 >
                   <Edit3 size={14} strokeWidth={1.5} />
                   Editar cláusulas
@@ -204,14 +204,14 @@ export function ContractDetail() {
                   <button
                     onClick={handleSaveClauses}
                     disabled={updateMutation.isPending}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-60"
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg btn-primary text-body font-medium transition-all duration-200 disabled:opacity-60"
                   >
                     <Save size={14} strokeWidth={1.5} />
                     {updateMutation.isPending ? 'Guardando...' : 'Guardar'}
                   </button>
                   <button
                     onClick={() => setEditing(false)}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
                   >
                     <X size={14} strokeWidth={1.5} />
                     Cancelar
@@ -238,7 +238,7 @@ export function ContractDetail() {
             />
             <button
               onClick={handlePrint}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
             >
               <Printer size={14} strokeWidth={1.5} />
               Imprimir
@@ -270,7 +270,7 @@ export function ContractDetail() {
                   onChange={(e) => handleClauseChange(idx, e.target.value)}
                   disabled={clause.isRequired && false}
                   rows={4}
-                  className="w-full px-3 py-2.5 rounded-[10px] border border-input-border bg-input-bg text-body text-graphite focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200 resize-y"
+                  className="w-full px-3 py-2.5 rounded-lg border border-input-border bg-input-bg text-body text-graphite focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200 resize-y"
                 />
               </div>
             ))}

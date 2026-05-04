@@ -15,7 +15,7 @@ import { usePosOrderSearch } from '../hooks'
 import type { InfluencerVisit, SocialPlatform, SocialNetwork } from '../types'
 
 const inputClass =
-  'w-full px-3 py-2.5 rounded-[10px] border border-input-border bg-input-bg text-body text-graphite placeholder:text-mid-gray/60 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200'
+  'w-full px-3 py-2.5 rounded-lg border border-input-border bg-input-bg text-body text-graphite placeholder:text-mid-gray/60 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200'
 const labelClass = 'block text-caption uppercase tracking-wider text-mid-gray mb-1'
 
 const PLATFORM_OPTIONS = [
@@ -352,7 +352,7 @@ export function InfluencerForm({ open, onClose, visit }: InfluencerFormProps) {
                           key={key}
                           type="button"
                           onClick={() => setForm((prev) => ({ ...prev, [key]: !prev[key] }))}
-                          className={`flex items-center gap-2 px-4 py-2.5 rounded-[10px] border text-body font-medium transition-all duration-200 ${
+                          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border text-body font-medium transition-all duration-200 ${
                             form[key]
                               ? 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400'
                               : 'border-input-border bg-input-bg text-mid-gray hover:bg-bone'
@@ -400,14 +400,14 @@ export function InfluencerForm({ open, onClose, visit }: InfluencerFormProps) {
                     <button
                       type="button"
                       onClick={handleCancel}
-                      className="px-5 py-2.5 rounded-[10px] border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
+                      className="px-5 py-2.5 rounded-lg border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
                     >
                       Cancelar
                     </button>
                     <button
                       type="submit"
                       disabled={saveMutation.isPending}
-                      className="px-5 py-2.5 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="px-5 py-2.5 rounded-lg btn-primary text-body font-medium transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       {saveMutation.isPending ? 'Guardando...' : isEditing ? 'Guardar Cambios' : 'Guardar'}
                     </button>

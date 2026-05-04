@@ -10,7 +10,7 @@ import { PAYMENT_METHODS } from '../types'
 import type { CarteraItem } from '../types'
 
 const inputClass =
-  'w-full px-3 py-2.5 rounded-[10px] border border-input-border bg-input-bg text-body text-graphite placeholder:text-mid-gray/60 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200'
+  'w-full px-3 py-2.5 rounded-lg border border-input-border bg-input-bg text-body text-graphite placeholder:text-mid-gray/60 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200'
 const labelClass = 'block text-caption uppercase tracking-wider text-mid-gray mb-1'
 
 interface PaymentFormProps {
@@ -198,14 +198,14 @@ export function PaymentForm({ item, onClose, onSaved }: PaymentFormProps) {
               <button
                 onClick={onClose}
                 disabled={mutation.isPending}
-                className="px-4 py-2 rounded-[10px] text-body font-medium border border-input-border text-graphite hover:bg-bone transition-all duration-200 disabled:opacity-50"
+                className="px-4 py-2 rounded-lg text-body font-medium border border-input-border text-graphite hover:bg-bone transition-all duration-200 disabled:opacity-50"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleSubmit}
                 disabled={mutation.isPending || !isValid}
-                className="px-4 py-2 rounded-[10px] text-body font-medium btn-primary hover:-translate-y-px hover:shadow-md transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-4 py-2 rounded-lg text-body font-medium btn-primary transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {mutation.isPending && <Loader2 size={14} className="animate-spin" />}
                 {mutation.isPending ? 'Guardando...' : 'Registrar'}

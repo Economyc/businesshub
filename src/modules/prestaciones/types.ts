@@ -1,5 +1,6 @@
 import type { Timestamp } from 'firebase/firestore'
 import type { BaseEntity } from '@/core/types'
+import { statusPill } from '@/core/ui/status-colors'
 
 /* ─── Tipos de liquidacion ─── */
 
@@ -29,9 +30,9 @@ export const SETTLEMENT_STATUS_LABELS: Record<SettlementStatus, string> = {
 }
 
 export const SETTLEMENT_STATUS_COLORS: Record<SettlementStatus, string> = {
-  draft: 'bg-amber-50 text-amber-700 border-amber-200',
-  approved: 'bg-blue-50 text-blue-700 border-blue-200',
-  paid: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  draft: statusPill.warning,
+  approved: statusPill.info,
+  paid: statusPill.positive,
 }
 
 /* ─── Interfaces ─── */

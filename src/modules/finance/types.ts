@@ -1,5 +1,6 @@
 import type { Timestamp } from 'firebase/firestore'
 import type { BaseEntity, TransactionType, TransactionStatus } from '@/core/types'
+import { statusPill } from '@/core/ui/status-colors'
 
 export type PayeeType = 'partner' | 'employee' | 'supplier' | 'external'
 
@@ -89,9 +90,9 @@ export const RECONCILIATION_STATUS_LABELS: Record<ReconciliationStatus, string> 
 }
 
 export const RECONCILIATION_STATUS_COLORS: Record<ReconciliationStatus, string> = {
-  pending: 'bg-amber-50 text-amber-700 border-amber-200',
-  reconciled: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  partial: 'bg-blue-50 text-blue-700 border-blue-200',
+  pending: statusPill.warning,
+  reconciled: statusPill.positive,
+  partial: statusPill.info,
 }
 
 export interface BankStatement extends BaseEntity {

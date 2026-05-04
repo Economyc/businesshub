@@ -5,7 +5,7 @@ import { SelectInput } from '@/core/ui/select-input'
 import { OVERTIME_LABELS, type OvertimeType, type OvertimeEntry, type PayrollDeduction } from '../types'
 
 const inputClass =
-  'w-full px-3 py-2.5 rounded-[10px] border border-input-border bg-input-bg text-body text-graphite placeholder:text-mid-gray/60 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200'
+  'w-full px-3 py-2.5 rounded-lg border border-input-border bg-input-bg text-body text-graphite placeholder:text-mid-gray/60 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200'
 const labelClass = 'block text-caption uppercase tracking-wider text-mid-gray mb-1'
 
 interface PayrollItemFormProps {
@@ -93,7 +93,7 @@ export function PayrollItemForm({ overtime, deductions, onOvertimeChange, onDedu
           <button
             type="button"
             onClick={addOvertime}
-            className="p-2.5 rounded-[10px] border border-input-border text-graphite hover:bg-bone transition-colors"
+            className="p-2.5 rounded-lg border border-input-border text-graphite hover:bg-bone transition-colors"
           >
             <Plus size={16} strokeWidth={1.5} />
           </button>
@@ -146,7 +146,7 @@ export function PayrollItemForm({ overtime, deductions, onOvertimeChange, onDedu
           <button
             type="button"
             onClick={addDeduction}
-            className="p-2.5 rounded-[10px] border border-input-border text-graphite hover:bg-bone transition-colors"
+            className="p-2.5 rounded-lg border border-input-border text-graphite hover:bg-bone transition-colors"
           >
             <Plus size={16} strokeWidth={1.5} />
           </button>

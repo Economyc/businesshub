@@ -95,7 +95,7 @@ export function SettingsTeamInvite({ open, onClose, onInvited }: Props) {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="correo@ejemplo.com"
-                  className="w-full px-3 py-2.5 rounded-[10px] border border-input-border bg-input-bg text-body text-graphite placeholder:text-mid-gray/60 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200"
+                  className="w-full px-3 py-2.5 rounded-lg border border-input-border bg-input-bg text-body text-graphite placeholder:text-mid-gray/60 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200"
                   disabled={loading}
                 />
               </div>
@@ -107,7 +107,7 @@ export function SettingsTeamInvite({ open, onClose, onInvited }: Props) {
                 <select
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-[10px] border border-input-border bg-input-bg text-body text-graphite focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200"
+                  className="w-full px-3 py-2.5 rounded-lg border border-input-border bg-input-bg text-body text-graphite focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200"
                   disabled={loading}
                 >
                   {roles.filter((r) => r.id !== 'owner').map((r) => (
@@ -127,14 +127,14 @@ export function SettingsTeamInvite({ open, onClose, onInvited }: Props) {
                   type="button"
                   onClick={onClose}
                   disabled={loading}
-                  className="px-4 py-2 rounded-[10px] text-body font-medium border border-input-border text-graphite hover:bg-bone transition-all duration-200 disabled:opacity-50"
+                  className="px-4 py-2 rounded-lg text-body font-medium border border-input-border text-graphite hover:bg-bone transition-all duration-200 disabled:opacity-50"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={loading || !email.trim()}
-                  className="px-4 py-2 rounded-[10px] text-body font-medium btn-primary transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+                  className="px-4 py-2 rounded-lg text-body font-medium btn-primary transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
                 >
                   {loading ? (
                     <Loader2 size={14} className="animate-spin" />

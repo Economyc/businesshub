@@ -107,8 +107,8 @@ function PosTabSkeleton({ tab }: { tab: string }) {
       <div>
         <PosCompactHeroSkeleton />
         <div className="flex flex-wrap items-end gap-3 mb-5">
-          <Skeleton className="h-10 w-full max-w-sm rounded-[10px]" />
-          <Skeleton className="h-10 w-full sm:w-60 rounded-[10px]" />
+          <Skeleton className="h-10 w-full max-w-sm rounded-lg" />
+          <Skeleton className="h-10 w-full sm:w-60 rounded-lg" />
         </div>
         <PosProductGridSkeleton />
       </div>

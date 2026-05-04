@@ -142,7 +142,7 @@ export function EmployeeDocuments({ employeeId }: Props) {
   if (loading) {
     return (
       <div className="space-y-3">
-        <Skeleton className="h-10 w-48 rounded-[10px]" />
+        <Skeleton className="h-10 w-48 rounded-lg" />
         <Skeleton className="h-20 w-full rounded-xl" />
         <Skeleton className="h-20 w-full rounded-xl" />
       </div>
@@ -207,7 +207,7 @@ export function EmployeeDocuments({ employeeId }: Props) {
             <button
               onClick={handleUploadConfirm}
               disabled={uploadMutation.isPending}
-              className="px-4 py-2 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+              className="px-4 py-2 rounded-lg btn-primary text-body font-medium transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {uploadMutation.isPending ? (
                 <span className="flex items-center gap-1.5">
@@ -220,7 +220,7 @@ export function EmployeeDocuments({ employeeId }: Props) {
             <button
               onClick={() => setPendingFile(null)}
               disabled={uploadMutation.isPending}
-              className="px-4 py-2 rounded-[10px] border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
+              className="px-4 py-2 rounded-lg border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
             >
               Cancelar
             </button>
@@ -247,7 +247,7 @@ export function EmployeeDocuments({ employeeId }: Props) {
                 key={d.id}
                 className="flex items-center gap-4 bg-surface rounded-xl card-elevated px-5 py-4"
               >
-                <div className="w-10 h-10 rounded-[10px] bg-bone/60 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-lg bg-bone/60 flex items-center justify-center shrink-0">
                   <Icon size={20} strokeWidth={1.5} className="text-mid-gray" />
                 </div>
                 <div className="flex-1 min-w-0">

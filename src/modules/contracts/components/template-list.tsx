@@ -105,7 +105,7 @@ export function TemplateList() {
         {canEdit && (
           <button
             onClick={() => setShowForm(true)}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg btn-primary text-body font-medium transition-all duration-200"
           >
             <Plus size={15} strokeWidth={2} />
             Nueva Plantilla
@@ -134,7 +134,7 @@ export function TemplateList() {
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-[10px] border border-input-border bg-input-bg text-body text-graphite focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200"
+              className="w-full px-3 py-2.5 rounded-lg border border-input-border bg-input-bg text-body text-graphite focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200"
             >
               <option value="">Todos los tipos</option>
               {Object.entries(CONTRACT_TYPE_LABELS).map(([value, label]) => (
@@ -157,7 +157,7 @@ export function TemplateList() {
           <button
             onClick={seedDefaults}
             disabled={seedMutation.isPending}
-            className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-60"
+            className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 rounded-lg btn-primary text-body font-medium transition-all duration-200 disabled:opacity-60"
           >
             <Upload size={15} strokeWidth={2} />
             {seedMutation.isPending ? 'Cargando...' : 'Cargar plantillas predeterminadas'}

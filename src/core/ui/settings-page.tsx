@@ -12,7 +12,7 @@ import { useSettings } from '@/core/hooks/use-settings'
 import { CompanyLogo } from '@/core/ui/company-logo'
 
 const inputClass =
-  'w-full px-3 py-2.5 rounded-[10px] border border-input-border bg-input-bg text-body text-graphite placeholder:text-mid-gray/60 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200'
+  'w-full px-3 py-2.5 rounded-lg border border-input-border bg-input-bg text-body text-graphite placeholder:text-mid-gray/60 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200'
 const labelClass = 'block text-caption uppercase tracking-wider text-mid-gray mb-1'
 
 interface CompanyForm {
@@ -168,7 +168,7 @@ export function SettingsPage() {
           <div className="relative mb-4">
             <button
               onClick={() => setPickerOpen(!pickerOpen)}
-              className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-[10px] border border-input-border bg-input-bg text-body transition-all duration-200 hover:border-border-hover"
+              className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg border border-input-border bg-input-bg text-body transition-all duration-200 hover:border-border-hover"
             >
               <div className="flex items-center gap-2.5 min-w-0">
                 <CompanyLogo company={activeForm} />
@@ -242,7 +242,7 @@ export function SettingsPage() {
                     <label className={labelClass}>Color</label>
                     <div className="flex items-center gap-2.5">
                       <label
-                        className="w-10 h-10 rounded-[10px] border border-input-border cursor-pointer shrink-0 transition-all hover:border-border-hover hover:shadow-sm"
+                        className="w-10 h-10 rounded-lg border border-input-border cursor-pointer shrink-0 transition-all hover:border-border-hover hover:shadow-sm"
                         style={{ backgroundColor: activeForm.color || '#2D2D2D' }}
                       >
                         <input
@@ -263,7 +263,7 @@ export function SettingsPage() {
                   <div>
                     <label className={labelClass}>Logo</label>
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-[10px] border border-input-border bg-bone/30 flex items-center justify-center overflow-hidden shrink-0">
+                      <div className="w-10 h-10 rounded-lg border border-input-border bg-bone/30 flex items-center justify-center overflow-hidden shrink-0">
                         {activeForm.logo ? (
                           <img src={activeForm.logo} alt="Logo" loading="lazy" decoding="async" className="w-full h-full object-cover" />
                         ) : (
@@ -318,10 +318,10 @@ export function SettingsPage() {
                     onClick={handleSave}
                     disabled={!activeForm.name.trim()}
                     className={cn(
-                      'px-4 py-2 rounded-[10px] text-body font-medium transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-1.5',
+                      'px-4 py-2 rounded-lg text-body font-medium transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-1.5',
                       savedId === activeForm.id
                         ? 'bg-emerald-500 text-white scale-[1.02]'
-                        : 'btn-primary hover:-translate-y-px hover:shadow-md'
+                        : 'btn-primary'
                     )}
                   >
                     {savedId === activeForm.id ? (
@@ -386,7 +386,7 @@ export function SettingsPage() {
               type="button"
               onClick={handleAddCategory}
               disabled={!newCategory.trim()}
-              className="shrink-0 flex items-center gap-1 px-3 py-2.5 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-40 disabled:cursor-not-allowed"
+              className="shrink-0 flex items-center gap-1 px-3 py-2.5 rounded-lg btn-primary text-body font-medium transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Plus size={14} strokeWidth={2} />
             </button>

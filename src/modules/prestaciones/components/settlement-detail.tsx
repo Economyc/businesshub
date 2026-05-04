@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Download, Trash2, CheckCircle2 } from 'lucide-react'
+import { Download, Trash2, CheckCircle2 } from 'lucide-react'
 import { PageTransition } from '@/core/ui/page-transition'
+import { PageHeader } from '@/core/ui/page-header'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 import { HoverHint } from '@/components/ui/tooltip'
 import { formatCurrency } from '@/core/utils/format'
@@ -73,32 +74,22 @@ export function SettlementDetail() {
 
   return (
     <PageTransition>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate('/prestaciones')}
-            className="p-2 rounded-lg text-mid-gray hover:text-graphite hover:bg-bone transition-colors"
-          >
-            <ArrowLeft size={18} strokeWidth={1.5} />
-          </button>
-          <div>
-            <h1 className="text-heading font-semibold text-dark-graphite">
-              {settlement.periodLabel}
-            </h1>
-            <span className={`inline-flex px-2.5 py-0.5 rounded-full text-caption font-medium border mt-1 ${SETTLEMENT_STATUS_COLORS[settlement.status]}`}>
-              {SETTLEMENT_STATUS_LABELS[settlement.status]}
-            </span>
-          </div>
-        </div>
-
+      <PageHeader
+        title={settlement.periodLabel}
+        backTo="/prestaciones"
+        subtitle={
+          <span className={`inline-flex px-2.5 py-0.5 rounded-full text-caption font-medium ${SETTLEMENT_STATUS_COLORS[settlement.status]}`}>
+            {SETTLEMENT_STATUS_LABELS[settlement.status]}
+          </span>
+        }
+      >
         {canEdit && (
-          <div className="flex items-center gap-2">
+          <>
             {settlement.status === 'draft' && (
               <button
                 onClick={handleApprove}
                 disabled={updateMutation.isPending}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] border border-blue-200 text-blue-700 text-body font-medium transition-all hover:bg-blue-50"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-info-bg text-info-text text-body font-medium transition-colors hover:opacity-90"
               >
                 <CheckCircle2 size={14} strokeWidth={1.5} />
                 Aprobar
@@ -108,7 +99,7 @@ export function SettlementDetail() {
               <button
                 onClick={handleMarkPaid}
                 disabled={updateMutation.isPending}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] btn-primary text-body font-medium transition-all hover:-translate-y-px hover:shadow-md"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg btn-primary text-body font-medium transition-colors"
               >
                 <CheckCircle2 size={14} strokeWidth={1.5} />
                 Marcar Pagada
@@ -117,14 +108,14 @@ export function SettlementDetail() {
             <HoverHint label="Eliminar">
               <button
                 onClick={() => setDeleteOpen(true)}
-                className="p-2 rounded-lg text-mid-gray hover:text-red-500 hover:bg-red-50 transition-all"
+                className="p-2 rounded-lg text-mid-gray hover:text-negative-text hover:bg-negative-bg transition-colors"
               >
                 <Trash2 size={15} strokeWidth={1.5} />
               </button>
             </HoverHint>
-          </div>
+          </>
         )}
-      </div>
+      </PageHeader>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
@@ -144,7 +135,7 @@ export function SettlementDetail() {
 
       {/* Termination date */}
       {settlement.terminationDate && (
-        <div className="mb-6 p-3 bg-amber-50 border border-amber-200 rounded-xl text-body text-amber-800">
+        <div className="mb-6 p-3 bg-warning-bg rounded-xl text-body text-warning-text">
           Fecha de terminacion: <strong>{settlement.terminationDate}</strong>
         </div>
       )}

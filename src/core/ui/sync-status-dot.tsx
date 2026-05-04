@@ -39,7 +39,7 @@ export function SyncStatusDot({
     return (
       <HoverHint label="Actualizando…">
         <span
-          className="inline-block w-2 h-2 rounded-full bg-amber-500 animate-pulse"
+          className="inline-block w-2 h-2 rounded-full bg-warning-text animate-pulse"
           aria-label="Actualizando"
         />
       </HoverHint>
@@ -56,8 +56,8 @@ export function SyncStatusDot({
     : degraded
       ? 'bg-negative-text animate-pulse'
       : fromCache
-        ? 'bg-amber-500'
-        : 'bg-emerald-500'
+        ? 'bg-warning-text'
+        : 'bg-positive-text'
   const baseTitle = !lastUpdated
     ? 'Sin datos'
     : degraded

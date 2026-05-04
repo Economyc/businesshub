@@ -19,6 +19,7 @@ import { CurrencyInput } from '@/core/ui/currency-input'
 import { staggerContainer } from '@/core/animations/variants'
 import { formatCurrency } from '@/core/utils/format'
 import { DashboardSkeleton } from '@/core/ui/skeleton'
+import { EmptyState } from '@/core/ui/empty-state'
 import { useBudgetComparison } from '../hooks'
 import { useDateRange } from '../context/date-range-context'
 
@@ -183,7 +184,7 @@ function BudgetEditor({
                 value={item.amount || ''}
                 onChange={(raw) => updateItem(i, 'amount', Number(raw))}
                 placeholder="0"
-                className="w-full pl-7 pr-3 py-2 rounded-[10px] border border-input-border bg-input-bg text-body text-graphite placeholder:text-mid-gray/40 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200"
+                className="w-full pl-7 pr-3 py-2 rounded-lg border border-input-border bg-input-bg text-body text-graphite placeholder:text-mid-gray/40 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200"
               />
             </div>
             <button
@@ -199,7 +200,7 @@ function BudgetEditor({
       <div className="flex items-center justify-between">
         <button
           onClick={addItem}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-[10px] border border-input-border text-body text-graphite hover:bg-bone transition-all duration-200"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-input-border text-body text-graphite hover:bg-bone transition-all duration-200"
         >
           <Plus size={14} strokeWidth={2} />
           Agregar partida
@@ -207,7 +208,7 @@ function BudgetEditor({
         <button
           onClick={handleSave}
           disabled={saving}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
+          className="flex items-center gap-1.5 px-4 py-2 rounded-lg btn-primary text-body font-medium transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
         >
           <Save size={14} strokeWidth={2} />
           {saving ? 'Guardando...' : 'Guardar'}
@@ -241,7 +242,7 @@ export function BudgetView() {
         <DateRangePicker />
         <button
           onClick={() => setEditing(!editing)}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md"
+          className="flex items-center gap-1.5 px-4 py-2 rounded-lg btn-primary text-body font-medium transition-all duration-200"
         >
           <Target size={15} strokeWidth={2} />
           {editing ? 'Cerrar Editor' : hasBudget ? 'Editar Presupuesto' : 'Crear Presupuesto'}
@@ -259,13 +260,11 @@ export function BudgetView() {
       {loading ? (
         <DashboardSkeleton kpiCount={4} charts={1} />
       ) : !hasBudget && comparison.rows.length === 0 ? (
-        <div className="text-center py-12">
-          <Target size={40} strokeWidth={1} className="mx-auto text-smoke mb-3" />
-          <p className="text-body text-mid-gray mb-1">No hay presupuesto configurado</p>
-          <p className="text-caption text-mid-gray/70">
-            Usa el botón "Crear Presupuesto" para definir tus metas mensuales por categoría
-          </p>
-        </div>
+        <EmptyState
+          icon={Target}
+          title="No hay presupuesto configurado"
+          description={`Usa el botón "Crear Presupuesto" para definir tus metas mensuales por categoría`}
+        />
       ) : (
         <>
           {/* KPI Cards */}

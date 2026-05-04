@@ -35,22 +35,22 @@ const PAYEE_TYPE_LABELS: Record<string, string> = {
 
 const TYPE_STYLES: Record<ActionType, { bg: string; border: string; icon: string; button: string }> = {
   create: {
-    bg: 'bg-emerald-50 dark:bg-emerald-950/20',
-    border: 'border-emerald-200 dark:border-emerald-800',
-    icon: 'text-emerald-600',
-    button: 'bg-emerald-600 hover:bg-emerald-700 text-white',
+    bg: 'bg-positive-bg',
+    border: 'border-positive-text/20',
+    icon: 'text-positive-text',
+    button: 'bg-positive-text hover:opacity-90 text-white',
   },
   update: {
-    bg: 'bg-blue-50 dark:bg-blue-950/20',
-    border: 'border-blue-200 dark:border-blue-800',
-    icon: 'text-blue-600',
-    button: 'bg-blue-600 hover:bg-blue-700 text-white',
+    bg: 'bg-info-bg',
+    border: 'border-info-text/20',
+    icon: 'text-info-text',
+    button: 'bg-info-text hover:opacity-90 text-white',
   },
   delete: {
-    bg: 'bg-red-50 dark:bg-red-950/20',
-    border: 'border-red-200 dark:border-red-800',
-    icon: 'text-red-600',
-    button: 'bg-red-600 hover:bg-red-700 text-white',
+    bg: 'bg-negative-bg',
+    border: 'border-negative-text/20',
+    icon: 'text-negative-text',
+    button: 'bg-negative-text hover:opacity-90 text-white',
   },
 }
 
@@ -199,7 +199,7 @@ export function ConfirmationCard({ toolName, args, onConfirm, onCancel }: Confir
         </div>
         <span className="text-sm font-semibold text-dark-graphite">{config.label}</span>
         {config.type === 'delete' && (
-          <span className="flex items-center gap-1 text-xs text-red-600 font-medium">
+          <span className="flex items-center gap-1 text-caption text-negative-text font-medium">
             <AlertTriangle size={12} />
             Irreversible
           </span>

@@ -6,7 +6,7 @@ import { closingService } from '../services'
 import type { Closing } from '../types'
 
 const inputClass =
-  'w-full px-3 py-2.5 rounded-[10px] border border-input-border bg-input-bg text-body text-graphite placeholder:text-mid-gray/60 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200'
+  'w-full px-3 py-2.5 rounded-lg border border-input-border bg-input-bg text-body text-graphite placeholder:text-mid-gray/60 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200'
 const labelClass = 'block text-caption uppercase tracking-wider text-mid-gray mb-1'
 
 interface ClosingFormProps {
@@ -165,11 +165,11 @@ export function ClosingForm({ onSaved, editing, onCancelEdit }: ClosingFormProps
         </div>
 
         {/* Venta Total - highlighted result */}
-        <div className="mt-4 p-4 rounded-xl bg-emerald-50 border border-emerald-200">
-          <span className="block text-[11px] font-bold text-emerald-700 uppercase mb-1">Venta Total</span>
+        <div className="mt-4 p-4 rounded-xl bg-positive-bg">
+          <span className="block text-caption font-medium text-positive-text uppercase mb-1">Venta Total</span>
           <div className="flex items-baseline gap-1">
-            <span className="text-emerald-800 text-subheading font-semibold">$</span>
-            <span className="text-emerald-900 text-kpi font-semibold tracking-tight">{ventaTotal.toLocaleString('es-CO')}</span>
+            <span className="text-positive-text text-subheading font-semibold">$</span>
+            <span className="text-positive-text text-kpi font-semibold tracking-tight">{ventaTotal.toLocaleString('es-CO')}</span>
           </div>
         </div>
       </div>
@@ -200,7 +200,7 @@ export function ClosingForm({ onSaved, editing, onCancelEdit }: ClosingFormProps
           <button
             type="submit"
             disabled={submitting}
-            className="w-full sm:w-auto px-5 py-3 sm:py-2.5 rounded-xl btn-primary text-body font-bold transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
+            className="w-full sm:w-auto px-5 py-3 sm:py-2.5 rounded-xl btn-primary text-body font-bold transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {submitting ? 'Guardando...' : editing ? 'Actualizar Cierre' : 'Guardar Cierre'}
           </button>

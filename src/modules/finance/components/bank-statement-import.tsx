@@ -398,7 +398,7 @@ export function BankStatementImport({ open, onClose, onImported }: Props) {
                 <button
                   type="button"
                   onClick={handleCancel}
-                  className="px-5 py-2.5 rounded-[10px] border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
+                  className="px-5 py-2.5 rounded-lg border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
                 >
                   Cancelar
                 </button>
@@ -406,7 +406,7 @@ export function BankStatementImport({ open, onClose, onImported }: Props) {
                   <button
                     onClick={handleMappingConfirm}
                     disabled={!mapping.date || !mapping.description || (!mapping.amount && !mapping.debit && !mapping.credit)}
-                    className="flex items-center gap-1.5 px-5 py-2.5 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="flex items-center gap-1.5 px-5 py-2.5 rounded-lg btn-primary text-body font-medium transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     Vista Previa <ChevronRight size={14} />
                   </button>
@@ -415,7 +415,7 @@ export function BankStatementImport({ open, onClose, onImported }: Props) {
                   <button
                     onClick={handleImport}
                     disabled={saving || entries.length === 0}
-                    className="flex items-center gap-1.5 px-5 py-2.5 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="flex items-center gap-1.5 px-5 py-2.5 rounded-lg btn-primary text-body font-medium transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     <FileUp size={14} strokeWidth={1.5} />
                     {saving ? 'Importando...' : `Importar y Conciliar (${entries.length} mov.)`}

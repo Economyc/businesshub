@@ -88,7 +88,7 @@ export function SettingsTeamMembers() {
         <div className="flex justify-end mb-4">
           <button
             onClick={() => setInviteOpen(true)}
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md"
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg btn-primary text-body font-medium transition-all duration-200"
           >
             <Plus size={14} strokeWidth={2} />
             Invitar miembro

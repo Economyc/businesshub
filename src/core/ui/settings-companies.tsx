@@ -10,7 +10,7 @@ import { CompanyLogo } from '@/core/ui/company-logo'
 import { LogoPicker } from '@/core/ui/logo-picker'
 
 const inputClass =
-  'w-full px-3 py-2.5 rounded-[10px] border border-input-border bg-input-bg text-body text-graphite placeholder:text-mid-gray/60 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200'
+  'w-full px-3 py-2.5 rounded-lg border border-input-border bg-input-bg text-body text-graphite placeholder:text-mid-gray/60 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200'
 const labelClass = 'block text-caption uppercase tracking-wider text-mid-gray mb-1'
 
 interface CompanyForm {
@@ -205,7 +205,7 @@ export function SettingsCompanies() {
                             <label className={labelClass}>Color</label>
                             <div className="flex items-center gap-2.5">
                               <label
-                                className="w-10 h-10 rounded-[10px] border border-input-border cursor-pointer shrink-0 transition-all hover:border-border-hover hover:shadow-sm"
+                                className="w-10 h-10 rounded-lg border border-input-border cursor-pointer shrink-0 transition-all hover:border-border-hover hover:shadow-sm"
                                 style={{ backgroundColor: form.color || '#2D2D2D' }}
                               >
                                 <input
@@ -249,7 +249,7 @@ export function SettingsCompanies() {
                             <button
                               type="button"
                               onClick={() => { setExpandedId(null); setForm(null); setConfirmDelete(false) }}
-                              className="px-4 py-2 rounded-[10px] text-body font-medium text-mid-gray hover:text-graphite hover:bg-bone transition-colors"
+                              className="px-4 py-2 rounded-lg text-body font-medium text-mid-gray hover:text-graphite hover:bg-bone transition-colors"
                             >
                               Cancelar
                             </button>
@@ -258,10 +258,10 @@ export function SettingsCompanies() {
                               onClick={handleSave}
                               disabled={!form.name.trim()}
                               className={cn(
-                                'px-4 py-2 rounded-[10px] text-body font-medium transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-1.5',
+                                'px-4 py-2 rounded-lg text-body font-medium transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-1.5',
                                 savedId === form.id
                                   ? 'bg-emerald-500 text-white scale-[1.02]'
-                                  : 'btn-primary hover:-translate-y-px hover:shadow-md'
+                                  : 'btn-primary'
                               )}
                             >
                               {savedId === form.id ? (

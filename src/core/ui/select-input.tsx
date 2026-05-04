@@ -51,7 +51,7 @@ export function SelectInput({ value, onChange, options, placeholder = 'Seleccion
         type="button"
         onClick={() => setOpen(!open)}
         className={cn(
-          'flex items-center justify-between gap-2 w-full px-3 py-2.5 rounded-[10px] border bg-input-bg text-body transition-all duration-200 cursor-pointer',
+          'flex items-center justify-between gap-2 w-full px-3 py-2.5 rounded-lg border bg-input-bg text-body transition-all duration-200 cursor-pointer',
           open
             ? 'border-input-focus ring-[3px] ring-graphite/5'
             : 'border-input-border hover:border-border-hover'

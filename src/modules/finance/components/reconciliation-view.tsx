@@ -57,7 +57,7 @@ export function ReconciliationView() {
       <PageHeader title="Conciliacion Bancaria">
         <button
           onClick={() => setShowImport(true)}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md"
+          className="flex items-center gap-1.5 px-4 py-2 rounded-lg btn-primary text-body font-medium transition-all duration-200"
         >
           <Plus size={15} strokeWidth={2} />
           Importar Extracto
@@ -111,7 +111,7 @@ export function ReconciliationView() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-body font-medium text-dark-graphite truncate">{stmt.fileName}</span>
-                    <span className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium border ${RECONCILIATION_STATUS_COLORS[stmt.status]}`}>
+                    <span className={`inline-flex px-2 py-0.5 rounded-full text-caption font-medium ${RECONCILIATION_STATUS_COLORS[stmt.status]}`}>
                       {RECONCILIATION_STATUS_LABELS[stmt.status]}
                     </span>
                   </div>

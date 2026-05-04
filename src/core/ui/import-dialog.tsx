@@ -159,31 +159,31 @@ export function ImportDialog<T>({ open, onClose, title, fields, filenameBase, on
 
                   {/* Summary cards */}
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-emerald-50 rounded-lg p-3">
-                      <div className="text-caption text-emerald-700">Filas validas</div>
-                      <div className="text-body font-semibold text-emerald-800">{validRows.length}</div>
+                    <div className="bg-positive-bg rounded-lg p-3">
+                      <div className="text-caption text-positive-text">Filas validas</div>
+                      <div className="text-body font-semibold text-positive-text">{validRows.length}</div>
                     </div>
                     {errors.length > 0 && (
-                      <div className="bg-amber-50 rounded-lg p-3">
-                        <div className="text-caption text-amber-700">Errores</div>
-                        <div className="text-body font-semibold text-amber-800">{errors.length}</div>
+                      <div className="bg-warning-bg rounded-lg p-3">
+                        <div className="text-caption text-warning-text">Errores</div>
+                        <div className="text-body font-semibold text-warning-text">{errors.length}</div>
                       </div>
                     )}
                   </div>
 
                   {/* Errors panel */}
                   {errors.length > 0 && (
-                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                    <div className="bg-warning-bg rounded-xl p-3">
                       <button
                         onClick={() => setShowErrors(!showErrors)}
-                        className="flex items-center gap-1.5 text-body text-amber-800 font-medium w-full"
+                        className="flex items-center gap-1.5 text-body text-warning-text font-medium w-full"
                       >
                         <AlertTriangle size={14} />
                         {errors.length} errores encontrados (filas omitidas)
                         <ChevronRight size={14} className={`ml-auto transition-transform ${showErrors ? 'rotate-90' : ''}`} />
                       </button>
                       {showErrors && (
-                        <div className="mt-2 text-caption text-amber-700 space-y-0.5 max-h-32 overflow-y-auto">
+                        <div className="mt-2 text-caption text-warning-text space-y-0.5 max-h-32 overflow-y-auto">
                           {errors.slice(0, 20).map((err, i) => (
                             <div key={i}>
                               {err.row > 0 ? `Fila ${err.row}: ` : ''}{err.message}
@@ -235,16 +235,16 @@ export function ImportDialog<T>({ open, onClose, title, fields, filenameBase, on
               {step === 'result' && result && (
                 <div className="text-center py-8 space-y-3">
                   {result.success > 0 ? (
-                    <CheckCircle2 size={40} strokeWidth={1.5} className="mx-auto text-emerald-500" />
+                    <CheckCircle2 size={24} strokeWidth={1.5} className="mx-auto text-positive-text" />
                   ) : (
-                    <AlertTriangle size={40} strokeWidth={1.5} className="mx-auto text-amber-500" />
+                    <AlertTriangle size={24} strokeWidth={1.5} className="mx-auto text-warning-text" />
                   )}
                   <p className="text-subheading font-semibold text-dark-graphite">
                     {result.success > 0 ? 'Importacion completada' : 'Error en la importacion'}
                   </p>
                   <div className="text-body text-graphite space-y-1">
                     {result.success > 0 && <p>{result.success} registros importados correctamente</p>}
-                    {result.failed > 0 && <p className="text-amber-600">{result.failed} registros fallaron al guardar</p>}
+                    {result.failed > 0 && <p className="text-warning-text">{result.failed} registros fallaron al guardar</p>}
                   </div>
                 </div>
               )}
@@ -264,7 +264,7 @@ export function ImportDialog<T>({ open, onClose, title, fields, filenameBase, on
                 {step !== 'result' && (
                   <button
                     onClick={onClose}
-                    className="px-5 py-2.5 rounded-[10px] border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
+                    className="px-5 py-2.5 rounded-lg border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
                   >
                     Cancelar
                   </button>
@@ -273,7 +273,7 @@ export function ImportDialog<T>({ open, onClose, title, fields, filenameBase, on
                   <button
                     onClick={handleImport}
                     disabled={importing}
-                    className="flex items-center gap-1.5 px-5 py-2.5 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="flex items-center gap-1.5 px-5 py-2.5 rounded-lg btn-primary text-body font-medium transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     <FileUp size={14} strokeWidth={1.5} />
                     {importing ? 'Importando...' : `Importar ${validRows.length} registros`}
@@ -282,7 +282,7 @@ export function ImportDialog<T>({ open, onClose, title, fields, filenameBase, on
                 {step === 'result' && (
                   <button
                     onClick={onClose}
-                    className="px-5 py-2.5 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md"
+                    className="px-5 py-2.5 rounded-lg btn-primary text-body font-medium transition-all duration-200"
                   >
                     Cerrar
                   </button>

@@ -141,7 +141,7 @@ export function DateInput({ value, onChange, required, className }: DateInputPro
         type="button"
         onClick={() => setOpen(!open)}
         className={cn(
-          'flex items-center gap-2 w-full px-3 py-2.5 rounded-[10px] border bg-input-bg text-body transition-all duration-200 cursor-pointer',
+          'flex items-center gap-2 w-full px-3 py-2.5 rounded-lg border bg-input-bg text-body transition-all duration-200 cursor-pointer',
           open
             ? 'border-input-focus ring-[3px] ring-graphite/5'
             : 'border-input-border hover:border-border-hover'

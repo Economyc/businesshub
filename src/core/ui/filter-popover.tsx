@@ -12,7 +12,7 @@ export function FilterPopover({ activeCount, onClear, children }: FilterPopoverP
   return (
     <Popover>
       <PopoverTrigger
-        className="flex items-center gap-1.5 px-3 py-2.5 rounded-[10px] border border-input-border bg-input-bg text-body text-graphite transition-all duration-200 hover:bg-bone cursor-pointer"
+        className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg border border-input-border bg-input-bg text-body text-graphite transition-all duration-200 hover:bg-bone cursor-pointer"
       >
         <SlidersHorizontal size={15} strokeWidth={1.5} />
         <span>Filtros</span>
