@@ -1,6 +1,7 @@
 import { cn } from '@/lib/utils'
 
 type BadgeVariant = 'active' | 'pending' | 'expired' | 'overdue' | 'inactive' | 'info' | 'paid'
+type BadgeSize = 'sm' | 'md'
 
 const VARIANT_STYLES: Record<BadgeVariant, string> = {
   active: 'bg-positive-bg text-positive-text',
@@ -10,6 +11,11 @@ const VARIANT_STYLES: Record<BadgeVariant, string> = {
   overdue: 'bg-negative-bg text-negative-text',
   inactive: 'bg-smoke text-mid-gray',
   info: 'bg-info-bg text-info-text',
+}
+
+const SIZE_STYLES: Record<BadgeSize, string> = {
+  sm: 'px-2 py-0.5 text-[11px]',
+  md: 'px-2.5 py-0.5 text-caption',
 }
 
 const LABELS: Record<BadgeVariant, string> = {
@@ -25,11 +31,12 @@ const LABELS: Record<BadgeVariant, string> = {
 interface StatusBadgeProps {
   variant: BadgeVariant
   label?: string
+  size?: BadgeSize
 }
 
-export function StatusBadge({ variant, label }: StatusBadgeProps) {
+export function StatusBadge({ variant, label, size = 'md' }: StatusBadgeProps) {
   return (
-    <span className={cn('inline-block px-2.5 py-0.5 rounded-md text-caption font-medium', VARIANT_STYLES[variant])}>
+    <span className={cn('inline-block rounded-md font-medium', SIZE_STYLES[size], VARIANT_STYLES[variant])}>
       {label ?? LABELS[variant]}
     </span>
   )
