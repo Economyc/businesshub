@@ -431,6 +431,7 @@ export function TransactionList() {
                 )
               })}
             </div>
+            <div aria-hidden className="h-3.5" />
           </div>
           <LoadMoreButton
             onClick={loadMore}
