@@ -160,6 +160,9 @@ export declare function createMutationTools(): {
         date: z.ZodString;
         status: z.ZodDefault<z.ZodOptional<z.ZodEnum<["paid", "pending"]>>>;
         notes: z.ZodOptional<z.ZodString>;
+        payeeType: z.ZodOptional<z.ZodEnum<["partner", "employee", "supplier", "external"]>>;
+        payeeName: z.ZodOptional<z.ZodString>;
+        targetCompanyName: z.ZodOptional<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
         status: "pending" | "paid";
         type: "income" | "expense";
@@ -168,6 +171,9 @@ export declare function createMutationTools(): {
         concept: string;
         amount: number;
         notes?: string | undefined;
+        payeeType?: "partner" | "employee" | "supplier" | "external" | undefined;
+        payeeName?: string | undefined;
+        targetCompanyName?: string | undefined;
     }, {
         type: "income" | "expense";
         date: string;
@@ -175,6 +181,62 @@ export declare function createMutationTools(): {
         concept: string;
         amount: number;
         status?: "pending" | "paid" | undefined;
+        notes?: string | undefined;
+        payeeType?: "partner" | "employee" | "supplier" | "external" | undefined;
+        payeeName?: string | undefined;
+        targetCompanyName?: string | undefined;
+    }>, unknown> & {
+        execute: undefined;
+    };
+    createSplitExpense: import("ai").Tool<z.ZodObject<{
+        concept: z.ZodString;
+        category: z.ZodString;
+        totalAmount: z.ZodNumber;
+        date: z.ZodString;
+        payeeType: z.ZodEnum<["partner", "employee", "supplier", "external"]>;
+        payeeName: z.ZodString;
+        splits: z.ZodArray<z.ZodObject<{
+            companyName: z.ZodString;
+            amount: z.ZodOptional<z.ZodNumber>;
+            percentage: z.ZodOptional<z.ZodNumber>;
+        }, "strip", z.ZodTypeAny, {
+            companyName: string;
+            amount?: number | undefined;
+            percentage?: number | undefined;
+        }, {
+            companyName: string;
+            amount?: number | undefined;
+            percentage?: number | undefined;
+        }>, "many">;
+        splitMode: z.ZodEnum<["equal", "amounts", "percentages"]>;
+        notes: z.ZodOptional<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        date: string;
+        category: string;
+        concept: string;
+        totalAmount: number;
+        payeeType: "partner" | "employee" | "supplier" | "external";
+        payeeName: string;
+        splits: {
+            companyName: string;
+            amount?: number | undefined;
+            percentage?: number | undefined;
+        }[];
+        splitMode: "equal" | "amounts" | "percentages";
+        notes?: string | undefined;
+    }, {
+        date: string;
+        category: string;
+        concept: string;
+        totalAmount: number;
+        payeeType: "partner" | "employee" | "supplier" | "external";
+        payeeName: string;
+        splits: {
+            companyName: string;
+            amount?: number | undefined;
+            percentage?: number | undefined;
+        }[];
+        splitMode: "equal" | "amounts" | "percentages";
         notes?: string | undefined;
     }>, unknown> & {
         execute: undefined;

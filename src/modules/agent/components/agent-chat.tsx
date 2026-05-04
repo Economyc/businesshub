@@ -21,6 +21,7 @@ const TOOL_COLLECTIONS: Record<string, string> = {
   updateSupplier: 'suppliers',
   deleteSupplier: 'suppliers',
   createTransaction: 'transactions',
+  createSplitExpense: 'transactions',
   updateBudget: 'settings',
   addBudgetItem: 'settings',
 }
@@ -47,7 +48,7 @@ function generateTitle(messages: UIMessage[]): string {
 }
 
 export function AgentChat({ initialMessages, conversationId, onConversationSaved }: AgentChatProps) {
-  const { selectedCompany } = useCompany()
+  const { selectedCompany, companies } = useCompany()
   const conversationIdRef = useRef(conversationId)
   const isSavingRef = useRef(false)
 
@@ -99,6 +100,12 @@ export function AgentChat({ initialMessages, conversationId, onConversationSaved
     maxSteps: 5,
     body: {
       companyId: selectedCompany?.id,
+      companies: companies.map((c) => ({
+        id: c.id,
+        name: c.name,
+        location: c.location ?? null,
+        slug: c.slug ?? null,
+      })),
     },
     onFinish: handleAutoSave,
     onToolCall: async ({ toolCall }) => {
@@ -171,11 +178,14 @@ export function AgentChat({ initialMessages, conversationId, onConversationSaved
     if (!selectedCompany) return
 
     try {
-      const result = await executeMutation(selectedCompany.id, toolName, args)
+      const result = await executeMutation(selectedCompany.id, toolName, args, { companies })
 
       const collection = TOOL_COLLECTIONS[toolName]
       if (collection) {
-        invalidateCollection(selectedCompany.id, collection)
+        const targetIds = result.affectedCompanyIds ?? [selectedCompany.id]
+        for (const cid of targetIds) {
+          invalidateCollection(cid, collection)
+        }
       }
 
       addToolResult({ toolCallId, result })
@@ -186,7 +196,7 @@ export function AgentChat({ initialMessages, conversationId, onConversationSaved
         result: { success: false, message: `Error: ${message}` },
       })
     }
-  }, [selectedCompany, addToolResult])
+  }, [selectedCompany, companies, addToolResult])
 
   const handleToolCancel = useCallback((toolCallId: string) => {
     addToolResult({

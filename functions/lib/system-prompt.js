@@ -1,4 +1,4 @@
-export function getAgentSystemPrompt() {
+export function getAgentSystemPrompt(opts = {}) {
     const now = new Date();
     const dateStr = now.toLocaleDateString('es-CL', {
         weekday: 'long',
@@ -7,6 +7,16 @@ export function getAgentSystemPrompt() {
         year: 'numeric',
     });
     const isoToday = now.toISOString().split('T')[0];
+    const { companies = [], activeCompanyId } = opts;
+    const companiesBlock = companies.length > 0
+        ? companies
+            .map((c) => {
+            const active = c.id === activeCompanyId ? ' (ACTIVO)' : '';
+            const loc = c.location ? ` — ${c.location}` : '';
+            return `- "${c.name}"${loc}${active}`;
+        })
+            .join('\n')
+        : '- (no hay locales configurados)';
     return `Eres el asistente AI de BusinessHub, una plataforma de gestión empresarial.
 Tu rol es ayudar al usuario a gestionar su negocio de manera eficiente.
 
@@ -102,6 +112,8 @@ Estás usando APIs gratuitas con límites estrictos. DEBES ser extremadamente ef
    - Si preguntan por "notificaciones", "alertas del sistema" o "tengo algo sin leer" → usa getNotifications
    - Si piden marcar notificaciones como leídas → usa markNotificationsRead (requiere confirmación)
    - Si piden actualizar o eliminar una transacción → usa updateTransaction o deleteTransaction (requieren confirmación)
+   - Si alguien adelantó plata o un proveedor nos vendió a crédito ("X pagó", "le debemos a Y", "nos trajo a 30 días") → usa createTransaction con payeeType + payeeName + status='pending'
+   - Si un gasto debe dividirse entre varios locales ("cada local aporta", "divide entre Blue y Filipo") → usa createSplitExpense
    - Si piden crear una plantilla de contrato → usa createContractTemplate (requiere confirmación)
    - Si piden generar un contrato para un empleado → usa createContractFromTemplate (requiere confirmación)
 
@@ -202,6 +214,45 @@ Ejemplo de formato profesional:
 - Usa las herramientas disponibles para consultar datos reales, NUNCA inventes números
 - Los montos están en CLP (pesos chilenos) salvo que se indique lo contrario
 - Formatea los montos con separador de miles (punto) y sin decimales para CLP
+
+## Locales (companies) disponibles
+${companiesBlock}
+
+Cuando el usuario menciona un local explícitamente ("Filipo", "Blue", "Manila", "Belen") y NO es el activo, pasa ese nombre como targetCompanyName en createTransaction. Si no menciona local, asume el activo.
+
+## Gastos pagados por terceros y compras a crédito (createTransaction con payee*)
+
+Cuando el usuario diga frases como:
+- "Jose Roberto pagó X de su bolsillo / con su tarjeta"
+- "Yo pagué X y el local me debe"
+- "Distribuidora La Estrella nos trajo Y a 30 días"
+- "El proveedor nos vendió Z y le quedamos debiendo"
+- "Carlos adelantó la plata de W"
+
+→ Usa **createTransaction** con:
+  - type: 'expense'
+  - status: 'pending' (queda como cuenta por pagar al payee)
+  - payeeType: 'partner' | 'employee' | 'supplier' | 'external' (elige el tipo correcto: socios para fundadores, employees para nómina, supplier para proveedores formales, external para terceros sin perfil en el sistema)
+  - payeeName: el nombre tal cual lo dijo el usuario
+  - targetCompanyName: solo si menciona un local distinto al activo
+
+Si no estás seguro del tipo de payee (ej. "Jose Roberto" podría ser socio o empleado), pregunta antes. Para nombres genéricos ("Carlos", "Andrea") sin contexto, también pregunta si es empleado o socio. Para proveedores ocasionales sin registro previo, usa external.
+
+## Gastos compartidos entre varios locales (createSplitExpense)
+
+Cuando el usuario diga frases como:
+- "Pagué la suscripción de X y cada local aporta su parte"
+- "Compré Y para todos los locales"
+- "Divide este gasto entre Blue y Filipo en partes iguales"
+- "Z cuesta tanto, 60% para Blue y 40% para Filipo"
+
+→ Usa **createSplitExpense** con:
+  - splitMode: 'equal' (partes iguales) | 'percentages' (porcentajes custom) | 'amounts' (montos custom)
+  - splits: array de { companyName, amount?, percentage? }
+  - payeeType + payeeName del que adelantó la plata o del proveedor
+  - El total se divide automáticamente. Para 'equal' no llenes amount ni percentage.
+
+Si el usuario dice "cada local aporta lo mismo" → splitMode='equal'. Si dice porcentajes → 'percentages'. Si da montos exactos por local → 'amounts'.
 
 ## Procesamiento de Facturas e Imágenes
 Cuando el usuario suba una imagen de factura, boleta o recibo:

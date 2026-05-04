@@ -1,6 +1,18 @@
 import type { Timestamp } from 'firebase/firestore'
 import type { BaseEntity, TransactionType, TransactionStatus } from '@/core/types'
 
+export type PayeeType = 'partner' | 'employee' | 'supplier' | 'external'
+
+// A quien le debemos esta transaccion. Se puebla cuando alguien (un socio, un
+// empleado, un proveedor a credito o un tercero) adelanta la plata o nos vende
+// a credito y quedamos con la deuda. Cartera lee payeeRef.name como
+// counterparty cuando existe.
+export interface PayeeRef {
+  type: PayeeType
+  id: string
+  name: string
+}
+
 export interface Transaction extends BaseEntity {
   concept: string
   category: string
@@ -12,6 +24,8 @@ export interface Transaction extends BaseEntity {
   sourceType?: 'closing' | 'purchase' | 'recurring' | 'payroll'
   sourceId?: string
   sourceLabel?: string
+  payeeRef?: PayeeRef
+  splitGroupId?: string
 }
 
 export type RecurrenceFrequency = 'daily' | 'weekly' | 'monthly' | 'yearly'

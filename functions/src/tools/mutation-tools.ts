@@ -83,15 +83,79 @@ export function createMutationTools() {
     }),
 
     createTransaction: tool({
-      description: 'Crea una nueva transacción financiera (ingreso o gasto). Requiere confirmación del usuario.',
+      description:
+        'Crea una nueva transacción financiera (ingreso o gasto). Requiere confirmación del usuario. ' +
+        'Usa los campos payee* cuando alguien adelantó la plata o nos vendió a crédito y ' +
+        'queda una deuda pendiente: en ese caso status debe ser "pending" y la transacción ' +
+        'aparecerá en cartera como cuenta por pagar al payee. ' +
+        'Usa targetCompanyName para escribir en otro local distinto al activo (ej: estás en Blue ' +
+        'pero el gasto fue de Filipo).',
       parameters: z.object({
         concept: z.string().describe('Concepto o descripción de la transacción'),
         category: z.string().describe('Categoría de la transacción'),
         amount: z.number().describe('Monto de la transacción'),
         type: z.enum(['income', 'expense']).describe('Tipo: income (ingreso) o expense (gasto)'),
         date: z.string().describe('Fecha de la transacción (YYYY-MM-DD)'),
-        status: z.enum(['paid', 'pending']).optional().default('paid').describe('Estado: paid o pending'),
+        status: z.enum(['paid', 'pending']).optional().default('paid').describe('Estado: paid o pending. Usar pending cuando hay payee.'),
         notes: z.string().optional().describe('Notas adicionales'),
+        payeeType: z
+          .enum(['partner', 'employee', 'supplier', 'external'])
+          .optional()
+          .describe(
+            'Tipo de tercero a quien le debemos esta transacción. partner=socio, ' +
+              'employee=empleado, supplier=proveedor a crédito, external=tercero sin perfil.',
+          ),
+        payeeName: z
+          .string()
+          .optional()
+          .describe('Nombre del tercero a quien le debemos. Requerido si payeeType está definido.'),
+        targetCompanyName: z
+          .string()
+          .optional()
+          .describe(
+            'Nombre, slug o location del local donde registrar la transacción. ' +
+              'Si se omite, usa el local activo. Útil cuando el usuario menciona explícitamente otro local.',
+          ),
+      }),
+    }),
+
+    createSplitExpense: tool({
+      description:
+        'Crea un gasto compartido entre varios locales (companies). Genera N transacciones, ' +
+        'una por cada local, con el mismo payee. Todas quedan en estado pending para que ' +
+        'aparezcan como cuentas por pagar al payee. Útil para gastos como suscripciones, ' +
+        'compras conjuntas, servicios compartidos, etc. Requiere confirmación del usuario.',
+      parameters: z.object({
+        concept: z.string().describe('Concepto del gasto compartido'),
+        category: z.string().describe('Categoría del gasto'),
+        totalAmount: z.number().describe('Monto total del gasto antes de dividir'),
+        date: z.string().describe('Fecha (YYYY-MM-DD)'),
+        payeeType: z
+          .enum(['partner', 'employee', 'supplier', 'external'])
+          .describe('Tipo de tercero a quien le debemos'),
+        payeeName: z.string().describe('Nombre del tercero a quien le debemos'),
+        splits: z
+          .array(
+            z.object({
+              companyName: z
+                .string()
+                .describe('Nombre, slug o location del local'),
+              amount: z
+                .number()
+                .optional()
+                .describe('Monto custom para este local. Omitir para split automático.'),
+              percentage: z
+                .number()
+                .optional()
+                .describe('Porcentaje (0-100) para este local. Omitir para split automático.'),
+            }),
+          )
+          .min(2)
+          .describe('Lista de locales que comparten el gasto. Mínimo 2.'),
+        splitMode: z
+          .enum(['equal', 'amounts', 'percentages'])
+          .describe('equal=partes iguales, amounts=montos custom, percentages=porcentajes custom'),
+        notes: z.string().optional().describe('Notas adicionales (se aplican a todas las transacciones)'),
       }),
     }),
 

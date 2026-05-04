@@ -2032,6 +2032,9 @@ export declare function createAgentTools(companyId: string): {
         date: import("zod").ZodString;
         status: import("zod").ZodDefault<import("zod").ZodOptional<import("zod").ZodEnum<["paid", "pending"]>>>;
         notes: import("zod").ZodOptional<import("zod").ZodString>;
+        payeeType: import("zod").ZodOptional<import("zod").ZodEnum<["partner", "employee", "supplier", "external"]>>;
+        payeeName: import("zod").ZodOptional<import("zod").ZodString>;
+        targetCompanyName: import("zod").ZodOptional<import("zod").ZodString>;
     }, "strip", import("zod").ZodTypeAny, {
         status: "pending" | "paid";
         type: "income" | "expense";
@@ -2040,6 +2043,9 @@ export declare function createAgentTools(companyId: string): {
         concept: string;
         amount: number;
         notes?: string | undefined;
+        payeeType?: "partner" | "employee" | "supplier" | "external" | undefined;
+        payeeName?: string | undefined;
+        targetCompanyName?: string | undefined;
     }, {
         type: "income" | "expense";
         date: string;
@@ -2047,6 +2053,62 @@ export declare function createAgentTools(companyId: string): {
         concept: string;
         amount: number;
         status?: "pending" | "paid" | undefined;
+        notes?: string | undefined;
+        payeeType?: "partner" | "employee" | "supplier" | "external" | undefined;
+        payeeName?: string | undefined;
+        targetCompanyName?: string | undefined;
+    }>, unknown> & {
+        execute: undefined;
+    };
+    createSplitExpense: import("ai").Tool<import("zod").ZodObject<{
+        concept: import("zod").ZodString;
+        category: import("zod").ZodString;
+        totalAmount: import("zod").ZodNumber;
+        date: import("zod").ZodString;
+        payeeType: import("zod").ZodEnum<["partner", "employee", "supplier", "external"]>;
+        payeeName: import("zod").ZodString;
+        splits: import("zod").ZodArray<import("zod").ZodObject<{
+            companyName: import("zod").ZodString;
+            amount: import("zod").ZodOptional<import("zod").ZodNumber>;
+            percentage: import("zod").ZodOptional<import("zod").ZodNumber>;
+        }, "strip", import("zod").ZodTypeAny, {
+            companyName: string;
+            amount?: number | undefined;
+            percentage?: number | undefined;
+        }, {
+            companyName: string;
+            amount?: number | undefined;
+            percentage?: number | undefined;
+        }>, "many">;
+        splitMode: import("zod").ZodEnum<["equal", "amounts", "percentages"]>;
+        notes: import("zod").ZodOptional<import("zod").ZodString>;
+    }, "strip", import("zod").ZodTypeAny, {
+        date: string;
+        category: string;
+        concept: string;
+        totalAmount: number;
+        payeeType: "partner" | "employee" | "supplier" | "external";
+        payeeName: string;
+        splits: {
+            companyName: string;
+            amount?: number | undefined;
+            percentage?: number | undefined;
+        }[];
+        splitMode: "equal" | "amounts" | "percentages";
+        notes?: string | undefined;
+    }, {
+        date: string;
+        category: string;
+        concept: string;
+        totalAmount: number;
+        payeeType: "partner" | "employee" | "supplier" | "external";
+        payeeName: string;
+        splits: {
+            companyName: string;
+            amount?: number | undefined;
+            percentage?: number | undefined;
+        }[];
+        splitMode: "equal" | "amounts" | "percentages";
         notes?: string | undefined;
     }>, unknown> & {
         execute: undefined;

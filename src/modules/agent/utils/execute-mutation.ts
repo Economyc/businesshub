@@ -13,22 +13,35 @@ import { notificationService } from '@/modules/notifications/services'
 import { templateService, contractService } from '@/modules/contracts/services'
 import type { EmployeeFormData } from '@/modules/talent/types'
 import type { SupplierFormData } from '@/modules/suppliers/types'
-import type { TransactionFormData } from '@/modules/finance/types'
+import type { TransactionFormData, PayeeRef, PayeeType } from '@/modules/finance/types'
 import type { ClosingFormData } from '@/modules/closings/types'
 import type { InfluencerVisitFormData, SocialNetwork, SocialPlatform } from '@/modules/marketing/influencers/types'
 import type { NotificationFormData, NotificationType } from '@/modules/notifications/types'
 import type { ContractFormData, ContractTemplate, ContractTemplateFormData } from '@/modules/contracts/types'
-import type { ContractStatus, ContractType } from '@/core/types'
+import type { ContractStatus, ContractType, Company } from '@/core/types'
+import { resolvePayeeOnCompany, resolveCompany } from './resolve-payee'
 
 function toTimestamp(dateStr: string): Timestamp {
   return Timestamp.fromDate(new Date(dateStr))
+}
+
+export interface MutationContext {
+  companies: Company[]
+}
+
+export interface MutationResult {
+  success: boolean
+  message: string
+  id?: string
+  affectedCompanyIds?: string[]
 }
 
 export async function executeMutation(
   companyId: string,
   toolName: string,
   args: Record<string, unknown>,
-): Promise<{ success: boolean; message: string; id?: string }> {
+  ctx?: MutationContext,
+): Promise<MutationResult> {
   switch (toolName) {
     case 'createEmployee': {
       const data: EmployeeFormData = {
@@ -100,17 +113,185 @@ export async function executeMutation(
     }
 
     case 'createTransaction': {
+      let targetCompanyId = companyId
+      let targetCompanyLabel: string | null = null
+      if (args.targetCompanyName && ctx?.companies) {
+        const resolved = resolveCompany(String(args.targetCompanyName), ctx.companies)
+        if (!resolved.ok) {
+          if (resolved.reason === 'ambiguous') {
+            return {
+              success: false,
+              message: `El local "${args.targetCompanyName}" es ambiguo. Coincide con: ${resolved.matches.map((c) => c.name).join(', ')}. Sé más específico.`,
+            }
+          }
+          return { success: false, message: `No encontré el local "${args.targetCompanyName}".` }
+        }
+        targetCompanyId = resolved.company.id
+        targetCompanyLabel = resolved.company.location ?? resolved.company.name
+      }
+
+      let payeeRef: PayeeRef | undefined
+      if (args.payeeType && args.payeeName) {
+        const resolution = await resolvePayeeOnCompany(
+          targetCompanyId,
+          args.payeeType as PayeeType,
+          String(args.payeeName),
+        )
+        if (!resolution.ok) {
+          if (resolution.reason === 'ambiguous') {
+            return {
+              success: false,
+              message: `Hay varios "${args.payeeName}" registrados (${resolution.matches.map((m) => m.name).join(', ')}). Sé más específico o indica el ID.`,
+            }
+          }
+          return {
+            success: false,
+            message: `No encontré "${args.payeeName}" en ${args.payeeType === 'partner' ? 'socios' : args.payeeType === 'employee' ? 'empleados' : 'proveedores'}. Crea el registro primero, o usa payeeType="external" para terceros sin perfil.`,
+          }
+        }
+        payeeRef = resolution.payee
+      }
+
       const data: TransactionFormData = {
         concept: String(args.concept),
         category: String(args.category),
         amount: Number(args.amount),
         type: args.type as 'income' | 'expense',
         date: toTimestamp(String(args.date)),
-        status: (args.status as 'paid' | 'pending') ?? 'paid',
+        status: (args.status as 'paid' | 'pending') ?? (payeeRef ? 'pending' : 'paid'),
         notes: args.notes ? String(args.notes) : undefined,
+        ...(payeeRef ? { payeeRef } : {}),
       }
-      const id = await financeService.create(companyId, data)
-      return { success: true, message: `Transacción "${data.concept}" por $${data.amount.toLocaleString('es-CL')} creada.`, id }
+      const id = await financeService.create(targetCompanyId, data)
+      const localSuffix = targetCompanyLabel ? ` en ${targetCompanyLabel}` : ''
+      const payeeSuffix = payeeRef ? ` (debemos a ${payeeRef.name})` : ''
+      return {
+        success: true,
+        message: `Transacción "${data.concept}" por $${data.amount.toLocaleString('es-CL')} creada${localSuffix}${payeeSuffix}.`,
+        id,
+        affectedCompanyIds: [targetCompanyId],
+      }
+    }
+
+    case 'createSplitExpense': {
+      if (!ctx?.companies) {
+        return { success: false, message: 'No tengo el contexto de locales disponibles.' }
+      }
+      const splits = (args.splits as Array<{ companyName: string; amount?: number; percentage?: number }>) ?? []
+      if (splits.length < 2) {
+        return { success: false, message: 'Un gasto compartido necesita al menos 2 locales.' }
+      }
+
+      const totalAmount = Number(args.totalAmount)
+      const splitMode = String(args.splitMode) as 'equal' | 'amounts' | 'percentages'
+
+      const resolvedSplits: Array<{ company: Company; amount: number }> = []
+      for (const s of splits) {
+        const r = resolveCompany(s.companyName, ctx.companies)
+        if (!r.ok) {
+          if (r.reason === 'ambiguous') {
+            return {
+              success: false,
+              message: `El local "${s.companyName}" es ambiguo (coincide con ${r.matches.map((c) => c.name).join(', ')}).`,
+            }
+          }
+          return { success: false, message: `No encontré el local "${s.companyName}".` }
+        }
+        resolvedSplits.push({ company: r.company, amount: 0 })
+      }
+
+      if (splitMode === 'equal') {
+        const each = Math.round(totalAmount / resolvedSplits.length)
+        let assigned = 0
+        resolvedSplits.forEach((rs, i) => {
+          rs.amount = i === resolvedSplits.length - 1 ? totalAmount - assigned : each
+          assigned += rs.amount
+        })
+      } else if (splitMode === 'amounts') {
+        let sum = 0
+        resolvedSplits.forEach((rs, i) => {
+          const a = Number(splits[i].amount)
+          if (!Number.isFinite(a) || a <= 0) {
+            throw new Error(`Monto inválido para "${rs.company.name}".`)
+          }
+          rs.amount = a
+          sum += a
+        })
+        if (Math.abs(sum - totalAmount) > 1) {
+          return {
+            success: false,
+            message: `Los montos suman $${sum.toLocaleString('es-CL')} pero el total declarado es $${totalAmount.toLocaleString('es-CL')}. Ajusta los splits.`,
+          }
+        }
+      } else {
+        let sumPct = 0
+        let assigned = 0
+        resolvedSplits.forEach((rs, i) => {
+          const p = Number(splits[i].percentage)
+          if (!Number.isFinite(p) || p <= 0) {
+            throw new Error(`Porcentaje inválido para "${rs.company.name}".`)
+          }
+          sumPct += p
+          rs.amount = i === resolvedSplits.length - 1
+            ? totalAmount - assigned
+            : Math.round((totalAmount * p) / 100)
+          assigned += rs.amount
+        })
+        if (Math.abs(sumPct - 100) > 0.5) {
+          return { success: false, message: `Los porcentajes suman ${sumPct}% — deben sumar 100%.` }
+        }
+      }
+
+      const payeeType = args.payeeType as PayeeType
+      const payeeName = String(args.payeeName)
+      // Resolvemos el payee contra la company activa (el id es el mismo en
+      // todas las companies para suppliers/partners/employees compartidos? No,
+      // las colecciones son por company. Asumimos que cada company tiene su
+      // copia y resolvemos por company. Para 'external' es trivial.)
+      const dateTs = toTimestamp(String(args.date))
+      const splitGroupId = `split-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+      const notes = args.notes ? String(args.notes) : undefined
+      const concept = String(args.concept)
+      const category = String(args.category)
+      const affectedIds: string[] = []
+
+      for (const rs of resolvedSplits) {
+        const resolution = await resolvePayeeOnCompany(rs.company.id, payeeType, payeeName)
+        let payeeRef: PayeeRef
+        if (resolution.ok) {
+          payeeRef = resolution.payee
+        } else if (payeeType === 'external') {
+          payeeRef = { type: 'external', id: 'external', name: payeeName }
+        } else {
+          return {
+            success: false,
+            message: `No encontré "${payeeName}" en ${payeeType === 'partner' ? 'socios' : payeeType === 'employee' ? 'empleados' : 'proveedores'} de ${rs.company.name}. Crea el registro primero o usa payeeType="external".`,
+          }
+        }
+
+        const data: TransactionFormData = {
+          concept,
+          category,
+          amount: rs.amount,
+          type: 'expense',
+          date: dateTs,
+          status: 'pending',
+          notes,
+          payeeRef,
+          splitGroupId,
+        }
+        await financeService.create(rs.company.id, data)
+        affectedIds.push(rs.company.id)
+      }
+
+      const summary = resolvedSplits
+        .map((rs) => `${rs.company.location ?? rs.company.name} $${rs.amount.toLocaleString('es-CL')}`)
+        .join(', ')
+      return {
+        success: true,
+        message: `Gasto "${concept}" por $${totalAmount.toLocaleString('es-CL')} dividido entre ${resolvedSplits.length} locales (${summary}). Cada local le debe su parte a ${payeeName}.`,
+        affectedCompanyIds: affectedIds,
+      }
     }
 
     case 'updateTransaction': {

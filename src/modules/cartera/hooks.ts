@@ -125,7 +125,41 @@ export function useCarteraItems() {
           type: 'receivable' as const,
           sourceType: 'transaction' as const,
           concept: t.concept,
-          counterparty: t.sourceLabel ?? t.category,
+          counterparty: t.payeeRef?.name ?? t.sourceLabel ?? t.category,
+          originalAmount: t.amount,
+          paidAmount,
+          commissionAmount,
+          balance,
+          date: t.date,
+          status: computeStatus(balance, t.amount, undefined, t.status as CarteraItem['status']),
+          daysOutstanding: days,
+          payments: txPayments,
+        }
+      })
+
+    // Expense transactions pendientes — gastos que no son compras formales pero
+    // estan abiertos. Sirven para los casos: alguien adelanto la plata
+    // (payeeRef apunta a partner/employee/external) o un proveedor que nos
+    // vendio a credito sin compra registrada (payeeRef apunta a supplier).
+    // Filtramos las que vienen de purchases para no duplicar (esas ya las
+    // incluimos abajo con su info real).
+    const expensePayables: CarteraItem[] = transactions
+      .filter((t) => t.type === 'expense' && t.status !== 'paid' && t.sourceType !== 'purchase')
+      .map((t) => {
+        const txPayments = paymentsByTarget.get(`transaction:${t.id}`) ?? []
+        const paidAmount = txPayments.reduce((s, p) => s + p.amount, 0)
+        const commissionAmount = txPayments.reduce((s, p) => s + (p.commission ?? 0), 0)
+        const totalApplied = paidAmount + commissionAmount
+        const balance = Math.max(t.amount - totalApplied, 0)
+        const txDate = t.date?.toDate?.() ?? now
+        const days = daysBetween(txDate, now)
+
+        return {
+          id: t.id,
+          type: 'payable' as const,
+          sourceType: 'transaction' as const,
+          concept: t.concept,
+          counterparty: t.payeeRef?.name ?? t.sourceLabel ?? t.category,
           originalAmount: t.amount,
           paidAmount,
           commissionAmount,
@@ -138,7 +172,7 @@ export function useCarteraItems() {
       })
 
     // Payables: purchases not yet fully paid
-    const payables: CarteraItem[] = purchases
+    const purchasePayables: CarteraItem[] = purchases
       .filter((p) => p.paymentStatus !== 'paid')
       .map((p) => {
         const purPayments = paymentsByTarget.get(`purchase:${p.id}`) ?? []
@@ -168,6 +202,7 @@ export function useCarteraItems() {
         }
       })
 
+    const payables = [...purchasePayables, ...expensePayables]
     return { receivables, payables }
   }, [transactions, purchases, payments])
 

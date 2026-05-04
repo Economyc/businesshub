@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Timestamp } from 'firebase/firestore'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Trash2, X } from 'lucide-react'
@@ -11,8 +11,11 @@ import { HoverHint } from '@/components/ui/tooltip'
 import { modalVariants } from '@/core/animations/variants'
 import { useCompany } from '@/core/hooks/use-company'
 import { useFirestoreMutation } from '@/core/query/use-mutation'
+import { useCollection } from '@/core/hooks/use-firestore'
 import { financeService } from '../services'
-import type { Transaction } from '../types'
+import type { Transaction, PayeeRef, PayeeType } from '../types'
+
+interface NamedEntity { id: string; name: string }
 
 const inputClass =
   'w-full px-3 py-2.5 rounded-[10px] border border-input-border bg-input-bg text-body text-graphite placeholder:text-mid-gray/60 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200'
@@ -56,6 +59,21 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
     notes: '',
   })
 
+  const [payeeType, setPayeeType] = useState<PayeeType | ''>('')
+  const [payeeId, setPayeeId] = useState('')
+  const [payeeExternalName, setPayeeExternalName] = useState('')
+
+  const { data: partners } = useCollection<NamedEntity>('partners')
+  const { data: employees } = useCollection<NamedEntity>('employees')
+  const { data: suppliers } = useCollection<NamedEntity>('suppliers')
+
+  const payeeOptions = useMemo(() => {
+    if (payeeType === 'partner') return partners
+    if (payeeType === 'employee') return employees
+    if (payeeType === 'supplier') return suppliers
+    return []
+  }, [payeeType, partners, employees, suppliers])
+
   useEffect(() => {
     if (!open) {
       // Reset on close
@@ -63,6 +81,9 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
       setIsLinked(false)
       setIsRecurring(false)
       setShowDelete(false)
+      setPayeeType('')
+      setPayeeId('')
+      setPayeeExternalName('')
       return
     }
     if (!transactionId || !selectedCompany) {
@@ -83,6 +104,14 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
         status: tx.status,
         notes: tx.notes ?? '',
       })
+      if (tx.payeeRef) {
+        setPayeeType(tx.payeeRef.type)
+        if (tx.payeeRef.type === 'external') {
+          setPayeeExternalName(tx.payeeRef.name)
+        } else {
+          setPayeeId(tx.payeeRef.id)
+        }
+      }
       setLoading(false)
     })
   }, [open, transactionId, selectedCompany?.id])
@@ -104,6 +133,15 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!selectedCompany) return
+
+    let payeeRef: PayeeRef | undefined
+    if (payeeType === 'external' && payeeExternalName.trim()) {
+      payeeRef = { type: 'external', id: 'external', name: payeeExternalName.trim() }
+    } else if (payeeType && payeeType !== 'external' && payeeId) {
+      const found = payeeOptions.find((o) => o.id === payeeId)
+      if (found) payeeRef = { type: payeeType, id: found.id, name: found.name }
+    }
+
     const payload = {
       concept: form.concept,
       category: form.category,
@@ -112,6 +150,7 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
       date: Timestamp.fromDate(new Date(form.date + 'T12:00:00')),
       status: form.status,
       ...(form.notes ? { notes: form.notes } : {}),
+      ...(payeeRef ? { payeeRef } : {}),
     }
     if (transactionId) {
       await saveMutation.mutateAsync({ _id: transactionId, payload })
@@ -273,6 +312,48 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
                         placeholder="Observaciones adicionales..."
                         className={`${inputClass} min-h-[70px] resize-none`}
                       />
+                    </div>
+                    <div className="md:col-span-2 pt-2 border-t border-border/40">
+                      <label className={labelClass}>A quién le debemos (opcional)</label>
+                      <p className="text-caption text-mid-gray mb-2">
+                        Úsalo cuando alguien adelantó esta plata o un proveedor nos vendió a crédito.
+                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <SelectInput
+                          value={payeeType}
+                          onChange={(v) => {
+                            setPayeeType(v as PayeeType | '')
+                            setPayeeId('')
+                            setPayeeExternalName('')
+                          }}
+                          options={[
+                            { value: '', label: '— Nadie —' },
+                            { value: 'partner', label: 'Socio' },
+                            { value: 'employee', label: 'Empleado' },
+                            { value: 'supplier', label: 'Proveedor' },
+                            { value: 'external', label: 'Tercero (externo)' },
+                          ]}
+                        />
+                        {payeeType === 'external' ? (
+                          <input
+                            value={payeeExternalName}
+                            onChange={(e) => setPayeeExternalName(e.target.value)}
+                            placeholder="Nombre del tercero"
+                            className={inputClass}
+                          />
+                        ) : payeeType ? (
+                          <SelectInput
+                            value={payeeId}
+                            onChange={(v) => setPayeeId(v)}
+                            options={[
+                              { value: '', label: '— Selecciona —' },
+                              ...payeeOptions.map((o) => ({ value: o.id, label: o.name })),
+                            ]}
+                          />
+                        ) : (
+                          <div />
+                        )}
+                      </div>
                     </div>
                   </div>
 
