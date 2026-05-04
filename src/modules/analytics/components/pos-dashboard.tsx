@@ -171,7 +171,7 @@ export function PosDashboard() {
                     <span className="text-kpi font-semibold text-dark-graphite tabular-nums break-all">
                       {formatCurrency(compositionTotal)}
                     </span>
-                    <span className="text-caption uppercase tracking-wider text-mid-gray font-medium">
+                    <span className="text-caption text-mid-gray font-medium">
                       Ticket total · {presetLabel}
                     </span>
                   </header>
