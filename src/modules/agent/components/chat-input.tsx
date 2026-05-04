@@ -92,7 +92,7 @@ export function ChatInput({ input, onInputChange, onSubmit, onSendWithFiles, isL
           {attachedFiles.map((file, i) => (
             <div
               key={`${file.name}-${i}`}
-              className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-card-bg border border-border text-xs"
+              className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-card-bg border border-border/60 text-caption"
             >
               {isImageFile(file) ? (
                 <ImageIcon size={12} className="text-mid-gray shrink-0" />
@@ -135,7 +135,7 @@ export function ChatInput({ input, onInputChange, onSubmit, onSendWithFiles, isL
           }}
         />
 
-        <div className="flex-1 bg-surface-elevated border border-input rounded-[20px] shadow-sm overflow-hidden focus-within:border-mid-gray focus-within:ring-1 focus-within:ring-mid-gray/20 transition-all">
+        <div className="flex-1 bg-surface-elevated border border-border/60 rounded-2xl overflow-hidden focus-within:border-mid-gray focus-within:ring-1 focus-within:ring-mid-gray/20 transition-colors">
           <textarea
             ref={textareaRef}
             value={input}
@@ -147,7 +147,7 @@ export function ChatInput({ input, onInputChange, onSubmit, onSendWithFiles, isL
             placeholder={attachedFiles.length > 0 ? 'Describe qué hacer con el archivo...' : 'Pregunta sobre tus datos...'}
             rows={1}
             className={cn(
-              'w-full resize-none bg-transparent px-4 py-[10px] text-sm text-graphite',
+              'w-full resize-none bg-transparent px-4 py-2.5 text-body text-graphite',
               'placeholder:text-mid-gray outline-none',
               'max-h-[120px] min-h-[40px]',
             )}
@@ -172,7 +172,7 @@ export function ChatInput({ input, onInputChange, onSubmit, onSendWithFiles, isL
             className={cn(
               'shrink-0 w-10 h-10 flex items-center justify-center rounded-full transition-all active:scale-90',
               (input.trim() || attachedFiles.length > 0)
-                ? 'bg-dark-graphite text-white shadow-sm hover:opacity-90'
+                ? 'bg-dark-graphite text-white hover:opacity-90'
                 : 'text-mid-gray/30 cursor-not-allowed'
             )}
           >
@@ -183,7 +183,7 @@ export function ChatInput({ input, onInputChange, onSubmit, onSendWithFiles, isL
 
       {dragOver && (
         <div className="absolute inset-0 flex items-center justify-center bg-primary/5 border-2 border-dashed border-primary/30 rounded-xl pointer-events-none z-10">
-          <p className="text-sm text-primary font-medium">Suelta el archivo aquí</p>
+          <p className="text-body font-medium text-primary">Suelta el archivo aquí</p>
         </div>
       )}
     </div>

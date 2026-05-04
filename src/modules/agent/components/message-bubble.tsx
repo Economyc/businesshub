@@ -54,9 +54,9 @@ function renderMarkdown(text: string): string {
   html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
 
   // Headers (### before ##)
-  html = html.replace(/^####\s+(.+)$/gm, '<h4 class="text-sm font-semibold text-dark-graphite mt-3 mb-1">$1</h4>')
-  html = html.replace(/^###\s+(.+)$/gm, '<h3 class="text-sm font-bold text-dark-graphite mt-3 mb-1.5">$1</h3>')
-  html = html.replace(/^##\s+(.+)$/gm, '<h2 class="text-base font-bold text-dark-graphite mt-4 mb-2">$1</h2>')
+  html = html.replace(/^####\s+(.+)$/gm, '<h4 class="text-body font-semibold text-dark-graphite mt-3 mb-1">$1</h4>')
+  html = html.replace(/^###\s+(.+)$/gm, '<h3 class="text-body font-semibold text-dark-graphite mt-3 mb-1.5">$1</h3>')
+  html = html.replace(/^##\s+(.+)$/gm, '<h2 class="text-subheading font-semibold text-dark-graphite mt-4 mb-2">$1</h2>')
 
   // Bullet lists (- or * or •)
   html = html.replace(/^[\s]*[-*•]\s+(.+)$/gm, '<li>$1</li>')
@@ -96,7 +96,7 @@ function buildTable(lines: string[]): string {
   const header = rows[0]
   const body = rows.slice(1)
 
-  let html = '<div class="overflow-x-auto my-2"><table class="text-xs border-collapse w-full">'
+  let html = '<div class="overflow-x-auto my-2"><table class="text-caption border-collapse w-full">'
   html += '<thead><tr>'
   for (const h of header) {
     const align = isNumericCell(h) ? 'text-right' : 'text-left'
@@ -141,16 +141,16 @@ export function MessageBubble({ role, content }: MessageBubbleProps) {
         )}
       </div>
       <div className={cn(
-        'max-w-[88%] sm:max-w-[85%] px-3.5 sm:px-4 py-2.5 text-sm leading-relaxed shadow-sm',
+        'max-w-[88%] sm:max-w-[85%] px-4 py-2.5 text-body leading-relaxed',
         isUser
-          ? 'bg-dark-graphite text-white rounded-[18px] rounded-tr-[4px]'
-          : 'bg-card-bg text-dark-graphite border border-border/60 rounded-[18px] rounded-tl-[4px]'
+          ? 'bg-dark-graphite text-white rounded-2xl rounded-tr-[4px]'
+          : 'bg-card-bg text-dark-graphite border border-border/60 rounded-2xl rounded-tl-[4px]'
       )}>
         {isUser ? (
           <div className="whitespace-pre-wrap break-words">{content}</div>
         ) : (
           <div
-            className="break-words [&_strong]:font-semibold [&_ul]:my-1 [&_li]:text-sm"
+            className="break-words [&_strong]:font-semibold [&_ul]:my-1 [&_li]:text-body"
             dangerouslySetInnerHTML={{ __html: renderedContent! }}
           />
         )}

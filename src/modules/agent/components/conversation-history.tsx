@@ -69,7 +69,7 @@ export function ConversationHistory({ conversations, activeConversationId, onSel
         >
           <Clock size={16} strokeWidth={1.5} />
           {conversations.length > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-graphite text-white text-[9px] font-bold flex items-center justify-center">
+            <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 rounded-full bg-graphite text-white text-caption font-medium flex items-center justify-center leading-none">
               {conversations.length > 9 ? '9+' : conversations.length}
             </span>
           )}
@@ -77,15 +77,15 @@ export function ConversationHistory({ conversations, activeConversationId, onSel
       </HoverHint>
 
       {open && (
-        <div className="absolute top-full right-0 mt-2 w-72 z-50 rounded-xl border border-border bg-card-bg shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 duration-100">
-          <div className="px-3 py-2.5 border-b border-border">
-            <p className="text-xs font-semibold text-dark-graphite">Conversaciones</p>
+        <div className="absolute top-full right-0 mt-2 w-72 z-50 rounded-xl border border-border/60 bg-card-bg overflow-hidden animate-in fade-in-0 zoom-in-95 duration-100">
+          <div className="px-3 py-2.5 border-b border-border/60">
+            <p className="text-body font-medium text-dark-graphite">Conversaciones</p>
           </div>
 
           {conversations.length === 0 ? (
             <div className="px-3 py-6 text-center">
-              <MessageSquare size={20} className="text-mid-gray/40 mx-auto mb-1.5" />
-              <p className="text-xs text-mid-gray">Sin conversaciones guardadas</p>
+              <MessageSquare size={20} className="text-mid-gray/40 mx-auto mb-2" />
+              <p className="text-body text-mid-gray">Sin conversaciones guardadas</p>
             </div>
           ) : (
             <div className="max-h-72 overflow-y-auto">
@@ -99,14 +99,14 @@ export function ConversationHistory({ conversations, activeConversationId, onSel
                   )}
                 >
                   <div className="flex-1 min-w-0 px-3 py-2.5">
-                    <p className="text-[13px] font-medium text-dark-graphite truncate leading-tight">
+                    <p className="text-body font-medium text-dark-graphite truncate leading-tight">
                       {conv.title}
                     </p>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-[10px] text-mid-gray">
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-caption text-mid-gray">
                         {formatRelativeDate(conv.updatedAt as unknown as { seconds?: number; _seconds?: number })}
                       </span>
-                      <span className="text-[10px] text-mid-gray/60">
+                      <span className="text-caption text-mid-gray/60">
                         {conv.messageCount} msgs
                       </span>
                     </div>

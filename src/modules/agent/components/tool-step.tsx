@@ -51,9 +51,9 @@ export function ToolStep({ toolName, state }: ToolStepProps) {
   return (
     <div className="flex items-center gap-2 px-4 py-1.5">
       <div className={cn(
-        'flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium',
-        isRunning && 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400',
-        isComplete && 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400',
+        'flex items-center gap-2 rounded-lg px-3 py-1.5 text-caption font-medium',
+        isRunning && 'bg-warning-bg text-warning-text',
+        isComplete && 'bg-positive-bg text-positive-text',
       )}>
         {isRunning ? (
           <Loader2 size={12} className="animate-spin" />
@@ -62,7 +62,7 @@ export function ToolStep({ toolName, state }: ToolStepProps) {
         ) : (
           <Wrench size={12} />
         )}
-        <span>{label}{isRunning ? '...' : ''}</span>
+        <span>{label}{isRunning ? '…' : ''}</span>
       </div>
     </div>
   )

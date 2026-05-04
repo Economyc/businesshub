@@ -1,5 +1,6 @@
 import { useChat } from '@ai-sdk/react'
 import { useCallback, useEffect, useRef } from 'react'
+import { AlertCircle } from 'lucide-react'
 import type { UIMessage } from 'ai'
 import { useCompany } from '@/core/hooks/use-company'
 import { invalidateCollection } from '@/core/query/invalidation'
@@ -263,7 +264,7 @@ export function AgentChat({ initialMessages, conversationId, onConversationSaved
   if (!selectedCompany) {
     return (
       <div className="flex-1 flex items-center justify-center p-8">
-        <p className="text-sm text-mid-gray">Selecciona una compañía para usar el asistente.</p>
+        <p className="text-body text-mid-gray">Selecciona una compañía para usar el asistente.</p>
       </div>
     )
   }
@@ -280,14 +281,17 @@ export function AgentChat({ initialMessages, conversationId, onConversationSaved
       />
 
       {error && (
-        <div className="px-4 py-2 bg-destructive/5 border-t border-destructive/20">
-          <div className="flex items-center justify-between">
-            <p className="text-xs text-destructive">
-              Error al conectar con el asistente. {error.message}
-            </p>
+        <div className="px-4 py-2.5 bg-negative-bg border-t border-border/60">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <AlertCircle size={14} className="text-negative-text shrink-0" />
+              <p className="text-caption text-negative-text truncate">
+                Error al conectar con el asistente. {error.message}
+              </p>
+            </div>
             <button
               onClick={() => reload()}
-              className="text-xs text-destructive font-medium hover:underline"
+              className="shrink-0 text-caption text-negative-text font-medium hover:underline"
             >
               Reintentar
             </button>

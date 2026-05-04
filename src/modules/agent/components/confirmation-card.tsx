@@ -151,13 +151,13 @@ function renderSplits(args: Record<string, unknown>) {
   const modeLabel = mode === 'equal' ? 'partes iguales' : mode === 'percentages' ? 'porcentajes' : 'montos custom'
 
   return (
-    <div className="rounded-lg bg-white/40 dark:bg-white/5 p-2.5 mb-2">
-      <div className="text-xs text-mid-gray font-medium mb-1.5">
+    <div className="rounded-lg bg-surface-elevated/60 p-2.5 mb-2">
+      <div className="text-caption text-mid-gray font-medium mb-1.5">
         División entre {splits.length} locales · {modeLabel}
       </div>
       <div className="space-y-1">
         {splits.map((s, i) => (
-          <div key={`${s.companyName}-${i}`} className="flex items-baseline justify-between text-xs">
+          <div key={`${s.companyName}-${i}`} className="flex items-baseline justify-between text-caption">
             <span className="text-dark-graphite font-medium">{s.companyName}</span>
             <span className="text-dark-graphite tabular-nums">
               ${computed[i].toLocaleString('es-CL')}
@@ -168,7 +168,7 @@ function renderSplits(args: Record<string, unknown>) {
           </div>
         ))}
       </div>
-      <div className="mt-2 pt-2 border-t border-border/50 flex items-baseline justify-between text-xs font-semibold">
+      <div className="mt-2 pt-2 border-t border-border/60 flex items-baseline justify-between text-caption font-semibold">
         <span className="text-graphite">Total</span>
         <span className="text-dark-graphite tabular-nums">${totalAmount.toLocaleString('es-CL')}</span>
       </div>
@@ -194,10 +194,10 @@ export function ConfirmationCard({ toolName, args, onConfirm, onCancel }: Confir
     <div className={cn('mx-4 my-2 rounded-xl border p-4', styles.bg, styles.border)}>
       {/* Header */}
       <div className="flex items-center gap-2 mb-3">
-        <div className={cn('w-7 h-7 rounded-full flex items-center justify-center bg-white/60 dark:bg-white/10', styles.icon)}>
+        <div className={cn('w-7 h-7 rounded-full flex items-center justify-center bg-surface-elevated/80', styles.icon)}>
           <Icon size={14} strokeWidth={1.5} />
         </div>
-        <span className="text-sm font-semibold text-dark-graphite">{config.label}</span>
+        <span className="text-body font-semibold text-dark-graphite">{config.label}</span>
         {config.type === 'delete' && (
           <span className="flex items-center gap-1 text-caption text-negative-text font-medium">
             <AlertTriangle size={12} />
@@ -212,7 +212,7 @@ export function ConfirmationCard({ toolName, args, onConfirm, onCancel }: Confir
       {/* Fields */}
       <div className="space-y-1.5 mb-4">
         {fields.map(([key, value]) => (
-          <div key={key} className="flex items-baseline gap-2 text-xs">
+          <div key={key} className="flex items-baseline gap-2 text-caption">
             <span className="text-mid-gray font-medium min-w-[80px] sm:min-w-[100px] shrink-0">{formatFieldName(key)}:</span>
             <span className="text-dark-graphite">{formatValue(key, value)}</span>
           </div>
@@ -225,20 +225,20 @@ export function ConfirmationCard({ toolName, args, onConfirm, onCancel }: Confir
           onClick={handleConfirm}
           disabled={loading}
           className={cn(
-            'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
+            'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-body font-medium transition-colors',
             styles.button,
             loading && 'opacity-60 cursor-not-allowed'
           )}
         >
-          <Check size={12} />
-          {loading ? 'Ejecutando...' : 'Confirmar'}
+          <Check size={14} />
+          {loading ? 'Ejecutando…' : 'Confirmar'}
         </button>
         <button
           onClick={onCancel}
           disabled={loading}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-mid-gray hover:text-dark-graphite hover:bg-white/60 transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-body font-medium text-mid-gray hover:text-dark-graphite hover:bg-bone transition-colors"
         >
-          <X size={12} />
+          <X size={14} />
           Cancelar
         </button>
       </div>
