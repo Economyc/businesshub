@@ -17,7 +17,7 @@ function parseDate(raw: string): Timestamp {
 
 export const supplierFields: FieldDef[] = [
   { key: 'name', header: 'Nombre', required: true, type: 'string' },
-  { key: 'identification', header: 'Identificacion', required: true, type: 'string' },
+  { key: 'identification', header: 'Identificacion', type: 'string' },
   { key: 'category', header: 'Categoria', required: true, type: 'string' },
   { key: 'contactName', header: 'Contacto', required: true, type: 'string' },
   { key: 'email', header: 'Email', required: true, type: 'string' },

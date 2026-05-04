@@ -140,12 +140,11 @@ export function SupplierForm({ open, onClose }: SupplierFormProps) {
                   />
                 </div>
                 <div>
-                  <label className={labelClass}>Identificación</label>
+                  <label className={labelClass}>Identificación (opcional)</label>
                   <input
                     name="identification"
                     value={form.identification}
                     onChange={handleChange}
-                    required
                     placeholder="NIT o cédula"
                     className={inputClass}
                   />
