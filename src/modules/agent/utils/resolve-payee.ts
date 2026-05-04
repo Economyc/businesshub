@@ -65,36 +65,50 @@ export type CompanyResolution =
   | { ok: false; reason: 'not_found' }
   | { ok: false; reason: 'ambiguous'; matches: Company[] }
 
-export function resolveCompany(input: string, companies: Company[]): CompanyResolution {
-  const target = normalize(input)
-  if (!target) return { ok: false, reason: 'not_found' }
+function tokenize(s: string): string[] {
+  return normalize(s)
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean)
+}
 
-  const byId = companies.find((c) => c.id === input.trim())
+export function resolveCompany(input: string, companies: Company[]): CompanyResolution {
+  const trimmed = input.trim()
+  if (!trimmed) return { ok: false, reason: 'not_found' }
+
+  const byId = companies.find((c) => c.id === trimmed)
   if (byId) return { ok: true, company: byId }
 
+  const target = normalize(input)
   const bySlug = companies.find((c) => normalize(c.slug ?? '') === target)
   if (bySlug) return { ok: true, company: bySlug }
 
-  const fullName = (c: Company) => normalize(`${c.name} ${c.location ?? ''}`)
-  const byFull = companies.find((c) => fullName(c) === target)
-  if (byFull) return { ok: true, company: byFull }
+  const inputTokens = tokenize(input)
+  if (inputTokens.length === 0) return { ok: false, reason: 'not_found' }
 
-  const byLocation = companies.filter((c) => c.location && normalize(c.location) === target)
-  if (byLocation.length === 1) return { ok: true, company: byLocation[0] }
-
-  const byName = companies.filter((c) => normalize(c.name) === target)
-  if (byName.length === 1) return { ok: true, company: byName[0] }
-
-  const contains = companies.filter((c) => {
-    const n = normalize(c.name)
-    const loc = normalize(c.location ?? '')
-    return (
-      (n && (n.includes(target) || target.includes(n))) ||
-      (loc && (loc.includes(target) || target.includes(loc)))
-    )
+  type Scored = { company: Company; matched: number; haySize: number }
+  const scored: Scored[] = companies.map((c) => {
+    const haystack = new Set([...tokenize(c.name), ...tokenize(c.location ?? '')])
+    const matched = inputTokens.filter((t) => haystack.has(t)).length
+    return { company: c, matched, haySize: haystack.size }
   })
-  if (contains.length === 1) return { ok: true, company: contains[0] }
-  if (contains.length > 1) return { ok: false, reason: 'ambiguous', matches: contains }
+
+  const fullMatches = scored.filter((s) => s.matched === inputTokens.length)
+  if (fullMatches.length === 1) return { ok: true, company: fullMatches[0].company }
+  if (fullMatches.length > 1) {
+    const exact = fullMatches.filter((s) => s.haySize === inputTokens.length)
+    if (exact.length === 1) return { ok: true, company: exact[0].company }
+    return { ok: false, reason: 'ambiguous', matches: fullMatches.map((s) => s.company) }
+  }
+
+  const partial = scored.filter((s) => s.matched > 0)
+  if (partial.length === 1) return { ok: true, company: partial[0].company }
+  if (partial.length > 1) {
+    const best = Math.max(...partial.map((s) => s.matched))
+    const top = partial.filter((s) => s.matched === best)
+    if (top.length === 1) return { ok: true, company: top[0].company }
+    return { ok: false, reason: 'ambiguous', matches: top.map((s) => s.company) }
+  }
 
   return { ok: false, reason: 'not_found' }
 }

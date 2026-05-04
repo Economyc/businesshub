@@ -32,11 +32,47 @@ interface AgentChatProps {
   onConversationSaved: (id: string, title: string, messageCount: number) => void
 }
 
-function stripAttachments(messages: UIMessage[]) {
+// Reemplaza data URLs largas (base64 de imágenes) por un placeholder. Sin
+// esto, los parts pueden empujar el doc por encima del límite de 1MiB de
+// Firestore. Cap conservador: 8KB por string en cualquier nivel.
+const STRING_CAP = 8 * 1024
+function pruneLargeStrings(value: any): any {
+  if (typeof value === 'string') {
+    if (value.startsWith('data:') && value.length > STRING_CAP) return '[imagen]'
+    if (value.length > STRING_CAP) return value.slice(0, STRING_CAP) + '…[truncado]'
+    return value
+  }
+  if (Array.isArray(value)) return value.map(pruneLargeStrings)
+  if (value && typeof value === 'object') {
+    const out: Record<string, unknown> = {}
+    for (const k of Object.keys(value)) {
+      out[k] = pruneLargeStrings(value[k])
+    }
+    return out
+  }
+  return value
+}
+
+function sanitizeMessages(messages: UIMessage[]) {
   return messages.map((msg) => {
-    if (!('experimental_attachments' in msg)) return msg
     const { experimental_attachments, ...rest } = msg as any
-    return rest
+    const cleaned = pruneLargeStrings(rest)
+    // Quita tool-invocation parts incompletos (estado partial-call): pueden
+    // tener args truncados/inválidos que rompen la deserialización al recargar.
+    if (Array.isArray(cleaned.parts)) {
+      cleaned.parts = cleaned.parts.filter((p: any) => {
+        if (p?.type === 'tool-invocation') {
+          return p.toolInvocation?.state !== 'partial-call'
+        }
+        return true
+      })
+    }
+    if (Array.isArray(cleaned.toolInvocations)) {
+      cleaned.toolInvocations = cleaned.toolInvocations.filter(
+        (ti: any) => ti?.state !== 'partial-call',
+      )
+    }
+    return cleaned
   })
 }
 
@@ -64,7 +100,7 @@ export function AgentChat({ initialMessages, conversationId, onConversationSaved
       const currentMessages = messagesRef.current
       if (currentMessages.length === 0) return
 
-      const cleanMessages = stripAttachments(currentMessages)
+      const cleanMessages = sanitizeMessages(currentMessages)
       const title = generateTitle(currentMessages)
       const messageCount = currentMessages.length
       const currentId = conversationIdRef.current

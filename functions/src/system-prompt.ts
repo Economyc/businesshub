@@ -16,12 +16,23 @@ export function getAgentSystemPrompt(opts: { companies?: CompanyContext[]; activ
   const isoToday = now.toISOString().split('T')[0]
 
   const { companies = [], activeCompanyId } = opts
+  const nameCounts = new Map<string, number>()
+  for (const c of companies) {
+    const k = c.name.trim().toLowerCase()
+    nameCounts.set(k, (nameCounts.get(k) ?? 0) + 1)
+  }
   const companiesBlock = companies.length > 0
     ? companies
         .map((c) => {
-          const active = c.id === activeCompanyId ? ' (ACTIVO)' : ''
-          const loc = c.location ? ` — ${c.location}` : ''
-          return `- "${c.name}"${loc}${active}`
+          const active = c.id === activeCompanyId ? ' [ACTIVO]' : ''
+          const dup = (nameCounts.get(c.name.trim().toLowerCase()) ?? 0) > 1
+          if (c.location && dup) {
+            return `- ${c.name} ${c.location} (usar como targetCompanyName: "${c.name} ${c.location}" o "${c.location}")${active}`
+          }
+          if (c.location) {
+            return `- ${c.name} (${c.location}) (usar como targetCompanyName: "${c.name}")${active}`
+          }
+          return `- ${c.name} (usar como targetCompanyName: "${c.name}")${active}`
         })
         .join('\n')
     : '- (no hay locales configurados)'
@@ -228,6 +239,8 @@ Ejemplo de formato profesional:
 ${companiesBlock}
 
 Cuando el usuario menciona un local explícitamente ("Filipo", "Blue", "Manila", "Belen") y NO es el activo, pasa ese nombre como targetCompanyName en createTransaction. Si no menciona local, asume el activo.
+
+REGLA DE DESAMBIGUACION: si dos o mas locales comparten el mismo nombre (ej. "Filipo" en Belen y en San Lucas), NUNCA pases solo el nombre - el sistema lo rechazara por ambiguo. Pasa siempre uno de estos formatos: el nombre + location ("Filipo Belen", "Filipo San Lucas") o solo la location si es unica ("Belen", "San Lucas"). NUNCA uses guiones, em-dashes ni parentesis dentro del valor (mal: "Filipo - Belen", "Filipo (Belen)"; bien: "Filipo Belen"). Lo mismo aplica a companyName dentro de splits en createSplitExpense.
 
 ## Gastos pagados por terceros y compras a crédito (createTransaction con payee*)
 

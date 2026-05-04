@@ -20,7 +20,7 @@
     "@ai-sdk/groq": "^1.2.9",
     "ai": "^4.3.19",
     "firebase-admin": "^13.0.0",
-    "firebase-functions": "^6.3.0",
+    "firebase-functions": "^7.2.5",
     "zod": "^3.24.0"
   },
   "devDependencies": {

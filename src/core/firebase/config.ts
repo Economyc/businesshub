@@ -29,6 +29,10 @@ export const auth = getAuth(app)
 // streams HTTP y cambia de WebChannel streaming a XHR long-polling.
 export const db = initializeFirestore(app, {
   experimentalAutoDetectLongPolling: true,
+  // Sin esto, addDoc/updateDoc lanza si CUALQUIER campo es undefined. El
+  // agente persistia UIMessages del AI SDK con campos opcionales (createdAt,
+  // parts, toolInvocations, etc.) y los saves fallaban silenciosamente.
+  ignoreUndefinedProperties: true,
   localCache: persistentLocalCache({
     tabManager: persistentMultipleTabManager(),
     // Cap de 50MB en IndexedDB. Default Firestore es 40MB pero crecía sin
