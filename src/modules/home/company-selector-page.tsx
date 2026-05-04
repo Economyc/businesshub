@@ -130,12 +130,12 @@ export function CompanySelectorPage() {
   }
 
   return (
-    <div className="min-h-screen bg-surface text-graphite">
-      <p className="fixed top-4 left-4 md:top-20 md:left-12 z-10 text-caption md:text-body text-graphite m-0">
+    <div className="relative min-h-screen bg-surface text-graphite">
+      <p className="absolute top-4 left-4 md:top-20 md:left-12 z-10 text-caption md:text-body text-graphite m-0">
         Bienvenido, <strong className="font-medium text-dark-graphite">{firstName}</strong>.
       </p>
 
-      <div className="fixed top-3 right-3 md:top-[72px] md:right-8 z-10 flex items-center gap-1">
+      <div className="absolute top-3 right-3 md:top-[72px] md:right-8 z-10 flex items-center gap-1">
         <HoverHint label="Crear compañía">
           <button
             type="button"
