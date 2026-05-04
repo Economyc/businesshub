@@ -175,15 +175,15 @@ export function Sidebar({ onNavClick }: SidebarProps) {
     if (prefetchTimerRef.current) clearTimeout(prefetchTimerRef.current)
   }, [])
 
-  // Close finance panel when leaving finance routes; don't auto-open
+  // Close finance panel when navigating away from finance routes
   useEffect(() => {
     if (!isFinanceRoute) setFinanceOpen(false)
-  }, [isFinanceRoute])
+  }, [location.pathname, isFinanceRoute])
 
-  // Close analytics panel when leaving analytics routes; don't auto-open
+  // Close analytics panel when navigating away from analytics routes
   useEffect(() => {
     if (!isAnalyticsRoute) setAnalyticsOpen(false)
-  }, [isAnalyticsRoute])
+  }, [location.pathname, isAnalyticsRoute])
 
   // Auto-expand section of active route; collapse previous route's section when switching categories
   const previousPathnameRef = useRef<string | null>(null)
