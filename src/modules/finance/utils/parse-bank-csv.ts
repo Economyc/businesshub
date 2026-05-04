@@ -1,5 +1,7 @@
-import Papa from 'papaparse'
 import type { BankEntry } from '../types'
+
+// papaparse (~80K) se carga dinamicamente solo al parsear un extracto.
+const loadPapa = () => import('papaparse').then((m) => m.default)
 
 export interface ColumnMapping {
   date: string
@@ -75,7 +77,8 @@ function parseDate(raw: string): string | null {
   return null
 }
 
-export function parseBankCSV(file: File, mapping: ColumnMapping): Promise<CSVParseResult> {
+export async function parseBankCSV(file: File, mapping: ColumnMapping): Promise<CSVParseResult> {
+  const Papa = await loadPapa()
   return new Promise((resolve) => {
     Papa.parse(file, {
       header: true,

@@ -30,6 +30,12 @@ export default defineConfig({
           // solo lo usen dashboards lazy). Dejandolo sin manualChunk, Rollup
           // lo empaqueta con el chunk del modulo que lo importa (analytics/*,
           // home kpi charts) y solo carga cuando el usuario abre esa ruta.
+          // framer-motion SI va aqui: 39 modulos lo usan, varios en el entry
+          // path (page-transition, confirm-dialog, command-palette, mobile-nav,
+          // kpi-card). Sin manualChunk, framer se mergea al chunk del entry y
+          // se pierde cache entre deploys (cambia con cada release de codigo).
+          // Cuando se lazy-carguen page-transition + dialogs en oleada futura,
+          // reevaluar si vale quitar este entry.
           motion: ['framer-motion'],
           radix: ['@radix-ui/react-tooltip', '@base-ui/react'],
           // lucide-react se usa desde el primer render (sidebar, topbar, login,

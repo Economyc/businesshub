@@ -1,11 +1,13 @@
-import { useMemo } from 'react'
-import {
-  BarChart, Bar,
-  PieChart, Pie, Cell,
-  AreaChart, Area,
-  LineChart, Line,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
-} from 'recharts'
+import { lazy, Suspense, useMemo } from 'react'
+
+// Cada tipo de chart vive en su propio archivo y se carga lazy. Esto evita
+// que el chunk de agent-page contenga el barrel completo de recharts (Bar +
+// Pie + Area + Line + sus deps = ~150K). Solo se descarga el chart que el
+// agente acaba de pedir.
+const BarChart = lazy(() => import('./inline-chart-bar'))
+const PieChart = lazy(() => import('./inline-chart-pie'))
+const AreaChart = lazy(() => import('./inline-chart-area'))
+const LineChart = lazy(() => import('./inline-chart-line'))
 
 interface ChartData {
   name: string
@@ -47,73 +49,31 @@ function CustomTooltip({ active, payload, label, formatAsCurrency }: {
   )
 }
 
+function ChartFallback() {
+  return <div className="h-[220px] w-full animate-pulse rounded bg-bone/40" />
+}
+
 export function InlineChart({ chartType, title, data, valueLabel = 'Valor', value2Label, formatAsCurrency = true }: InlineChartProps) {
   const formatter = useMemo(() => {
     return formatAsCurrency ? (v: number) => formatCLP(v) : (v: number) => v.toLocaleString('es-CL')
   }, [formatAsCurrency])
 
+  const tooltip = <CustomTooltip formatAsCurrency={formatAsCurrency} />
+
   return (
     <div className="mx-4 my-2 rounded-xl border border-border/60 bg-card-bg p-4">
       <h4 className="text-xs font-semibold text-dark-graphite mb-3">{title}</h4>
-
-      <ResponsiveContainer width="100%" height={220}>
+      <Suspense fallback={<ChartFallback />}>
         {chartType === 'pie' ? (
-          <PieChart>
-            <Pie
-              data={data}
-              dataKey="value"
-              nameKey="name"
-              cx="50%"
-              cy="50%"
-              outerRadius={80}
-              label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
-              labelLine={false}
-              fontSize={9}
-            >
-              {data.map((_, i) => (
-                <Cell key={i} fill={COLORS[i % COLORS.length]} />
-              ))}
-            </Pie>
-            <Tooltip content={<CustomTooltip formatAsCurrency={formatAsCurrency} />} />
-          </PieChart>
+          <PieChart data={data} colors={COLORS} tooltipContent={tooltip} />
         ) : chartType === 'bar' ? (
-          <BarChart data={data} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#eeece9" vertical={false} />
-            <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#8a8a8a' }} />
-            <YAxis tickFormatter={formatter} tick={{ fontSize: 10, fill: '#8a8a8a' }} width={55} />
-            <Tooltip content={<CustomTooltip formatAsCurrency={formatAsCurrency} />} />
-            <Bar dataKey="value" name={valueLabel} fill="#5a7a5a" radius={[4, 4, 0, 0]} />
-            {value2Label && (
-              <Bar dataKey="value2" name={value2Label} fill="#7a9a7a" radius={[4, 4, 0, 0]} />
-            )}
-            {value2Label && <Legend wrapperStyle={{ fontSize: 11 }} />}
-          </BarChart>
+          <BarChart data={data} formatter={formatter} valueLabel={valueLabel} value2Label={value2Label} tooltipContent={tooltip} />
         ) : chartType === 'area' ? (
-          <AreaChart data={data} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#eeece9" vertical={false} />
-            <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#8a8a8a' }} />
-            <YAxis tickFormatter={formatter} tick={{ fontSize: 10, fill: '#8a8a8a' }} width={55} />
-            <Tooltip content={<CustomTooltip formatAsCurrency={formatAsCurrency} />} />
-            <Area type="monotone" dataKey="value" name={valueLabel} stroke="#5a7a5a" fill="#5a7a5a" fillOpacity={0.1} />
-            {value2Label && (
-              <Area type="monotone" dataKey="value2" name={value2Label} stroke="#7a9a7a" fill="#7a9a7a" fillOpacity={0.1} />
-            )}
-            {value2Label && <Legend wrapperStyle={{ fontSize: 11 }} />}
-          </AreaChart>
+          <AreaChart data={data} formatter={formatter} valueLabel={valueLabel} value2Label={value2Label} tooltipContent={tooltip} />
         ) : (
-          <LineChart data={data} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#eeece9" vertical={false} />
-            <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#8a8a8a' }} />
-            <YAxis tickFormatter={formatter} tick={{ fontSize: 10, fill: '#8a8a8a' }} width={55} />
-            <Tooltip content={<CustomTooltip formatAsCurrency={formatAsCurrency} />} />
-            <Line type="monotone" dataKey="value" name={valueLabel} stroke="#5a7a5a" strokeWidth={2} dot={{ r: 3 }} />
-            {value2Label && (
-              <Line type="monotone" dataKey="value2" name={value2Label} stroke="#7a9a7a" strokeWidth={2} dot={{ r: 3 }} />
-            )}
-            {value2Label && <Legend wrapperStyle={{ fontSize: 11 }} />}
-          </LineChart>
+          <LineChart data={data} formatter={formatter} valueLabel={valueLabel} value2Label={value2Label} tooltipContent={tooltip} />
         )}
-      </ResponsiveContainer>
+      </Suspense>
     </div>
   )
 }

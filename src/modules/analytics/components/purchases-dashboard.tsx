@@ -119,9 +119,9 @@ export function PurchasesDashboard() {
                   <XAxis type="number" tickFormatter={(v) => formatCurrency(v)} tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} />
                   <YAxis type="category" dataKey="name" width={140} tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} />
                   <Tooltip content={<ChartTooltip variant="single" />} cursor={{ fill: CHART_SEMANTIC.muted }} />
-                  <Bar dataKey="total" name="Total" barSize={20} radius={[0, 6, 6, 0]}>
-                    {suppliers.map((_, i) => (
-                      <Cell key={i} fill={CHART_SEMANTIC.purchases} opacity={1 - i * 0.06} />
+                  <Bar dataKey="total" name="Total" barSize={20} radius={[0, 6, 6, 0]} isAnimationActive={false}>
+                    {suppliers.map((s, i) => (
+                      <Cell key={s.name} fill={CHART_SEMANTIC.purchases} opacity={1 - i * 0.06} />
                     ))}
                   </Bar>
                 </BarChart>

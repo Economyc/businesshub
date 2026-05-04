@@ -71,9 +71,10 @@ export function PayrollDashboard() {
                       outerRadius={114}
                       paddingAngle={3}
                       strokeWidth={0}
+                      isAnimationActive={false}
                     >
-                      <Cell fill={CHART_SEMANTIC.payroll} />
-                      <Cell fill={CHART_SEMANTIC.muted} />
+                      <Cell key="payroll" fill={CHART_SEMANTIC.payroll} />
+                      <Cell key="muted" fill={CHART_SEMANTIC.muted} />
                     </Pie>
                     <Tooltip content={<ChartTooltip variant="pie" />} />
                   </PieChart>
@@ -117,9 +118,9 @@ export function PayrollDashboard() {
                       }
                       cursor={{ fill: CHART_SEMANTIC.muted }}
                     />
-                    <Bar dataKey="total" name="Nómina" barSize={20} radius={[0, 6, 6, 0]}>
-                      {departments.map((_, i) => (
-                        <Cell key={i} fill={paletteColor(i)} />
+                    <Bar dataKey="total" name="Nómina" barSize={20} radius={[0, 6, 6, 0]} isAnimationActive={false}>
+                      {departments.map((dept, i) => (
+                        <Cell key={dept.department} fill={paletteColor(i)} />
                       ))}
                     </Bar>
                   </BarChart>

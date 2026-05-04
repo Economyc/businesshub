@@ -1,5 +1,6 @@
-import Papa from 'papaparse'
-
+// papaparse (~80K) y xlsx (~300K) se cargan dinamicamente solo al subir un
+// archivo. La pagina del agente no debe pagar por estas libs en su chunk.
+const loadPapa = () => import('papaparse').then((m) => m.default)
 const loadXLSX = () => import('xlsx')
 
 /**
@@ -51,7 +52,8 @@ async function parseExcel(file: File): Promise<string> {
   return parts.join('\n')
 }
 
-function parseCSV(file: File): Promise<string> {
+async function parseCSV(file: File): Promise<string> {
+  const Papa = await loadPapa()
   return new Promise((resolve, reject) => {
     Papa.parse(file, {
       header: true,

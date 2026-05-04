@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback, memo } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { Users, Briefcase, DollarSign, Home, ChevronsLeft, Building2, Tags, BadgeCheck, Network, Handshake, ClipboardList, FileSignature, Wallet, Receipt, Gift, ChevronRight, ChevronsUpDown, Check, MapPin, LogOut, Settings, List, ShoppingCart, Package, Target, Scale, FileText, Shield, RefreshCw, Megaphone, Lock, LockOpen, LayoutDashboard, Store, PieChart, LayoutGrid } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -101,6 +101,55 @@ interface SidebarProps {
   onNavClick?: () => void
 }
 
+// Item regular del sidebar (NavLink). Memoizado para evitar re-render del icon
+// + tooltip Radix cada vez que el Sidebar cambia algun estado interno
+// (companyOpen, userMenuOpen, etc). Los handlers se reciben estables via
+// useCallback en el padre. NOTA: el className de NavLink es funcion porque
+// React Router le pasa isActive — lo memoizamos aparte por instancia.
+interface RegularNavItemProps {
+  to: string
+  label: string
+  Icon?: typeof Home
+  padded: boolean
+  onNavClick?: () => void
+  onPrefetchEnter: (to: string) => void
+  onPrefetchLeave: () => void
+  onPrefetchFocus: (to: string) => void
+}
+
+const RegularNavItem = memo(function RegularNavItem({
+  to,
+  label,
+  Icon,
+  padded,
+  onNavClick,
+  onPrefetchEnter,
+  onPrefetchLeave,
+  onPrefetchFocus,
+}: RegularNavItemProps) {
+  return (
+    <NavLink
+      to={to}
+      onClick={onNavClick}
+      onMouseEnter={() => onPrefetchEnter(to)}
+      onMouseLeave={onPrefetchLeave}
+      onFocus={() => onPrefetchFocus(to)}
+      className={({ isActive }) =>
+        cn(
+          'group/nav relative flex items-center gap-2.5 px-3 mx-2 rounded-lg text-body transition-all duration-150',
+          padded ? 'py-2' : 'py-2.5',
+          isActive
+            ? 'text-dark-graphite font-medium bg-smoke'
+            : 'text-graphite/70 hover:bg-card-bg hover:text-graphite'
+        )
+      }
+    >
+      {Icon && <Icon size={16} strokeWidth={1.5} />}
+      <span className={padded ? 'ml-3' : ''}>{label}</span>
+    </NavLink>
+  )
+})
+
 function getActiveSections(pathname: string): Set<string> {
   const active = new Set<string>()
   for (const section of NAV_SECTIONS) {
@@ -158,19 +207,27 @@ export function Sidebar({ onNavClick }: SidebarProps) {
   // click (>150ms, dispara prefetch). Patrón usado por Next.js, React Router v7
   // y GitHub. Evita saturar Firestore con reads que no termina usando el usuario.
   const prefetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const handlePrefetchEnter = (path: string) => {
+  // Estabilizamos los handlers de prefetch con useCallback. Su unica
+  // dependencia es selectedCompany?.id. Esto permite que RegularNavItem
+  // (memo) no re-renderice cada vez que cambia algun estado interno del
+  // Sidebar (companyOpen, userMenuOpen, openSections, etc).
+  const companyId = selectedCompany?.id
+  const handlePrefetchEnter = useCallback((path: string) => {
     if (prefetchTimerRef.current) clearTimeout(prefetchTimerRef.current)
     prefetchTimerRef.current = setTimeout(() => {
-      prefetchRoute(path, selectedCompany?.id)
+      prefetchRoute(path, companyId)
       prefetchTimerRef.current = null
     }, 150)
-  }
-  const handlePrefetchLeave = () => {
+  }, [companyId])
+  const handlePrefetchLeave = useCallback(() => {
     if (prefetchTimerRef.current) {
       clearTimeout(prefetchTimerRef.current)
       prefetchTimerRef.current = null
     }
-  }
+  }, [])
+  const handlePrefetchFocus = useCallback((path: string) => {
+    prefetchRoute(path, companyId)
+  }, [companyId])
   useEffect(() => () => {
     if (prefetchTimerRef.current) clearTimeout(prefetchTimerRef.current)
   }, [])
@@ -472,26 +529,17 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                               )
                             }
                             return (
-                              <NavLink
+                              <RegularNavItem
                                 key={to}
                                 to={to}
-                                onClick={onNavClick}
-                                onMouseEnter={() => handlePrefetchEnter(to)}
-                                onMouseLeave={handlePrefetchLeave}
-                                onFocus={() => prefetchRoute(to, selectedCompany?.id)}
-                                className={({ isActive }) =>
-                                  cn(
-                                    'group/nav relative flex items-center gap-2.5 px-3 mx-2 rounded-lg text-body transition-all duration-150',
-                                    section.title ? 'py-2' : 'py-2.5',
-                                    isActive
-                                      ? 'text-dark-graphite font-medium bg-smoke'
-                                      : 'text-graphite/70 hover:bg-card-bg hover:text-graphite'
-                                  )
-                                }
-                              >
-                                {Icon && <Icon size={16} strokeWidth={1.5} />}
-                                <span className={section.title ? 'ml-3' : ''}>{label}</span>
-                              </NavLink>
+                                label={label}
+                                Icon={Icon}
+                                padded={!!section.title}
+                                onNavClick={onNavClick}
+                                onPrefetchEnter={handlePrefetchEnter}
+                                onPrefetchLeave={handlePrefetchLeave}
+                                onPrefetchFocus={handlePrefetchFocus}
+                              />
                             )
                           })}
                         </div>

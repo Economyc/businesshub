@@ -116,6 +116,7 @@ export function SalesTrendChart({ data, startDate, endDate, projection }: SalesT
               fillOpacity={0.1}
               strokeWidth={2}
               connectNulls={false}
+              isAnimationActive={false}
             />
             {hasProjection && (
               <Area

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { Timestamp } from 'firebase/firestore'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Trash2, X } from 'lucide-react'
@@ -18,7 +18,7 @@ import type { Transaction, PayeeRef, PayeeType } from '../types'
 interface NamedEntity { id: string; name: string }
 
 const inputClass =
-  'w-full px-3 py-2.5 rounded-[10px] border border-input-border bg-input-bg text-body text-graphite placeholder:text-mid-gray/60 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200'
+  'w-full px-3 py-2.5 rounded-lg border border-input-border bg-input-bg text-body text-graphite placeholder:text-mid-gray/60 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200'
 const labelClass = 'block text-caption uppercase tracking-wider text-mid-gray mb-1'
 
 function toDateString(ts: Timestamp | undefined): string {
@@ -74,6 +74,29 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
     return []
   }, [payeeType, partners, employees, suppliers])
 
+  // Options arrays estables para SelectInput — evitamos crear arrays nuevos
+  // en cada render (que disparan re-render de los hijos por identidad).
+  const typeOptions = useMemo(() => [
+    { value: 'income', label: 'Ingreso' },
+    { value: 'expense', label: 'Gasto' },
+  ], [])
+  const statusOptions = useMemo(() => [
+    { value: 'paid', label: 'Pagado' },
+    { value: 'pending', label: 'Pendiente' },
+    { value: 'overdue', label: 'Vencido' },
+  ], [])
+  const payeeTypeOptions = useMemo(() => [
+    { value: '', label: '— Nadie —' },
+    { value: 'partner', label: 'Socio' },
+    { value: 'employee', label: 'Empleado' },
+    { value: 'supplier', label: 'Proveedor' },
+    { value: 'external', label: 'Tercero (externo)' },
+  ], [])
+  const payeeIdOptions = useMemo(() => [
+    { value: '', label: '— Selecciona —' },
+    ...payeeOptions.map((o) => ({ value: o.id, label: o.name })),
+  ], [payeeOptions])
+
   useEffect(() => {
     if (!open) {
       // Reset on close
@@ -125,10 +148,26 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
     return () => document.removeEventListener('keydown', handleKey)
   }, [open, onClose, showDelete])
 
-  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) {
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setForm((prev) => ({ ...prev, [name]: value }))
-  }
+  }, [])
+
+  // Setters por campo, estables, para que CategorySelect/SelectInput/DateInput/
+  // CurrencyInput no reciban una funcion nueva en cada keystroke (los hijos
+  // controlados re-renderizan cuando su prop onChange cambia identidad).
+  const setCategory = useCallback((v: string) => setForm((prev) => ({ ...prev, category: v })), [])
+  const setAmount = useCallback((raw: string) => setForm((prev) => ({ ...prev, amount: raw })), [])
+  const setType = useCallback((v: string) => setForm((prev) => ({ ...prev, type: v as 'income' | 'expense' })), [])
+  const setDate = useCallback((v: string) => setForm((prev) => ({ ...prev, date: v })), [])
+  const setStatus = useCallback((v: string) => setForm((prev) => ({ ...prev, status: v as 'paid' | 'pending' | 'overdue' })), [])
+  const handlePayeeTypeChange = useCallback((v: string) => {
+    setPayeeType(v as PayeeType | '')
+    setPayeeId('')
+    setPayeeExternalName('')
+  }, [])
+  const handleExternalNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => setPayeeExternalName(e.target.value), [])
+  const handlePayeeIdChange = useCallback((v: string) => setPayeeId(v), [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -219,7 +258,7 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
                     {Array.from({ length: 6 }).map((_, i) => (
                       <div key={i} className="space-y-1.5">
                         <div className="animate-pulse rounded-md bg-bone/80 h-3 w-16" />
-                        <div className="animate-pulse rounded-md bg-bone/80 h-10 w-full rounded-[10px]" />
+                        <div className="animate-pulse rounded-md bg-bone/80 h-10 w-full rounded-lg" />
                       </div>
                     ))}
                   </div>
@@ -229,7 +268,7 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
                   <p className="text-body text-graphite mb-4">
                     Esta transacción fue generada automáticamente desde un cierre o compra y no se puede editar directamente.
                   </p>
-                  <button onClick={onClose} className="px-5 py-2.5 rounded-[10px] btn-primary text-body font-medium">
+                  <button onClick={onClose} className="px-5 py-2.5 rounded-lg btn-primary text-body font-medium">
                     Cerrar
                   </button>
                 </div>
@@ -256,7 +295,7 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
                       <label className={labelClass}>Categoría</label>
                       <CategorySelect
                         value={form.category}
-                        onChange={(v) => setForm((prev) => ({ ...prev, category: v }))}
+                        onChange={setCategory}
                         placeholder="Seleccionar categoría"
                         allowCustom
                       />
@@ -266,7 +305,7 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
                       <CurrencyInput
                         name="amount"
                         value={form.amount}
-                        onChange={(raw) => setForm((prev) => ({ ...prev, amount: raw }))}
+                        onChange={setAmount}
                         required
                         placeholder="0"
                         className={inputClass}
@@ -276,18 +315,15 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
                       <label className={labelClass}>Tipo</label>
                       <SelectInput
                         value={form.type}
-                        onChange={(v) => setForm((prev) => ({ ...prev, type: v as 'income' | 'expense' }))}
-                        options={[
-                          { value: 'income', label: 'Ingreso' },
-                          { value: 'expense', label: 'Gasto' },
-                        ]}
+                        onChange={setType}
+                        options={typeOptions}
                       />
                     </div>
                     <div>
                       <label className={labelClass}>Fecha</label>
                       <DateInput
                         value={form.date}
-                        onChange={(v) => setForm((prev) => ({ ...prev, date: v }))}
+                        onChange={setDate}
                         required
                       />
                     </div>
@@ -295,12 +331,8 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
                       <label className={labelClass}>Estado</label>
                       <SelectInput
                         value={form.status}
-                        onChange={(v) => setForm((prev) => ({ ...prev, status: v as 'paid' | 'pending' | 'overdue' }))}
-                        options={[
-                          { value: 'paid', label: 'Pagado' },
-                          { value: 'pending', label: 'Pendiente' },
-                          { value: 'overdue', label: 'Vencido' },
-                        ]}
+                        onChange={setStatus}
+                        options={statusOptions}
                       />
                     </div>
                     <div className="md:col-span-2">
@@ -321,34 +353,21 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <SelectInput
                           value={payeeType}
-                          onChange={(v) => {
-                            setPayeeType(v as PayeeType | '')
-                            setPayeeId('')
-                            setPayeeExternalName('')
-                          }}
-                          options={[
-                            { value: '', label: '— Nadie —' },
-                            { value: 'partner', label: 'Socio' },
-                            { value: 'employee', label: 'Empleado' },
-                            { value: 'supplier', label: 'Proveedor' },
-                            { value: 'external', label: 'Tercero (externo)' },
-                          ]}
+                          onChange={handlePayeeTypeChange}
+                          options={payeeTypeOptions}
                         />
                         {payeeType === 'external' ? (
                           <input
                             value={payeeExternalName}
-                            onChange={(e) => setPayeeExternalName(e.target.value)}
+                            onChange={handleExternalNameChange}
                             placeholder="Nombre del tercero"
                             className={inputClass}
                           />
                         ) : payeeType ? (
                           <SelectInput
                             value={payeeId}
-                            onChange={(v) => setPayeeId(v)}
-                            options={[
-                              { value: '', label: '— Selecciona —' },
-                              ...payeeOptions.map((o) => ({ value: o.id, label: o.name })),
-                            ]}
+                            onChange={handlePayeeIdChange}
+                            options={payeeIdOptions}
                           />
                         ) : (
                           <div />
@@ -361,14 +380,14 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
                     <button
                       type="submit"
                       disabled={saveMutation.isPending}
-                      className="px-5 py-2.5 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="px-5 py-2.5 rounded-lg btn-primary text-body font-medium transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       {saveMutation.isPending ? 'Guardando...' : transactionId ? 'Guardar Cambios' : 'Guardar Transacción'}
                     </button>
                     <button
                       type="button"
                       onClick={onClose}
-                      className="px-5 py-2.5 rounded-[10px] border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
+                      className="px-5 py-2.5 rounded-lg border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
                     >
                       Cancelar
                     </button>

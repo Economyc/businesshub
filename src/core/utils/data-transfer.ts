@@ -1,10 +1,10 @@
-import Papa from 'papaparse'
 import { saveAs } from 'file-saver'
 
-// `xlsx` pesa ~300KB gzip — lo cargamos dinámicamente al primer uso para
-// sacarlo del bundle inicial. Los dashboards no lo necesitan hasta que el
-// usuario exporte/importe.
+// `xlsx` pesa ~300KB gzip y `papaparse` ~80KB — se cargan dinámicamente al
+// primer uso para sacarlos del bundle inicial. Los dashboards no los
+// necesitan hasta que el usuario exporte/importe.
 const loadXLSX = () => import('xlsx')
+const loadPapa = () => import('papaparse').then((m) => m.default)
 
 // ─── Field Schema ───
 
@@ -53,7 +53,7 @@ export async function exportToExcel<T>(data: T[], fields: FieldDef[], filename: 
   saveAs(blob, `${filename}.xlsx`)
 }
 
-export function exportToCSV<T>(data: T[], fields: FieldDef[], filename: string) {
+export async function exportToCSV<T>(data: T[], fields: FieldDef[], filename: string) {
   const rows = data.map((item) => {
     const row: Record<string, string> = {}
     for (const f of fields) {
@@ -63,6 +63,7 @@ export function exportToCSV<T>(data: T[], fields: FieldDef[], filename: string) 
     return row
   })
 
+  const Papa = await loadPapa()
   const csv = Papa.unparse(rows, { columns: fields.map((f) => f.header) })
   const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' })
   saveAs(blob, `${filename}.csv`)
@@ -93,6 +94,7 @@ export async function parseFile(file: File): Promise<Record<string, string>[]> {
   const ext = file.name.split('.').pop()?.toLowerCase()
 
   if (ext === 'csv' || ext === 'txt') {
+    const Papa = await loadPapa()
     return new Promise((resolve, reject) => {
       Papa.parse<Record<string, string>>(file, {
         header: true,

@@ -2,7 +2,6 @@ import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Upload, ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react'
 import { Timestamp } from 'firebase/firestore'
-import Papa from 'papaparse'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
 import { useCompany } from '@/core/hooks/use-company'
@@ -114,6 +113,8 @@ export function ImportView() {
     const name = selected.name.toLowerCase()
 
     if (name.endsWith('.csv')) {
+      // papaparse lazy-loaded para no inflar el bundle inicial de finance.
+      const Papa = (await import('papaparse')).default
       Papa.parse<Record<string, string>>(selected, {
         header: true,
         skipEmptyLines: true,
@@ -147,7 +148,7 @@ export function ImportView() {
       <PageHeader title="Importar Transacciones">
         <button
           onClick={() => navigate('/finance')}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
+          className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
         >
           <ArrowLeft size={15} strokeWidth={1.5} />
           Volver
@@ -270,7 +271,7 @@ export function ImportView() {
           <button
             onClick={handleImport}
             disabled={importMutation.isPending}
-            className="px-5 py-2.5 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
+            className="px-5 py-2.5 rounded-lg btn-primary text-body font-medium transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {importMutation.isPending ? 'Importando...' : `Importar ${parsedRows.length} registros`}
           </button>
@@ -292,7 +293,7 @@ export function ImportView() {
           </p>
           <button
             onClick={() => navigate('/finance')}
-            className="mt-3 self-start px-5 py-2.5 rounded-[10px] btn-primary text-body font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-md"
+            className="mt-3 self-start px-5 py-2.5 rounded-lg btn-primary text-body font-medium transition-all duration-200"
           >
             Ver transacciones
           </button>

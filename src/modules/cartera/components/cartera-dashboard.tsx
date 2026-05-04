@@ -11,6 +11,7 @@ import { formatCurrency } from '@/core/utils/format'
 import { CarteraSkeleton } from '@/core/ui/skeleton'
 import { useDateRange } from '@/modules/finance/context/date-range-context'
 import { DateRangePicker } from '@/modules/finance/components/date-range-picker'
+import { statusPill } from '@/core/ui/status-colors'
 import { useCarteraItems, useCarteraSummary } from '../hooks'
 import { PaymentForm } from './payment-form'
 import type { CarteraItem } from '../types'
@@ -25,14 +26,14 @@ const TABS = [
 
 function StatusBadge({ status }: { status: CarteraItem['status'] }) {
   const config = {
-    pending: { label: 'Pendiente', className: 'bg-amber-50 text-amber-700' },
-    partial: { label: 'Parcial', className: 'bg-blue-50 text-blue-700' },
-    paid: { label: 'Pagado', className: 'bg-emerald-50 text-emerald-700' },
-    overdue: { label: 'Vencido', className: 'bg-red-50 text-red-700' },
+    pending: { label: 'Pendiente', className: statusPill.warning },
+    partial: { label: 'Parcial', className: statusPill.info },
+    paid: { label: 'Pagado', className: statusPill.positive },
+    overdue: { label: 'Vencido', className: statusPill.negative },
   }
   const c = config[status]
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ${c.className}`}>
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-caption font-medium ${c.className}`}>
       {c.label}
     </span>
   )
@@ -46,7 +47,7 @@ function SummaryCard({ label, value, icon: Icon, negative, tinted }: {
   tinted?: boolean
 }) {
   return (
-    <div className={cn('rounded-xl card-elevated p-4', tinted ? 'bg-red-50 border border-red-100' : 'bg-surface')}>
+    <div className={cn('rounded-xl card-elevated p-4', tinted ? 'bg-negative-bg' : 'bg-surface')}>
       <div className="flex items-center gap-2 mb-2">
         <div className="p-1.5 rounded-lg bg-bone">
           <Icon size={15} strokeWidth={1.5} className="text-mid-gray" />

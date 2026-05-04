@@ -15,6 +15,15 @@ const sizes = {
   xl: 'w-20 h-20 rounded-full text-[28px]',
 }
 
+// Pixeles para el atributo width/height del <img>. Pre-reserva el espacio
+// antes de que cargue la imagen y evita CLS (Cumulative Layout Shift) — el
+// navegador conoce la aspect-ratio sin esperar al network request.
+const sizesPx = {
+  sm: 32,
+  md: 40,
+  xl: 80,
+}
+
 const loadedUrls = new Set<string>()
 
 function LetterFallback({ company, sizeClass, className }: { company: CompanyLogoProps['company']; sizeClass: string; className?: string }) {
@@ -30,6 +39,7 @@ function LetterFallback({ company, sizeClass, className }: { company: CompanyLog
 
 export function CompanyLogo({ company, size = 'sm', className, imgStyle }: CompanyLogoProps) {
   const sizeClass = sizes[size]
+  const px = sizesPx[size]
   // El thumbnail base64 es ~40px — nítido a sm/md, borroso al escalarlo a 80px.
   // En xl preferimos la URL completa y usamos el thumb solo como placeholder.
   const preferFullLogo = size === 'xl'
@@ -43,6 +53,8 @@ export function CompanyLogo({ company, size = 'sm', className, imgStyle }: Compa
       <img
         src={company.logoThumb}
         alt={company.name}
+        width={px}
+        height={px}
         className={cn(sizeClass, 'object-cover shrink-0', className)}
       />
     )
@@ -58,6 +70,8 @@ export function CompanyLogo({ company, size = 'sm', className, imgStyle }: Compa
       <img
         src={company.logoThumb}
         alt={company.name}
+        width={px}
+        height={px}
         className={cn(sizeClass, 'object-cover shrink-0', className)}
       />
     )
@@ -71,6 +85,8 @@ export function CompanyLogo({ company, size = 'sm', className, imgStyle }: Compa
             src={company.logoThumb}
             alt=""
             aria-hidden
+            width={px}
+            height={px}
             className="absolute inset-0 w-full h-full object-cover rounded-full blur-sm scale-105"
           />
         ) : (
@@ -85,6 +101,8 @@ export function CompanyLogo({ company, size = 'sm', className, imgStyle }: Compa
       <img
         src={logoUrl!}
         alt={company?.name ?? ''}
+        width={px}
+        height={px}
         style={imgStyle}
         className={cn('w-full h-full object-cover relative', loaded ? 'opacity-100' : 'opacity-0')}
         onLoad={() => { if (logoUrl) loadedUrls.add(logoUrl); setLoaded(true) }}
