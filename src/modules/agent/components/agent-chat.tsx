@@ -269,7 +269,7 @@ export function AgentChat({ initialMessages, conversationId, onConversationSaved
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex-1 flex flex-col min-h-0">
       <MessageList
         messages={messages}
         isLoading={isLoading}

@@ -32,10 +32,20 @@ interface MessageListProps {
 }
 
 export function MessageList({ messages, isLoading, onSuggestionClick, onToolConfirm, onToolCancel, onExportReport }: MessageListProps) {
+  const scrollRef = useRef<HTMLDivElement>(null)
   const endRef = useRef<HTMLDivElement>(null)
+  const stickToBottomRef = useRef(true)
+
+  const handleScroll = () => {
+    const el = scrollRef.current
+    if (!el) return
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
+    stickToBottomRef.current = distanceFromBottom < 100
+  }
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (!stickToBottomRef.current) return
+    endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
   }, [messages, isLoading])
 
   if (messages.length === 0) {
@@ -66,7 +76,7 @@ export function MessageList({ messages, isLoading, onSuggestionClick, onToolConf
   }
 
   return (
-    <div className="flex-1 overflow-y-auto">
+    <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto min-h-0">
       {messages.map((message) => (
         <div key={message.id}>
           {message.parts.map((part, i) => {
