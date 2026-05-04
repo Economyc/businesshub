@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { BarChart3, Users, Briefcase, DollarSign, Home, Handshake, ClipboardList, FileSignature, X, ChevronRight, Building2, Tags, BadgeCheck, Network, ChevronsUpDown, Check, MapPin, Wallet, Receipt, Gift, LogOut, Bot, Landmark, Boxes, UserRound, List, ShoppingCart, Package, Target, Repeat, Scale, FileText, Megaphone, RefreshCw, Shield, LayoutDashboard, Store, PieChart, LayoutGrid } from 'lucide-react'
+import { Users, Briefcase, DollarSign, Home, Handshake, ClipboardList, FileSignature, X, ChevronRight, Building2, Tags, BadgeCheck, Network, ChevronsUpDown, Check, MapPin, Wallet, Receipt, Gift, LogOut, List, ShoppingCart, Package, Target, Scale, FileText, Megaphone, RefreshCw, Shield, LayoutDashboard, Store, PieChart, LayoutGrid } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useCompany } from '@/core/hooks/use-company'
 import { useAuth } from '@/core/hooks/use-auth'
@@ -16,27 +16,25 @@ import type { ModuleKey } from '@/core/types/permissions'
 interface NavItem {
   to: string
   label: string
-  icon: typeof Home
+  icon?: typeof Home
   moduleKey?: ModuleKey
 }
 
 interface NavSection {
   title?: string
-  icon?: typeof Home
   items: NavItem[]
 }
 
 const NAV_SECTIONS: NavSection[] = [
   {
     items: [
-      { to: '/home', label: 'Home', icon: Home, moduleKey: 'home' },
-      { to: '/agent', label: 'Asistente AI', icon: Bot, moduleKey: 'agent' },
-      { to: '/analytics', label: 'Análisis', icon: BarChart3, moduleKey: 'analytics' },
+      { to: '/home', label: 'Home', moduleKey: 'home' },
+      { to: '/agent', label: 'Asistente AI', moduleKey: 'agent' },
+      { to: '/analytics', label: 'Análisis', moduleKey: 'analytics' },
     ],
   },
   {
     title: 'Contabilidad',
-    icon: Landmark,
     items: [
       { to: '/finance', label: 'Finanzas', icon: DollarSign, moduleKey: 'finance' },
       { to: '/cartera', label: 'Cartera', icon: Wallet, moduleKey: 'cartera' },
@@ -46,31 +44,22 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: 'Gestión',
-    icon: Boxes,
+    title: 'Operaciones',
     items: [
       { to: '/contracts', label: 'Contratos', icon: FileSignature, moduleKey: 'contracts' },
       { to: '/partners', label: 'Socios', icon: Handshake, moduleKey: 'partners' },
-    ],
-  },
-  {
-    title: 'Personas',
-    icon: UserRound,
-    items: [
       { to: '/talent', label: 'Equipo', icon: Users, moduleKey: 'talent' },
       { to: '/suppliers', label: 'Proveedores', icon: Briefcase, moduleKey: 'suppliers' },
     ],
   },
   {
     title: 'Mercadeo',
-    icon: Megaphone,
     items: [
-      { to: '/marketing/influencers', label: 'Influencers', icon: Users, moduleKey: 'marketing' },
+      { to: '/marketing/influencers', label: 'Influencers', icon: Megaphone, moduleKey: 'marketing' },
     ],
   },
   {
     title: 'Integraciones',
-    icon: RefreshCw,
     items: [
       { to: '/pos-sync', label: 'POS Sync', icon: RefreshCw },
     ],
@@ -85,9 +74,8 @@ const SETTINGS_ITEMS = [
   { to: '/settings/departments', label: 'Departamentos', icon: Network },
 ]
 
-const FINANCE_ITEMS: (NavItem & { end?: boolean })[] = [
+const FINANCE_ITEMS: (Omit<NavItem, 'icon'> & { icon: typeof Home; end?: boolean })[] = [
   { to: '/finance', label: 'Transacciones', icon: List, end: true },
-  { to: '/finance/recurring', label: 'Recurrentes', icon: Repeat },
   { to: '/finance/purchases', label: 'Compras', icon: ShoppingCart, end: true },
   { to: '/finance/purchases/products', label: 'Insumos', icon: Package },
   { to: '/finance/cash-flow', label: 'Flujo de Caja', icon: Wallet },
@@ -96,7 +84,7 @@ const FINANCE_ITEMS: (NavItem & { end?: boolean })[] = [
   { to: '/finance/reconciliation', label: 'Conciliacion', icon: Scale },
 ]
 
-const ANALYTICS_ITEMS: (NavItem & { end?: boolean })[] = [
+const ANALYTICS_ITEMS: (Omit<NavItem, 'icon'> & { icon: typeof Home; end?: boolean })[] = [
   { to: '/analytics', label: 'General', icon: LayoutDashboard, end: true },
   { to: '/analytics/pos', label: 'POS', icon: Store },
   { to: '/analytics/costs', label: 'Costos', icon: PieChart },
@@ -124,12 +112,14 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
   const { user, logout } = useAuth()
   const { can } = usePermissions()
   const { config: avatarConfig, setConfig: setAvatarConfig } = useAvatarConfig(user?.uid)
+  const location = useLocation()
+  const isFinanceRoute = location.pathname.startsWith('/finance')
+  const isAnalyticsRoute = location.pathname.startsWith('/analytics')
   const [companyOpen, setCompanyOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
-  const [financeExpanded, setFinanceExpanded] = useState(() => window.location.pathname.startsWith('/finance'))
-  const [analyticsExpanded, setAnalyticsExpanded] = useState(() => window.location.pathname.startsWith('/analytics'))
-  const [openSections, setOpenSections] = useState<Set<string>>(() => getActiveSections(window.location.pathname))
-  const location = useLocation()
+  const [financeExpanded, setFinanceExpanded] = useState(isFinanceRoute)
+  const [analyticsExpanded, setAnalyticsExpanded] = useState(isAnalyticsRoute)
+  const [openSections, setOpenSections] = useState<Set<string>>(() => getActiveSections(location.pathname))
 
   // Auto-expand section when navigating
   useEffect(() => {
@@ -142,6 +132,18 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
       })
     }
   }, [location.pathname])
+
+  // Close finance submenu when navigating away from finance routes
+  useEffect(() => {
+    if (!isFinanceRoute) setFinanceExpanded(false)
+    else setFinanceExpanded(true)
+  }, [location.pathname, isFinanceRoute])
+
+  // Close analytics submenu when navigating away from analytics routes
+  useEffect(() => {
+    if (!isAnalyticsRoute) setAnalyticsExpanded(false)
+    else setAnalyticsExpanded(true)
+  }, [location.pathname, isAnalyticsRoute])
 
   function toggleSection(title: string) {
     setOpenSections(prev => {
@@ -268,13 +270,12 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
                       <button
                         onClick={() => toggleSection(section.title!)}
                         className={cn(
-                          'w-full flex items-center gap-2.5 mx-3 px-3 py-2.5 mt-2 rounded-xl text-[15px] transition-all duration-150 group/section',
+                          'w-full flex items-center gap-2.5 mx-3 px-3 py-2.5 mt-2 rounded-xl text-body transition-all duration-150 group/section',
                           isOpen
                             ? 'text-dark-graphite font-medium'
                             : 'text-graphite/70 active:bg-bone/50'
                         )}
                       >
-                        {section.icon && <section.icon size={20} strokeWidth={1.5} />}
                         <span className="flex-1 text-left">{section.title}</span>
                         <ChevronRight
                           size={14}
@@ -299,8 +300,7 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
                             const inSection = !!section.title
                             const itemClass = inSection
                               ? 'flex items-center gap-3 mx-3 px-3 pl-9 py-2.5 rounded-xl text-body transition-all duration-150'
-                              : 'flex items-center gap-3 mx-3 px-3 py-3 rounded-xl text-[15px] transition-all duration-150'
-                            const itemIconSize = inSection ? 16 : 20
+                              : 'flex items-center gap-3 mx-3 px-3 py-3 rounded-xl text-body transition-all duration-150'
                             const subItemClass = inSection
                               ? 'flex items-center gap-3 mx-3 px-3 pl-14 py-2.5 rounded-xl text-body transition-all duration-150'
                               : 'flex items-center gap-3 mx-3 px-3 pl-9 py-2.5 rounded-xl text-body transition-all duration-150'
@@ -317,11 +317,11 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
                                     className={cn(
                                       'w-full ' + itemClass,
                                       isOnRoute
-                                        ? 'text-dark-graphite font-medium bg-bone'
+                                        ? 'text-dark-graphite font-medium bg-smoke'
                                         : 'text-graphite/70 active:bg-bone/50'
                                     )}
                                   >
-                                    <Icon size={itemIconSize} strokeWidth={1.5} />
+                                    {Icon && <Icon size={16} strokeWidth={1.5} />}
                                     {label}
                                     <ChevronRight
                                       size={14}
@@ -371,12 +371,12 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
                                   cn(
                                     itemClass,
                                     isActive
-                                      ? 'text-dark-graphite font-medium bg-bone'
+                                      ? 'text-dark-graphite font-medium bg-smoke'
                                       : 'text-graphite/70 active:bg-bone/50'
                                   )
                                 }
                               >
-                                <Icon size={itemIconSize} strokeWidth={1.5} />
+                                {Icon && <Icon size={16} strokeWidth={1.5} />}
                                 {label}
                               </NavLink>
                             )
