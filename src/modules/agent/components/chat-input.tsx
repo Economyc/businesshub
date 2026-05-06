@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type DragEvent } from 'react'
-import { Send, Paperclip, Square, X, FileSpreadsheet, Image as ImageIcon } from 'lucide-react'
+import { Send, Paperclip, Square, X, FileSpreadsheet, Image as ImageIcon, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { HoverHint } from '@/components/ui/tooltip'
 import { isImageFile, isSpreadsheetFile } from '../utils/image-preprocessing'
+import { validateImageFile, formatImageError } from '../utils/image-validation'
 import {
   filterSlashCommands,
   parseSlashCommand,
@@ -24,6 +25,8 @@ export function ChatInput({ input, onInputChange, onSubmit, onSendWithFiles, isL
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [attachedFiles, setAttachedFiles] = useState<File[]>([])
   const [dragOver, setDragOver] = useState(false)
+  const [attachErrors, setAttachErrors] = useState<string[]>([])
+  const errorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Slash command popover state
   const [slashOpen, setSlashOpen] = useState(false)
@@ -150,14 +153,43 @@ export function ChatInput({ input, onInputChange, onSubmit, onSendWithFiles, isL
     }
   }
 
-  function addFiles(files: FileList | File[]) {
-    const validFiles = Array.from(files).filter(
-      (f) => isImageFile(f) || isSpreadsheetFile(f)
-    )
-    if (validFiles.length > 0) {
-      setAttachedFiles((prev) => [...prev, ...validFiles])
-    }
+  function showAttachErrors(messages: string[]) {
+    if (messages.length === 0) return
+    setAttachErrors(messages)
+    if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current)
+    errorTimeoutRef.current = setTimeout(() => setAttachErrors([]), 6000)
   }
+
+  function addFiles(files: FileList | File[]) {
+    const incoming = Array.from(files)
+    const errors: string[] = []
+    const accepted: File[] = []
+
+    for (const file of incoming) {
+      if (isImageFile(file)) {
+        const err = validateImageFile(file)
+        if (err) {
+          errors.push(`${file.name}: ${formatImageError(err)}`)
+          continue
+        }
+        accepted.push(file)
+      } else if (isSpreadsheetFile(file)) {
+        accepted.push(file)
+      }
+      // Cualquier otro tipo se ignora silenciosamente (comportamiento previo).
+    }
+
+    if (accepted.length > 0) {
+      setAttachedFiles((prev) => [...prev, ...accepted])
+    }
+    showAttachErrors(errors)
+  }
+
+  useEffect(() => {
+    return () => {
+      if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current)
+    }
+  }, [])
 
   function removeFile(index: number) {
     setAttachedFiles((prev) => prev.filter((_, i) => i !== index))
@@ -181,6 +213,29 @@ export function ChatInput({ input, onInputChange, onSubmit, onSendWithFiles, isL
         dragOver && 'bg-primary/5 border-primary/30'
       )}
     >
+      {/* Errores de adjuntos (validación de imágenes) */}
+      {attachErrors.length > 0 && (
+        <div className="px-3 pt-3">
+          <div className="rounded-lg border border-border/60 bg-negative-bg px-4 py-2 flex items-start gap-2">
+            <AlertCircle size={14} strokeWidth={1.5} className="text-negative-text shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0 space-y-1">
+              {attachErrors.map((msg, i) => (
+                <p key={i} className="text-caption text-negative-text">
+                  {msg}
+                </p>
+              ))}
+            </div>
+            <button
+              onClick={() => setAttachErrors([])}
+              className="text-negative-text hover:opacity-80 transition-opacity shrink-0"
+              aria-label="Cerrar"
+            >
+              <X size={12} />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Attached files preview */}
       {attachedFiles.length > 0 && (
         <div className="px-3 pt-3 flex flex-wrap gap-2">

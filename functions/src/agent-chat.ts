@@ -24,6 +24,69 @@ function getRouter(): LLMRouter {
 
 const MAX_RETRIES = 2
 
+// Defense-in-depth: mismas reglas que en el cliente
+// (`src/modules/agent/utils/image-validation.ts`).
+const ALLOWED_IMAGE_MIMETYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/heic',
+  'image/heif',
+] as const
+
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024 // 5 MB
+// base64 ≈ 4/3 del binario; agregamos margen por el prefijo `data:...;base64,`.
+const MAX_IMAGE_DATA_URL_LENGTH = Math.ceil(MAX_IMAGE_BYTES * 4 / 3) + 256
+
+type AttachmentValidationResult =
+  | { ok: true }
+  | { ok: false; status: number; body: Record<string, unknown> }
+
+function validateAttachments(messages: unknown): AttachmentValidationResult {
+  if (!Array.isArray(messages)) return { ok: true }
+
+  try {
+    for (const msg of messages) {
+      if (!msg || typeof msg !== 'object') continue
+      const attachments = (msg as Record<string, unknown>).experimental_attachments
+      if (!Array.isArray(attachments)) continue
+
+      for (const att of attachments) {
+        if (!att || typeof att !== 'object') continue
+        const contentType = (att as Record<string, unknown>).contentType
+        const url = (att as Record<string, unknown>).url
+
+        if (typeof contentType !== 'string' || !contentType.startsWith('image/')) {
+          continue
+        }
+
+        const mimetype = contentType.toLowerCase()
+        if (!(ALLOWED_IMAGE_MIMETYPES as readonly string[]).includes(mimetype)) {
+          return {
+            ok: false,
+            status: 400,
+            body: { error: 'unsupported_image_type', mimetype },
+          }
+        }
+
+        if (typeof url === 'string' && url.length > MAX_IMAGE_DATA_URL_LENGTH) {
+          return {
+            ok: false,
+            status: 400,
+            body: { error: 'image_too_large' },
+          }
+        }
+      }
+    }
+  } catch (err) {
+    // Si el shape no matchea (cliente viejo, formato distinto), no bloquear.
+    console.warn('[AgentChat] validateAttachments skipped due to error:', err)
+    return { ok: true }
+  }
+
+  return { ok: true }
+}
+
 export const agentChat = onRequest(
   {
     cors: true,
@@ -47,6 +110,13 @@ export const agentChat = onRequest(
 
       if (!companyId || typeof companyId !== 'string') {
         res.status(400).json({ error: 'Invalid request: companyId required' })
+        return
+      }
+
+      // Defense-in-depth para imágenes adjuntas: tipo + tamaño.
+      const attachmentCheck = validateAttachments(messages)
+      if (!attachmentCheck.ok) {
+        res.status(attachmentCheck.status).json(attachmentCheck.body)
         return
       }
 
