@@ -4,9 +4,13 @@ import { streamText } from 'ai'
 import { getAgentSystemPrompt } from './system-prompt.js'
 import { createAgentTools } from './tools/index.js'
 import { LLMRouter, isRateLimitError, parseRetryAfter, messagesContainImages } from './llm-router.js'
+import { getLangfuseClient, flushLangfuse } from './observability/langfuse.js'
 
 const geminiApiKey = defineSecret('GEMINI_API_KEY')
 const cerebrasApiKey = defineSecret('CEREBRAS_API_KEY')
+const langfusePublicKey = defineSecret('LANGFUSE_PUBLIC_KEY')
+const langfuseSecretKey = defineSecret('LANGFUSE_SECRET_KEY')
+const langfuseBaseUrl = defineSecret('LANGFUSE_BASE_URL')
 
 // Singleton router (persists across warm invocations of the Cloud Function)
 let router: LLMRouter | null = null
@@ -92,7 +96,13 @@ export const agentChat = onRequest(
     cors: true,
     timeoutSeconds: 120,
     memory: '512MiB',
-    secrets: [geminiApiKey, cerebrasApiKey],
+    secrets: [
+      geminiApiKey,
+      cerebrasApiKey,
+      langfusePublicKey,
+      langfuseSecretKey,
+      langfuseBaseUrl,
+    ],
   },
   async (req, res) => {
     if (req.method !== 'POST') {
@@ -113,6 +123,8 @@ export const agentChat = onRequest(
         threadTitle,
         threadContext,
         nextActions,
+        userId,
+        conversationId,
       } = req.body
 
       if (!messages || !Array.isArray(messages)) {
@@ -136,6 +148,19 @@ export const agentChat = onRequest(
       const tools = createAgentTools(companyId, safeThreadId)
       const needsVision = messagesContainImages(messages)
       const companyList = Array.isArray(companies) ? companies : []
+      const hasImages = needsVision
+
+      const lf = getLangfuseClient()
+      const trace = lf?.trace({
+        name: 'agent-chat',
+        userId: typeof userId === 'string' ? userId : 'anonymous',
+        sessionId: typeof conversationId === 'string'
+          ? conversationId
+          : (safeThreadId ?? undefined),
+        metadata: { companyId, hasImages, threadId: safeThreadId },
+        input: messages,
+        tags: ['agent', `company:${companyId}`],
+      })
 
       // Retry loop with automatic fallback
       let lastError: unknown = null
@@ -148,6 +173,14 @@ export const agentChat = onRequest(
           providerName = provider
           console.log(`[AgentChat] Attempt ${attempt + 1} using ${provider}${needsVision ? ' (vision)' : ''}`)
 
+          const generation = trace?.generation({
+            name: 'streamText',
+            model: provider,
+            input: messages,
+            metadata: { attempt: attempt + 1, needsVision },
+          })
+
+          const startedAt = Date.now()
           const result = streamText({
             model,
             system: getAgentSystemPrompt({
@@ -172,6 +205,60 @@ export const agentChat = onRequest(
             messages,
             tools,
             maxSteps: 8,
+            experimental_telemetry: {
+              isEnabled: Boolean(trace),
+              functionId: 'agent-chat',
+              metadata: {
+                langfuseTraceId: trace?.id ?? '',
+                langfuseUpdateParent: false,
+                companyId,
+                provider,
+              },
+            },
+            onFinish: async (event) => {
+              try {
+                const usage = (event as { usage?: Record<string, unknown> }).usage
+                const text = (event as { text?: string }).text
+                const finishReason = (event as { finishReason?: string }).finishReason
+                const toolCalls = (event as { toolCalls?: unknown }).toolCalls
+                const toolResults = (event as { toolResults?: unknown }).toolResults
+                generation?.end({
+                  output: { text, toolCalls, toolResults, finishReason },
+                  usage: usage as never,
+                  metadata: {
+                    latencyMs: Date.now() - startedAt,
+                    finishReason,
+                  },
+                })
+                trace?.update({
+                  output: { text, finishReason },
+                  metadata: { provider, latencyMs: Date.now() - startedAt },
+                })
+              } catch (err) {
+                console.warn('[langfuse] onFinish hook failed:', err)
+              } finally {
+                await flushLangfuse(lf)
+              }
+            },
+            onError: async (event) => {
+              const err = (event as { error?: unknown }).error ?? event
+              const message = err instanceof Error ? err.message : String(err)
+              try {
+                generation?.end({
+                  output: { error: message },
+                  level: 'ERROR',
+                  statusMessage: message,
+                })
+                trace?.update({
+                  output: { error: message },
+                  metadata: { provider, latencyMs: Date.now() - startedAt },
+                })
+              } catch (e) {
+                console.warn('[langfuse] onError hook failed:', e)
+              } finally {
+                await flushLangfuse(lf)
+              }
+            },
           })
 
           result.pipeDataStreamToResponse(res)
@@ -182,15 +269,29 @@ export const agentChat = onRequest(
           if (isRateLimitError(error)) {
             const cooldown = parseRetryAfter(error)
             await llmRouter.markRateLimited(providerName, cooldown)
+            trace?.event({
+              name: 'rate-limited',
+              input: { provider: providerName, cooldownMs: cooldown },
+              level: 'WARNING',
+            })
             console.warn(`[AgentChat] ${providerName} rate limited, retrying with fallback...`)
             continue
           }
 
+          trace?.update({
+            output: { error: error instanceof Error ? error.message : String(error) },
+            metadata: { provider: providerName },
+          })
+          await flushLangfuse(lf)
           throw error
         }
       }
 
       console.error('[AgentChat] All providers failed:', lastError)
+      trace?.update({
+        output: { error: 'all_providers_rate_limited' },
+      })
+      await flushLangfuse(lf)
       res.status(503).json({
         error: 'Todos los proveedores de AI están temporalmente limitados. Intenta de nuevo en un minuto.',
       })
