@@ -20,6 +20,7 @@ import type { NotificationFormData, NotificationType } from '@/modules/notificat
 import type { ContractFormData, ContractTemplate, ContractTemplateFormData } from '@/modules/contracts/types'
 import type { ContractStatus, ContractType, Company } from '@/core/types'
 import { resolvePayeeOnCompany, resolveCompany } from './resolve-payee'
+import { reportProgressClient } from './tool-progress-client'
 
 function toTimestamp(dateStr: string): Timestamp {
   return Timestamp.fromDate(new Date(dateStr))
@@ -41,6 +42,7 @@ export async function executeMutation(
   toolName: string,
   args: Record<string, unknown>,
   ctx?: MutationContext,
+  toolCallId?: string,
 ): Promise<MutationResult> {
   switch (toolName) {
     case 'createEmployee': {
@@ -368,9 +370,16 @@ export async function executeMutation(
       const periodLabel = String(args.periodLabel ?? '')
       let recurringGenerated = 0
 
+      // Wave 2.3 — progreso incremental escrito desde cliente.
+      void reportProgressClient(toolCallId, { label: 'Validando datos', status: 'running' })
+      void reportProgressClient(toolCallId, { label: 'Calculando totales', status: 'running' })
+
       if (generateRecurring) {
+        void reportProgressClient(toolCallId, { label: 'Generando asientos', status: 'running' })
         recurringGenerated = await generatePendingTransactions(companyId)
       }
+
+      void reportProgressClient(toolCallId, { label: 'Guardando cierre', status: 'done' })
 
       const parts: string[] = []
       if (recurringGenerated > 0) {
@@ -538,12 +547,21 @@ export async function executeMutation(
     case 'triggerPosReconcile': {
       const days = Math.min(Number(args.days) || 7, 32)
       const functions = await getAppFunctions()
-      const fn = httpsCallable<{ companyId: string; days: number }, { ventasWritten: number; daysWritten: number }>(
-        functions,
-        'posReconcileOnDemand',
-      )
-      const res = await fn({ companyId, days })
+
+      // Wave 2.3 — progreso incremental. El primer paso lo escribe el
+      // cliente; pasos del lado servidor (consultando POS, actualizando
+      // Firestore) los reporta el callable usando el mismo toolCallId.
+      void reportProgressClient(toolCallId, { label: 'Obteniendo ventana', status: 'running' })
+
+      const fn = httpsCallable<
+        { companyId: string; days: number; toolCallId?: string },
+        { ventasWritten: number; daysWritten: number }
+      >(functions, 'posReconcileOnDemand')
+      const res = await fn({ companyId, days, toolCallId })
       const { ventasWritten, daysWritten } = res.data
+
+      void reportProgressClient(toolCallId, { label: 'Reconciliación finalizada', status: 'done' })
+
       return {
         success: true,
         message: `Reconciliación POS completada: ${ventasWritten} ventas escritas en ${daysWritten} días (últimos ${days}).`,

@@ -19,5 +19,15 @@ service cloud.firestore {
     match /system/llm-rate-limits/{document=**} {
       allow read, write: if false;
     }
+
+    // Wave 2.3 — progreso incremental de tools largas. El cliente lee
+    // pasos en vivo via onSnapshot mientras la tool corre. Escrituras
+    // tanto desde Cloud Functions (Admin SDK las salta) como desde el
+    // cliente (executeMutation reporta pasos para tools client-side).
+    // Datos efímeros, no sensibles. TTL de 24h se configura desde la
+    // consola de Firestore sobre el campo `updatedAt`.
+    match /toolProgress/{toolCallId} {
+      allow read, write: if request.auth != null;
+    }
   }
 }

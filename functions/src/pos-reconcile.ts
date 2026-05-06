@@ -43,6 +43,7 @@ import {
   resolveCompanyTenant,
   type TenantId,
 } from './pos-tenants.js'
+import { reportProgress } from './tools/utils/tool-progress.js'
 
 // Default para `posReconcileOnDemand` cuando el caller no especifica `days`.
 // El cron nocturno ya NO lo usa (cubre mes actual dinámicamente, ver runReconcile).
@@ -345,6 +346,9 @@ export const posReconcileNightly = onSchedule(
 interface OnDemandData {
   companyId?: string
   days?: number
+  // Wave 2.3 — opcional: si el caller (agente) lo provee, escribimos
+  // pasos a `toolProgress/{toolCallId}` para que la UI los muestre en vivo.
+  toolCallId?: string
 }
 
 // Callable para el botón "Forzar sincronización" y el auto-trigger del Home
@@ -371,7 +375,7 @@ export const posReconcileOnDemand = onCall<OnDemandData>(
     if (!req.auth) {
       throw new HttpsError('unauthenticated', 'Autenticación requerida')
     }
-    const { companyId, days } = req.data ?? {}
+    const { companyId, days, toolCallId } = req.data ?? {}
     if (!companyId || typeof companyId !== 'string') {
       throw new HttpsError('invalid-argument', 'companyId es requerido')
     }
@@ -419,11 +423,14 @@ export const posReconcileOnDemand = onCall<OnDemandData>(
     )
 
     try {
-      return await runReconcile({
+      void reportProgress(toolCallId, { label: 'Consultando POS API', status: 'running' })
+      const result = await runReconcile({
         tenantId,
         targetCompanyIds: [companyId],
         days: typeof days === 'number' && days > 0 && days <= 365 ? days : DEFAULT_RECONCILE_DAYS,
       })
+      void reportProgress(toolCallId, { label: 'Actualizando Firestore', status: 'done' })
+      return result
     } finally {
       await metaRef.set(
         { inProgress: false, finishedAt: FieldValue.serverTimestamp() },

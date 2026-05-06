@@ -1,6 +1,7 @@
 import { tool } from 'ai'
 import { z } from 'zod'
 import { fetchCollection, fetchSettingsDoc } from '../firestore.js'
+import { reportProgress } from './utils/tool-progress.js'
 
 // ─── Helpers ───
 
@@ -233,13 +234,19 @@ export function createAnalysisTools(companyId: string) {
         startDate: z.string().describe('Fecha inicio del periodo (YYYY-MM-DD)'),
         endDate: z.string().describe('Fecha fin del periodo (YYYY-MM-DD)'),
       }),
-      execute: async ({ startDate, endDate }) => {
+      execute: async ({ startDate, endDate }, { toolCallId }) => {
+        // Wave 2.3 — progreso incremental. void = fire-and-forget para no
+        // bloquear el camino crítico mientras Firestore confirma el write.
+        void reportProgress(toolCallId, { label: 'Cargando transacciones', status: 'running' })
+
         const [allTxs, budgetDoc, employees, suppliers] = await Promise.all([
           fetchCollection(companyId, 'transactions'),
           fetchSettingsDoc(companyId, 'budget'),
           fetchCollection(companyId, 'employees'),
           fetchCollection(companyId, 'suppliers'),
         ])
+
+        void reportProgress(toolCallId, { label: 'Calculando P&L', status: 'running' })
 
         const period = filterByPeriod(allTxs, startDate, endDate)
         const income = period.filter((t) => t.type === 'income')
@@ -248,6 +255,8 @@ export function createAnalysisTools(companyId: string) {
         const totalExpenses = expenses.reduce((s, t) => s + (Number(t.amount) || 0), 0)
         const netProfit = totalIncome - totalExpenses
         const netMargin = totalIncome > 0 ? (netProfit / totalIncome) * 100 : 0
+
+        void reportProgress(toolCallId, { label: 'Analizando tendencias', status: 'running' })
 
         // Previous period comparison
         const startMs = new Date(startDate).getTime()
@@ -293,6 +302,8 @@ export function createAnalysisTools(companyId: string) {
 
         // Top 5 expense categories
         const topExpenses = groupByCategory(expenses).slice(0, 5)
+
+        void reportProgress(toolCallId, { label: 'Preparando respuesta', status: 'done' })
 
         return {
           period: { startDate, endDate },
