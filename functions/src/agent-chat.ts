@@ -61,7 +61,7 @@ export const agentChat = onRequest(
         let providerName = 'unknown'
 
         try {
-          const { model, provider } = llmRouter.getModel({ needsVision })
+          const { model, provider } = await llmRouter.getModel({ needsVision })
           providerName = provider
           console.log(`[AgentChat] Attempt ${attempt + 1} using ${provider}${needsVision ? ' (vision)' : ''}`)
 
@@ -80,7 +80,7 @@ export const agentChat = onRequest(
 
           if (isRateLimitError(error)) {
             const cooldown = parseRetryAfter(error)
-            llmRouter.markRateLimited(providerName, cooldown)
+            await llmRouter.markRateLimited(providerName, cooldown)
             console.warn(`[AgentChat] ${providerName} rate limited, retrying with fallback...`)
             continue
           }

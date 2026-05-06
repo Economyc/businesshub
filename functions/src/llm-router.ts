@@ -2,20 +2,64 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { createGroq } from '@ai-sdk/groq'
 import { createCerebras } from '@ai-sdk/cerebras'
 import type { LanguageModelV1 } from 'ai'
+import { Timestamp } from 'firebase-admin/firestore'
+import { db } from './firestore.js'
 
 interface ProviderConfig {
   name: string
   createModel: () => LanguageModelV1
   supportsVision: boolean
-  rateLimitedUntil: number
+  /** Default cooldown in ms when 429 is received and no Retry-After is given. */
+  defaultCooldownMs: number
+}
+
+interface RateLimitEntry {
+  /** Epoch ms hasta que el provider sigue rate-limited. */
+  until: number
+  /** Cuándo se leyó/escribió este valor en el cache local. */
+  cachedAt: number
+}
+
+/** Doc shape persisted in Firestore. */
+interface RateLimitDoc {
+  provider: string
+  until: Timestamp
+  reason?: string
+  updatedAt: Timestamp
+}
+
+const RATE_LIMIT_COLLECTION_PARENT = 'system'
+const RATE_LIMIT_PARENT_DOC = 'llm-rate-limits'
+const RATE_LIMIT_SUBCOLLECTION = 'providers'
+
+/** TTL del cache en memoria para evitar pegarle a Firestore en cada request. */
+const LOCAL_CACHE_TTL_MS = 30_000
+
+/** Cooldowns por provider cuando no hay Retry-After. */
+const DEFAULT_COOLDOWNS: Record<string, number> = {
+  gemini: 60_000,
+  'groq-scout': 30_000,
+  'groq-llama70b': 30_000,
+  'cerebras-llama8b': 60_000,
+}
+
+function rateLimitDocRef(providerName: string) {
+  return db
+    .collection(RATE_LIMIT_COLLECTION_PARENT)
+    .doc(RATE_LIMIT_PARENT_DOC)
+    .collection(RATE_LIMIT_SUBCOLLECTION)
+    .doc(providerName)
 }
 
 /**
  * LLM Router with automatic fallback between free providers.
- * Tracks rate limits in-memory and skips providers that are cooling down.
+ * Persists rate limits in Firestore so cooldowns survive cold starts; keeps a short
+ * in-memory cache (30s TTL) and an in-memory fallback if Firestore is unreachable.
  */
 export class LLMRouter {
   private providers: ProviderConfig[] = []
+  /** Cache local: provider → { until, cachedAt }. También sirve de fallback. */
+  private cache: Map<string, RateLimitEntry> = new Map()
 
   addGemini(apiKey: string) {
     if (!apiKey) return this
@@ -24,7 +68,7 @@ export class LLMRouter {
       name: 'gemini',
       createModel: () => google('gemini-2.5-flash'),
       supportsVision: true,
-      rateLimitedUntil: 0,
+      defaultCooldownMs: DEFAULT_COOLDOWNS.gemini,
     })
     return this
   }
@@ -32,19 +76,19 @@ export class LLMRouter {
   addGroq(apiKey: string) {
     if (!apiKey) return this
     const groq = createGroq({ apiKey })
-    // Add vision-capable model first
+    // Vision-capable model first
     this.providers.push({
       name: 'groq-scout',
       createModel: () => groq('meta-llama/llama-4-scout-17b-16e-instruct'),
       supportsVision: true,
-      rateLimitedUntil: 0,
+      defaultCooldownMs: DEFAULT_COOLDOWNS['groq-scout'],
     })
-    // Add text-only model as additional fallback
+    // Text-only model como fallback adicional
     this.providers.push({
       name: 'groq-llama70b',
       createModel: () => groq('llama-3.3-70b-versatile'),
       supportsVision: false,
-      rateLimitedUntil: 0,
+      defaultCooldownMs: DEFAULT_COOLDOWNS['groq-llama70b'],
     })
     return this
   }
@@ -56,30 +100,79 @@ export class LLMRouter {
       name: 'cerebras-llama8b',
       createModel: () => cerebras('llama-3.1-8b'),
       supportsVision: false,
-      rateLimitedUntil: 0,
+      defaultCooldownMs: DEFAULT_COOLDOWNS['cerebras-llama8b'],
     })
     return this
+  }
+
+  /**
+   * Lee el estado de rate-limit de todos los providers (cache local + Firestore en paralelo).
+   * Si Firestore falla, cae al cache local existente. Nunca rompe el chat.
+   */
+  private async loadRateLimits(): Promise<Map<string, number>> {
+    const now = Date.now()
+    const result = new Map<string, number>()
+    const providersToFetch: string[] = []
+
+    for (const provider of this.providers) {
+      const cached = this.cache.get(provider.name)
+      if (cached && now - cached.cachedAt < LOCAL_CACHE_TTL_MS) {
+        result.set(provider.name, cached.until)
+      } else {
+        providersToFetch.push(provider.name)
+      }
+    }
+
+    if (providersToFetch.length === 0) return result
+
+    try {
+      const snaps = await Promise.all(
+        providersToFetch.map((name) => rateLimitDocRef(name).get()),
+      )
+      for (let i = 0; i < providersToFetch.length; i++) {
+        const name = providersToFetch[i]
+        const snap = snaps[i]
+        let until = 0
+        if (snap.exists) {
+          const data = snap.data() as Partial<RateLimitDoc> | undefined
+          const ts = data?.until
+          if (ts && typeof (ts as Timestamp).toMillis === 'function') {
+            until = (ts as Timestamp).toMillis()
+          }
+        }
+        this.cache.set(name, { until, cachedAt: now })
+        result.set(name, until)
+      }
+    } catch (error) {
+      console.warn('[LLMRouter] Firestore read failed, using in-memory fallback:', error)
+      // Fallback: usar lo que haya en cache (aunque esté stale) o 0.
+      for (const name of providersToFetch) {
+        const cached = this.cache.get(name)
+        result.set(name, cached?.until ?? 0)
+      }
+    }
+
+    return result
   }
 
   /**
    * Get the best available model. Skips rate-limited providers.
    * If the request includes images, only returns vision-capable models.
    */
-  getModel(options?: { needsVision?: boolean }): { model: LanguageModelV1; provider: string } {
+  async getModel(options?: { needsVision?: boolean }): Promise<{ model: LanguageModelV1; provider: string }> {
     const now = Date.now()
     const needsVision = options?.needsVision ?? false
+    const rateLimits = await this.loadRateLimits()
 
     for (const provider of this.providers) {
-      // Skip rate-limited providers
-      if (provider.rateLimitedUntil > now) {
-        console.log(`[LLMRouter] Skipping ${provider.name} (rate limited until ${new Date(provider.rateLimitedUntil).toISOString()})`)
+      const until = rateLimits.get(provider.name) ?? 0
+      if (until > now) {
+        console.log(`[LLMRouter] Skipping ${provider.name} (rate limited until ${new Date(until).toISOString()})`)
         continue
       }
-      // Skip non-vision providers if vision is needed
       if (needsVision && !provider.supportsVision) {
         continue
       }
-
       return { model: provider.createModel(), provider: provider.name }
     }
 
@@ -87,27 +180,51 @@ export class LLMRouter {
   }
 
   /**
-   * Mark a provider as rate-limited. Call this when a 429 error is received.
+   * Mark a provider as rate-limited. Persiste en Firestore + actualiza cache local.
+   * Si Firestore falla, mantiene el rate-limit sólo en memoria (fallback silencioso).
    */
-  markRateLimited(providerName: string, cooldownMs: number = 60_000) {
+  async markRateLimited(providerName: string, cooldownMs?: number, reason?: string): Promise<void> {
     const provider = this.providers.find((p) => p.name === providerName)
-    if (provider) {
-      provider.rateLimitedUntil = Date.now() + cooldownMs
-      console.warn(`[LLMRouter] ${providerName} rate limited for ${cooldownMs}ms`)
+    if (!provider) return
+
+    const effectiveCooldown = cooldownMs ?? provider.defaultCooldownMs ?? 60_000
+    const untilMs = Date.now() + effectiveCooldown
+
+    // Cache local primero (sirve de fallback si Firestore falla).
+    this.cache.set(providerName, { until: untilMs, cachedAt: Date.now() })
+
+    try {
+      const payload: RateLimitDoc = {
+        provider: providerName,
+        until: Timestamp.fromMillis(untilMs),
+        updatedAt: Timestamp.now(),
+        ...(reason ? { reason } : {}),
+      }
+      await rateLimitDocRef(providerName).set(payload, { merge: true })
+      console.warn(`[LLMRouter] ${providerName} rate limited for ${effectiveCooldown}ms (persisted)`)
+    } catch (error) {
+      console.warn(
+        `[LLMRouter] Failed to persist rate limit for ${providerName}, keeping in-memory only:`,
+        error,
+      )
     }
   }
 
   /**
    * Get status of all providers for debugging.
    */
-  getStatus() {
+  async getStatus() {
     const now = Date.now()
-    return this.providers.map((p) => ({
-      name: p.name,
-      available: p.rateLimitedUntil <= now,
-      supportsVision: p.supportsVision,
-      cooldownRemaining: Math.max(0, p.rateLimitedUntil - now),
-    }))
+    const rateLimits = await this.loadRateLimits()
+    return this.providers.map((p) => {
+      const until = rateLimits.get(p.name) ?? 0
+      return {
+        name: p.name,
+        available: until <= now,
+        supportsVision: p.supportsVision,
+        cooldownRemaining: Math.max(0, until - now),
+      }
+    })
   }
 }
 
