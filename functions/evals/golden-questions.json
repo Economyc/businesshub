@@ -1,0 +1,285 @@
+{
+  "version": 1,
+  "description": "Golden eval set for the BusinessHub AI agent. Cada item se valida contra la respuesta streamed de agentChat.",
+  "questions": [
+    {
+      "id": "fin-001",
+      "category": "finanzas",
+      "question": "¿Cuáles fueron los 5 gastos más altos de abril?",
+      "expectedTools": ["getTransactions", "analyzeExpensesTrend", "getExpensesByCategory"],
+      "mustInclude": ["abril"],
+      "mustNotInclude": [],
+      "requiresConfirmation": false
+    },
+    {
+      "id": "fin-002",
+      "category": "finanzas",
+      "question": "Muéstrame el flujo de caja del mes actual.",
+      "expectedTools": ["getCashFlow"],
+      "mustInclude": ["flujo"],
+      "mustNotInclude": [],
+      "requiresConfirmation": false
+    },
+    {
+      "id": "fin-003",
+      "category": "finanzas",
+      "question": "Dame el estado de resultados (P&L) del mes pasado con margen neto.",
+      "expectedTools": ["getIncomeStatement"],
+      "mustInclude": ["margen"],
+      "mustNotInclude": [],
+      "requiresConfirmation": false
+    },
+    {
+      "id": "fin-004",
+      "category": "finanzas",
+      "question": "Lista las transacciones pendientes por pagar.",
+      "expectedTools": ["getTransactions"],
+      "mustInclude": ["pendiente"],
+      "mustNotInclude": [],
+      "requiresConfirmation": false
+    },
+    {
+      "id": "fin-005",
+      "category": "finanzas",
+      "question": "Desglósame los gastos por categoría de este mes.",
+      "expectedTools": ["getExpensesByCategory"],
+      "mustInclude": ["categor"],
+      "mustNotInclude": [],
+      "requiresConfirmation": false
+    },
+    {
+      "id": "fin-006",
+      "category": "finanzas",
+      "question": "Compárame el presupuesto vs lo real del mes actual.",
+      "expectedTools": ["getBudgetComparison"],
+      "mustInclude": ["presupuesto"],
+      "mustNotInclude": [],
+      "requiresConfirmation": false
+    },
+    {
+      "id": "pos-001",
+      "category": "pos",
+      "question": "¿Cuánto vendimos ayer?",
+      "expectedTools": ["getPosSales"],
+      "mustInclude": ["venta"],
+      "mustNotInclude": [],
+      "requiresConfirmation": false
+    },
+    {
+      "id": "pos-002",
+      "category": "pos",
+      "question": "Dame los 10 productos más vendidos esta semana.",
+      "expectedTools": ["getTopProducts"],
+      "mustInclude": ["producto"],
+      "mustNotInclude": [],
+      "requiresConfirmation": false
+    },
+    {
+      "id": "pos-003",
+      "category": "pos",
+      "question": "¿Cómo se desglosaron las ventas por método de pago la semana pasada (AP, QR, datáfono, efectivo, Rappi)?",
+      "expectedTools": ["getSalesByPaymentMethod"],
+      "mustInclude": ["pago"],
+      "mustNotInclude": [],
+      "requiresConfirmation": false
+    },
+    {
+      "id": "pos-004",
+      "category": "pos",
+      "question": "Reporte de descuentos aplicados (Empleado, Influencer, Socio) del mes.",
+      "expectedTools": ["getDiscountsReport"],
+      "mustInclude": ["descuento"],
+      "mustNotInclude": [],
+      "requiresConfirmation": false
+    },
+    {
+      "id": "pos-005",
+      "category": "pos",
+      "question": "¿Cuál es el estado de sincronización del POS y cuál fue la última fecha sincronizada?",
+      "expectedTools": ["getPosSyncStatus"],
+      "mustInclude": ["sincroniz"],
+      "mustNotInclude": [],
+      "requiresConfirmation": false
+    },
+    {
+      "id": "sup-001",
+      "category": "proveedores",
+      "question": "Lista todos los proveedores activos.",
+      "expectedTools": ["getSuppliers"],
+      "mustInclude": ["proveedor"],
+      "mustNotInclude": [],
+      "requiresConfirmation": false
+    },
+    {
+      "id": "sup-002",
+      "category": "proveedores",
+      "question": "Búscame al proveedor Distribuidora La Estrella.",
+      "expectedTools": ["getSupplier", "getSuppliers", "searchAll"],
+      "mustInclude": ["estrella"],
+      "mustNotInclude": [],
+      "requiresConfirmation": false
+    },
+    {
+      "id": "sup-003",
+      "category": "proveedores",
+      "question": "¿Qué contratos vencen en los próximos 30 días?",
+      "expectedTools": ["getExpiringContracts"],
+      "mustInclude": ["contrato"],
+      "mustNotInclude": [],
+      "requiresConfirmation": false
+    },
+    {
+      "id": "sup-004",
+      "category": "proveedores",
+      "question": "Muéstrame todos los contratos vigentes.",
+      "expectedTools": ["getContracts"],
+      "mustInclude": ["contrato"],
+      "mustNotInclude": [],
+      "requiresConfirmation": false
+    },
+    {
+      "id": "emp-001",
+      "category": "empleados",
+      "question": "Lista todos los empleados activos.",
+      "expectedTools": ["getEmployees"],
+      "mustInclude": ["empleado"],
+      "mustNotInclude": [],
+      "requiresConfirmation": false
+    },
+    {
+      "id": "emp-002",
+      "category": "empleados",
+      "question": "Búscame al empleado Juan Pérez con su cargo y salario.",
+      "expectedTools": ["getEmployee", "getEmployees", "searchAll"],
+      "mustInclude": ["juan"],
+      "mustNotInclude": [],
+      "requiresConfirmation": false
+    },
+    {
+      "id": "emp-003",
+      "category": "empleados",
+      "question": "Genera el preview de la nómina de abril 2026.",
+      "expectedTools": ["generatePayrollPreview"],
+      "mustInclude": ["nómina", "nomina"],
+      "mustNotInclude": [],
+      "requiresConfirmation": false
+    },
+    {
+      "id": "emp-004",
+      "category": "empleados",
+      "question": "¿Cuántos empleados tengo y cuál es la masa salarial total mensual?",
+      "expectedTools": ["getEmployees"],
+      "mustInclude": ["empleado"],
+      "mustNotInclude": [],
+      "requiresConfirmation": false
+    },
+    {
+      "id": "mut-001",
+      "category": "mutaciones",
+      "question": "Crea un proveedor llamado Carnes Premium SAS con NIT 900123456-7.",
+      "expectedTools": ["createSupplier"],
+      "mustInclude": ["confirm"],
+      "mustNotInclude": [],
+      "requiresConfirmation": true
+    },
+    {
+      "id": "mut-002",
+      "category": "mutaciones",
+      "question": "Actualiza el presupuesto de la categoría Marketing a $2.000.000 para este mes.",
+      "expectedTools": ["updateBudget", "addBudgetItem"],
+      "mustInclude": ["confirm"],
+      "mustNotInclude": [],
+      "requiresConfirmation": true
+    },
+    {
+      "id": "mut-003",
+      "category": "mutaciones",
+      "question": "Registra que José Roberto pagó $150.000 de su bolsillo por insumos del local activo.",
+      "expectedTools": ["createTransaction"],
+      "mustInclude": ["confirm"],
+      "mustNotInclude": [],
+      "requiresConfirmation": true
+    },
+    {
+      "id": "multi-001",
+      "category": "multi-tool",
+      "question": "Compárame las ventas del POS de abril contra los gastos registrados del mismo mes y dime el margen aproximado.",
+      "expectedTools": ["getPosSales", "getCashFlow", "getIncomeStatement", "getExpensesByCategory"],
+      "mustInclude": ["abril"],
+      "mustNotInclude": [],
+      "requiresConfirmation": false
+    },
+    {
+      "id": "multi-002",
+      "category": "multi-tool",
+      "question": "Muéstrame los top 5 productos vendidos esta semana y genera un gráfico de barras con el resultado.",
+      "expectedTools": ["getTopProducts", "generateChart"],
+      "mustInclude": ["producto"],
+      "mustNotInclude": [],
+      "requiresConfirmation": false
+    },
+    {
+      "id": "multi-003",
+      "category": "multi-tool",
+      "question": "Dame los gastos por categoría del mes y haz una gráfica de torta con esos datos.",
+      "expectedTools": ["getExpensesByCategory", "generateChart"],
+      "mustInclude": ["categor"],
+      "mustNotInclude": [],
+      "requiresConfirmation": false
+    },
+    {
+      "id": "rep-001",
+      "category": "reportes",
+      "question": "Generá un informe ejecutivo completo del mes pasado.",
+      "expectedTools": ["generateExecutiveReport"],
+      "mustInclude": ["informe", "ejecutivo"],
+      "mustNotInclude": [],
+      "requiresConfirmation": false
+    },
+    {
+      "id": "rep-002",
+      "category": "reportes",
+      "question": "Exporta a PDF el flujo de caja del mes actual.",
+      "expectedTools": ["getCashFlow", "exportReport"],
+      "mustInclude": ["pdf"],
+      "mustNotInclude": [],
+      "requiresConfirmation": false
+    },
+    {
+      "id": "rep-003",
+      "category": "reportes",
+      "question": "Necesito el reporte ejecutivo de marzo exportado a Excel.",
+      "expectedTools": ["generateExecutiveReport", "exportReport"],
+      "mustInclude": ["marzo"],
+      "mustNotInclude": [],
+      "requiresConfirmation": false
+    },
+    {
+      "id": "search-001",
+      "category": "busqueda",
+      "question": "Busca todo lo relacionado con \"arriendo\" en el sistema.",
+      "expectedTools": ["searchAll"],
+      "mustInclude": ["arriendo"],
+      "mustNotInclude": [],
+      "requiresConfirmation": false
+    },
+    {
+      "id": "search-002",
+      "category": "busqueda",
+      "question": "Búscame todas las menciones de \"Filipo\" en empleados, proveedores y contratos.",
+      "expectedTools": ["searchAll"],
+      "mustInclude": ["filipo"],
+      "mustNotInclude": [],
+      "requiresConfirmation": false
+    },
+    {
+      "id": "identity-001",
+      "category": "identidad",
+      "question": "¿Quién eres y qué modelo te ejecuta?",
+      "expectedTools": [],
+      "mustInclude": ["BusinessHub"],
+      "mustNotInclude": ["soy un modelo de lenguaje de Google", "soy Gemini", "fui entrenado por Google"],
+      "requiresConfirmation": false
+    }
+  ]
+}
