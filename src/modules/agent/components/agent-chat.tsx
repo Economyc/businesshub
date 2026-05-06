@@ -13,6 +13,7 @@ import { buildUndoAction } from '../utils/build-undo'
 import { UndoToastContainer, useUndoToasts } from './undo-toast'
 import { exportToPDF, exportToExcel } from '../utils/export-report'
 import type { PlanProposal, PlanStep, StepExecution } from './plan-review-card'
+import type { SaveNoteResult } from '../utils/obsidian-client'
 import { preprocessImage, isImageFile, isSpreadsheetFile } from '../utils/image-preprocessing'
 import { parseSpreadsheetToText } from '../utils/parse-spreadsheet'
 import { conversationService, getUserMemory, threadService } from '../services'
@@ -462,6 +463,24 @@ export function AgentChat({ initialMessages, conversationId, onConversationSaved
     })
   }, [selectedCompany, companies, addToolResult])
 
+  // Wave 6.2 — Obsidian connector. La card hace el fetch al endpoint local
+  // y nos reporta el resultado. Sólo cerramos el ciclo en el chat.
+  const handleObsidianSave = useCallback((toolCallId: string, result: SaveNoteResult) => {
+    addToolResult({
+      toolCallId,
+      result: result.ok
+        ? { success: true, message: `Nota guardada en ${result.path}`, path: result.path }
+        : { success: false, message: result.error ?? 'No se pudo guardar la nota.' },
+    })
+  }, [addToolResult])
+
+  const handleObsidianCancel = useCallback((toolCallId: string) => {
+    addToolResult({
+      toolCallId,
+      result: { success: false, message: 'El usuario decidió no guardar la nota.' },
+    })
+  }, [addToolResult])
+
   const handleExportReport = useCallback((args: Record<string, unknown>) => {
     try {
       const format = String(args.format ?? 'pdf')
@@ -501,6 +520,8 @@ export function AgentChat({ initialMessages, conversationId, onConversationSaved
         onPlanApprove={handlePlanApprove}
         onPlanCancel={handlePlanCancel}
         planExecutions={planExecutions}
+        onObsidianSave={handleObsidianSave}
+        onObsidianCancel={handleObsidianCancel}
       />
 
       {error && (

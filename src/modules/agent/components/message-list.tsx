@@ -5,6 +5,8 @@ import { ToolStep } from './tool-step'
 import { ConfirmationCard } from './confirmation-card'
 import { InlineChart } from './inline-chart'
 import { PlanReviewCard, type PlanProposal, type PlanStep, type StepExecution } from './plan-review-card'
+import { SaveToObsidianCard } from './save-to-obsidian-card'
+import type { SaveNoteResult } from '../utils/obsidian-client'
 import { Bot, Download, FileSpreadsheet, FileText, TrendingUp, AlertCircle, Search, BarChart3, CheckSquare, Users } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -45,6 +47,10 @@ interface MessageListProps {
   onPlanApprove?: (toolCallId: string, plan: PlanProposal, steps: PlanStep[]) => void
   onPlanCancel?: (toolCallId: string) => void
   planExecutions?: Record<string, { steps: Record<string, StepExecution>; isExecuting: boolean; isCompleted: boolean }>
+  // Wave 6.2 — connector a Obsidian. Card client-side que hace fetch al
+  // endpoint local del plugin Local REST API.
+  onObsidianSave?: (toolCallId: string, result: SaveNoteResult) => void
+  onObsidianCancel?: (toolCallId: string) => void
 }
 
 // Encuentra el último texto del usuario antes (o en) un mensaje dado.
@@ -74,6 +80,8 @@ export function MessageList({
   onPlanApprove,
   onPlanCancel,
   planExecutions,
+  onObsidianSave,
+  onObsidianCancel,
 }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const endRef = useRef<HTMLDivElement>(null)
@@ -191,6 +199,19 @@ export function MessageList({
                     onApprove={() => undefined}
                     onCancel={() => undefined}
                     isCompleted
+                  />
+                )
+              }
+
+              // Wave 6.2 — saveToObsidian: card client-side. El cliente hace
+              // PUT al endpoint local del plugin Obsidian Local REST API.
+              if (toolName === 'saveToObsidian' && state === 'call') {
+                return (
+                  <SaveToObsidianCard
+                    key={`${message.id}-obsidian-${i}`}
+                    args={args as Record<string, unknown>}
+                    onConfirm={(result) => onObsidianSave?.(toolCallId, result)}
+                    onCancel={() => onObsidianCancel?.(toolCallId)}
                   />
                 )
               }

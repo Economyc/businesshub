@@ -20,6 +20,7 @@ import { createPosTools } from './pos-tools.js'
 import { createThreadTools } from './thread-tools.js'
 import { createAnomalyTools } from './anomaly-tools.js'
 import { createPlanModeTools } from './plan-mode-tools.js'
+import { createObsidianTools } from './obsidian-tools.js'
 
 export function createAgentTools(companyId: string, threadId?: string) {
   return {
@@ -53,5 +54,8 @@ export function createAgentTools(companyId: string, threadId?: string) {
     // complejas; el cliente lo renderiza, el usuario aprueba y se ejecutan
     // secuencialmente reusando executeMutation.
     ...createPlanModeTools(),
+    // Wave 6.2 — connector outbound a Obsidian. Client-rendered: requiere
+    // confirmación humana y endpoint local configurado en el navegador.
+    ...createObsidianTools(),
   }
 }
