@@ -4,6 +4,7 @@ import { MessageBubble } from './message-bubble'
 import { ToolStep } from './tool-step'
 import { ConfirmationCard } from './confirmation-card'
 import { InlineChart } from './inline-chart'
+import { PlanReviewCard, type PlanProposal, type PlanStep, type StepExecution } from './plan-review-card'
 import { Bot, Download, FileSpreadsheet, FileText, TrendingUp, AlertCircle, Search, BarChart3, CheckSquare, Users } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -40,6 +41,10 @@ interface MessageListProps {
   ) => void
   onToolCancel?: (toolCallId: string) => void
   onExportReport?: (args: Record<string, unknown>) => void
+  // Wave 5.3 — modo plan: el cliente ejecuta los pasos secuencialmente.
+  onPlanApprove?: (toolCallId: string, plan: PlanProposal, steps: PlanStep[]) => void
+  onPlanCancel?: (toolCallId: string) => void
+  planExecutions?: Record<string, { steps: Record<string, StepExecution>; isExecuting: boolean; isCompleted: boolean }>
 }
 
 // Encuentra el último texto del usuario antes (o en) un mensaje dado.
@@ -59,7 +64,17 @@ function findUserQuoteFor(messages: UIMessage[], assistantMessageId: string): st
   return lastUserText
 }
 
-export function MessageList({ messages, isLoading, onSuggestionClick, onToolConfirm, onToolCancel, onExportReport }: MessageListProps) {
+export function MessageList({
+  messages,
+  isLoading,
+  onSuggestionClick,
+  onToolConfirm,
+  onToolCancel,
+  onExportReport,
+  onPlanApprove,
+  onPlanCancel,
+  planExecutions,
+}: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const endRef = useRef<HTMLDivElement>(null)
   const stickToBottomRef = useRef(true)
@@ -147,6 +162,38 @@ export function MessageList({ messages, isLoading, onSuggestionClick, onToolConf
             }
             if (part.type === 'tool-invocation') {
               const { toolName, toolCallId, state, args } = part.toolInvocation
+
+              // Wave 5.3 — modo plan: render del PlanReviewCard antes y
+              // después de la ejecución para que el usuario vea progreso.
+              if (toolName === 'proposeMultiStepPlan') {
+                const plan = args as unknown as PlanProposal
+                const exec = planExecutions?.[toolCallId]
+                const alreadyResult = state === 'result'
+                if (state === 'call' || exec) {
+                  return (
+                    <PlanReviewCard
+                      key={`${message.id}-plan-${i}`}
+                      plan={plan}
+                      onApprove={(steps) => onPlanApprove?.(toolCallId, plan, steps)}
+                      onCancel={() => onPlanCancel?.(toolCallId)}
+                      executions={exec?.steps}
+                      isExecuting={Boolean(exec?.isExecuting)}
+                      isCompleted={Boolean(exec?.isCompleted) || alreadyResult}
+                    />
+                  )
+                }
+                // Fallback: si llegó como result sin ejecución registrada,
+                // muestra una versión "completada" del plan.
+                return (
+                  <PlanReviewCard
+                    key={`${message.id}-plan-${i}`}
+                    plan={plan}
+                    onApprove={() => undefined}
+                    onCancel={() => undefined}
+                    isCompleted
+                  />
+                )
+              }
 
               // For mutation tools awaiting confirmation (state === 'call')
               if (MUTATION_TOOLS.has(toolName) && state === 'call') {

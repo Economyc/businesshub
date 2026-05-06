@@ -1,5 +1,5 @@
 import { useChat } from '@ai-sdk/react'
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { AlertCircle } from 'lucide-react'
 import type { UIMessage } from 'ai'
 import { useQuery } from '@tanstack/react-query'
@@ -12,6 +12,7 @@ import { executeMutation } from '../utils/execute-mutation'
 import { buildUndoAction } from '../utils/build-undo'
 import { UndoToastContainer, useUndoToasts } from './undo-toast'
 import { exportToPDF, exportToExcel } from '../utils/export-report'
+import type { PlanProposal, PlanStep, StepExecution } from './plan-review-card'
 import { preprocessImage, isImageFile, isSpreadsheetFile } from '../utils/image-preprocessing'
 import { parseSpreadsheetToText } from '../utils/parse-spreadsheet'
 import { conversationService, getUserMemory, threadService } from '../services'
@@ -340,6 +341,127 @@ export function AgentChat({ initialMessages, conversationId, onConversationSaved
     })
   }, [addToolResult])
 
+  // Wave 5.3 — Estado de ejecución de planes multi-paso. Se indexa por
+  // toolCallId del proposeMultiStepPlan que disparó la ejecución.
+  type PlanExecutionState = {
+    steps: Record<string, StepExecution>
+    isExecuting: boolean
+    isCompleted: boolean
+  }
+  const [planExecutions, setPlanExecutions] = useState<Record<string, PlanExecutionState>>({})
+
+  const handlePlanCancel = useCallback((toolCallId: string) => {
+    addToolResult({
+      toolCallId,
+      result: { success: false, message: 'Plan cancelado por el usuario.' },
+    })
+  }, [addToolResult])
+
+  const handlePlanApprove = useCallback(async (
+    toolCallId: string,
+    _plan: PlanProposal,
+    steps: PlanStep[],
+  ) => {
+    if (!selectedCompany) return
+
+    // Estado inicial: todos los pasos en pending.
+    setPlanExecutions((prev) => ({
+      ...prev,
+      [toolCallId]: {
+        isExecuting: true,
+        isCompleted: false,
+        steps: Object.fromEntries(steps.map((s) => [s.id, { status: 'pending' as const }])),
+      },
+    }))
+
+    const stepResults: Array<{ id: string; success: boolean; message: string }> = []
+    let aborted = false
+
+    for (const step of steps) {
+      // Marca running.
+      setPlanExecutions((prev) => ({
+        ...prev,
+        [toolCallId]: {
+          ...prev[toolCallId],
+          steps: { ...prev[toolCallId].steps, [step.id]: { status: 'running' } },
+        },
+      }))
+
+      try {
+        const result = await executeMutation(
+          selectedCompany.id,
+          step.toolName,
+          step.toolArgs,
+          { companies },
+          `${toolCallId}-${step.id}`,
+        )
+
+        const collection = TOOL_COLLECTIONS[step.toolName]
+        if (collection && result.success) {
+          const targetIds = result.affectedCompanyIds ?? [selectedCompany.id]
+          for (const cid of targetIds) invalidateCollection(cid, collection)
+        }
+
+        stepResults.push({ id: step.id, success: result.success, message: result.message })
+        setPlanExecutions((prev) => ({
+          ...prev,
+          [toolCallId]: {
+            ...prev[toolCallId],
+            steps: {
+              ...prev[toolCallId].steps,
+              [step.id]: result.success
+                ? { status: 'done', message: result.message }
+                : { status: 'error', message: result.message },
+            },
+          },
+        }))
+
+        if (!result.success) {
+          aborted = true
+          break
+        }
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Error desconocido'
+        stepResults.push({ id: step.id, success: false, message })
+        setPlanExecutions((prev) => ({
+          ...prev,
+          [toolCallId]: {
+            ...prev[toolCallId],
+            steps: {
+              ...prev[toolCallId].steps,
+              [step.id]: { status: 'error', message },
+            },
+          },
+        }))
+        aborted = true
+        break
+      }
+    }
+
+    setPlanExecutions((prev) => ({
+      ...prev,
+      [toolCallId]: {
+        ...prev[toolCallId],
+        isExecuting: false,
+        isCompleted: !aborted,
+      },
+    }))
+
+    const successful = stepResults.filter((r) => r.success).length
+    const summary = aborted
+      ? `Plan detenido en el paso ${successful + 1} de ${steps.length}.`
+      : `Plan completado: ${successful} de ${steps.length} pasos ejecutados.`
+
+    addToolResult({
+      toolCallId,
+      result: {
+        success: !aborted,
+        message: summary,
+        steps: stepResults,
+      },
+    })
+  }, [selectedCompany, companies, addToolResult])
+
   const handleExportReport = useCallback((args: Record<string, unknown>) => {
     try {
       const format = String(args.format ?? 'pdf')
@@ -376,6 +498,9 @@ export function AgentChat({ initialMessages, conversationId, onConversationSaved
         onToolConfirm={handleToolConfirm}
         onToolCancel={handleToolCancel}
         onExportReport={handleExportReport}
+        onPlanApprove={handlePlanApprove}
+        onPlanCancel={handlePlanCancel}
+        planExecutions={planExecutions}
       />
 
       {error && (

@@ -19,6 +19,7 @@ import { createMarketingTools } from './marketing-tools.js'
 import { createPosTools } from './pos-tools.js'
 import { createThreadTools } from './thread-tools.js'
 import { createAnomalyTools } from './anomaly-tools.js'
+import { createPlanModeTools } from './plan-mode-tools.js'
 
 export function createAgentTools(companyId: string, threadId?: string) {
   return {
@@ -48,5 +49,9 @@ export function createAgentTools(companyId: string, threadId?: string) {
     ...createThreadTools(companyId, threadId),
     // Wave 5.1 — anomalías detectadas por el cron diario.
     ...createAnomalyTools(companyId),
+    // Wave 5.3 — modo plan: el agente devuelve un plan de N pasos para tareas
+    // complejas; el cliente lo renderiza, el usuario aprueba y se ejecutan
+    // secuencialmente reusando executeMutation.
+    ...createPlanModeTools(),
   }
 }
