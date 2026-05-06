@@ -1,0 +1,1 @@
+{"version":3,"file":"tool-progress.d.ts","sourceRoot":"","sources":["../../../src/tools/utils/tool-progress.ts"],"names":[],"mappings":"AAiBA,MAAM,WAAW,YAAY;IAC3B,KAAK,EAAE,MAAM,CAAA;IACb,MAAM,CAAC,EAAE,SAAS,GAAG,MAAM,GAAG,OAAO,CAAA;CACtC;AAKD;;;;;;;;;GASG;AACH,wBAAsB,cAAc,CAClC,UAAU,EAAE,MAAM,GAAG,SAAS,EAC9B,IAAI,EAAE,YAAY,GACjB,OAAO,CAAC,IAAI,CAAC,CAoBf"}
