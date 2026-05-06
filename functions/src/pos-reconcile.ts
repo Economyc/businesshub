@@ -330,7 +330,7 @@ export const posReconcileNightly = onSchedule(
   {
     schedule: 'every day 01:00',
     timeZone: 'America/Bogota',
-    timeoutSeconds: 3600,
+    timeoutSeconds: 1800,
     memory: '1GiB',
     secrets: TENANT_SECRETS,
     // 1 reintento: si el primer intento falla por timeout transitorio o
