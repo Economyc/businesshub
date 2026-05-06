@@ -8,13 +8,15 @@
 //
 // Fire-and-forget: usa `void reportProgressClient(...)` para no bloquear.
 
-import { doc, setDoc, arrayUnion, serverTimestamp } from 'firebase/firestore'
+import { doc, setDoc, arrayUnion, serverTimestamp, Timestamp } from 'firebase/firestore'
 import { db } from '@/core/firebase/config'
 
 export interface ProgressStep {
   label: string
   status?: 'running' | 'done' | 'error'
 }
+
+const TTL_MS = 24 * 60 * 60 * 1000
 
 export async function reportProgressClient(
   toolCallId: string | undefined,
@@ -31,6 +33,7 @@ export async function reportProgressClient(
           ts: Date.now(),
         }),
         updatedAt: serverTimestamp(),
+        expireAt: Timestamp.fromMillis(Date.now() + TTL_MS),
       },
       { merge: true },
     )

@@ -13,18 +13,25 @@
 // TTL automático recomendado: 24h vía Firestore TTL policy en consola
 // (campo `updatedAt`). NO es bloqueante — los docs son efímeros.
 
-import { getFirestore, FieldValue } from 'firebase-admin/firestore'
+import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore'
 
 export interface ProgressStep {
   label: string
   status?: 'running' | 'done' | 'error'
 }
 
+const TTL_HOURS = 24
+const TTL_MS = TTL_HOURS * 60 * 60 * 1000
+
 /**
  * Reporta un paso de progreso para un toolCallId. Se diseñó para ser
  * fire-and-forget: el caller debe usar `void reportProgress(...)` para no
  * bloquear el camino crítico de la tool. Errores se loguean y no se
  * propagan (la tool tiene que terminar igual).
+ *
+ * `expireAt` se actualiza en cada write (24h en el futuro). Combinado con la
+ * TTL policy de Firestore sobre el campo `expireAt`, los docs se borran
+ * automáticamente 24h después de la última actividad.
  */
 export async function reportProgress(
   toolCallId: string | undefined,
@@ -33,6 +40,7 @@ export async function reportProgress(
   if (!toolCallId) return
   try {
     const db = getFirestore()
+    const expireAt = Timestamp.fromMillis(Date.now() + TTL_MS)
     await db.collection('toolProgress').doc(toolCallId).set(
       {
         steps: FieldValue.arrayUnion({
@@ -41,6 +49,7 @@ export async function reportProgress(
           ts: Date.now(),
         }),
         updatedAt: FieldValue.serverTimestamp(),
+        expireAt,
       },
       { merge: true },
     )

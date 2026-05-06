@@ -2,7 +2,7 @@
 //
 // Trigger Firestore on companies/{companyId}/contracts/{contractId}.
 // Cuando un contrato se crea o actualiza, extrae el texto (clauses + metadata),
-// chunkea (500 chars / overlap 100), genera embeddings con text-embedding-004
+// chunkea (500 chars / overlap 100), genera embeddings con gemini-embedding-001
 // y guarda en companies/{companyId}/contractEmbeddings/{contractId}/chunks/{chunkId}.
 // Si el contrato se borra, limpia todos los chunks.
 //
@@ -18,7 +18,7 @@ import { db } from './firestore.js'
 
 const CHUNK_SIZE = 500
 const CHUNK_OVERLAP = 100
-const EMBED_MODEL_ID = 'text-embedding-004'
+const EMBED_MODEL_ID = 'gemini-embedding-001'
 const EMBED_BATCH = 100
 
 interface RawClause {

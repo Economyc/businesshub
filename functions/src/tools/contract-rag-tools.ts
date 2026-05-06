@@ -10,7 +10,7 @@ import { embed, generateText } from 'ai'
 import { db } from '../firestore.js'
 import { cosineSimilarity } from './utils/vector-math.js'
 
-const EMBED_MODEL_ID = 'text-embedding-004'
+const EMBED_MODEL_ID = 'gemini-embedding-001'
 const SUMMARY_MODEL_ID = 'gemini-2.5-flash'
 
 interface ChunkDoc {
