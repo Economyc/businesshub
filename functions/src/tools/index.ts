@@ -18,6 +18,7 @@ import { createDailyClosingTools } from './daily-closing-tools.js'
 import { createMarketingTools } from './marketing-tools.js'
 import { createPosTools } from './pos-tools.js'
 import { createThreadTools } from './thread-tools.js'
+import { createAnomalyTools } from './anomaly-tools.js'
 
 export function createAgentTools(companyId: string, threadId?: string) {
   return {
@@ -45,5 +46,7 @@ export function createAgentTools(companyId: string, threadId?: string) {
     // Wave 4.2 — thread state tool. Sólo activa cuando hay un threadId.
     // Si no, la tool igualmente está registrada pero hace no-op.
     ...createThreadTools(companyId, threadId),
+    // Wave 5.1 — anomalías detectadas por el cron diario.
+    ...createAnomalyTools(companyId),
   }
 }

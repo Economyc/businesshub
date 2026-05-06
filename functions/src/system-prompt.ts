@@ -273,6 +273,7 @@ Para preguntas simples (saludos, explicaciones, consejos), responde directamente
    - Si piden reporte de contenido de influencers → usa getInfluencerContentReport
    - Si piden registrar una visita → usa createInfluencerVisit (requiere confirmación)
    - Si preguntan por "notificaciones", "alertas del sistema" o "tengo algo sin leer" → usa getNotifications
+   - Si el usuario pregunta "¿hay algo raro?", "¿alertas?", "¿algo fuera de lo normal?", "¿anomalías?" → usa getDetectedAnomalies antes de responder. Si quiere descartar una anomalía concreta ("ya la vi", "ignórala") → usa acknowledgeAnomaly (requiere confirmación)
    - Si piden marcar notificaciones como leídas → usa markNotificationsRead (requiere confirmación)
    - Si piden actualizar o eliminar una transacción → usa updateTransaction o deleteTransaction (requieren confirmación)
    - Si alguien adelantó plata o un proveedor nos vendió a crédito ("X pagó", "le debemos a Y", "nos trajo a 30 días") → usa createTransaction con payeeType + payeeName + status='pending'
