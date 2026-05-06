@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type DragEvent } from 'react'
-import { Send, Paperclip, Square, X, FileSpreadsheet, Image as ImageIcon, AlertCircle } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type DragEvent } from 'react'
+import { Send, Paperclip, Square, X, FileSpreadsheet, Image as ImageIcon, AlertCircle, Mic } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { HoverHint } from '@/components/ui/tooltip'
 import { isImageFile, isSpreadsheetFile } from '../utils/image-preprocessing'
@@ -10,6 +10,12 @@ import {
   type SlashCommand,
 } from '../utils/slash-commands'
 import { SlashCommandMenu } from './slash-command-menu'
+import {
+  createVoiceRecorder,
+  isVoiceRecognitionSupported,
+  type VoiceRecorderHandle,
+  type VoiceRecorderState,
+} from '../utils/voice-recorder'
 
 interface ChatInputProps {
   input: string
@@ -32,6 +38,12 @@ export function ChatInput({ input, onInputChange, onSubmit, onSendWithFiles, isL
   const [slashOpen, setSlashOpen] = useState(false)
   const [slashQuery, setSlashQuery] = useState('')
   const [slashActiveIndex, setSlashActiveIndex] = useState(0)
+
+  // Voice input (Web Speech API)
+  const voiceSupported = useMemo(() => isVoiceRecognitionSupported(), [])
+  const [voiceState, setVoiceState] = useState<VoiceRecorderState>(voiceSupported ? 'idle' : 'unavailable')
+  const voiceRecorderRef = useRef<VoiceRecorderHandle | null>(null)
+  const isRecording = voiceState === 'recording' || voiceState === 'requesting'
 
   // Sincroniza visibilidad y query a partir del valor del input.
   useEffect(() => {
@@ -188,8 +200,44 @@ export function ChatInput({ input, onInputChange, onSubmit, onSendWithFiles, isL
   useEffect(() => {
     return () => {
       if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current)
+      // Asegura que cualquier dictado activo se detenga al desmontar.
+      voiceRecorderRef.current?.stop()
     }
   }, [])
+
+  function handleVoiceClick() {
+    if (!voiceSupported) return
+    // Toggle: si esta grabando -> detener; si esta idle -> iniciar.
+    if (isRecording) {
+      voiceRecorderRef.current?.stop()
+      return
+    }
+
+    // Snapshot del texto actual: el transcript se anade despues de un separador.
+    const prefix = input.length > 0 && !input.endsWith(' ') ? input + ' ' : input
+
+    const recorder = createVoiceRecorder({
+      lang: 'es-CO',
+      onTranscript: (text, _isFinal) => {
+        onInputChange(prefix + text)
+        // Reajusta altura del textarea al crecer el contenido.
+        requestAnimationFrame(() => handleTextareaInput())
+      },
+      onError: (msg) => {
+        showAttachErrors([msg])
+      },
+      onStateChange: (next) => {
+        setVoiceState(next)
+      },
+    })
+
+    if (!recorder) {
+      setVoiceState('unavailable')
+      return
+    }
+    voiceRecorderRef.current = recorder
+    recorder.start()
+  }
 
   function removeFile(index: number) {
     setAttachedFiles((prev) => prev.filter((_, i) => i !== index))
@@ -284,6 +332,32 @@ export function ChatInput({ input, onInputChange, onSubmit, onSendWithFiles, isL
             }
           }}
         />
+
+        <HoverHint
+          label={
+            !voiceSupported
+              ? 'Dictado no disponible en este navegador'
+              : isRecording
+                ? 'Detener dictado'
+                : 'Dictar por voz'
+          }
+        >
+          <button
+            type="button"
+            onClick={handleVoiceClick}
+            disabled={!voiceSupported}
+            aria-pressed={isRecording}
+            aria-label={isRecording ? 'Detener dictado por voz' : 'Iniciar dictado por voz'}
+            className={cn(
+              'shrink-0 w-10 h-10 flex items-center justify-center rounded-full transition-colors active:scale-95',
+              !voiceSupported && 'text-mid-gray/40 cursor-not-allowed',
+              voiceSupported && !isRecording && 'text-mid-gray hover:text-graphite hover:bg-bone',
+              isRecording && 'text-negative-text bg-negative-bg animate-pulse',
+            )}
+          >
+            <Mic size={20} strokeWidth={1.5} />
+          </button>
+        </HoverHint>
 
         <div className="relative flex-1 bg-surface-elevated border border-border/60 rounded-2xl overflow-visible focus-within:border-mid-gray focus-within:ring-1 focus-within:ring-mid-gray/20 transition-colors">
           <SlashCommandMenu
