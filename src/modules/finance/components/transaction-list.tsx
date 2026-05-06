@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, memo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Upload, DollarSign, ChevronRight } from 'lucide-react'
+import { Plus, Upload, DollarSign, ChevronRight, Sparkles } from 'lucide-react'
 import { useWindowVirtualizer } from '@tanstack/react-virtual'
 import { TransactionForm } from './transaction-form'
 import { PageTransition } from '@/core/ui/page-transition'
@@ -24,6 +24,8 @@ import { FinanceTabs } from './finance-tabs'
 import { DateRangePicker } from './date-range-picker'
 import type { Transaction } from '../types'
 import type { CategoryItem } from '@/core/types/categories'
+import { useInlineAgent } from '@/modules/agent/hooks/use-inline-agent'
+import { InlineAgentSheet } from '@/modules/agent/components/inline-agent-sheet'
 
 function getTypePill(t: Transaction): { label: string; bg: string; text: string } {
   if (t.type === 'income') return { label: 'Ingreso', bg: 'bg-positive-bg', text: 'text-positive-text' }
@@ -184,6 +186,7 @@ export function TransactionList() {
   const { categories: categoryItems } = useSettings()
   const { can } = usePermissions()
   const canEdit = can('finance', 'create')
+  const inlineAgent = useInlineAgent()
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
@@ -255,6 +258,44 @@ export function TransactionList() {
     setFormOpen(true)
   }, [])
 
+  // Snapshot que se inyecta al system prompt cuando el usuario abre el
+  // asistente desde esta vista. Mantenerlo compacto (<1KB stringificado) y
+  // expresar magnitudes en numeros, no objetos completos. El backend reescribe
+  // estas claves al final del prompt.
+  const handleOpenAgent = useCallback(() => {
+    const totalAmount = filtered.reduce(
+      (sum, t) => sum + (t.type === 'income' ? t.amount : -t.amount),
+      0,
+    )
+    const categoryCount = new Map<string, number>()
+    for (const t of filtered) {
+      const key = t.category || 'Sin categoría'
+      categoryCount.set(key, (categoryCount.get(key) ?? 0) + 1)
+    }
+    const topCategories = Array.from(categoryCount.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([name, count]) => ({ name, count }))
+
+    inlineAgent.openWith({
+      module: 'finanzas',
+      view: 'transacciones',
+      activeFilters: {
+        search: search || null,
+        category: categoryFilter || null,
+        type: typeFilter || null,
+        status: statusFilter || null,
+      },
+      visibleCount: filtered.length,
+      totalAmount,
+      dateRange: {
+        from: startDate.toISOString().slice(0, 10),
+        to: endDate.toISOString().slice(0, 10),
+      },
+      topCategories,
+    })
+  }, [filtered, search, categoryFilter, typeFilter, statusFilter, startDate, endDate, inlineAgent])
+
   // Aplana grupos + transacciones expandidas en una sola lista plana para
   // virtualizar. Cuando todas las fechas estan colapsadas el virtualizer solo
   // pinta cabeceras (1 row por dia, ~30 rows tipico). Al expandir, agrega
@@ -293,6 +334,13 @@ export function TransactionList() {
     <PageTransition>
       <PageHeader title="Monitor Financiero">
         <DateRangePicker />
+        <button
+          onClick={handleOpenAgent}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
+        >
+          <Sparkles size={15} strokeWidth={1.5} />
+          Asistente
+        </button>
         {canEdit && (
           <>
             <button
@@ -448,6 +496,19 @@ export function TransactionList() {
         transactionId={editingId}
         onClose={() => setFormOpen(false)}
         onSaved={() => { setFormOpen(false); refetch() }}
+      />
+
+      <InlineAgentSheet
+        open={inlineAgent.open}
+        onOpenChange={inlineAgent.setOpen}
+        contextSnapshot={inlineAgent.contextSnapshot}
+        module="Finanzas"
+        suggestions={[
+          'Categorizar las que no tienen categoría',
+          'Encontrar duplicados',
+          'Resumen del mes',
+          'Top 5 gastos',
+        ]}
       />
     </PageTransition>
   )
