@@ -17,8 +17,9 @@ import { createNotificationsTools } from './notifications-tools.js'
 import { createDailyClosingTools } from './daily-closing-tools.js'
 import { createMarketingTools } from './marketing-tools.js'
 import { createPosTools } from './pos-tools.js'
+import { createThreadTools } from './thread-tools.js'
 
-export function createAgentTools(companyId: string) {
+export function createAgentTools(companyId: string, threadId?: string) {
   return {
     ...createEmployeeTools(companyId),
     ...createSupplierTools(companyId),
@@ -41,5 +42,8 @@ export function createAgentTools(companyId: string) {
     ...createDailyClosingTools(companyId),
     ...createMarketingTools(companyId),
     ...createPosTools(companyId),
+    // Wave 4.2 — thread state tool. Sólo activa cuando hay un threadId.
+    // Si no, la tool igualmente está registrada pero hace no-op.
+    ...createThreadTools(companyId, threadId),
   }
 }

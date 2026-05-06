@@ -59,10 +59,97 @@ function buildUserMemoryBlock(memory: UserAgentMemory | null | undefined): strin
   return lines.join('\n')
 }
 
+// Wave 3.3 — Inline AI assistant. Cuando el chat se invoca embebido en una
+// vista (ej. Finance), el cliente manda un snapshot de lo que el usuario
+// esta viendo (filtros, IDs visibles, totales). Lo inyectamos al final del
+// system prompt para que el modelo entienda referencias deicticas como
+// "estas transacciones" o "este local".
+const MAX_INLINE_CONTEXT_BYTES = 1024
+
+function buildInlineContextBlock(
+  context: Record<string, unknown> | null | undefined,
+): string {
+  if (!context || typeof context !== 'object') return ''
+  if (Object.keys(context).length === 0) return ''
+
+  let json: string
+  try {
+    json = JSON.stringify(context, null, 2)
+  } catch {
+    return ''
+  }
+
+  // Cap a ~1KB para no inflar el prompt si el cliente manda algo grande.
+  if (json.length > MAX_INLINE_CONTEXT_BYTES) {
+    json = json.slice(0, MAX_INLINE_CONTEXT_BYTES) + '\n…[truncado]'
+  }
+
+  return [
+    '',
+    '',
+    '## Contexto inmediato',
+    'El usuario está viendo este contenido en su pantalla ahora mismo:',
+    '```json',
+    json,
+    '```',
+    '',
+    'Cuando preguntan "estas transacciones", "este local", "este mes", etc., refiérete a este contexto. Si los filtros activos limitan el alcance, respeta esos filtros al usar herramientas.',
+  ].join('\n')
+}
+
+// Wave 4.2 — Threads con memoria persistente entre sesiones.
+// Cuando hay un thread activo, inyectamos su título, contexto persistente y
+// próximas acciones al final del prompt. El agente puede actualizarlo con la
+// tool updateThreadState (registrada vía createThreadTools en tools/index.ts).
+// Tipado local — functions/ no comparte paths con src/, así que mantenemos
+// una interfaz mínima en sync con el cliente (AgentThread).
+interface AgentThreadPromptInput {
+  title: string
+  context: Record<string, unknown>
+  nextActions: string[]
+}
+
+const MAX_THREAD_CONTEXT_BYTES = 2048
+
+function buildThreadBlock(thread: AgentThreadPromptInput | null | undefined): string {
+  if (!thread || !thread.title) return ''
+
+  let contextJson: string
+  try {
+    contextJson = JSON.stringify(thread.context ?? {}, null, 2)
+  } catch {
+    contextJson = '{}'
+  }
+  if (contextJson.length > MAX_THREAD_CONTEXT_BYTES) {
+    contextJson = contextJson.slice(0, MAX_THREAD_CONTEXT_BYTES) + '\n…[truncado]'
+  }
+
+  const actionsBlock = (thread.nextActions ?? []).length === 0
+    ? '- (sin próximas acciones registradas)'
+    : (thread.nextActions ?? []).map((a) => `- [ ] ${a}`).join('\n')
+
+  return [
+    '',
+    '',
+    `## Thread activo: ${thread.title}`,
+    'Contexto persistente del thread:',
+    '```json',
+    contextJson,
+    '```',
+    '',
+    'Próximas acciones del thread:',
+    actionsBlock,
+    '',
+    'Cuando avances en este thread, actualiza el contexto y las próximas acciones llamando la herramienta updateThreadState. No necesitas confirmación del usuario para esa tool — es estado interno del thread, no escribe datos del negocio. Marca acciones como completadas removiéndolas con nextActionsAddOrRemove.remove, y registra hechos nuevos con contextPatch (merge).',
+  ].join('\n')
+}
+
 export function getAgentSystemPrompt(opts: {
   companies?: CompanyContext[]
   activeCompanyId?: string
   userMemory?: UserAgentMemory | null
+  inlineContext?: Record<string, unknown> | null
+  thread?: AgentThreadPromptInput | null
 } = {}): string {
   const now = new Date()
   const dateStr = now.toLocaleDateString('es-CL', {
@@ -73,7 +160,7 @@ export function getAgentSystemPrompt(opts: {
   })
   const isoToday = now.toISOString().split('T')[0]
 
-  const { companies = [], activeCompanyId, userMemory = null } = opts
+  const { companies = [], activeCompanyId, userMemory = null, inlineContext = null, thread = null } = opts
   const nameCounts = new Map<string, number>()
   for (const c of companies) {
     const k = c.name.trim().toLowerCase()
@@ -350,5 +437,5 @@ Cuando el usuario envíe datos de un archivo Excel o CSV:
 ## Formato de Fechas
 - Usa formato YYYY-MM-DD para las herramientas
 - Muestra fechas al usuario en formato legible (ej: "3 de abril de 2026")
-- Cuando el usuario diga "este mes", "el mes pasado", etc., calcula las fechas basándote en la fecha actual: ${isoToday}${buildUserMemoryBlock(userMemory)}`
+- Cuando el usuario diga "este mes", "el mes pasado", etc., calcula las fechas basándote en la fecha actual: ${isoToday}${buildUserMemoryBlock(userMemory)}${buildInlineContextBlock(inlineContext)}${buildThreadBlock(thread)}`
 }

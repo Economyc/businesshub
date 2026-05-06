@@ -2,6 +2,10 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     // Companies y todo lo que cuelga de ellas (members, roles, subcolecciones de negocio)
+    // Wave 4.2 — `companies/{companyId}/threads/{threadId}` queda cubierto por
+    // el wildcard de subcolecciones de abajo: lectura/escritura para cualquier
+    // miembro autenticado. Si más adelante endurecemos el RBAC, agregar regla
+    // explícita por threads validando role del usuario en members/.
     match /companies/{companyId} {
       allow read, write: if request.auth != null;
 

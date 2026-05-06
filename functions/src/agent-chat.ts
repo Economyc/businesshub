@@ -101,7 +101,19 @@ export const agentChat = onRequest(
     }
 
     try {
-      const { messages, companyId, companies, userMemory } = req.body
+      const {
+        messages,
+        companyId,
+        companies,
+        userMemory,
+        inlineContext,
+        // Wave 4.2 — thread activo. Si vienen, se inyectan al system prompt
+        // y la tool updateThreadState queda habilitada con el threadId.
+        threadId,
+        threadTitle,
+        threadContext,
+        nextActions,
+      } = req.body
 
       if (!messages || !Array.isArray(messages)) {
         res.status(400).json({ error: 'Invalid request: messages array required' })
@@ -120,7 +132,8 @@ export const agentChat = onRequest(
         return
       }
 
-      const tools = createAgentTools(companyId)
+      const safeThreadId = typeof threadId === 'string' ? threadId : undefined
+      const tools = createAgentTools(companyId, safeThreadId)
       const needsVision = messagesContainImages(messages)
       const companyList = Array.isArray(companies) ? companies : []
 
@@ -141,6 +154,20 @@ export const agentChat = onRequest(
               companies: companyList,
               activeCompanyId: companyId,
               userMemory: userMemory ?? null,
+              inlineContext: (inlineContext && typeof inlineContext === 'object')
+                ? (inlineContext as Record<string, unknown>)
+                : null,
+              thread: typeof threadTitle === 'string' && threadTitle.trim().length > 0
+                ? {
+                    title: threadTitle,
+                    context: (threadContext && typeof threadContext === 'object'
+                      ? (threadContext as Record<string, unknown>)
+                      : {}),
+                    nextActions: Array.isArray(nextActions)
+                      ? (nextActions as unknown[]).filter((a): a is string => typeof a === 'string')
+                      : [],
+                  }
+                : null,
             }),
             messages,
             tools,

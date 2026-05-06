@@ -14,7 +14,8 @@ import { UndoToastContainer, useUndoToasts } from './undo-toast'
 import { exportToPDF, exportToExcel } from '../utils/export-report'
 import { preprocessImage, isImageFile, isSpreadsheetFile } from '../utils/image-preprocessing'
 import { parseSpreadsheetToText } from '../utils/parse-spreadsheet'
-import { conversationService, getUserMemory } from '../services'
+import { conversationService, getUserMemory, threadService } from '../services'
+import type { AgentThread } from '../types'
 
 const AGENT_API_URL = import.meta.env.VITE_AGENT_API_URL || '/api/agent/chat'
 
@@ -54,6 +55,9 @@ interface AgentChatProps {
   initialMessages?: UIMessage[]
   conversationId: string | null
   onConversationSaved: (id: string, title: string, messageCount: number) => void
+  // Wave 4.2 — thread activo. Si no hay thread, todo funciona como antes.
+  thread?: AgentThread | null
+  onThreadStateUpdate?: (patch: Partial<AgentThread>) => void
 }
 
 // Reemplaza data URLs largas (base64 de imágenes) por un placeholder. Sin
@@ -107,12 +111,16 @@ function generateTitle(messages: UIMessage[]): string {
   return text.length > 50 ? text.slice(0, 50) + '…' : text || 'Conversación'
 }
 
-export function AgentChat({ initialMessages, conversationId, onConversationSaved }: AgentChatProps) {
+export function AgentChat({ initialMessages, conversationId, onConversationSaved, thread, onThreadStateUpdate }: AgentChatProps) {
   const { selectedCompany, companies } = useCompany()
   const { user } = useAuth()
   const uid = user?.uid ?? null
   const conversationIdRef = useRef(conversationId)
   const isSavingRef = useRef(false)
+  const threadRef = useRef(thread ?? null)
+  useEffect(() => {
+    threadRef.current = thread ?? null
+  }, [thread])
 
   // Wave 1.2 — Memoria persistente. Si no hay uid o falla la lectura, pasamos
   // null al body para que el backend use defaults sin inyectar nada al prompt.
@@ -178,8 +186,35 @@ export function AgentChat({ initialMessages, conversationId, onConversationSaved
         slug: c.slug ?? null,
       })),
       userMemory: userMemory ?? null,
+      // Wave 4.2 — contexto del thread activo. Si no hay thread, llegan
+      // como undefined y el system-prompt no inyecta el bloque.
+      threadId: thread?.id,
+      threadTitle: thread?.title,
+      threadContext: thread?.context,
+      nextActions: thread?.nextActions,
     },
-    onFinish: handleAutoSave,
+    onFinish: async () => {
+      await handleAutoSave()
+      // El agente puede haber actualizado el doc del thread vía tool. Refetch
+      // para reflejar context/nextActions en la UI sin recargar la página.
+      const current = threadRef.current
+      if (current && selectedCompany?.id && onThreadStateUpdate) {
+        try {
+          const fresh = await threadService.get(selectedCompany.id, current.id)
+          if (fresh) {
+            onThreadStateUpdate({
+              context: fresh.context,
+              nextActions: fresh.nextActions,
+              status: fresh.status,
+              summary: fresh.summary,
+              updatedAt: fresh.updatedAt,
+            })
+          }
+        } catch (err) {
+          console.error('Error refetching thread state:', err)
+        }
+      }
+    },
     onToolCall: async ({ toolCall }) => {
       if (toolCall.toolName === 'generateChart') {
         return { rendered: true }

@@ -43,3 +43,22 @@ export interface UserAgentMemory {
   notes: string
   updatedAt?: Timestamp
 }
+
+// Wave 4.2 — Threads con memoria persistente entre sesiones.
+// Tareas de larga duración (ej: "Cierre de abril 2026") con estado que el
+// agente recuerda entre conversaciones. Se guardan en
+// `companies/{companyId}/threads/{threadId}` y se inyectan al system prompt
+// cuando hay un thread activo seleccionado.
+export type ThreadStatus = 'in_progress' | 'done' | 'blocked'
+
+export interface AgentThread {
+  id: string
+  title: string
+  status: ThreadStatus
+  context: Record<string, unknown>
+  conversationIds: string[]
+  nextActions: string[]
+  summary?: string
+  createdAt: Timestamp
+  updatedAt: Timestamp
+}
