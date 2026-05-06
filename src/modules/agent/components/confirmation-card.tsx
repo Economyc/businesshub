@@ -1,14 +1,19 @@
-import { useState } from 'react'
-import { Check, X, AlertTriangle, UserPlus, UserMinus, Briefcase, DollarSign, Pencil, Trash2, Wallet, PlusCircle, CalendarDays, CheckCircle2, Split } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Check, X, AlertTriangle, UserPlus, UserMinus, Briefcase, DollarSign, Pencil, Trash2, Wallet, PlusCircle, CalendarDays, CheckCircle2, Split, ArrowRight, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useCompany } from '@/core/hooks/use-company'
+import { supplierService } from '@/modules/suppliers/services'
+import { talentService } from '@/modules/talent/services'
+import { financeService, budgetService } from '@/modules/finance/services'
 
 type ActionType = 'create' | 'update' | 'delete'
 
 interface ConfirmationCardProps {
   toolName: string
   args: Record<string, unknown>
-  onConfirm: () => void
+  onConfirm: (previousState: Record<string, unknown> | null) => void
   onCancel: () => void
+  userQuote?: string
 }
 
 const TOOL_CONFIG: Record<string, { label: string; type: ActionType; icon: typeof UserPlus }> = {
@@ -20,8 +25,11 @@ const TOOL_CONFIG: Record<string, { label: string; type: ActionType; icon: typeo
   deleteSupplier: { label: 'Eliminar Proveedor', type: 'delete', icon: Trash2 },
   createTransaction: { label: 'Crear Transacción', type: 'create', icon: DollarSign },
   createSplitExpense: { label: 'Crear Gasto Compartido', type: 'create', icon: Split },
+  updateTransaction: { label: 'Actualizar Transacción', type: 'update', icon: Pencil },
+  deleteTransaction: { label: 'Eliminar Transacción', type: 'delete', icon: Trash2 },
   updateBudget: { label: 'Actualizar Presupuesto', type: 'update', icon: Wallet },
   addBudgetItem: { label: 'Agregar Item de Presupuesto', type: 'create', icon: PlusCircle },
+  deleteBudgetItem: { label: 'Eliminar Item de Presupuesto', type: 'delete', icon: Trash2 },
   createPayrollDraft: { label: 'Crear Borrador de Nómina', type: 'create', icon: CalendarDays },
   executeMonthClosing: { label: 'Ejecutar Cierre de Mes', type: 'create', icon: CheckCircle2 },
 }
@@ -120,6 +128,13 @@ function formatValue(key: string, value: unknown): string {
     }
     return statusLabels[String(value)] ?? String(value)
   }
+  // Firestore Timestamp-shaped value
+  if (value && typeof value === 'object' && 'seconds' in (value as Record<string, unknown>)) {
+    const seconds = Number((value as { seconds: number }).seconds)
+    if (Number.isFinite(seconds)) {
+      return new Date(seconds * 1000).toISOString().slice(0, 10)
+    }
+  }
   return String(value)
 }
 
@@ -151,8 +166,8 @@ function renderSplits(args: Record<string, unknown>) {
   const modeLabel = mode === 'equal' ? 'partes iguales' : mode === 'percentages' ? 'porcentajes' : 'montos custom'
 
   return (
-    <div className="rounded-lg bg-surface-elevated/60 p-2.5 mb-2">
-      <div className="text-caption text-mid-gray font-medium mb-1.5">
+    <div className="rounded-lg bg-card-bg p-4 mb-4 border border-border/60">
+      <div className="text-caption text-mid-gray font-medium mb-2">
         División entre {splits.length} locales · {modeLabel}
       </div>
       <div className="space-y-1">
@@ -176,25 +191,140 @@ function renderSplits(args: Record<string, unknown>) {
   )
 }
 
-export function ConfirmationCard({ toolName, args, onConfirm, onCancel }: ConfirmationCardProps) {
+// Fetches the document targeted by an update tool. Returns null if the tool is
+// not an update or the doc cannot be fetched.
+async function fetchPreviousState(
+  companyId: string,
+  toolName: string,
+  args: Record<string, unknown>,
+): Promise<Record<string, unknown> | null> {
+  try {
+    if (toolName === 'updateSupplier') {
+      const id = String(args.id)
+      const doc = await supplierService.getById(companyId, id)
+      return (doc as Record<string, unknown> | null) ?? null
+    }
+    if (toolName === 'updateEmployee') {
+      const id = String(args.id)
+      const doc = await talentService.getById(companyId, id)
+      return (doc as Record<string, unknown> | null) ?? null
+    }
+    if (toolName === 'updateTransaction') {
+      const id = String(args.id)
+      const doc = await financeService.getById(companyId, id)
+      return (doc as Record<string, unknown> | null) ?? null
+    }
+    if (toolName === 'updateBudget' || toolName === 'addBudgetItem' || toolName === 'deleteBudgetItem') {
+      const budget = await budgetService.get(companyId)
+      const category = String(args.category)
+      const type = String(args.type)
+      const item = budget.items.find((it) => it.category === category && it.type === type)
+      // Snapshot the matching item (or null if not present yet)
+      return item ? { ...item } : null
+    }
+  } catch (err) {
+    console.error('[ConfirmationCard] no se pudo leer estado previo:', err)
+  }
+  return null
+}
+
+function isUpdateTool(toolName: string): boolean {
+  return (
+    toolName === 'updateSupplier' ||
+    toolName === 'updateEmployee' ||
+    toolName === 'updateTransaction' ||
+    toolName === 'updateBudget' ||
+    toolName === 'addBudgetItem' ||
+    toolName === 'deleteBudgetItem'
+  )
+}
+
+interface DiffRow {
+  key: string
+  before: unknown
+  after: unknown
+}
+
+function buildDiffRows(
+  toolName: string,
+  args: Record<string, unknown>,
+  previousState: Record<string, unknown> | null,
+): DiffRow[] {
+  const rows: DiffRow[] = []
+
+  // Budget items: comparar el campo "amount" sobre la categoría/tipo
+  if (toolName === 'updateBudget' || toolName === 'addBudgetItem' || toolName === 'deleteBudgetItem') {
+    rows.push({
+      key: 'category',
+      before: previousState?.category ?? null,
+      after: args.category,
+    })
+    rows.push({
+      key: 'amount',
+      before: previousState?.amount ?? null,
+      after: toolName === 'deleteBudgetItem' ? null : args.amount,
+    })
+    return rows
+  }
+
+  // updateSupplier / updateEmployee / updateTransaction:
+  // mostramos sólo los campos que vienen en args (excepto id) y que cambian.
+  const entries = Object.entries(args).filter(([key]) => key !== 'id' && !HIDDEN_FIELDS.has(key))
+  for (const [key, after] of entries) {
+    const before = previousState ? previousState[key] : undefined
+    rows.push({ key, before, after })
+  }
+  return rows
+}
+
+function valuesAreEqual(a: unknown, b: unknown): boolean {
+  if (a === b) return true
+  if (a == null && b == null) return true
+  return formatValue('', a) === formatValue('', b)
+}
+
+export function ConfirmationCard({ toolName, args, onConfirm, onCancel, userQuote }: ConfirmationCardProps) {
+  const { selectedCompany } = useCompany()
   const [loading, setLoading] = useState(false)
+  const [previousState, setPreviousState] = useState<Record<string, unknown> | null>(null)
+  const [loadingPrev, setLoadingPrev] = useState(false)
   const config = TOOL_CONFIG[toolName] ?? { label: toolName, type: 'create' as ActionType, icon: Check }
   const styles = TYPE_STYLES[config.type]
   const Icon = config.icon
+  const isUpdate = isUpdateTool(toolName)
+  const isSplit = toolName === 'createSplitExpense'
+
+  useEffect(() => {
+    let cancelled = false
+    if (!isUpdate || !selectedCompany?.id) return
+    setLoadingPrev(true)
+    fetchPreviousState(selectedCompany.id, toolName, args)
+      .then((state) => {
+        if (!cancelled) setPreviousState(state)
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingPrev(false)
+      })
+    return () => {
+      cancelled = true
+    }
+    // args contiene primitivos serializables — comparación referencial es suficiente
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCompany?.id, toolName, JSON.stringify(args), isUpdate])
 
   const fields = Object.entries(args).filter(([key]) => !HIDDEN_FIELDS.has(key))
-  const isSplit = toolName === 'createSplitExpense'
+  const diffRows = isUpdate ? buildDiffRows(toolName, args, previousState) : []
 
   async function handleConfirm() {
     setLoading(true)
-    onConfirm()
+    onConfirm(previousState)
   }
 
   return (
     <div className={cn('mx-4 my-2 rounded-xl border p-4', styles.bg, styles.border)}>
       {/* Header */}
       <div className="flex items-center gap-2 mb-3">
-        <div className={cn('w-7 h-7 rounded-full flex items-center justify-center bg-surface-elevated/80', styles.icon)}>
+        <div className={cn('w-7 h-7 rounded-full flex items-center justify-center bg-card-bg', styles.icon)}>
           <Icon size={14} strokeWidth={1.5} />
         </div>
         <span className="text-body font-semibold text-dark-graphite">{config.label}</span>
@@ -209,25 +339,107 @@ export function ConfirmationCard({ toolName, args, onConfirm, onCancel }: Confir
       {/* Split breakdown (solo para createSplitExpense) */}
       {isSplit && renderSplits(args)}
 
-      {/* Fields */}
-      <div className="space-y-1.5 mb-4">
-        {fields.map(([key, value]) => (
-          <div key={key} className="flex items-baseline gap-2 text-caption">
-            <span className="text-mid-gray font-medium min-w-[80px] sm:min-w-[100px] shrink-0">{formatFieldName(key)}:</span>
-            <span className="text-dark-graphite">{formatValue(key, value)}</span>
-          </div>
-        ))}
-      </div>
+      {/* Update: diff antes → después */}
+      {isUpdate && (
+        <div className="mb-4">
+          {loadingPrev ? (
+            <div className="flex items-center gap-2 text-caption text-mid-gray">
+              <Loader2 size={12} className="animate-spin" />
+              Cargando estado actual…
+            </div>
+          ) : (
+            <div className="rounded-lg border border-border/60 bg-card-bg overflow-hidden">
+              <div className="grid grid-cols-[auto_1fr_auto_1fr] gap-x-2 px-4 py-2 border-b border-border/60 text-caption text-mid-gray font-medium">
+                <span>Campo</span>
+                <span>Antes</span>
+                <span />
+                <span>Después</span>
+              </div>
+              <div className="divide-y divide-border/60">
+                {diffRows.map((row) => {
+                  const unchanged = valuesAreEqual(row.before, row.after)
+                  const beforeStr = formatValue(row.key, row.before)
+                  const afterStr = formatValue(row.key, row.after)
+                  return (
+                    <div
+                      key={row.key}
+                      className="grid grid-cols-[auto_1fr_auto_1fr] gap-x-2 items-center px-4 py-2 text-caption"
+                    >
+                      <span className="text-mid-gray font-medium min-w-[80px]">
+                        {formatFieldName(row.key)}
+                      </span>
+                      <span
+                        className={cn(
+                          'tabular-nums truncate',
+                          unchanged
+                            ? 'text-mid-gray'
+                            : 'text-negative-text line-through',
+                        )}
+                      >
+                        {beforeStr}
+                      </span>
+                      <ArrowRight size={12} className="text-mid-gray" />
+                      <span
+                        className={cn(
+                          'tabular-nums truncate',
+                          unchanged
+                            ? 'text-mid-gray'
+                            : 'text-positive-text font-medium',
+                        )}
+                      >
+                        {afterStr}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Create / delete: lista plana de campos */}
+      {!isUpdate && !isSplit && (
+        <div className="space-y-1.5 mb-4">
+          {fields.map(([key, value]) => (
+            <div key={key} className="flex items-baseline gap-2 text-caption">
+              <span className="text-mid-gray font-medium min-w-[80px] sm:min-w-[100px] shrink-0">{formatFieldName(key)}:</span>
+              <span className="text-dark-graphite">{formatValue(key, value)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Split: lista de campos no-split */}
+      {isSplit && (
+        <div className="space-y-1.5 mb-4">
+          {fields.map(([key, value]) => (
+            <div key={key} className="flex items-baseline gap-2 text-caption">
+              <span className="text-mid-gray font-medium min-w-[80px] sm:min-w-[100px] shrink-0">{formatFieldName(key)}:</span>
+              <span className="text-dark-graphite">{formatValue(key, value)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Por qué — cita corta del usuario */}
+      {userQuote && userQuote.trim() && (
+        <div className="mb-4 pl-3 border-l-2 border-border/60">
+          <p className="text-caption text-mid-gray italic line-clamp-3">
+            “{userQuote.trim()}”
+          </p>
+        </div>
+      )}
 
       {/* Actions */}
       <div className="flex items-center gap-2">
         <button
           onClick={handleConfirm}
-          disabled={loading}
+          disabled={loading || loadingPrev}
           className={cn(
             'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-body font-medium transition-colors',
             styles.button,
-            loading && 'opacity-60 cursor-not-allowed'
+            (loading || loadingPrev) && 'opacity-60 cursor-not-allowed',
           )}
         >
           <Check size={14} />

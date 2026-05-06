@@ -5,6 +5,14 @@ import { z } from 'zod'
  * Mutation tools do NOT have an `execute` function.
  * The Vercel AI SDK will return these as tool calls to the client,
  * where the user must confirm before the action is executed.
+ *
+ * Para mostrar un diff "antes → después" en el ConfirmationCard, el CLIENTE
+ * lee el documento actual desde Firestore al recibir la tool-invocation
+ * (Opción B). No se duplica el estado en el server.
+ *
+ * TODO: si tools.length > 5, considerar Opción A — un wrapper "preview tool"
+ * server-side que devuelva { previousState, proposedChanges } para batchear
+ * cambios en una sola lectura.
  */
 export function createMutationTools() {
   return {

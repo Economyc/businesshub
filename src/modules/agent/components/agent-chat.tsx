@@ -7,6 +7,8 @@ import { invalidateCollection } from '@/core/query/invalidation'
 import { MessageList } from './message-list'
 import { ChatInput } from './chat-input'
 import { executeMutation } from '../utils/execute-mutation'
+import { buildUndoAction } from '../utils/build-undo'
+import { UndoToastContainer, useUndoToasts } from './undo-toast'
 import { exportToPDF, exportToExcel } from '../utils/export-report'
 import { preprocessImage, isImageFile, isSpreadsheetFile } from '../utils/image-preprocessing'
 import { parseSpreadsheetToText } from '../utils/parse-spreadsheet'
@@ -22,9 +24,28 @@ const TOOL_COLLECTIONS: Record<string, string> = {
   updateSupplier: 'suppliers',
   deleteSupplier: 'suppliers',
   createTransaction: 'transactions',
+  updateTransaction: 'transactions',
+  deleteTransaction: 'transactions',
   createSplitExpense: 'transactions',
   updateBudget: 'settings',
   addBudgetItem: 'settings',
+  deleteBudgetItem: 'settings',
+}
+
+const ENTITY_LABELS: Record<string, string> = {
+  createEmployee: 'empleado creado',
+  updateEmployee: 'empleado actualizado',
+  deleteEmployee: 'empleado eliminado',
+  createSupplier: 'proveedor creado',
+  updateSupplier: 'proveedor actualizado',
+  deleteSupplier: 'proveedor eliminado',
+  createTransaction: 'transacción creada',
+  updateTransaction: 'transacción actualizada',
+  deleteTransaction: 'transacción eliminada',
+  createSplitExpense: 'gasto compartido creado',
+  updateBudget: 'presupuesto actualizado',
+  addBudgetItem: 'item de presupuesto agregado',
+  deleteBudgetItem: 'item de presupuesto eliminado',
 }
 
 interface AgentChatProps {
@@ -207,15 +228,19 @@ export function AgentChat({ initialMessages, conversationId, onConversationSaved
     }
   }, [selectedCompany, append])
 
+  const { toasts, showUndoToast, dismissToast } = useUndoToasts()
+
   const handleToolConfirm = useCallback(async (
     toolCallId: string,
     toolName: string,
     args: Record<string, unknown>,
+    previousState: Record<string, unknown> | null,
+    _userQuote?: string,
   ) => {
     if (!selectedCompany) return
 
     try {
-      const result = await executeMutation(selectedCompany.id, toolName, args, { companies })
+      const result = await executeMutation(selectedCompany.id, toolName, args, { companies }, toolCallId)
 
       const collection = TOOL_COLLECTIONS[toolName]
       if (collection) {
@@ -226,6 +251,30 @@ export function AgentChat({ initialMessages, conversationId, onConversationSaved
       }
 
       addToolResult({ toolCallId, result })
+
+      // Mostrar undo toast sólo si la mutación fue exitosa
+      if (result.success) {
+        const undoAction = buildUndoAction(selectedCompany.id, toolName, args, previousState, result)
+        const description = ENTITY_LABELS[toolName] ?? 'Cambio aplicado'
+        if (undoAction) {
+          showUndoToast({
+            description: `${description.charAt(0).toUpperCase() + description.slice(1)}`,
+            onUndo: async () => {
+              await undoAction()
+              const targetIds = result.affectedCompanyIds ?? [selectedCompany.id]
+              if (collection) {
+                for (const cid of targetIds) invalidateCollection(cid, collection)
+              }
+            },
+          })
+        } else {
+          // Fallback: mostramos el toast pero sin botón funcional.
+          showUndoToast({
+            description: `${description.charAt(0).toUpperCase() + description.slice(1)} · función de deshacer próximamente`,
+            onUndo: null,
+          })
+        }
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Error desconocido'
       addToolResult({
@@ -233,7 +282,7 @@ export function AgentChat({ initialMessages, conversationId, onConversationSaved
         result: { success: false, message: `Error: ${message}` },
       })
     }
-  }, [selectedCompany, companies, addToolResult])
+  }, [selectedCompany, companies, addToolResult, showUndoToast])
 
   const handleToolCancel = useCallback((toolCallId: string) => {
     addToolResult({
@@ -307,6 +356,8 @@ export function AgentChat({ initialMessages, conversationId, onConversationSaved
         isLoading={isLoading}
         onStop={stop}
       />
+
+      <UndoToastContainer toasts={toasts} onDismiss={dismissToast} />
     </div>
   )
 }

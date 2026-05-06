@@ -15,8 +15,12 @@ const MUTATION_TOOLS = new Set([
   'updateSupplier',
   'deleteSupplier',
   'createTransaction',
+  'createSplitExpense',
+  'updateTransaction',
+  'deleteTransaction',
   'updateBudget',
   'addBudgetItem',
+  'deleteBudgetItem',
   'createPayrollDraft',
   'executeMonthClosing',
 ])
@@ -27,9 +31,32 @@ interface MessageListProps {
   messages: UIMessage[]
   isLoading: boolean
   onSuggestionClick?: (suggestion: string) => void
-  onToolConfirm?: (toolCallId: string, toolName: string, args: Record<string, unknown>) => void
+  onToolConfirm?: (
+    toolCallId: string,
+    toolName: string,
+    args: Record<string, unknown>,
+    previousState: Record<string, unknown> | null,
+    userQuote?: string,
+  ) => void
   onToolCancel?: (toolCallId: string) => void
   onExportReport?: (args: Record<string, unknown>) => void
+}
+
+// Encuentra el último texto del usuario antes (o en) un mensaje dado.
+function findUserQuoteFor(messages: UIMessage[], assistantMessageId: string): string | undefined {
+  let lastUserText: string | undefined
+  for (const m of messages) {
+    if (m.role === 'user') {
+      const textPart = m.parts?.find((p) => p.type === 'text') as { text?: string } | undefined
+      if (textPart?.text) {
+        lastUserText = textPart.text
+      } else if ((m as unknown as { content?: string }).content) {
+        lastUserText = (m as unknown as { content: string }).content
+      }
+    }
+    if (m.id === assistantMessageId) break
+  }
+  return lastUserText
 }
 
 export function MessageList({ messages, isLoading, onSuggestionClick, onToolConfirm, onToolCancel, onExportReport }: MessageListProps) {
@@ -123,12 +150,22 @@ export function MessageList({ messages, isLoading, onSuggestionClick, onToolConf
 
               // For mutation tools awaiting confirmation (state === 'call')
               if (MUTATION_TOOLS.has(toolName) && state === 'call') {
+                const userQuote = findUserQuoteFor(messages, message.id)
                 return (
                   <ConfirmationCard
                     key={`${message.id}-confirm-${i}`}
                     toolName={toolName}
                     args={args as Record<string, unknown>}
-                    onConfirm={() => onToolConfirm?.(toolCallId, toolName, args as Record<string, unknown>)}
+                    userQuote={userQuote}
+                    onConfirm={(previousState) =>
+                      onToolConfirm?.(
+                        toolCallId,
+                        toolName,
+                        args as Record<string, unknown>,
+                        previousState,
+                        userQuote,
+                      )
+                    }
                     onCancel={() => onToolCancel?.(toolCallId)}
                   />
                 )
@@ -174,6 +211,7 @@ export function MessageList({ messages, isLoading, onSuggestionClick, onToolConf
                 <ToolStep
                   key={`${message.id}-tool-${i}`}
                   toolName={toolName}
+                  toolCallId={toolCallId}
                   state={state}
                   result={state === 'result' ? (part.toolInvocation as { result?: unknown }).result : undefined}
                 />
