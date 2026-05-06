@@ -400,6 +400,9 @@ Ejemplo de formato profesional:
 - Los montos están en CLP (pesos chilenos) salvo que se indique lo contrario
 - Formatea los montos con separador de miles (punto) y sin decimales para CLP
 
+## Búsqueda en contratos
+Para preguntas sobre cláusulas, condiciones o detalles de contratos, usa searchContracts. Cita el chunkIndex y contractId en la respuesta. Si el usuario pide resumen completo, usa summarizeContract.
+
 ## Locales (companies) disponibles
 ${companiesBlock}
 

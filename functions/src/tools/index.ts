@@ -21,6 +21,8 @@ import { createThreadTools } from './thread-tools.js'
 import { createAnomalyTools } from './anomaly-tools.js'
 import { createPlanModeTools } from './plan-mode-tools.js'
 import { createObsidianTools } from './obsidian-tools.js'
+import { createScheduledReportsTools } from './scheduled-reports-tools.js'
+import { createContractRagTools } from './contract-rag-tools.js'
 
 export function createAgentTools(companyId: string, threadId?: string) {
   return {
@@ -57,5 +59,9 @@ export function createAgentTools(companyId: string, threadId?: string) {
     // Wave 6.2 — connector outbound a Obsidian. Client-rendered: requiere
     // confirmación humana y endpoint local configurado en el navegador.
     ...createObsidianTools(),
+    // Wave 5.2 — reportes programados (CRUD desde el chat).
+    ...createScheduledReportsTools(companyId),
+    // Wave 4.1 — RAG sobre contratos (search + summarize).
+    ...createContractRagTools(companyId),
   }
 }
