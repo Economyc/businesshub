@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Bot, RotateCcw } from 'lucide-react'
+import { Bot, RotateCcw, Settings } from 'lucide-react'
 import type { UIMessage } from 'ai'
 import { useCompany } from '@/core/hooks/use-company'
 import { HoverHint } from '@/components/ui/tooltip'
 import { AgentChat } from './agent-chat'
+import { AgentPreferencesDialog } from './agent-preferences-dialog'
 import { ConversationHistory } from './conversation-history'
 import { conversationService } from '../services'
 import type { Conversation } from '../types'
@@ -28,6 +29,7 @@ export function AgentPage() {
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
   const [initialMessages, setInitialMessages] = useState<UIMessage[]>([])
   const [conversations, setConversations] = useState<Conversation[]>([])
+  const [preferencesOpen, setPreferencesOpen] = useState(false)
 
   useEffect(() => {
     if (!selectedCompany?.id) return
@@ -94,6 +96,14 @@ export function AgentPage() {
             onSelect={handleLoadConversation}
             onDelete={handleDeleteConversation}
           />
+          <HoverHint label="Preferencias del asistente">
+            <button
+              onClick={() => setPreferencesOpen(true)}
+              className="w-8 h-8 flex items-center justify-center rounded-full text-mid-gray hover:text-graphite hover:bg-bone transition-colors active:scale-95"
+            >
+              <Settings size={16} strokeWidth={1.5} />
+            </button>
+          </HoverHint>
           <HoverHint label="Nueva conversación">
             <button
               onClick={handleNewConversation}
@@ -109,6 +119,10 @@ export function AgentPage() {
         initialMessages={initialMessages}
         conversationId={activeConversationId}
         onConversationSaved={handleConversationSaved}
+      />
+      <AgentPreferencesDialog
+        open={preferencesOpen}
+        onOpenChange={setPreferencesOpen}
       />
     </div>
   )

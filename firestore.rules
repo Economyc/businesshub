@@ -20,6 +20,12 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Wave 1.2 — Memoria persistente del asistente AI por usuario.
+    // Sólo el dueño (uid match) puede leer y escribir su propia memoria.
+    match /users/{userId}/agentMemory/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
     // Wave 2.3 — progreso incremental de tools largas. El cliente lee
     // pasos en vivo via onSnapshot mientras la tool corre. Escrituras
     // tanto desde Cloud Functions (Admin SDK las salta) como desde el

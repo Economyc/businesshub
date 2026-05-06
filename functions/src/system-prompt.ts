@@ -5,7 +5,65 @@ export interface CompanyContext {
   slug?: string | null
 }
 
-export function getAgentSystemPrompt(opts: { companies?: CompanyContext[]; activeCompanyId?: string } = {}): string {
+// Wave 1.2 — Memoria persistente del usuario. Se define localmente porque el
+// tsconfig de functions/ no comparte paths con src/. Mantener en sync con
+// src/modules/agent/types.ts (UserAgentMemory).
+export interface UserAgentMemory {
+  preferredCompanies?: string[]
+  preferredFormat?: 'table' | 'prose' | 'auto'
+  language?: 'es' | 'en'
+  shortcuts?: Record<string, string>
+  notes?: string
+}
+
+function buildUserMemoryBlock(memory: UserAgentMemory | null | undefined): string {
+  if (!memory) return ''
+  const language = memory.language ?? 'es'
+  const preferredFormat = memory.preferredFormat ?? 'auto'
+  const preferredCompanies = memory.preferredCompanies ?? []
+  const shortcuts = memory.shortcuts ?? {}
+  const notes = (memory.notes ?? '').trim()
+
+  // Sólo inyectamos la sección si hay al menos un campo no-default. Si todo
+  // viene en defaults, no contamina el prompt con texto inútil.
+  const hasContent =
+    language !== 'es' ||
+    preferredFormat !== 'auto' ||
+    preferredCompanies.length > 0 ||
+    Object.keys(shortcuts).length > 0 ||
+    notes.length > 0
+  if (!hasContent) return ''
+
+  const formatLabel =
+    preferredFormat === 'auto'
+      ? 'el que mejor calce'
+      : preferredFormat === 'table'
+        ? 'tablas cuando aplique'
+        : 'prosa narrativa'
+  const languageLabel = language === 'es' ? 'español' : 'inglés'
+
+  const lines: string[] = []
+  lines.push('')
+  lines.push('## Preferencias del usuario')
+  lines.push(`- Idioma preferido: ${languageLabel}`)
+  lines.push(`- Formato preferido de respuesta: ${formatLabel}`)
+  if (preferredCompanies.length > 0) {
+    lines.push(`- Locales prioritarios: ${preferredCompanies.join(', ')}`)
+  }
+  if (Object.keys(shortcuts).length > 0) {
+    lines.push(`- Atajos del usuario: ${JSON.stringify(shortcuts)}`)
+  }
+  if (notes) {
+    lines.push(`- Notas adicionales del usuario: "${notes}"`)
+  }
+  return lines.join('\n')
+}
+
+export function getAgentSystemPrompt(opts: {
+  companies?: CompanyContext[]
+  activeCompanyId?: string
+  userMemory?: UserAgentMemory | null
+} = {}): string {
   const now = new Date()
   const dateStr = now.toLocaleDateString('es-CL', {
     weekday: 'long',
@@ -15,7 +73,7 @@ export function getAgentSystemPrompt(opts: { companies?: CompanyContext[]; activ
   })
   const isoToday = now.toISOString().split('T')[0]
 
-  const { companies = [], activeCompanyId } = opts
+  const { companies = [], activeCompanyId, userMemory = null } = opts
   const nameCounts = new Map<string, number>()
   for (const c of companies) {
     const k = c.name.trim().toLowerCase()
@@ -292,5 +350,5 @@ Cuando el usuario envíe datos de un archivo Excel o CSV:
 ## Formato de Fechas
 - Usa formato YYYY-MM-DD para las herramientas
 - Muestra fechas al usuario en formato legible (ej: "3 de abril de 2026")
-- Cuando el usuario diga "este mes", "el mes pasado", etc., calcula las fechas basándote en la fecha actual: ${isoToday}`
+- Cuando el usuario diga "este mes", "el mes pasado", etc., calcula las fechas basándote en la fecha actual: ${isoToday}${buildUserMemoryBlock(userMemory)}`
 }

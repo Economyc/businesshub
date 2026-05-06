@@ -2,7 +2,9 @@ import { useChat } from '@ai-sdk/react'
 import { useCallback, useEffect, useRef } from 'react'
 import { AlertCircle } from 'lucide-react'
 import type { UIMessage } from 'ai'
+import { useQuery } from '@tanstack/react-query'
 import { useCompany } from '@/core/hooks/use-company'
+import { useAuth } from '@/core/hooks/use-auth'
 import { invalidateCollection } from '@/core/query/invalidation'
 import { MessageList } from './message-list'
 import { ChatInput } from './chat-input'
@@ -12,7 +14,7 @@ import { UndoToastContainer, useUndoToasts } from './undo-toast'
 import { exportToPDF, exportToExcel } from '../utils/export-report'
 import { preprocessImage, isImageFile, isSpreadsheetFile } from '../utils/image-preprocessing'
 import { parseSpreadsheetToText } from '../utils/parse-spreadsheet'
-import { conversationService } from '../services'
+import { conversationService, getUserMemory } from '../services'
 
 const AGENT_API_URL = import.meta.env.VITE_AGENT_API_URL || '/api/agent/chat'
 
@@ -107,8 +109,19 @@ function generateTitle(messages: UIMessage[]): string {
 
 export function AgentChat({ initialMessages, conversationId, onConversationSaved }: AgentChatProps) {
   const { selectedCompany, companies } = useCompany()
+  const { user } = useAuth()
+  const uid = user?.uid ?? null
   const conversationIdRef = useRef(conversationId)
   const isSavingRef = useRef(false)
+
+  // Wave 1.2 — Memoria persistente. Si no hay uid o falla la lectura, pasamos
+  // null al body para que el backend use defaults sin inyectar nada al prompt.
+  const { data: userMemory } = useQuery({
+    queryKey: ['userMemory', uid],
+    queryFn: () => (uid ? getUserMemory(uid) : Promise.resolve(null)),
+    enabled: !!uid,
+    staleTime: 5 * 60 * 1000,
+  })
 
   useEffect(() => {
     conversationIdRef.current = conversationId
@@ -164,6 +177,7 @@ export function AgentChat({ initialMessages, conversationId, onConversationSaved
         location: c.location ?? null,
         slug: c.slug ?? null,
       })),
+      userMemory: userMemory ?? null,
     },
     onFinish: handleAutoSave,
     onToolCall: async ({ toolCall }) => {

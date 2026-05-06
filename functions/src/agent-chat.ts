@@ -38,7 +38,7 @@ export const agentChat = onRequest(
     }
 
     try {
-      const { messages, companyId, companies } = req.body
+      const { messages, companyId, companies, userMemory } = req.body
 
       if (!messages || !Array.isArray(messages)) {
         res.status(400).json({ error: 'Invalid request: messages array required' })
@@ -67,7 +67,11 @@ export const agentChat = onRequest(
 
           const result = streamText({
             model,
-            system: getAgentSystemPrompt({ companies: companyList, activeCompanyId: companyId }),
+            system: getAgentSystemPrompt({
+              companies: companyList,
+              activeCompanyId: companyId,
+              userMemory: userMemory ?? null,
+            }),
             messages,
             tools,
             maxSteps: 8,

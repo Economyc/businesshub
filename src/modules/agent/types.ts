@@ -28,3 +28,18 @@ export interface Conversation {
   createdAt: Timestamp
   updatedAt: Timestamp
 }
+
+// Wave 1.2 — Memoria persistente del usuario para el agente.
+// Se guarda en `users/{uid}/agentMemory/preferences` y se inyecta al system
+// prompt en cada turno de chat. Es 1 doc por usuario, no por compañía.
+export type AgentResponseFormat = 'table' | 'prose' | 'auto'
+export type AgentLanguage = 'es' | 'en'
+
+export interface UserAgentMemory {
+  preferredCompanies: string[]
+  preferredFormat: AgentResponseFormat
+  language: AgentLanguage
+  shortcuts: Record<string, string>
+  notes: string
+  updatedAt?: Timestamp
+}
