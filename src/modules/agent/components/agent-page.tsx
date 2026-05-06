@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Bot, RotateCcw, Settings, X, CheckSquare, Square } from 'lucide-react'
+import { Bot, RotateCcw, Settings, X, CheckSquare, Square, CalendarClock } from 'lucide-react'
 import type { UIMessage } from 'ai'
 import { useCompany } from '@/core/hooks/use-company'
 import { HoverHint } from '@/components/ui/tooltip'
@@ -8,6 +8,7 @@ import { AgentChat } from './agent-chat'
 import { AgentPreferencesDialog } from './agent-preferences-dialog'
 import { ConversationHistory } from './conversation-history'
 import { ThreadSidebar } from './thread-sidebar'
+import { ScheduledReportsDialog } from '@/modules/scheduled-reports/components/scheduled-reports-dialog'
 import { conversationService, threadService } from '../services'
 import type { Conversation, AgentThread, ThreadStatus } from '../types'
 
@@ -44,6 +45,7 @@ export function AgentPage() {
   const [initialMessages, setInitialMessages] = useState<UIMessage[]>([])
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [preferencesOpen, setPreferencesOpen] = useState(false)
+  const [scheduledReportsOpen, setScheduledReportsOpen] = useState(false)
   // Wave 4.2 — threads. activeThread guarda el thread completo en memoria;
   // el chat lo lee para inyectar context+nextActions al body de useChat.
   const [threads, setThreads] = useState<AgentThread[]>([])
@@ -193,6 +195,14 @@ export function AgentPage() {
               onSelect={handleLoadConversation}
               onDelete={handleDeleteConversation}
             />
+            <HoverHint label="Reportes programados">
+              <button
+                onClick={() => setScheduledReportsOpen(true)}
+                className="w-8 h-8 flex items-center justify-center rounded-full text-mid-gray hover:text-graphite hover:bg-bone transition-colors active:scale-95"
+              >
+                <CalendarClock size={16} strokeWidth={1.5} />
+              </button>
+            </HoverHint>
             <HoverHint label="Preferencias del asistente">
               <button
                 onClick={() => setPreferencesOpen(true)}
@@ -290,6 +300,11 @@ export function AgentPage() {
         <AgentPreferencesDialog
           open={preferencesOpen}
           onOpenChange={setPreferencesOpen}
+        />
+
+        <ScheduledReportsDialog
+          open={scheduledReportsOpen}
+          onOpenChange={setScheduledReportsOpen}
         />
       </div>
     </div>
