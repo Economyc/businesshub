@@ -1,8 +1,14 @@
-import { useRef, useState, type FormEvent, type KeyboardEvent, type DragEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type DragEvent } from 'react'
 import { Send, Paperclip, Square, X, FileSpreadsheet, Image as ImageIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { HoverHint } from '@/components/ui/tooltip'
 import { isImageFile, isSpreadsheetFile } from '../utils/image-preprocessing'
+import {
+  filterSlashCommands,
+  parseSlashCommand,
+  type SlashCommand,
+} from '../utils/slash-commands'
+import { SlashCommandMenu } from './slash-command-menu'
 
 interface ChatInputProps {
   input: string
@@ -19,7 +25,96 @@ export function ChatInput({ input, onInputChange, onSubmit, onSendWithFiles, isL
   const [attachedFiles, setAttachedFiles] = useState<File[]>([])
   const [dragOver, setDragOver] = useState(false)
 
+  // Slash command popover state
+  const [slashOpen, setSlashOpen] = useState(false)
+  const [slashQuery, setSlashQuery] = useState('')
+  const [slashActiveIndex, setSlashActiveIndex] = useState(0)
+
+  // Sincroniza visibilidad y query a partir del valor del input.
+  useEffect(() => {
+    if (!input.startsWith('/')) {
+      if (slashOpen) setSlashOpen(false)
+      return
+    }
+    const rest = input.slice(1)
+    // Cierra cuando el usuario ya escribio un espacio (ya pico comando + args).
+    if (rest.includes(' ')) {
+      if (slashOpen) setSlashOpen(false)
+      return
+    }
+    setSlashOpen(true)
+    setSlashQuery(rest)
+  }, [input, slashOpen])
+
+  // Reset del activeIndex cuando cambia la query (mantiene 0 al re-filtrar).
+  useEffect(() => {
+    setSlashActiveIndex(0)
+  }, [slashQuery])
+
+  function handleSelectSlashCommand(cmd: SlashCommand) {
+    const parsed = parseSlashCommand(input)
+    const args = parsed?.args ?? ''
+    if (args) {
+      // El usuario ya tipeo args -> expandimos el template completo.
+      const expanded = cmd.template(args)
+      onInputChange(expanded)
+      setSlashOpen(false)
+      requestAnimationFrame(() => {
+        const ta = textareaRef.current
+        if (ta) {
+          ta.focus()
+          ta.style.height = 'auto'
+          ta.style.height = `${Math.min(ta.scrollHeight, 160)}px`
+        }
+      })
+    } else {
+      // Sin args -> dejamos "/<name> " para que complete.
+      onInputChange(`/${cmd.name} `)
+      setSlashOpen(false)
+      requestAnimationFrame(() => {
+        const ta = textareaRef.current
+        if (ta) {
+          ta.focus()
+          const len = ta.value.length
+          ta.setSelectionRange(len, len)
+        }
+      })
+    }
+  }
+
   function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
+    // Navegacion del menu de slash commands cuando esta abierto.
+    if (slashOpen) {
+      const visible = filterSlashCommands(slashQuery)
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        setSlashOpen(false)
+        return
+      }
+      if (e.key === 'ArrowDown' && visible.length > 0) {
+        e.preventDefault()
+        setSlashActiveIndex((prev) => (prev + 1) % visible.length)
+        return
+      }
+      if (e.key === 'ArrowUp' && visible.length > 0) {
+        e.preventDefault()
+        setSlashActiveIndex((prev) => (prev - 1 + visible.length) % visible.length)
+        return
+      }
+      if (e.key === 'Tab' && visible.length > 0) {
+        e.preventDefault()
+        const safeIdx = Math.min(slashActiveIndex, visible.length - 1)
+        handleSelectSlashCommand(visible[safeIdx])
+        return
+      }
+      if (e.key === 'Enter' && !e.shiftKey && visible.length > 0) {
+        e.preventDefault()
+        const safeIdx = Math.min(slashActiveIndex, visible.length - 1)
+        handleSelectSlashCommand(visible[safeIdx])
+        return
+      }
+    }
+
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSend()
@@ -135,7 +230,14 @@ export function ChatInput({ input, onInputChange, onSubmit, onSendWithFiles, isL
           }}
         />
 
-        <div className="flex-1 bg-surface-elevated border border-border/60 rounded-2xl overflow-hidden focus-within:border-mid-gray focus-within:ring-1 focus-within:ring-mid-gray/20 transition-colors">
+        <div className="relative flex-1 bg-surface-elevated border border-border/60 rounded-2xl overflow-visible focus-within:border-mid-gray focus-within:ring-1 focus-within:ring-mid-gray/20 transition-colors">
+          <SlashCommandMenu
+            open={slashOpen}
+            query={slashQuery}
+            activeIndex={slashActiveIndex}
+            onSelect={handleSelectSlashCommand}
+            onHoverIndex={setSlashActiveIndex}
+          />
           <textarea
             ref={textareaRef}
             value={input}
@@ -144,7 +246,7 @@ export function ChatInput({ input, onInputChange, onSubmit, onSendWithFiles, isL
               handleTextareaInput()
             }}
             onKeyDown={handleKeyDown}
-            placeholder={attachedFiles.length > 0 ? 'Describe qué hacer con el archivo...' : 'Pregunta sobre tus datos...'}
+            placeholder={attachedFiles.length > 0 ? 'Describe qué hacer con el archivo...' : 'Pregunta sobre tus datos... ( / para comandos)'}
             rows={1}
             className={cn(
               'w-full resize-none bg-transparent px-4 py-2.5 text-body text-graphite',
