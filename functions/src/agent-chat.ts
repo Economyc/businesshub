@@ -70,7 +70,7 @@ export const agentChat = onRequest(
             system: getAgentSystemPrompt({ companies: companyList, activeCompanyId: companyId }),
             messages,
             tools,
-            maxSteps: 5,
+            maxSteps: 8,
           })
 
           result.pipeDataStreamToResponse(res)
