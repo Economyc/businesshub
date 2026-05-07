@@ -9,9 +9,21 @@ interface ConfirmDialogProps {
   description: string
   onConfirm: () => void | Promise<void>
   onCancel: () => void
+  confirmLabel?: string
+  loadingLabel?: string
+  variant?: 'danger' | 'neutral'
 }
 
-export function ConfirmDialog({ open, title, description, onConfirm, onCancel }: ConfirmDialogProps) {
+export function ConfirmDialog({
+  open,
+  title,
+  description,
+  onConfirm,
+  onCancel,
+  confirmLabel = 'Eliminar',
+  loadingLabel = 'Eliminando...',
+  variant = 'danger',
+}: ConfirmDialogProps) {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -67,10 +79,14 @@ export function ConfirmDialog({ open, title, description, onConfirm, onCancel }:
               <button
                 onClick={handleConfirm}
                 disabled={loading}
-                className="px-4 py-2 rounded-lg text-body font-medium bg-negative-text text-white hover:opacity-90 transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2"
+                className={
+                  variant === 'danger'
+                    ? 'px-4 py-2 rounded-lg text-body font-medium bg-negative-text text-white hover:opacity-90 transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2'
+                    : 'px-4 py-2 rounded-lg text-body font-medium btn-primary transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2'
+                }
               >
                 {loading && <Loader2 size={14} className="animate-spin" />}
-                {loading ? 'Eliminando...' : 'Eliminar'}
+                {loading ? loadingLabel : confirmLabel}
               </button>
             </div>
           </motion.div>

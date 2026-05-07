@@ -7,4 +7,5 @@ export { carteraSummaryNightly, recomputeCarteraSummaryCallable } from './carter
 export { detectAnomaliesDaily } from './anomaly-detection.js';
 export { indexContractEmbeddings } from './contracts-indexer.js';
 export { dispatchScheduledReports } from './scheduled-reports-dispatch.js';
+export { adminCreateUser, adminSetUserStatus, adminDeleteUser } from './users-admin.js';
 //# sourceMappingURL=index.d.ts.map

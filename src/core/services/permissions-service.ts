@@ -8,7 +8,8 @@ import {
   deleteDoc,
   Timestamp,
 } from 'firebase/firestore'
-import { db } from '@/core/firebase/config'
+import { httpsCallable } from 'firebase/functions'
+import { db, getAppFunctions } from '@/core/firebase/config'
 import type { CompanyMember, RoleDefinition } from '@/core/types/permissions'
 import { DEFAULT_ROLES } from '@/core/config/default-roles'
 
@@ -135,4 +136,38 @@ export async function seedMembershipIfNeeded(
 
   await createMember(companyId, userId, member)
   return { id: userId, ...member } as CompanyMember
+}
+
+// ---- Admin callables (mutate Firebase Auth + Firestore) ----
+
+export async function adminCreateUserCallable(input: {
+  companyId: string
+  email: string
+  password: string
+  displayName: string
+  role: string
+}): Promise<{ uid: string }> {
+  const functions = await getAppFunctions()
+  const fn = httpsCallable<typeof input, { uid: string }>(functions, 'adminCreateUser')
+  const result = await fn(input)
+  return result.data
+}
+
+export async function adminSetUserStatusCallable(input: {
+  companyId: string
+  userId: string
+  status: 'active' | 'suspended'
+}): Promise<void> {
+  const functions = await getAppFunctions()
+  const fn = httpsCallable<typeof input, { ok: boolean }>(functions, 'adminSetUserStatus')
+  await fn(input)
+}
+
+export async function adminDeleteUserCallable(input: {
+  companyId: string
+  userId: string
+}): Promise<void> {
+  const functions = await getAppFunctions()
+  const fn = httpsCallable<typeof input, { ok: boolean }>(functions, 'adminDeleteUser')
+  await fn(input)
 }

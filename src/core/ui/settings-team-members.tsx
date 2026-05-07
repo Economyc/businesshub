@@ -1,9 +1,14 @@
 import { useState, useEffect } from 'react'
-import { Plus, Trash2, Shield } from 'lucide-react'
+import { Plus, Trash2, Shield, Ban, UserCheck } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useCompany } from '@/core/hooks/use-company'
 import { usePermissions } from '@/core/hooks/use-permissions'
-import { fetchMembers, updateMember, removeMember } from '@/core/services/permissions-service'
+import {
+  fetchMembers,
+  updateMember,
+  adminDeleteUserCallable,
+  adminSetUserStatusCallable,
+} from '@/core/services/permissions-service'
 import { ConfirmDialog } from './confirm-dialog'
 import { SettingsTeamInvite } from './settings-team-invite'
 import { UserAvatar } from './user-avatar'
@@ -16,7 +21,9 @@ export function SettingsTeamMembers() {
   const [loading, setLoading] = useState(true)
   const [inviteOpen, setInviteOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<CompanyMember | null>(null)
+  const [statusTarget, setStatusTarget] = useState<{ member: CompanyMember; status: 'active' | 'suspended' } | null>(null)
   const [editingRole, setEditingRole] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
 
   async function loadMembers() {
     if (!selectedCompany) return
@@ -50,9 +57,39 @@ export function SettingsTeamMembers() {
 
   async function handleRemove() {
     if (!selectedCompany || !deleteTarget) return
-    await removeMember(selectedCompany.id, deleteTarget.userId)
-    setMembers((prev) => prev.filter((m) => m.userId !== deleteTarget.userId))
-    setDeleteTarget(null)
+    try {
+      await adminDeleteUserCallable({
+        companyId: selectedCompany.id,
+        userId: deleteTarget.userId,
+      })
+      setMembers((prev) => prev.filter((m) => m.userId !== deleteTarget.userId))
+      setDeleteTarget(null)
+    } catch (err) {
+      console.error('Error deleting member:', err)
+      setActionError(err instanceof Error ? err.message : 'Error al eliminar')
+      setDeleteTarget(null)
+    }
+  }
+
+  async function handleStatusChange() {
+    if (!selectedCompany || !statusTarget) return
+    try {
+      await adminSetUserStatusCallable({
+        companyId: selectedCompany.id,
+        userId: statusTarget.member.userId,
+        status: statusTarget.status,
+      })
+      setMembers((prev) =>
+        prev.map((m) =>
+          m.userId === statusTarget.member.userId ? { ...m, status: statusTarget.status } : m,
+        ),
+      )
+      setStatusTarget(null)
+    } catch (err) {
+      console.error('Error changing status:', err)
+      setActionError(err instanceof Error ? err.message : 'Error al cambiar estado')
+      setStatusTarget(null)
+    }
   }
 
   function getRoleBadge(roleId: string) {
@@ -110,7 +147,7 @@ export function SettingsTeamMembers() {
                 Estado
               </th>
               {canManageUsers && (
-                <th className="text-right text-caption uppercase tracking-wider text-mid-gray font-medium px-4 py-3 w-16" />
+                <th className="text-right text-caption uppercase tracking-wider text-mid-gray font-medium px-4 py-3 w-24" />
               )}
             </tr>
           </thead>
@@ -190,12 +227,32 @@ export function SettingsTeamMembers() {
                   {canManageUsers && (
                     <td className="px-4 py-3 text-right">
                       {!isSelf && !isOwner && (
-                        <button
-                          onClick={() => setDeleteTarget(member)}
-                          className="p-1.5 rounded-lg text-mid-gray hover:text-negative-text hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100"
-                        >
-                          <Trash2 size={13} strokeWidth={1.5} />
-                        </button>
+                        <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {member.status === 'suspended' ? (
+                            <button
+                              onClick={() => setStatusTarget({ member, status: 'active' })}
+                              title="Reactivar"
+                              className="p-1.5 rounded-lg text-mid-gray hover:text-green-700 hover:bg-green-50 transition-all"
+                            >
+                              <UserCheck size={13} strokeWidth={1.5} />
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => setStatusTarget({ member, status: 'suspended' })}
+                              title="Suspender"
+                              className="p-1.5 rounded-lg text-mid-gray hover:text-amber-700 hover:bg-amber-50 transition-all"
+                            >
+                              <Ban size={13} strokeWidth={1.5} />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => setDeleteTarget(member)}
+                            title="Eliminar"
+                            className="p-1.5 rounded-lg text-mid-gray hover:text-negative-text hover:bg-red-50 transition-all"
+                          >
+                            <Trash2 size={13} strokeWidth={1.5} />
+                          </button>
+                        </div>
                       )}
                     </td>
                   )}
@@ -230,9 +287,35 @@ export function SettingsTeamMembers() {
       <ConfirmDialog
         open={deleteTarget !== null}
         title="Eliminar miembro"
-        description={`¿Estas seguro de que deseas eliminar a "${deleteTarget?.displayName || deleteTarget?.email}" del equipo? Perdera acceso a esta compañia.`}
+        description={`¿Estás seguro de que deseas eliminar a "${deleteTarget?.displayName || deleteTarget?.email}" del equipo? Esto borrará su cuenta de acceso permanentemente.`}
         onConfirm={handleRemove}
         onCancel={() => setDeleteTarget(null)}
+      />
+
+      <ConfirmDialog
+        open={statusTarget !== null}
+        title={statusTarget?.status === 'suspended' ? 'Suspender miembro' : 'Reactivar miembro'}
+        description={
+          statusTarget?.status === 'suspended'
+            ? `Suspender a "${statusTarget?.member.displayName || statusTarget?.member.email}". No podrá iniciar sesión hasta que lo reactives.`
+            : `Reactivar a "${statusTarget?.member.displayName || statusTarget?.member.email}". Podrá iniciar sesión de nuevo.`
+        }
+        confirmLabel={statusTarget?.status === 'suspended' ? 'Suspender' : 'Reactivar'}
+        loadingLabel="Aplicando..."
+        variant={statusTarget?.status === 'suspended' ? 'danger' : 'neutral'}
+        onConfirm={handleStatusChange}
+        onCancel={() => setStatusTarget(null)}
+      />
+
+      <ConfirmDialog
+        open={actionError !== null}
+        title="Error"
+        description={actionError ?? ''}
+        confirmLabel="Cerrar"
+        loadingLabel="Cerrando..."
+        variant="neutral"
+        onConfirm={() => setActionError(null)}
+        onCancel={() => setActionError(null)}
       />
     </>
   )
