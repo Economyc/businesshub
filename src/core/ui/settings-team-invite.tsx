@@ -5,6 +5,7 @@ import { modalVariants } from '@/core/animations/variants'
 import { useCompany } from '@/core/hooks/use-company'
 import { usePermissions } from '@/core/hooks/use-permissions'
 import { adminCreateUserCallable } from '@/core/services/permissions-service'
+import { SelectInput } from './select-input'
 
 interface Props {
   open: boolean
@@ -223,18 +224,14 @@ export function SettingsTeamInvite({ open, onClose, onInvited }: Props) {
                     <label className="block text-caption font-medium text-graphite mb-1.5">
                       Rol
                     </label>
-                    <select
+                    <SelectInput
                       value={role}
-                      onChange={(e) => setRole(e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-lg border border-input-border bg-input-bg text-body text-graphite focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200"
-                      disabled={loading}
-                    >
-                      {roles.filter((r) => r.id !== 'owner').map((r) => (
-                        <option key={r.id} value={r.id}>
-                          {r.label} — {r.description}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={setRole}
+                      options={roles
+                        .filter((r) => r.id !== 'owner')
+                        .map((r) => ({ value: r.id, label: r.label }))}
+                      placeholder="Seleccionar rol"
+                    />
                   </div>
 
                   {error && (
