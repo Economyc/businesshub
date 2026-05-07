@@ -1,11 +1,9 @@
 import { useState, useEffect } from 'react'
-import { Plus, Trash2, Shield, MapPin } from 'lucide-react'
+import { Plus, Trash2, Shield } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useBranches } from '@/core/hooks/use-branches'
 import { useCompany } from '@/core/hooks/use-company'
 import { usePermissions } from '@/core/hooks/use-permissions'
 import { fetchMembers, updateMember, removeMember } from '@/core/services/permissions-service'
-import { isBranchRole } from '@/core/types/branch'
 import { ConfirmDialog } from './confirm-dialog'
 import { SettingsTeamInvite } from './settings-team-invite'
 import { UserAvatar } from './user-avatar'
@@ -14,13 +12,11 @@ import type { CompanyMember } from '@/core/types/permissions'
 export function SettingsTeamMembers() {
   const { selectedCompany } = useCompany()
   const { member: currentMember, canManageUsers, roles, refetch } = usePermissions()
-  const { activeBranches, branches } = useBranches()
   const [members, setMembers] = useState<CompanyMember[]>([])
   const [loading, setLoading] = useState(true)
   const [inviteOpen, setInviteOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<CompanyMember | null>(null)
   const [editingRole, setEditingRole] = useState<string | null>(null)
-  const [editingBranch, setEditingBranch] = useState<string | null>(null)
 
   async function loadMembers() {
     if (!selectedCompany) return
@@ -41,51 +37,15 @@ export function SettingsTeamMembers() {
 
   async function handleRoleChange(member: CompanyMember, newRole: string) {
     if (!selectedCompany) return
-    const becomesBranchRole = isBranchRole(newRole)
-    const wasBranchRole = isBranchRole(member.role)
-
-    let nextBranchId: string | undefined = member.branchId
-    if (becomesBranchRole && !nextBranchId && activeBranches.length > 0) {
-      nextBranchId = activeBranches[0].id
-    }
-    if (!becomesBranchRole && wasBranchRole) {
-      nextBranchId = undefined
-    }
-
-    const update: Partial<CompanyMember> = { role: newRole }
-    if (becomesBranchRole) {
-      update.branchId = nextBranchId
-    } else if (wasBranchRole) {
-      update.branchId = undefined
-    }
-    await updateMember(selectedCompany.id, member.userId, update)
+    await updateMember(selectedCompany.id, member.userId, { role: newRole })
     setMembers((prev) =>
-      prev.map((m) =>
-        m.userId === member.userId ? { ...m, role: newRole, branchId: nextBranchId } : m,
-      ),
+      prev.map((m) => (m.userId === member.userId ? { ...m, role: newRole } : m)),
     )
     setEditingRole(null)
+    // Refetch permissions in case the current user changed their own role
     if (member.userId === currentMember?.userId) {
       refetch()
     }
-  }
-
-  async function handleBranchChange(member: CompanyMember, newBranchId: string) {
-    if (!selectedCompany) return
-    await updateMember(selectedCompany.id, member.userId, { branchId: newBranchId })
-    setMembers((prev) =>
-      prev.map((m) => (m.userId === member.userId ? { ...m, branchId: newBranchId } : m)),
-    )
-    setEditingBranch(null)
-    if (member.userId === currentMember?.userId) {
-      refetch()
-    }
-  }
-
-  function getBranchName(branchId?: string): string | null {
-    if (!branchId) return null
-    const found = branches.find((b) => b.id === branchId)
-    return found?.name ?? branchId
   }
 
   async function handleRemove() {
@@ -145,9 +105,6 @@ export function SettingsTeamMembers() {
               </th>
               <th className="text-left text-caption uppercase tracking-wider text-mid-gray font-medium px-4 py-3 hidden sm:table-cell">
                 Rol
-              </th>
-              <th className="text-left text-caption uppercase tracking-wider text-mid-gray font-medium px-4 py-3 hidden lg:table-cell">
-                Sede
               </th>
               <th className="text-left text-caption uppercase tracking-wider text-mid-gray font-medium px-4 py-3 hidden md:table-cell">
                 Estado
@@ -218,41 +175,6 @@ export function SettingsTeamMembers() {
                         <Shield size={11} />
                         {roleBadge.label}
                       </button>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 hidden lg:table-cell">
-                    {isBranchRole(member.role) ? (
-                      editingBranch === member.userId && canManageUsers ? (
-                        <select
-                          value={member.branchId ?? ''}
-                          onChange={(e) => handleBranchChange(member, e.target.value)}
-                          onBlur={() => setEditingBranch(null)}
-                          autoFocus
-                          className="text-body rounded-md border border-input-border bg-input-bg px-2 py-1 outline-none focus:border-input-focus"
-                        >
-                          {activeBranches.length === 0 && <option value="">— sin sedes —</option>}
-                          {activeBranches.map((b) => (
-                            <option key={b.id} value={b.id}>
-                              {b.name}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <button
-                          onClick={() => canManageUsers && setEditingBranch(member.userId)}
-                          className={cn(
-                            'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-caption font-medium bg-bone text-graphite',
-                            canManageUsers && 'cursor-pointer hover:opacity-80',
-                            !member.branchId && 'text-negative-text bg-red-50',
-                          )}
-                          disabled={!canManageUsers}
-                        >
-                          <MapPin size={11} />
-                          {getBranchName(member.branchId) ?? 'Sin asignar'}
-                        </button>
-                      )
-                    ) : (
-                      <span className="text-caption text-mid-gray">—</span>
                     )}
                   </td>
                   <td className="px-4 py-3 hidden md:table-cell">

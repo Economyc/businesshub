@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import {
   Search, Home, BarChart3, Users, Briefcase, DollarSign, Handshake,
   ClipboardList, FileSignature, Building2, Tags, BadgeCheck, Network,
-  ArrowRight, Clock, Plus, CornerDownLeft, Wallet, Gift, MapPin,
+  ArrowRight, Clock, Plus, CornerDownLeft, Wallet, Gift,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useEmployees } from '@/modules/talent/hooks'
@@ -55,7 +55,6 @@ const NAV_RESULTS: SearchResult[] = [
   { id: 'nav-prestaciones', type: 'navigation', label: 'Prestaciones Sociales', icon: <Gift size={ICON_SIZE} strokeWidth={STROKE} />, to: '/prestaciones', keywords: 'prestaciones sociales prima cesantias intereses vacaciones liquidacion definitiva terminacion' },
   { id: 'nav-contracts', type: 'navigation', label: 'Contratos', icon: <FileSignature size={ICON_SIZE} strokeWidth={STROKE} />, to: '/contracts', keywords: 'contratos laborales documentos legales' },
   { id: 'nav-templates', type: 'navigation', label: 'Plantillas de Contratos', icon: <FileSignature size={ICON_SIZE} strokeWidth={STROKE} />, to: '/contracts/templates', keywords: 'plantillas templates modelos contratos clausulas' },
-  { id: 'nav-settings-branches', type: 'navigation', label: 'Sedes', icon: <MapPin size={ICON_SIZE} strokeWidth={STROKE} />, to: '/settings/branches', keywords: 'ajustes configuracion sedes puntos branches settings' },
   { id: 'nav-settings-companies', type: 'navigation', label: 'Companias', icon: <Building2 size={ICON_SIZE} strokeWidth={STROKE} />, to: '/settings/companies', keywords: 'ajustes configuracion companias empresas settings' },
   { id: 'nav-settings-categories', type: 'navigation', label: 'Categorias', icon: <Tags size={ICON_SIZE} strokeWidth={STROKE} />, to: '/settings/categories', keywords: 'ajustes configuracion categorias financieras settings' },
   { id: 'nav-settings-roles', type: 'navigation', label: 'Cargos', icon: <BadgeCheck size={ICON_SIZE} strokeWidth={STROKE} />, to: '/settings/roles', keywords: 'ajustes configuracion cargos puestos roles settings' },

@@ -65,37 +65,25 @@ function roleDoc(companyId: string, roleId: string) {
   return doc(db, 'companies', companyId, 'roles', roleId)
 }
 
-function roleDocPayload(role: RoleDefinition) {
-  return {
-    label: role.label,
-    description: role.description,
-    color: role.color,
-    isSystem: role.isSystem,
-    permissions: role.permissions,
-    canManageUsers: role.canManageUsers,
-    canManageCompany: role.canManageCompany,
-  }
-}
-
-/** Fetch all roles for a company. Seeds defaults if none exist; backfills missing system roles otherwise. */
+/** Fetch all roles for a company. Seeds defaults if none exist. */
 export async function fetchRoles(companyId: string): Promise<RoleDefinition[]> {
   const snapshot = await getDocs(rolesCollection(companyId))
   if (snapshot.empty) {
+    // Seed default roles
     for (const role of DEFAULT_ROLES) {
-      await setDoc(roleDoc(companyId, role.id), roleDocPayload(role))
+      await setDoc(roleDoc(companyId, role.id), {
+        label: role.label,
+        description: role.description,
+        color: role.color,
+        isSystem: role.isSystem,
+        permissions: role.permissions,
+        canManageUsers: role.canManageUsers,
+        canManageCompany: role.canManageCompany,
+      })
     }
     return [...DEFAULT_ROLES]
   }
-  const existing = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as RoleDefinition)
-  const existingIds = new Set(existing.map((r) => r.id))
-  const missingSystem = DEFAULT_ROLES.filter((r) => r.isSystem && !existingIds.has(r.id))
-  if (missingSystem.length > 0) {
-    for (const role of missingSystem) {
-      await setDoc(roleDoc(companyId, role.id), roleDocPayload(role))
-    }
-    return [...existing, ...missingSystem]
-  }
-  return existing
+  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as RoleDefinition)
 }
 
 export async function createRole(companyId: string, role: RoleDefinition): Promise<void> {

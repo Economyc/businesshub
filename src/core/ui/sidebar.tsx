@@ -72,7 +72,6 @@ const NAV_SECTIONS: NavSection[] = [
 
 const SETTINGS_ITEMS = [
   { to: '/settings/team', label: 'Equipo', icon: Shield },
-  { to: '/settings/branches', label: 'Sedes', icon: MapPin },
   { to: '/settings/companies', label: 'Compañías', icon: Building2 },
   { to: '/settings/categories', label: 'Categorías', icon: Tags },
   { to: '/settings/roles', label: 'Cargos', icon: BadgeCheck },

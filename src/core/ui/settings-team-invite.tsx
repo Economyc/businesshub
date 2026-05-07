@@ -1,13 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useState } from 'react'
 import { Loader2, Send } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Timestamp } from 'firebase/firestore'
 import { modalVariants } from '@/core/animations/variants'
-import { useBranches } from '@/core/hooks/use-branches'
 import { useCompany } from '@/core/hooks/use-company'
 import { usePermissions } from '@/core/hooks/use-permissions'
 import { createMember } from '@/core/services/permissions-service'
-import { isBranchRole } from '@/core/types/branch'
 
 interface Props {
   open: boolean
@@ -18,32 +16,10 @@ interface Props {
 export function SettingsTeamInvite({ open, onClose, onInvited }: Props) {
   const { selectedCompany } = useCompany()
   const { member, roles } = usePermissions()
-  const { activeBranches, loading: branchesLoading } = useBranches()
   const [email, setEmail] = useState('')
   const [role, setRole] = useState('viewer')
-  const [branchId, setBranchId] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-
-  const requiresBranch = isBranchRole(role)
-
-  const availableRoles = useMemo(() => roles.filter((r) => r.id !== 'owner'), [roles])
-
-  useEffect(() => {
-    if (!open) return
-    setEmail('')
-    setRole('viewer')
-    setBranchId('')
-    setError('')
-  }, [open])
-
-  useEffect(() => {
-    if (!requiresBranch) {
-      setBranchId('')
-    } else if (!branchId && activeBranches.length > 0) {
-      setBranchId(activeBranches[0].id)
-    }
-  }, [requiresBranch, activeBranches, branchId])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -55,15 +31,12 @@ export function SettingsTeamInvite({ open, onClose, onInvited }: Props) {
       return
     }
 
-    if (requiresBranch && !branchId) {
-      setError('Selecciona la sede asignada para este rol')
-      return
-    }
-
     setLoading(true)
     setError('')
 
     try {
+      // Create a placeholder membership with invited status
+      // The user will be created when they actually sign up
       const placeholderId = `invited_${trimmedEmail.replace(/[^a-z0-9]/g, '_')}`
       await createMember(selectedCompany.id, placeholderId, {
         userId: placeholderId,
@@ -73,12 +46,10 @@ export function SettingsTeamInvite({ open, onClose, onInvited }: Props) {
         status: 'invited',
         invitedBy: member.userId,
         invitedAt: Timestamp.now(),
-        ...(requiresBranch && branchId ? { branchId } : {}),
       })
 
       setEmail('')
       setRole('viewer')
-      setBranchId('')
       onInvited()
       onClose()
     } catch (err: unknown) {
@@ -139,41 +110,13 @@ export function SettingsTeamInvite({ open, onClose, onInvited }: Props) {
                   className="w-full px-3 py-2.5 rounded-lg border border-input-border bg-input-bg text-body text-graphite focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200"
                   disabled={loading}
                 >
-                  {availableRoles.map((r) => (
+                  {roles.filter((r) => r.id !== 'owner').map((r) => (
                     <option key={r.id} value={r.id}>
                       {r.label} — {r.description}
                     </option>
                   ))}
                 </select>
               </div>
-
-              {requiresBranch && (
-                <div>
-                  <label className="block text-caption font-medium text-graphite mb-1.5">
-                    Sede asignada
-                  </label>
-                  {branchesLoading ? (
-                    <div className="h-[42px] rounded-lg bg-smoke animate-pulse" />
-                  ) : activeBranches.length === 0 ? (
-                    <p className="text-caption text-negative-text">
-                      No hay sedes activas. Crea una sede en Ajustes ▸ Sedes antes de asignar este rol.
-                    </p>
-                  ) : (
-                    <select
-                      value={branchId}
-                      onChange={(e) => setBranchId(e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-lg border border-input-border bg-input-bg text-body text-graphite focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200"
-                      disabled={loading}
-                    >
-                      {activeBranches.map((b) => (
-                        <option key={b.id} value={b.id}>
-                          {b.name}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-              )}
 
               {error && (
                 <p className="text-caption text-negative-text">{error}</p>
@@ -190,11 +133,7 @@ export function SettingsTeamInvite({ open, onClose, onInvited }: Props) {
                 </button>
                 <button
                   type="submit"
-                  disabled={
-                    loading ||
-                    !email.trim() ||
-                    (requiresBranch && (activeBranches.length === 0 || !branchId))
-                  }
+                  disabled={loading || !email.trim()}
                   className="px-4 py-2 rounded-lg text-body font-medium btn-primary transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
                 >
                   {loading ? (
