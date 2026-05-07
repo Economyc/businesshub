@@ -35,6 +35,7 @@ const SettingsCategories = lazy(() => import('@/core/ui/settings-categories').th
 const SettingsRoles = lazy(() => import('@/core/ui/settings-roles').then(m => ({ default: m.SettingsRoles })))
 const SettingsDepartments = lazy(() => import('@/core/ui/settings-departments').then(m => ({ default: m.SettingsDepartments })))
 const SettingsTeam = lazy(() => import('@/core/ui/settings-team').then(m => ({ default: m.SettingsTeam })))
+const SettingsBranches = lazy(() => import('@/core/ui/settings-branches').then(m => ({ default: m.SettingsBranches })))
 
 function Loading() {
   return (
@@ -147,6 +148,7 @@ export default function App() {
                 <Route path="/settings/roles" element={<Suspense fallback={<Loading />}><SettingsRoles /></Suspense>} />
                 <Route path="/settings/departments" element={<Suspense fallback={<Loading />}><SettingsDepartments /></Suspense>} />
                 <Route path="/settings/team" element={<Suspense fallback={<Loading />}><SettingsTeam /></Suspense>} />
+                <Route path="/settings/branches" element={<Suspense fallback={<Loading />}><SettingsBranches /></Suspense>} />
               </Route>
             </Route>
           </Routes>

@@ -35,6 +35,7 @@ const CHUNK_BY_PATH: Record<string, () => Promise<unknown>> = {
   '/settings/roles': () => import('@/core/ui/settings-roles'),
   '/settings/departments': () => import('@/core/ui/settings-departments'),
   '/settings/team': () => import('@/core/ui/settings-team'),
+  '/settings/branches': () => import('@/core/ui/settings-branches'),
 }
 
 // Colecciones Firestore principales que cada ruta consume vía `useCollection`.

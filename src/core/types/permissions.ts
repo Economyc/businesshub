@@ -7,6 +7,7 @@ export type ModuleKey =
   | 'finance'
   | 'cartera'
   | 'closings'
+  | 'discounts'
   | 'payroll'
   | 'prestaciones'
   | 'contracts'
@@ -44,6 +45,7 @@ export interface CompanyMember {
   invitedBy?: string
   invitedAt?: Timestamp
   joinedAt?: Timestamp
+  branchId?: string
 }
 
 /** Maps route paths to their module key for permission checks */

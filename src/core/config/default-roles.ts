@@ -1,7 +1,7 @@
 import type { RoleDefinition, ModuleKey, PermissionAction } from '@/core/types/permissions'
 
 const ALL_MODULES: ModuleKey[] = [
-  'home', 'analytics', 'agent', 'finance', 'cartera', 'closings',
+  'home', 'analytics', 'agent', 'finance', 'cartera', 'closings', 'discounts',
   'payroll', 'prestaciones', 'contracts', 'partners', 'talent', 'suppliers', 'marketing', 'settings',
 ]
 
@@ -69,6 +69,33 @@ export const DEFAULT_ROLES: RoleDefinition[] = [
     color: '#6b7280',
     isSystem: true,
     permissions: readOnly(ALL_MODULES.filter((m) => m !== 'settings')),
+    canManageUsers: false,
+    canManageCompany: false,
+  },
+  {
+    id: 'branch_admin',
+    label: 'Administrador de Punto',
+    description: 'Gestiona cierres y descuentos de su sede asignada',
+    color: '#c2410c',
+    isSystem: true,
+    permissions: [
+      ...fullAccess(['closings', 'discounts']),
+      ...readOnly(['home']),
+    ],
+    canManageUsers: false,
+    canManageCompany: false,
+  },
+  {
+    id: 'cashier',
+    label: 'Cajero',
+    description: 'Registra cierres y descuentos del dia en su sede asignada',
+    color: '#a16207',
+    isSystem: true,
+    permissions: [
+      { module: 'closings', actions: ['read', 'create'] },
+      { module: 'discounts', actions: ['read', 'create'] },
+      { module: 'home', actions: ['read'] },
+    ],
     canManageUsers: false,
     canManageCompany: false,
   },
