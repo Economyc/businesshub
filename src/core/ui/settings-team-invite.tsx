@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Loader2, UserPlus, Copy, Check, RefreshCw } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { modalVariants } from '@/core/animations/variants'
@@ -47,6 +47,15 @@ export function SettingsTeamInvite({ open, onClose, onInvited }: Props) {
     reset()
     onClose()
   }
+
+  useEffect(() => {
+    if (!open) return
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === 'Escape' && !loading) handleClose()
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [open, loading])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
