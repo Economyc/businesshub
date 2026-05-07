@@ -99,46 +99,43 @@ Excluidos explícitamente.
 
 ## Traceability
 
-Cobertura de requirements por fase. Se completa al crear el roadmap.
+Cobertura de requirements por fase.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| BRANCH-01 | TBD | Pending |
-| BRANCH-02 | TBD | Pending |
-| BRANCH-03 | TBD | Pending |
-| BRANCH-04 | TBD | Pending |
-| RBAC-01 | TBD | Pending |
-| RBAC-02 | TBD | Pending |
-| RBAC-03 | TBD | Pending |
-| SET-01 | TBD | Pending |
-| SET-02 | TBD | Pending |
-| SET-03 | TBD | Pending |
-| OPS-01 | TBD | Pending |
-| OPS-02 | TBD | Pending |
-| OPS-03 | TBD | Pending |
-| OPS-04 | TBD | Pending |
-| OPS-05 | TBD | Pending |
-| OPS-06 | TBD | Pending |
-| RTE-01 | TBD | Pending |
-| RTE-02 | TBD | Pending |
-| RTE-03 | TBD | Pending |
-| CLOS-01 | TBD | Pending |
-| CLOS-02 | TBD | Pending |
-| CLOS-03 | TBD | Pending |
-| CLOS-04 | TBD | Pending |
-| DISC-01 | TBD | Pending |
-| DISC-02 | TBD | Pending |
-| DISC-03 | TBD | Pending |
-| DISC-04 | TBD | Pending |
-| DISC-05 | TBD | Pending |
-| DISC-06 | TBD | Pending |
-| DISC-07 | TBD | Pending |
+| BRANCH-01 | Phase 2 | Pending |
+| BRANCH-02 | Phase 2 | Pending |
+| BRANCH-03 | Phase 2 | Pending |
+| BRANCH-04 | Phase 2 | Pending |
+| RBAC-01 | Phase 2 | Pending |
+| RBAC-02 | Phase 2 | Pending |
+| RBAC-03 | Phase 2 | Pending |
+| SET-01 | Phase 2 | Pending |
+| SET-02 | Phase 2 | Pending |
+| SET-03 | Phase 2 | Pending |
+| OPS-01 | Phase 3 | Pending |
+| OPS-02 | Phase 3 | Pending |
+| OPS-03 | Phase 3 | Pending |
+| OPS-04 | Phase 3 | Pending |
+| OPS-05 | Phase 3 | Pending |
+| OPS-06 | Phase 3 | Pending |
+| RTE-01 | Phase 3 | Pending |
+| RTE-02 | Phase 3 | Pending |
+| RTE-03 | Phase 3 | Pending |
+| CLOS-01 | Phase 4 | Pending |
+| CLOS-02 | Phase 4 | Pending |
+| CLOS-03 | Phase 4 | Pending |
+| CLOS-04 | Phase 4 | Pending |
+| DISC-01 | Phase 5 | Pending |
+| DISC-02 | Phase 5 | Pending |
+| DISC-03 | Phase 5 | Pending |
+| DISC-04 | Phase 5 | Pending |
+| DISC-05 | Phase 5 | Pending |
+| DISC-06 | Phase 5 | Pending |
+| DISC-07 | Phase 5 | Pending |
 
-**Coverage:**
-- v2 requirements: 30 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 30 ⚠️
+**Coverage:** 30 mapped / 0 unmapped ✓
 
 ---
 *Requirements defined: 2026-05-06*
-*Last updated: 2026-05-06 after initial definition*
+*Last updated: 2026-05-06 — Roadmap v2 created (4 phases)*
