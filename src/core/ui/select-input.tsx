@@ -15,9 +15,13 @@ interface SelectInputProps {
   className?: string
 }
 
+const DROPDOWN_MAX_HEIGHT = 220
+
 export function SelectInput({ value, onChange, options, placeholder = 'Seleccionar...', className }: SelectInputProps) {
   const [open, setOpen] = useState(false)
+  const [dropUp, setDropUp] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
 
   const selected = options.find((o) => o.value === value)
 
@@ -28,6 +32,12 @@ export function SelectInput({ value, onChange, options, placeholder = 'Seleccion
       }
     }
     if (open) {
+      const rect = buttonRef.current?.getBoundingClientRect()
+      if (rect) {
+        const spaceBelow = window.innerHeight - rect.bottom
+        const spaceAbove = rect.top
+        setDropUp(spaceBelow < DROPDOWN_MAX_HEIGHT && spaceAbove > spaceBelow)
+      }
       function handleKey(e: KeyboardEvent) {
         if (e.key === 'Escape') { e.stopPropagation(); setOpen(false) }
       }
@@ -48,6 +58,7 @@ export function SelectInput({ value, onChange, options, placeholder = 'Seleccion
   return (
     <div ref={ref} className={cn('relative', className)}>
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => setOpen(!open)}
         className={cn(
@@ -68,7 +79,12 @@ export function SelectInput({ value, onChange, options, placeholder = 'Seleccion
       </button>
 
       {open && (
-        <div className="absolute left-0 right-0 top-full mt-1 bg-surface-elevated border border-border rounded-xl shadow-lg z-50 py-1 overflow-hidden max-h-[220px] overflow-y-auto">
+        <div
+          className={cn(
+            'absolute left-0 right-0 bg-surface-elevated border border-border rounded-xl shadow-lg z-50 py-1 overflow-hidden max-h-[220px] overflow-y-auto',
+            dropUp ? 'bottom-full mb-1' : 'top-full mt-1',
+          )}
+        >
           {options.map((option) => (
             <button
               key={option.value}
