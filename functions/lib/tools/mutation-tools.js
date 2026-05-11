@@ -150,7 +150,10 @@ export function createMutationTools() {
             }),
         }),
         updateTransaction: tool({
-            description: 'Actualiza una transacción financiera existente. Requiere confirmación del usuario.',
+            description: 'Actualiza una transacción financiera existente en el módulo Facturación. Requiere confirmación del usuario. ' +
+                'Sirve para cambiar concepto, monto, categoría, estado (paid/pending), notas, prioridad (immediate/waiting) o ' +
+                'el tipo de documento (invoice/purchase). Para marcar una factura como pagada SIN comprobante adjunto, ' +
+                'prefiere quickMarkInvoiceAsPaid (más directo). Si se cambia status a "paid", incluye paidDate.',
             parameters: z.object({
                 id: z.string().describe('ID de la transacción a actualizar'),
                 concept: z.string().optional().describe('Nuevo concepto'),
@@ -160,6 +163,18 @@ export function createMutationTools() {
                 date: z.string().optional().describe('Nueva fecha (YYYY-MM-DD)'),
                 status: z.enum(['paid', 'pending']).optional().describe('Nuevo estado'),
                 notes: z.string().optional().describe('Nuevas notas'),
+                priority: z
+                    .enum(['immediate', 'waiting'])
+                    .optional()
+                    .describe('Nueva prioridad de pago (solo aplica a facturas/compras con documentKind).'),
+                documentKind: z
+                    .enum(['invoice', 'purchase'])
+                    .optional()
+                    .describe('Nuevo tipo de documento. Cambiar sólo si se corrige una clasificación errada.'),
+                paidDate: z
+                    .string()
+                    .optional()
+                    .describe('Fecha de pago en formato YYYY-MM-DD. Incluir cuando se cambia status a "paid".'),
             }),
         }),
         deleteTransaction: tool({
@@ -167,6 +182,65 @@ export function createMutationTools() {
             parameters: z.object({
                 id: z.string().describe('ID de la transacción a eliminar'),
                 concept: z.string().describe('Concepto de la transacción (para confirmación)'),
+            }),
+        }),
+        quickMarkInvoiceAsPaid: tool({
+            description: 'Marca una factura pendiente como pagada SIN adjuntar comprobante. Atajo rápido (equivalente al toggle ' +
+                'manual en la tabla de Facturación). Úsala cuando el usuario dice "ya pagué la factura X", "marca como ' +
+                'pagada la de Y", etc., y NO adjunta comprobante. Si el usuario sí adjunta comprobante, usa ' +
+                'markInvoiceAsPaid (archiva en Drive). Requiere confirmación.',
+            parameters: z.object({
+                id: z.string().describe('ID de la transacción (factura pendiente) a marcar como pagada'),
+                concept: z.string().describe('Concepto/descripción de la factura (para mostrar en la confirmación)'),
+                amount: z.number().describe('Monto de la factura (para confirmación)'),
+                supplierName: z.string().optional().describe('Nombre del proveedor (para confirmación)'),
+                paidDate: z
+                    .string()
+                    .optional()
+                    .describe('Fecha del pago (YYYY-MM-DD). Si se omite, se usa la fecha de hoy.'),
+            }),
+        }),
+        bulkMarkAsPaid: tool({
+            description: 'Marca varias facturas pendientes como pagadas en una sola operación, sin adjuntar comprobantes. ' +
+                'Úsala cuando el usuario pide "marca como pagadas todas las facturas de X", "marca pagadas las del mes ' +
+                'pasado", etc. Antes de invocar esta tool, usa getTransactions o findMatchingPayables para resolver los ' +
+                'IDs reales. Requiere confirmación del usuario; el cliente mostrará la lista completa antes de ejecutar.',
+            parameters: z.object({
+                items: z
+                    .array(z.object({
+                    id: z.string().describe('ID de la transacción'),
+                    concept: z.string().describe('Concepto o etiqueta para mostrar al usuario'),
+                    amount: z.number().optional().describe('Monto (opcional, para mostrar)'),
+                }))
+                    .min(1)
+                    .describe('Lista de facturas a marcar como pagadas'),
+                summary: z
+                    .string()
+                    .describe('Resumen breve mostrado en el card de confirmación (ej. "5 facturas de Coca-Cola")'),
+                paidDate: z
+                    .string()
+                    .optional()
+                    .describe('Fecha del pago (YYYY-MM-DD). Si se omite, se usa la fecha de hoy para todas.'),
+            }),
+        }),
+        bulkSetPriority: tool({
+            description: 'Cambia la prioridad de varias facturas/compras pendientes en una sola operación. Útil para "marca como ' +
+                'urgentes las facturas vencidas", "pasa a waiting las de proveedor X", etc. Antes de invocar, resuelve los ' +
+                'IDs con getTransactions. Requiere confirmación del usuario.',
+            parameters: z.object({
+                items: z
+                    .array(z.object({
+                    id: z.string().describe('ID de la transacción'),
+                    concept: z.string().describe('Concepto o etiqueta para mostrar al usuario'),
+                }))
+                    .min(1)
+                    .describe('Lista de transacciones a actualizar'),
+                priority: z
+                    .enum(['immediate', 'waiting'])
+                    .describe('Nueva prioridad para todos los items: "immediate" (urgente) o "waiting" (default).'),
+                summary: z
+                    .string()
+                    .describe('Resumen breve mostrado en el card de confirmación (ej. "3 facturas vencidas a urgente")'),
             }),
         }),
     };

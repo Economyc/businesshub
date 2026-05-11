@@ -79,17 +79,49 @@ function classifyIncome(category) {
 export function createFinanceTools(companyId) {
     return {
         getTransactions: tool({
-            description: 'Obtiene transacciones financieras filtradas por periodo, tipo y/o categoría.',
+            description: 'Obtiene transacciones del módulo Facturación filtradas por periodo, tipo, categoría, estado, ' +
+                'prioridad, proveedor o tipo de documento. Útil para responder "qué facturas tengo pendientes", ' +
+                '"vencidos", "facturas urgentes", "transacciones del proveedor X". Si overdueOnly=true ignora ' +
+                'startDate/endDate y devuelve sólo lo vencido (pending y fecha < hoy).',
             parameters: z.object({
                 startDate: z.string().describe('Fecha inicio en formato YYYY-MM-DD'),
                 endDate: z.string().describe('Fecha fin en formato YYYY-MM-DD'),
                 type: z.enum(['income', 'expense']).optional().describe('Filtrar por tipo: income o expense'),
                 category: z.string().optional().describe('Filtrar por categoría'),
                 status: z.enum(['paid', 'pending', 'overdue']).optional().describe('Filtrar por estado'),
+                priority: z
+                    .enum(['immediate', 'waiting'])
+                    .optional()
+                    .describe('Filtrar por prioridad (solo aplica a facturas/compras).'),
+                payeeName: z
+                    .string()
+                    .optional()
+                    .describe('Filtro parcial sobre el nombre del proveedor/empleado/socio (case-insensitive).'),
+                documentKind: z
+                    .enum(['invoice', 'purchase'])
+                    .optional()
+                    .describe('Filtrar por tipo de documento: invoice (cuenta por pagar) o purchase (compra al contado).'),
+                overdueOnly: z
+                    .boolean()
+                    .optional()
+                    .describe('Si true, devuelve sólo transacciones vencidas (status=pending y date < hoy). Ignora startDate/endDate.'),
             }),
-            execute: async ({ startDate, endDate, type, category, status }) => {
+            execute: async ({ startDate, endDate, type, category, status, priority, payeeName, documentKind, overdueOnly, }) => {
                 const all = await fetchCollection(companyId, 'transactions');
-                let filtered = filterByPeriod(all, startDate, endDate);
+                let filtered;
+                if (overdueOnly) {
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    filtered = all.filter((t) => {
+                        if (t.status !== 'pending')
+                            return false;
+                        const d = tsToDate(t.date);
+                        return d != null && d < today;
+                    });
+                }
+                else {
+                    filtered = filterByPeriod(all, startDate, endDate);
+                }
                 if (type)
                     filtered = filtered.filter((t) => t.type === type);
                 if (category) {
@@ -97,11 +129,120 @@ export function createFinanceTools(companyId) {
                 }
                 if (status)
                     filtered = filtered.filter((t) => t.status === status);
+                if (priority)
+                    filtered = filtered.filter((t) => t.priority === priority);
+                if (documentKind)
+                    filtered = filtered.filter((t) => t.documentKind === documentKind);
+                if (payeeName) {
+                    const search = payeeName.toLowerCase().trim();
+                    filtered = filtered.filter((t) => {
+                        const ref = t.payeeRef;
+                        const name = (ref?.name ?? '').toLowerCase();
+                        return name.includes(search);
+                    });
+                }
                 const totalAmount = filtered.reduce((s, t) => s + (Number(t.amount) || 0), 0);
                 return {
                     count: filtered.length,
                     totalAmount,
-                    transactions: filtered.map((t) => formatTx(t)),
+                    transactions: filtered.map((t) => {
+                        const base = formatTx(t);
+                        return {
+                            ...base,
+                            priority: t.priority ?? null,
+                            documentKind: t.documentKind ?? null,
+                            docNumber: t.docNumber ?? null,
+                            payeeName: t.payeeRef?.name ?? null,
+                        };
+                    }),
+                };
+            },
+        }),
+        getPendingInvoicesBySupplier: tool({
+            description: 'Agrupa las facturas pendientes (CxP, status=pending) por proveedor y devuelve totales por cada uno: ' +
+                'cantidad de facturas, monto total adeudado, factura más antigua, cuántas están marcadas como urgentes. ' +
+                'Útil para responder "top proveedores con más deuda", "cuánto le debo a X", "a quién le debo más". ' +
+                'Resultados ordenados por monto total descendente.',
+            parameters: z.object({
+                limit: z
+                    .number()
+                    .int()
+                    .min(1)
+                    .max(50)
+                    .optional()
+                    .default(10)
+                    .describe('Cantidad máxima de proveedores a devolver. Default 10.'),
+                documentKind: z
+                    .enum(['invoice', 'purchase'])
+                    .optional()
+                    .describe('Filtrar por tipo de documento. Default "invoice" (facturas por pagar).'),
+                payeeName: z
+                    .string()
+                    .optional()
+                    .describe('Si se pasa, devuelve sólo el proveedor que matchea por nombre (case-insensitive parcial).'),
+            }),
+            execute: async ({ limit = 10, documentKind, payeeName }) => {
+                const all = await fetchCollection(companyId, 'transactions');
+                const kindFilter = documentKind ?? 'invoice';
+                const search = payeeName ? payeeName.toLowerCase().trim() : null;
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const pending = all.filter((t) => {
+                    if (t.status !== 'pending')
+                        return false;
+                    if (t.documentKind !== kindFilter)
+                        return false;
+                    if (search) {
+                        const ref = t.payeeRef;
+                        const name = (ref?.name ?? '').toLowerCase();
+                        if (!name.includes(search))
+                            return false;
+                    }
+                    return true;
+                });
+                const groups = new Map();
+                for (const t of pending) {
+                    const ref = t.payeeRef;
+                    const name = ref?.name ?? 'Sin proveedor';
+                    const key = name.toLowerCase().trim();
+                    const entry = groups.get(key) ?? {
+                        supplierName: name,
+                        count: 0,
+                        total: 0,
+                        oldestDate: null,
+                        immediateCount: 0,
+                        overdueCount: 0,
+                    };
+                    entry.count += 1;
+                    entry.total += Number(t.amount) || 0;
+                    const d = tsToDate(t.date);
+                    if (d && (!entry.oldestDate || d < entry.oldestDate))
+                        entry.oldestDate = d;
+                    if (t.priority === 'immediate')
+                        entry.immediateCount += 1;
+                    if (d && d < today)
+                        entry.overdueCount += 1;
+                    groups.set(key, entry);
+                }
+                const ranked = Array.from(groups.values())
+                    .sort((a, b) => b.total - a.total)
+                    .slice(0, limit)
+                    .map((g) => ({
+                    supplierName: g.supplierName,
+                    count: g.count,
+                    total: g.total,
+                    oldestDate: g.oldestDate ? g.oldestDate.toISOString().split('T')[0] : null,
+                    immediateCount: g.immediateCount,
+                    overdueCount: g.overdueCount,
+                }));
+                const grandTotal = ranked.reduce((s, r) => s + r.total, 0);
+                const grandCount = ranked.reduce((s, r) => s + r.count, 0);
+                return {
+                    documentKind: kindFilter,
+                    supplierCount: ranked.length,
+                    totalInvoices: grandCount,
+                    totalAmount: grandTotal,
+                    suppliers: ranked,
                 };
             },
         }),

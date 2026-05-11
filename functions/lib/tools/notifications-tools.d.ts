@@ -5,13 +5,13 @@ export declare function createNotificationsTools(companyId: string): {
         type: z.ZodOptional<z.ZodEnum<["weekly-report", "overdue-alert", "closing-reminder", "price-increase"]>>;
         limit: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
     }, "strip", z.ZodTypeAny, {
-        onlyUnread: boolean;
         limit: number;
+        onlyUnread: boolean;
         type?: "weekly-report" | "overdue-alert" | "closing-reminder" | "price-increase" | undefined;
     }, {
         type?: "weekly-report" | "overdue-alert" | "closing-reminder" | "price-increase" | undefined;
-        onlyUnread?: boolean | undefined;
         limit?: number | undefined;
+        onlyUnread?: boolean | undefined;
     }>, {
         totalCount: number;
         unreadCount: number;
@@ -26,8 +26,8 @@ export declare function createNotificationsTools(companyId: string): {
         }[];
     }> & {
         execute: (args: {
-            onlyUnread: boolean;
             limit: number;
+            onlyUnread: boolean;
             type?: "weekly-report" | "overdue-alert" | "closing-reminder" | "price-increase" | undefined;
         }, options: import("ai").ToolExecutionOptions) => PromiseLike<{
             totalCount: number;

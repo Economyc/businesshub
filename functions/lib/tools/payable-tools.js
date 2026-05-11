@@ -36,6 +36,11 @@ export function createPayableTools(companyId) {
                 amount: z.number().describe('Valor total del documento (sin separadores de miles).'),
                 category: z.string().describe('Categoría de gasto sugerida (ej. "Suministros", "Servicios").'),
                 notes: z.string().optional().describe('Notas adicionales si el documento incluye contexto relevante.'),
+                priority: z
+                    .enum(['immediate', 'waiting'])
+                    .optional()
+                    .describe('Solo aplica cuando documentKind="invoice". "immediate" marca la factura como urgente (rojo en la tabla). ' +
+                    'Si el usuario dice "urgente", "pagar ya", "no puede esperar" → usa "immediate". Default: "waiting".'),
             }),
             // No execute — el cliente maneja la confirmación, sube el adjunto a
             // Drive con uploadDocumentToDrive, y luego crea la Transaction.

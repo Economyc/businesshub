@@ -8,22 +8,25 @@ export declare function createPayableTools(companyId: string): {
         amount: z.ZodNumber;
         category: z.ZodString;
         notes: z.ZodOptional<z.ZodString>;
+        priority: z.ZodOptional<z.ZodEnum<["immediate", "waiting"]>>;
     }, "strip", z.ZodTypeAny, {
         date: string;
         category: string;
         amount: number;
         documentKind: "invoice" | "purchase";
-        supplierName: string;
         docNumber: string;
+        supplierName: string;
         notes?: string | undefined;
+        priority?: "immediate" | "waiting" | undefined;
     }, {
         date: string;
         category: string;
         amount: number;
         documentKind: "invoice" | "purchase";
-        supplierName: string;
         docNumber: string;
+        supplierName: string;
         notes?: string | undefined;
+        priority?: "immediate" | "waiting" | undefined;
     }>, unknown> & {
         execute: undefined;
     };
@@ -76,16 +79,16 @@ export declare function createPayableTools(companyId: string): {
         amount: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
         amount: number;
-        supplierName: string;
         docNumber: string;
-        invoiceId: string;
+        supplierName: string;
         paidDate: string;
+        invoiceId: string;
     }, {
         amount: number;
-        supplierName: string;
         docNumber: string;
-        invoiceId: string;
+        supplierName: string;
         paidDate: string;
+        invoiceId: string;
     }>, unknown> & {
         execute: undefined;
     };

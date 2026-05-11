@@ -7,22 +7,25 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
         amount: import("zod").ZodNumber;
         category: import("zod").ZodString;
         notes: import("zod").ZodOptional<import("zod").ZodString>;
+        priority: import("zod").ZodOptional<import("zod").ZodEnum<["immediate", "waiting"]>>;
     }, "strip", import("zod").ZodTypeAny, {
         date: string;
         category: string;
         amount: number;
         documentKind: "invoice" | "purchase";
-        supplierName: string;
         docNumber: string;
+        supplierName: string;
         notes?: string | undefined;
+        priority?: "immediate" | "waiting" | undefined;
     }, {
         date: string;
         category: string;
         amount: number;
         documentKind: "invoice" | "purchase";
-        supplierName: string;
         docNumber: string;
+        supplierName: string;
         notes?: string | undefined;
+        priority?: "immediate" | "waiting" | undefined;
     }>, unknown> & {
         execute: undefined;
     };
@@ -75,16 +78,16 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
         amount: import("zod").ZodNumber;
     }, "strip", import("zod").ZodTypeAny, {
         amount: number;
-        supplierName: string;
         docNumber: string;
-        invoiceId: string;
+        supplierName: string;
         paidDate: string;
+        invoiceId: string;
     }, {
         amount: number;
-        supplierName: string;
         docNumber: string;
-        invoiceId: string;
+        supplierName: string;
         paidDate: string;
+        invoiceId: string;
     }>, unknown> & {
         execute: undefined;
     };
@@ -779,8 +782,8 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
         query: import("zod").ZodString;
         limit: import("zod").ZodDefault<import("zod").ZodOptional<import("zod").ZodNumber>>;
     }, "strip", import("zod").ZodTypeAny, {
-        query: string;
         limit: number;
+        query: string;
     }, {
         query: string;
         limit?: number | undefined;
@@ -814,8 +817,8 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
         message?: undefined;
     }> & {
         execute: (args: {
-            query: string;
             limit: number;
+            query: string;
         }, options: import("ai").ToolExecutionOptions) => PromiseLike<{
             found: boolean;
             message: string;
@@ -1369,13 +1372,13 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
         type: import("zod").ZodOptional<import("zod").ZodEnum<["weekly-report", "overdue-alert", "closing-reminder", "price-increase"]>>;
         limit: import("zod").ZodDefault<import("zod").ZodOptional<import("zod").ZodNumber>>;
     }, "strip", import("zod").ZodTypeAny, {
-        onlyUnread: boolean;
         limit: number;
+        onlyUnread: boolean;
         type?: "weekly-report" | "overdue-alert" | "closing-reminder" | "price-increase" | undefined;
     }, {
         type?: "weekly-report" | "overdue-alert" | "closing-reminder" | "price-increase" | undefined;
-        onlyUnread?: boolean | undefined;
         limit?: number | undefined;
+        onlyUnread?: boolean | undefined;
     }>, {
         totalCount: number;
         unreadCount: number;
@@ -1390,8 +1393,8 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
         }[];
     }> & {
         execute: (args: {
-            onlyUnread: boolean;
             limit: number;
+            onlyUnread: boolean;
             type?: "weekly-report" | "overdue-alert" | "closing-reminder" | "price-increase" | undefined;
         }, options: import("ai").ToolExecutionOptions) => PromiseLike<{
             totalCount: number;
@@ -2387,8 +2390,8 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
         concept: string;
         amount: number;
         notes?: string | undefined;
-        payeeType?: "partner" | "employee" | "supplier" | "external" | undefined;
         payeeName?: string | undefined;
+        payeeType?: "partner" | "employee" | "supplier" | "external" | undefined;
         targetCompanyName?: string | undefined;
     }, {
         type: "income" | "expense";
@@ -2398,8 +2401,8 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
         amount: number;
         status?: "pending" | "paid" | undefined;
         notes?: string | undefined;
-        payeeType?: "partner" | "employee" | "supplier" | "external" | undefined;
         payeeName?: string | undefined;
+        payeeType?: "partner" | "employee" | "supplier" | "external" | undefined;
         targetCompanyName?: string | undefined;
     }>, unknown> & {
         execute: undefined;
@@ -2430,9 +2433,9 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
         date: string;
         category: string;
         concept: string;
+        payeeName: string;
         totalAmount: number;
         payeeType: "partner" | "employee" | "supplier" | "external";
-        payeeName: string;
         splits: {
             companyName: string;
             amount?: number | undefined;
@@ -2444,9 +2447,9 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
         date: string;
         category: string;
         concept: string;
+        payeeName: string;
         totalAmount: number;
         payeeType: "partner" | "employee" | "supplier" | "external";
-        payeeName: string;
         splits: {
             companyName: string;
             amount?: number | undefined;
@@ -2466,6 +2469,9 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
         date: import("zod").ZodOptional<import("zod").ZodString>;
         status: import("zod").ZodOptional<import("zod").ZodEnum<["paid", "pending"]>>;
         notes: import("zod").ZodOptional<import("zod").ZodString>;
+        priority: import("zod").ZodOptional<import("zod").ZodEnum<["immediate", "waiting"]>>;
+        documentKind: import("zod").ZodOptional<import("zod").ZodEnum<["invoice", "purchase"]>>;
+        paidDate: import("zod").ZodOptional<import("zod").ZodString>;
     }, "strip", import("zod").ZodTypeAny, {
         id: string;
         status?: "pending" | "paid" | undefined;
@@ -2475,6 +2481,9 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
         concept?: string | undefined;
         amount?: number | undefined;
         notes?: string | undefined;
+        priority?: "immediate" | "waiting" | undefined;
+        documentKind?: "invoice" | "purchase" | undefined;
+        paidDate?: string | undefined;
     }, {
         id: string;
         status?: "pending" | "paid" | undefined;
@@ -2484,6 +2493,9 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
         concept?: string | undefined;
         amount?: number | undefined;
         notes?: string | undefined;
+        priority?: "immediate" | "waiting" | undefined;
+        documentKind?: "invoice" | "purchase" | undefined;
+        paidDate?: string | undefined;
     }>, unknown> & {
         execute: undefined;
     };
@@ -2496,6 +2508,92 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
     }, {
         id: string;
         concept: string;
+    }>, unknown> & {
+        execute: undefined;
+    };
+    quickMarkInvoiceAsPaid: import("ai").Tool<import("zod").ZodObject<{
+        id: import("zod").ZodString;
+        concept: import("zod").ZodString;
+        amount: import("zod").ZodNumber;
+        supplierName: import("zod").ZodOptional<import("zod").ZodString>;
+        paidDate: import("zod").ZodOptional<import("zod").ZodString>;
+    }, "strip", import("zod").ZodTypeAny, {
+        id: string;
+        concept: string;
+        amount: number;
+        supplierName?: string | undefined;
+        paidDate?: string | undefined;
+    }, {
+        id: string;
+        concept: string;
+        amount: number;
+        supplierName?: string | undefined;
+        paidDate?: string | undefined;
+    }>, unknown> & {
+        execute: undefined;
+    };
+    bulkMarkAsPaid: import("ai").Tool<import("zod").ZodObject<{
+        items: import("zod").ZodArray<import("zod").ZodObject<{
+            id: import("zod").ZodString;
+            concept: import("zod").ZodString;
+            amount: import("zod").ZodOptional<import("zod").ZodNumber>;
+        }, "strip", import("zod").ZodTypeAny, {
+            id: string;
+            concept: string;
+            amount?: number | undefined;
+        }, {
+            id: string;
+            concept: string;
+            amount?: number | undefined;
+        }>, "many">;
+        summary: import("zod").ZodString;
+        paidDate: import("zod").ZodOptional<import("zod").ZodString>;
+    }, "strip", import("zod").ZodTypeAny, {
+        items: {
+            id: string;
+            concept: string;
+            amount?: number | undefined;
+        }[];
+        summary: string;
+        paidDate?: string | undefined;
+    }, {
+        items: {
+            id: string;
+            concept: string;
+            amount?: number | undefined;
+        }[];
+        summary: string;
+        paidDate?: string | undefined;
+    }>, unknown> & {
+        execute: undefined;
+    };
+    bulkSetPriority: import("ai").Tool<import("zod").ZodObject<{
+        items: import("zod").ZodArray<import("zod").ZodObject<{
+            id: import("zod").ZodString;
+            concept: import("zod").ZodString;
+        }, "strip", import("zod").ZodTypeAny, {
+            id: string;
+            concept: string;
+        }, {
+            id: string;
+            concept: string;
+        }>, "many">;
+        priority: import("zod").ZodEnum<["immediate", "waiting"]>;
+        summary: import("zod").ZodString;
+    }, "strip", import("zod").ZodTypeAny, {
+        priority: "immediate" | "waiting";
+        items: {
+            id: string;
+            concept: string;
+        }[];
+        summary: string;
+    }, {
+        priority: "immediate" | "waiting";
+        items: {
+            id: string;
+            concept: string;
+        }[];
+        summary: string;
     }>, unknown> & {
         execute: undefined;
     };
@@ -2581,22 +2679,38 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
         type: import("zod").ZodOptional<import("zod").ZodEnum<["income", "expense"]>>;
         category: import("zod").ZodOptional<import("zod").ZodString>;
         status: import("zod").ZodOptional<import("zod").ZodEnum<["paid", "pending", "overdue"]>>;
+        priority: import("zod").ZodOptional<import("zod").ZodEnum<["immediate", "waiting"]>>;
+        payeeName: import("zod").ZodOptional<import("zod").ZodString>;
+        documentKind: import("zod").ZodOptional<import("zod").ZodEnum<["invoice", "purchase"]>>;
+        overdueOnly: import("zod").ZodOptional<import("zod").ZodBoolean>;
     }, "strip", import("zod").ZodTypeAny, {
         startDate: string;
         endDate: string;
         status?: "pending" | "paid" | "overdue" | undefined;
         type?: "income" | "expense" | undefined;
         category?: string | undefined;
+        priority?: "immediate" | "waiting" | undefined;
+        payeeName?: string | undefined;
+        documentKind?: "invoice" | "purchase" | undefined;
+        overdueOnly?: boolean | undefined;
     }, {
         startDate: string;
         endDate: string;
         status?: "pending" | "paid" | "overdue" | undefined;
         type?: "income" | "expense" | undefined;
         category?: string | undefined;
+        priority?: "immediate" | "waiting" | undefined;
+        payeeName?: string | undefined;
+        documentKind?: "invoice" | "purchase" | undefined;
+        overdueOnly?: boolean | undefined;
     }>, {
         count: number;
         totalAmount: number;
         transactions: {
+            priority: {} | null;
+            documentKind: {} | null;
+            docNumber: {} | null;
+            payeeName: string | null;
             id: unknown;
             concept: unknown;
             category: unknown;
@@ -2614,10 +2728,18 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
             status?: "pending" | "paid" | "overdue" | undefined;
             type?: "income" | "expense" | undefined;
             category?: string | undefined;
+            priority?: "immediate" | "waiting" | undefined;
+            payeeName?: string | undefined;
+            documentKind?: "invoice" | "purchase" | undefined;
+            overdueOnly?: boolean | undefined;
         }, options: import("ai").ToolExecutionOptions) => PromiseLike<{
             count: number;
             totalAmount: number;
             transactions: {
+                priority: {} | null;
+                documentKind: {} | null;
+                docNumber: {} | null;
+                payeeName: string | null;
                 id: unknown;
                 concept: unknown;
                 category: unknown;
@@ -2627,6 +2749,51 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
                 status: unknown;
                 notes: {} | null;
                 sourceType: {} | null;
+            }[];
+        }>;
+    };
+    getPendingInvoicesBySupplier: import("ai").Tool<import("zod").ZodObject<{
+        limit: import("zod").ZodDefault<import("zod").ZodOptional<import("zod").ZodNumber>>;
+        documentKind: import("zod").ZodOptional<import("zod").ZodEnum<["invoice", "purchase"]>>;
+        payeeName: import("zod").ZodOptional<import("zod").ZodString>;
+    }, "strip", import("zod").ZodTypeAny, {
+        limit: number;
+        payeeName?: string | undefined;
+        documentKind?: "invoice" | "purchase" | undefined;
+    }, {
+        payeeName?: string | undefined;
+        documentKind?: "invoice" | "purchase" | undefined;
+        limit?: number | undefined;
+    }>, {
+        documentKind: "invoice" | "purchase";
+        supplierCount: number;
+        totalInvoices: number;
+        totalAmount: number;
+        suppliers: {
+            supplierName: string;
+            count: number;
+            total: number;
+            oldestDate: string | null;
+            immediateCount: number;
+            overdueCount: number;
+        }[];
+    }> & {
+        execute: (args: {
+            limit: number;
+            payeeName?: string | undefined;
+            documentKind?: "invoice" | "purchase" | undefined;
+        }, options: import("ai").ToolExecutionOptions) => PromiseLike<{
+            documentKind: "invoice" | "purchase";
+            supplierCount: number;
+            totalInvoices: number;
+            totalAmount: number;
+            suppliers: {
+                supplierName: string;
+                count: number;
+                total: number;
+                oldestDate: string | null;
+                immediateCount: number;
+                overdueCount: number;
             }[];
         }>;
     };

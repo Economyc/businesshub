@@ -280,8 +280,8 @@ export declare function createPosTools(companyId: string): {
         query: z.ZodString;
         limit: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
     }, "strip", z.ZodTypeAny, {
-        query: string;
         limit: number;
+        query: string;
     }, {
         query: string;
         limit?: number | undefined;
@@ -315,8 +315,8 @@ export declare function createPosTools(companyId: string): {
         message?: undefined;
     }> & {
         execute: (args: {
-            query: string;
             limit: number;
+            query: string;
         }, options: import("ai").ToolExecutionOptions) => PromiseLike<{
             found: boolean;
             message: string;

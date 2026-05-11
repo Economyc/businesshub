@@ -179,8 +179,8 @@ export declare function createMutationTools(): {
         concept: string;
         amount: number;
         notes?: string | undefined;
-        payeeType?: "partner" | "employee" | "supplier" | "external" | undefined;
         payeeName?: string | undefined;
+        payeeType?: "partner" | "employee" | "supplier" | "external" | undefined;
         targetCompanyName?: string | undefined;
     }, {
         type: "income" | "expense";
@@ -190,8 +190,8 @@ export declare function createMutationTools(): {
         amount: number;
         status?: "pending" | "paid" | undefined;
         notes?: string | undefined;
-        payeeType?: "partner" | "employee" | "supplier" | "external" | undefined;
         payeeName?: string | undefined;
+        payeeType?: "partner" | "employee" | "supplier" | "external" | undefined;
         targetCompanyName?: string | undefined;
     }>, unknown> & {
         execute: undefined;
@@ -222,9 +222,9 @@ export declare function createMutationTools(): {
         date: string;
         category: string;
         concept: string;
+        payeeName: string;
         totalAmount: number;
         payeeType: "partner" | "employee" | "supplier" | "external";
-        payeeName: string;
         splits: {
             companyName: string;
             amount?: number | undefined;
@@ -236,9 +236,9 @@ export declare function createMutationTools(): {
         date: string;
         category: string;
         concept: string;
+        payeeName: string;
         totalAmount: number;
         payeeType: "partner" | "employee" | "supplier" | "external";
-        payeeName: string;
         splits: {
             companyName: string;
             amount?: number | undefined;
@@ -258,6 +258,9 @@ export declare function createMutationTools(): {
         date: z.ZodOptional<z.ZodString>;
         status: z.ZodOptional<z.ZodEnum<["paid", "pending"]>>;
         notes: z.ZodOptional<z.ZodString>;
+        priority: z.ZodOptional<z.ZodEnum<["immediate", "waiting"]>>;
+        documentKind: z.ZodOptional<z.ZodEnum<["invoice", "purchase"]>>;
+        paidDate: z.ZodOptional<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
         id: string;
         status?: "pending" | "paid" | undefined;
@@ -267,6 +270,9 @@ export declare function createMutationTools(): {
         concept?: string | undefined;
         amount?: number | undefined;
         notes?: string | undefined;
+        priority?: "immediate" | "waiting" | undefined;
+        documentKind?: "invoice" | "purchase" | undefined;
+        paidDate?: string | undefined;
     }, {
         id: string;
         status?: "pending" | "paid" | undefined;
@@ -276,6 +282,9 @@ export declare function createMutationTools(): {
         concept?: string | undefined;
         amount?: number | undefined;
         notes?: string | undefined;
+        priority?: "immediate" | "waiting" | undefined;
+        documentKind?: "invoice" | "purchase" | undefined;
+        paidDate?: string | undefined;
     }>, unknown> & {
         execute: undefined;
     };
@@ -288,6 +297,92 @@ export declare function createMutationTools(): {
     }, {
         id: string;
         concept: string;
+    }>, unknown> & {
+        execute: undefined;
+    };
+    quickMarkInvoiceAsPaid: import("ai").Tool<z.ZodObject<{
+        id: z.ZodString;
+        concept: z.ZodString;
+        amount: z.ZodNumber;
+        supplierName: z.ZodOptional<z.ZodString>;
+        paidDate: z.ZodOptional<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        id: string;
+        concept: string;
+        amount: number;
+        supplierName?: string | undefined;
+        paidDate?: string | undefined;
+    }, {
+        id: string;
+        concept: string;
+        amount: number;
+        supplierName?: string | undefined;
+        paidDate?: string | undefined;
+    }>, unknown> & {
+        execute: undefined;
+    };
+    bulkMarkAsPaid: import("ai").Tool<z.ZodObject<{
+        items: z.ZodArray<z.ZodObject<{
+            id: z.ZodString;
+            concept: z.ZodString;
+            amount: z.ZodOptional<z.ZodNumber>;
+        }, "strip", z.ZodTypeAny, {
+            id: string;
+            concept: string;
+            amount?: number | undefined;
+        }, {
+            id: string;
+            concept: string;
+            amount?: number | undefined;
+        }>, "many">;
+        summary: z.ZodString;
+        paidDate: z.ZodOptional<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        items: {
+            id: string;
+            concept: string;
+            amount?: number | undefined;
+        }[];
+        summary: string;
+        paidDate?: string | undefined;
+    }, {
+        items: {
+            id: string;
+            concept: string;
+            amount?: number | undefined;
+        }[];
+        summary: string;
+        paidDate?: string | undefined;
+    }>, unknown> & {
+        execute: undefined;
+    };
+    bulkSetPriority: import("ai").Tool<z.ZodObject<{
+        items: z.ZodArray<z.ZodObject<{
+            id: z.ZodString;
+            concept: z.ZodString;
+        }, "strip", z.ZodTypeAny, {
+            id: string;
+            concept: string;
+        }, {
+            id: string;
+            concept: string;
+        }>, "many">;
+        priority: z.ZodEnum<["immediate", "waiting"]>;
+        summary: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        priority: "immediate" | "waiting";
+        items: {
+            id: string;
+            concept: string;
+        }[];
+        summary: string;
+    }, {
+        priority: "immediate" | "waiting";
+        items: {
+            id: string;
+            concept: string;
+        }[];
+        summary: string;
     }>, unknown> & {
         execute: undefined;
     };

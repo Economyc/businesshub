@@ -11,22 +11,38 @@ export declare function createFinanceTools(companyId: string): {
         type: z.ZodOptional<z.ZodEnum<["income", "expense"]>>;
         category: z.ZodOptional<z.ZodString>;
         status: z.ZodOptional<z.ZodEnum<["paid", "pending", "overdue"]>>;
+        priority: z.ZodOptional<z.ZodEnum<["immediate", "waiting"]>>;
+        payeeName: z.ZodOptional<z.ZodString>;
+        documentKind: z.ZodOptional<z.ZodEnum<["invoice", "purchase"]>>;
+        overdueOnly: z.ZodOptional<z.ZodBoolean>;
     }, "strip", z.ZodTypeAny, {
         startDate: string;
         endDate: string;
         status?: "pending" | "paid" | "overdue" | undefined;
         type?: "income" | "expense" | undefined;
         category?: string | undefined;
+        priority?: "immediate" | "waiting" | undefined;
+        payeeName?: string | undefined;
+        documentKind?: "invoice" | "purchase" | undefined;
+        overdueOnly?: boolean | undefined;
     }, {
         startDate: string;
         endDate: string;
         status?: "pending" | "paid" | "overdue" | undefined;
         type?: "income" | "expense" | undefined;
         category?: string | undefined;
+        priority?: "immediate" | "waiting" | undefined;
+        payeeName?: string | undefined;
+        documentKind?: "invoice" | "purchase" | undefined;
+        overdueOnly?: boolean | undefined;
     }>, {
         count: number;
         totalAmount: number;
         transactions: {
+            priority: {} | null;
+            documentKind: {} | null;
+            docNumber: {} | null;
+            payeeName: string | null;
             id: unknown;
             concept: unknown;
             category: unknown;
@@ -44,10 +60,18 @@ export declare function createFinanceTools(companyId: string): {
             status?: "pending" | "paid" | "overdue" | undefined;
             type?: "income" | "expense" | undefined;
             category?: string | undefined;
+            priority?: "immediate" | "waiting" | undefined;
+            payeeName?: string | undefined;
+            documentKind?: "invoice" | "purchase" | undefined;
+            overdueOnly?: boolean | undefined;
         }, options: import("ai").ToolExecutionOptions) => PromiseLike<{
             count: number;
             totalAmount: number;
             transactions: {
+                priority: {} | null;
+                documentKind: {} | null;
+                docNumber: {} | null;
+                payeeName: string | null;
                 id: unknown;
                 concept: unknown;
                 category: unknown;
@@ -57,6 +81,51 @@ export declare function createFinanceTools(companyId: string): {
                 status: unknown;
                 notes: {} | null;
                 sourceType: {} | null;
+            }[];
+        }>;
+    };
+    getPendingInvoicesBySupplier: import("ai").Tool<z.ZodObject<{
+        limit: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
+        documentKind: z.ZodOptional<z.ZodEnum<["invoice", "purchase"]>>;
+        payeeName: z.ZodOptional<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        limit: number;
+        payeeName?: string | undefined;
+        documentKind?: "invoice" | "purchase" | undefined;
+    }, {
+        payeeName?: string | undefined;
+        documentKind?: "invoice" | "purchase" | undefined;
+        limit?: number | undefined;
+    }>, {
+        documentKind: "invoice" | "purchase";
+        supplierCount: number;
+        totalInvoices: number;
+        totalAmount: number;
+        suppliers: {
+            supplierName: string;
+            count: number;
+            total: number;
+            oldestDate: string | null;
+            immediateCount: number;
+            overdueCount: number;
+        }[];
+    }> & {
+        execute: (args: {
+            limit: number;
+            payeeName?: string | undefined;
+            documentKind?: "invoice" | "purchase" | undefined;
+        }, options: import("ai").ToolExecutionOptions) => PromiseLike<{
+            documentKind: "invoice" | "purchase";
+            supplierCount: number;
+            totalInvoices: number;
+            totalAmount: number;
+            suppliers: {
+                supplierName: string;
+                count: number;
+                total: number;
+                oldestDate: string | null;
+                immediateCount: number;
+                overdueCount: number;
             }[];
         }>;
     };
