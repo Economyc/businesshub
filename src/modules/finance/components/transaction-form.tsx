@@ -13,7 +13,7 @@ import { useCompany } from '@/core/hooks/use-company'
 import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { useCollection } from '@/core/hooks/use-firestore'
 import { financeService } from '../services'
-import type { Transaction, PayeeRef, PayeeType, PayableFile } from '../types'
+import type { Transaction, PayeeRef, PayeeType, PayableFile, TransactionPriority } from '../types'
 
 interface NamedEntity { id: string; name: string }
 
@@ -62,6 +62,7 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
   const [payeeType, setPayeeType] = useState<PayeeType | ''>('')
   const [payeeId, setPayeeId] = useState('')
   const [payeeExternalName, setPayeeExternalName] = useState('')
+  const [priority, setPriority] = useState<TransactionPriority | ''>('')
   const [attachments, setAttachments] = useState<{ source?: PayableFile; proof?: PayableFile; docNumber?: string; documentKind?: 'invoice' | 'purchase' }>({})
 
   const { data: partners } = useCollection<NamedEntity>('partners')
@@ -93,6 +94,10 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
     { value: 'supplier', label: 'Proveedor' },
     { value: 'external', label: 'Tercero (externo)' },
   ], [])
+  const priorityOptions = useMemo(() => [
+    { value: 'waiting', label: 'Espera' },
+    { value: 'immediate', label: 'Inmediato' },
+  ], [])
   const payeeIdOptions = useMemo(() => [
     { value: '', label: '— Selecciona —' },
     ...payeeOptions.map((o) => ({ value: o.id, label: o.name })),
@@ -108,6 +113,7 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
       setPayeeType('')
       setPayeeId('')
       setPayeeExternalName('')
+      setPriority('')
       setAttachments({})
       return
     }
@@ -143,6 +149,7 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
           setPayeeId(tx.payeeRef.id)
         }
       }
+      setPriority(tx.priority ?? '')
       setLoading(false)
     })
   }, [open, transactionId, selectedCompany?.id])
@@ -198,6 +205,7 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
       status: form.status,
       ...(form.notes ? { notes: form.notes } : {}),
       ...(payeeRef ? { payeeRef } : {}),
+      ...(attachments.documentKind && priority ? { priority } : {}),
     }
     if (transactionId) {
       await saveMutation.mutateAsync({ _id: transactionId, payload })
@@ -343,6 +351,16 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
                         options={statusOptions}
                       />
                     </div>
+                    {attachments.documentKind && (
+                      <div className="md:col-span-2">
+                        <label className={labelClass}>Prioridad</label>
+                        <SelectInput
+                          value={priority || 'waiting'}
+                          onChange={(v) => setPriority(v as TransactionPriority)}
+                          options={priorityOptions}
+                        />
+                      </div>
+                    )}
                     <div className="md:col-span-2">
                       <label className={labelClass}>Notas (opcional)</label>
                       <textarea

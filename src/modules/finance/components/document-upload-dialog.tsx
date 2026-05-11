@@ -13,7 +13,7 @@ import { useCompany } from '@/core/hooks/use-company'
 import { useCollection } from '@/core/hooks/use-firestore'
 import { queryClient } from '@/core/query/query-client'
 import { financeService } from '../services'
-import type { DocumentKind, PayableFile } from '../types'
+import type { DocumentKind, PayableFile, TransactionPriority } from '../types'
 
 const MAX_SIZE = 10 * 1024 * 1024 // 10 MB
 const ACCEPTED_MIMES = [
@@ -90,6 +90,7 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
   const [amount, setAmount] = useState('')
   const [category, setCategory] = useState('')
   const [notes, setNotes] = useState('')
+  const [priority, setPriority] = useState<TransactionPriority>('waiting')
 
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -122,6 +123,7 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
       setAmount('')
       setCategory('')
       setNotes('')
+      setPriority('waiting')
       setError(null)
       setStep('idle')
       setSubmitting(false)
@@ -243,6 +245,7 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
         documentKind: kind,
         docNumber: docNumber.trim(),
         sourceDocument,
+        ...(kind === 'invoice' ? { priority } : {}),
         ...(kind === 'purchase' ? { paidDate: dateTs } : {}),
       })
 
@@ -421,6 +424,19 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
                 <label className="block text-caption uppercase tracking-wider text-mid-gray mb-1">Categoría</label>
                 <CategorySelect value={category} onChange={setCategory} placeholder="Selecciona categoría" />
               </div>
+              {kind === 'invoice' && (
+                <div className="sm:col-span-2">
+                  <label className="block text-caption uppercase tracking-wider text-mid-gray mb-1">Prioridad</label>
+                  <SelectInput
+                    value={priority}
+                    onChange={(v) => setPriority(v as TransactionPriority)}
+                    options={[
+                      { value: 'waiting', label: 'Espera' },
+                      { value: 'immediate', label: 'Inmediato' },
+                    ]}
+                  />
+                </div>
+              )}
               <div className="sm:col-span-2">
                 <label className="block text-caption uppercase tracking-wider text-mid-gray mb-1">Notas (opcional)</label>
                 <textarea

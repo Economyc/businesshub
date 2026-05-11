@@ -32,6 +32,11 @@ export interface PayableFile {
 // queda undefined y la transaction se comporta como antes.
 export type DocumentKind = 'invoice' | 'purchase'
 
+// Prioridad de pago para facturas/compras pendientes. 'immediate' marca
+// la fila en rojo en la tabla (hay que pagar ya), 'waiting' es el default
+// (gris, sin urgencia). Solo aplica cuando documentKind está presente.
+export type TransactionPriority = 'immediate' | 'waiting'
+
 export interface Transaction extends BaseEntity {
   concept: string
   category: string
@@ -50,6 +55,7 @@ export interface Transaction extends BaseEntity {
   sourceDocument?: PayableFile
   paymentProof?: PayableFile
   paidDate?: Timestamp
+  priority?: TransactionPriority
 }
 
 export type RecurrenceFrequency = 'daily' | 'weekly' | 'monthly' | 'yearly'

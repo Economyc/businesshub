@@ -95,20 +95,6 @@ export function useRecurringGenerator() {
   }, [selectedCompany?.id])
 }
 
-export function useFinanceSummary(startDate: Date, endDate: Date) {
-  // Solo trae el rango — Firestore filtra por índice, el navegador no recibe
-  // las transacciones fuera del período.
-  const { data: transactions, loading } = useTransactionsInRange(startDate, endDate)
-
-  const summary = useMemo(() => {
-    const income = transactions.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0)
-    const expenses = transactions.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
-    return { income, expenses, balance: income - expenses }
-  }, [transactions])
-
-  return { summary, loading }
-}
-
 export interface CategoryBreakdown {
   category: string
   total: number

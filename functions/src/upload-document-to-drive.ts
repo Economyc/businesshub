@@ -251,11 +251,19 @@ setTimeout(() => { try { window.close() } catch (e) {} }, 2000);
       return
     }
 
+    console.log('[driveOAuthCallback] parsed state', { uid: parsed.uid, ts: parsed.ts, uidType: typeof parsed.uid, uidLength: parsed.uid?.length })
+
     try {
       const tokens = await exchangeCodeForTokens(code)
+      console.log('[driveOAuthCallback] tokens received', { hasRefresh: !!tokens.refreshToken, email: tokens.email })
+      if (!parsed.uid || typeof parsed.uid !== 'string') {
+        throw new Error(`uid del state es inválido: ${JSON.stringify(parsed)}`)
+      }
       await saveDriveAuth(parsed.uid, tokens)
+      console.log('[driveOAuthCallback] saved')
       res.status(200).send(html('ok', 'Drive fue conectado correctamente.', tokens.email))
     } catch (err) {
+      console.error('[driveOAuthCallback] failed', err)
       const msg = (err as Error).message ?? 'Error desconocido'
       res.status(500).send(html('error', msg))
     }
