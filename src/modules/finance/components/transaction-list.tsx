@@ -133,30 +133,29 @@ export function TransactionList() {
     )
   }, [transactions])
 
-  // Pendientes para cruzar pagos — sin filtro de rango: el usuario puede
-  // estar viendo mayo pero querer cruzar una factura de marzo.
+  // Pendientes: SIN filtro de rango. Las facturas pendientes son arrastres
+  // de deuda real — si quedó algo sin pagar en marzo, debe seguir visible
+  // aunque estés viendo mayo. Sirve tanto para el tab como para el dropdown
+  // de PaymentUploadDialog (cruzar pago contra factura vieja).
   const pendingInvoicesAll = useMemo(() => {
     return invoiceTransactions.filter(
       (t) => (t.status === 'pending' || t.status === 'overdue') && t.documentKind === 'invoice',
     )
   }, [invoiceTransactions])
 
-  // Acotado al rango — usado tanto por el summary como por las tabs.
-  const inRange = useMemo(() => {
+  // Pagadas dentro del rango — por fecha de pago (paidDate), fallback a la
+  // de emisión si no existe paidDate (data legacy). "Pagadas en mayo" =
+  // se pagaron en mayo, no que se emitieron en mayo.
+  const paidInRange = useMemo(() => {
     return invoiceTransactions.filter((t) => {
-      const d = t.date?.toDate?.()
-      return d ? d >= startDate && d <= endDate : true
+      if (t.status !== 'paid') return false
+      const ref = (t.paidDate ?? t.date)?.toDate?.()
+      return ref ? ref >= startDate && ref <= endDate : true
     })
   }, [invoiceTransactions, startDate.getTime(), endDate.getTime()])
 
-  const pendingCount = useMemo(
-    () => inRange.filter((t) => t.status === 'pending' || t.status === 'overdue').length,
-    [inRange],
-  )
-  const paidCount = useMemo(
-    () => inRange.filter((t) => t.status === 'paid').length,
-    [inRange],
-  )
+  const pendingCount = pendingInvoicesAll.length
+  const paidCount = paidInRange.length
 
   const categories = useMemo(() => {
     const set = new Set(invoiceTransactions.map((t) => t.category).filter(Boolean))
@@ -164,9 +163,8 @@ export function TransactionList() {
   }, [invoiceTransactions])
 
   const filtered = useMemo(() => {
-    const wantedStatus: Transaction['status'][] = activeTab === 'pending' ? ['pending', 'overdue'] : ['paid']
-    return inRange.filter((t) => {
-      if (!wantedStatus.includes(t.status)) return false
+    const source = activeTab === 'pending' ? pendingInvoicesAll : paidInRange
+    return source.filter((t) => {
       const matchesSearch =
         search === '' ||
         t.concept.toLowerCase().includes(search.toLowerCase()) ||
@@ -180,7 +178,7 @@ export function TransactionList() {
       const matchesPriority = priorityFilter === '' || effectivePriority === priorityFilter
       return matchesSearch && matchesCategory && matchesType && matchesPriority
     })
-  }, [inRange, activeTab, search, categoryFilter, typeFilter, priorityFilter])
+  }, [pendingInvoicesAll, paidInRange, activeTab, search, categoryFilter, typeFilter, priorityFilter])
 
   const handleRowClick = useCallback((t: Transaction) => {
     setEditingId(t.id)
@@ -338,7 +336,7 @@ export function TransactionList() {
         )}
       </PageHeader>
 
-      <InvoicesSummary transactions={inRange} />
+      <InvoicesSummary pending={pendingInvoicesAll} paid={paidInRange} />
 
       <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-5">
         {/* Tabs Pendientes / Pagadas */}

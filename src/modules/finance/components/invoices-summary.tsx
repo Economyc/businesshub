@@ -6,29 +6,26 @@ import { staggerContainer } from '@/core/animations/variants'
 import type { Transaction } from '../types'
 
 interface InvoicesSummaryProps {
-  // Dataset ya filtrado por documentKind ∈ {invoice, purchase} y por rango.
-  transactions: Transaction[]
+  // Todas las pendientes — sin filtro de rango (son arrastres de deuda).
+  pending: Transaction[]
+  // Pagadas dentro del rango actual (por paidDate).
+  paid: Transaction[]
 }
 
-export function InvoicesSummary({ transactions }: InvoicesSummaryProps) {
-  const { pending, paid } = useMemo(() => {
-    const pendingTxs = transactions.filter(
-      (t) => t.status === 'pending' || t.status === 'overdue',
-    )
-    const paidTxs = transactions.filter((t) => t.status === 'paid')
+export function InvoicesSummary({ pending, paid }: InvoicesSummaryProps) {
+  const summary = useMemo(() => {
+    const pendingTotal = pending.reduce((s, t) => s + (t.amount || 0), 0)
+    const pendingWithValue = pending.filter((t) => (t.amount || 0) > 0).length
 
-    const pendingTotal = pendingTxs.reduce((s, t) => s + (t.amount || 0), 0)
-    const pendingWithValue = pendingTxs.filter((t) => (t.amount || 0) > 0).length
-
-    const purchases = paidTxs.filter((t) => t.documentKind === 'purchase')
+    const purchases = paid.filter((t) => t.documentKind === 'purchase')
     const purchasesTotal = purchases.reduce((s, t) => s + (t.amount || 0), 0)
-    const paidTotal = paidTxs.reduce((s, t) => s + (t.amount || 0), 0)
+    const paidTotal = paid.reduce((s, t) => s + (t.amount || 0), 0)
 
     return {
       pending: {
         total: pendingTotal,
         withValue: pendingWithValue,
-        count: pendingTxs.length,
+        count: pending.length,
       },
       paid: {
         total: paidTotal,
@@ -36,7 +33,7 @@ export function InvoicesSummary({ transactions }: InvoicesSummaryProps) {
         purchasesCount: purchases.length,
       },
     }
-  }, [transactions])
+  }, [pending, paid])
 
   return (
     <motion.div
@@ -47,19 +44,19 @@ export function InvoicesSummary({ transactions }: InvoicesSummaryProps) {
     >
       <KPICard
         label="Pendiente"
-        value={pending.total}
+        value={summary.pending.total}
         format="currency"
         icon={Clock}
-        comparison={`${pending.withValue}/${pending.count} con valor`}
+        comparison={`${summary.pending.withValue}/${summary.pending.count} con valor`}
       />
       <KPICard
         label="Pagado"
-        value={paid.total}
+        value={summary.paid.total}
         format="currency"
         icon={CheckCircle2}
         comparison={
-          paid.purchasesCount > 0
-            ? `incluye ${Math.round(paid.purchasesTotal).toLocaleString('es-CO')} de ${paid.purchasesCount} ${paid.purchasesCount === 1 ? 'compra' : 'compras'}`
+          summary.paid.purchasesCount > 0
+            ? `incluye ${Math.round(summary.paid.purchasesTotal).toLocaleString('es-CO')} de ${summary.paid.purchasesCount} ${summary.paid.purchasesCount === 1 ? 'compra' : 'compras'}`
             : 'sin compras al contado'
         }
       />
