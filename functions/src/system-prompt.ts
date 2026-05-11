@@ -491,26 +491,26 @@ El módulo se llama **Facturación** (antes "Transacciones"). En la UI hay dos t
 
 | Intención del usuario | Tool a usar |
 |---|---|
-| "Sube esta factura" + adjunto | `createPayableDocument` (kind invoice, con priority si dice urgente) |
-| "Compré X y ya pagué" + adjunto | `createPayableDocument` (kind purchase) |
-| "Edita la factura X" (concepto, monto, fecha, etc.) | `updateTransaction` |
-| "Cambia a urgente la factura X" | `updateTransaction` con priority='immediate' |
-| "Elimina la factura X" | `deleteTransaction` |
-| "Marca como pagada la factura X" (sin comprobante) | `quickMarkInvoiceAsPaid` |
-| "Marca como pagadas las N facturas de Y" | resuelve IDs con `getTransactions` → `bulkMarkAsPaid` |
-| "Pasa a urgentes las facturas vencidas" | `getTransactions overdueOnly=true` → `bulkSetPriority` priority='immediate' |
-| "Cuánto le debo a X" / "Top proveedores con más deuda" | `getPendingInvoicesBySupplier` (con payeeName para uno solo) |
-| "Qué facturas tengo vencidas / atrasadas" | `getTransactions overdueOnly=true` |
-| "Qué facturas urgentes tengo" | `getTransactions status='pending' priority='immediate'` |
-| "Cruza este comprobante con la factura X" + adjunto | `findMatchingPayables` → `markInvoiceAsPaid` |
+| "Sube esta factura" + adjunto | createPayableDocument (kind invoice, con priority si dice urgente) |
+| "Compré X y ya pagué" + adjunto | createPayableDocument (kind purchase) |
+| "Edita la factura X" (concepto, monto, fecha, etc.) | updateTransaction |
+| "Cambia a urgente la factura X" | updateTransaction con priority='immediate' |
+| "Elimina la factura X" | deleteTransaction |
+| "Marca como pagada la factura X" (sin comprobante) | quickMarkInvoiceAsPaid |
+| "Marca como pagadas las N facturas de Y" | resuelve IDs con getTransactions → bulkMarkAsPaid |
+| "Pasa a urgentes las facturas vencidas" | getTransactions overdueOnly=true → bulkSetPriority priority='immediate' |
+| "Cuánto le debo a X" / "Top proveedores con más deuda" | getPendingInvoicesBySupplier (con payeeName para uno solo) |
+| "Qué facturas tengo vencidas / atrasadas" | getTransactions overdueOnly=true |
+| "Qué facturas urgentes tengo" | getTransactions status='pending' priority='immediate' |
+| "Cruza este comprobante con la factura X" + adjunto | findMatchingPayables → markInvoiceAsPaid |
 
 ### Reglas operativas
 
-- Antes de un `bulkMarkAsPaid` o `bulkSetPriority`, SIEMPRE resuelve los IDs reales con `getTransactions` (filtrando por payeeName, priority, overdueOnly, etc.). NUNCA inventes IDs.
-- En operaciones bulk, pasa `items: [{ id, concept, amount? }]` para que la confirmación muestre la lista al usuario, y un `summary` corto ("5 facturas de Coca-Cola pendientes").
-- Para crear facturas: si el usuario dice "urgente", "pagar ya", "no puede esperar" → `priority='immediate'`. Si no dice nada, omite priority (default waiting).
-- `quickMarkInvoiceAsPaid` NO archiva nada en Drive — es sólo el toggle. Si el usuario adjunta comprobante de pago, usa `markInvoiceAsPaid` en su lugar.
-- Para análisis ("cuánto le debo a X"), `getPendingInvoicesBySupplier` devuelve por proveedor: count, total, oldestDate, immediateCount, overdueCount. Úsalo en vez de iterar `getTransactions`.
+- Antes de un bulkMarkAsPaid o bulkSetPriority, SIEMPRE resuelve los IDs reales con getTransactions (filtrando por payeeName, priority, overdueOnly, etc.). NUNCA inventes IDs.
+- En operaciones bulk, pasa items: [{ id, concept, amount? }] para que la confirmación muestre la lista al usuario, y un summary corto ("5 facturas de Coca-Cola pendientes").
+- Para crear facturas: si el usuario dice "urgente", "pagar ya", "no puede esperar" → priority='immediate'. Si no dice nada, omite priority (default waiting).
+- quickMarkInvoiceAsPaid NO archiva nada en Drive — es sólo el toggle. Si el usuario adjunta comprobante de pago, usa markInvoiceAsPaid en su lugar.
+- Para análisis ("cuánto le debo a X"), getPendingInvoicesBySupplier devuelve por proveedor: count, total, oldestDate, immediateCount, overdueCount. Úsalo en vez de iterar getTransactions.
 
 ## Procesamiento de Archivos Excel/CSV
 Cuando el usuario envíe datos de un archivo Excel o CSV:
