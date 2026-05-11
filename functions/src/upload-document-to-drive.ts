@@ -8,7 +8,7 @@ import {
   exchangeCodeForTokens,
   saveDriveAuth,
   clearDriveAuth,
-  getCompanyDriveAuth,
+  getUserDriveAuth,
   driveClientId,
   driveClientSecret,
 } from './services/drive-oauth.js'
@@ -109,11 +109,11 @@ export const uploadDocumentToDrive = onCall(
       )
     }
 
-    const auth = await getCompanyDriveAuth(data.companyId)
-    if (!auth?.refreshToken) {
+    const userAuth = await getUserDriveAuth(request.auth.uid)
+    if (!userAuth?.refreshToken) {
       throw new HttpsError(
         'failed-precondition',
-        'Drive no está conectado para esta empresa. Ve a Ajustes → Conectar Drive.',
+        'No has conectado tu Drive. Ve a Ajustes → Compañías y conecta tu Drive.',
       )
     }
 
@@ -127,8 +127,8 @@ export const uploadDocumentToDrive = onCall(
     const docNumber = sanitizeForFileName(data.docNumber)
     const fileName = `${supplier} - ${data.docType} ${docNumber} - ${month} ${dd} ${year}.${ext}`
 
-    const targetFolderId = await ensureFolderPath(data.companyId, company.driveRootFolderId, [year, month])
-    const uploaded = await uploadFile(data.companyId, targetFolderId, fileName, data.mimeType, data.fileBase64)
+    const targetFolderId = await ensureFolderPath(request.auth.uid, data.companyId, company.driveRootFolderId, [year, month])
+    const uploaded = await uploadFile(request.auth.uid, targetFolderId, fileName, data.mimeType, data.fileBase64)
 
     return {
       driveFileId: uploaded.driveFileId,
@@ -152,7 +152,7 @@ export const validateDriveFolder = onCall(
       throw new HttpsError('invalid-argument', 'companyId y rootFolderId requeridos')
     }
     await assertCompanyMember(request.auth.uid, data.companyId)
-    const result = await validateRootFolderAccess(data.companyId, data.rootFolderId)
+    const result = await validateRootFolderAccess(request.auth.uid, data.rootFolderId)
     return result
   },
 )
@@ -163,14 +163,9 @@ export const driveAuthStart = onCall(
   { region: 'us-central1', memory: '256MiB', timeoutSeconds: 15, secrets: SECRETS },
   async (request) => {
     if (!request.auth) throw new HttpsError('unauthenticated', 'Login requerido')
-    const data = request.data as { companyId: string }
-    if (!data?.companyId) throw new HttpsError('invalid-argument', 'companyId requerido')
-    await assertCompanyMember(request.auth.uid, data.companyId)
-
-    // El state lleva companyId + uid firmado de manera simple (timestamp-base64).
-    // Es opaco para Google, pero nosotros lo decodificamos en el callback.
+    // El state lleva solo el uid + timestamp. El token resultante queda
+    // asociado al usuario y se usa para todas las empresas que tenga acceso.
     const state = Buffer.from(JSON.stringify({
-      companyId: data.companyId,
       uid: request.auth.uid,
       ts: Date.now(),
     })).toString('base64url')
@@ -183,10 +178,7 @@ export const driveAuthDisconnect = onCall(
   { region: 'us-central1', memory: '256MiB', timeoutSeconds: 15 },
   async (request) => {
     if (!request.auth) throw new HttpsError('unauthenticated', 'Login requerido')
-    const data = request.data as { companyId: string }
-    if (!data?.companyId) throw new HttpsError('invalid-argument', 'companyId requerido')
-    await assertCompanyMember(request.auth.uid, data.companyId)
-    await clearDriveAuth(data.companyId)
+    await clearDriveAuth(request.auth.uid)
     return { ok: true }
   },
 )
@@ -195,10 +187,7 @@ export const driveAuthStatus = onCall(
   { region: 'us-central1', memory: '256MiB', timeoutSeconds: 15 },
   async (request) => {
     if (!request.auth) throw new HttpsError('unauthenticated', 'Login requerido')
-    const data = request.data as { companyId: string }
-    if (!data?.companyId) throw new HttpsError('invalid-argument', 'companyId requerido')
-    await assertCompanyMember(request.auth.uid, data.companyId)
-    const auth = await getCompanyDriveAuth(data.companyId)
+    const auth = await getUserDriveAuth(request.auth.uid)
     return {
       connected: !!auth?.refreshToken,
       email: auth?.email ?? null,
@@ -248,7 +237,7 @@ setTimeout(() => { try { window.close() } catch (e) {} }, 2000);
       return
     }
 
-    let parsed: { companyId: string; uid: string; ts: number }
+    let parsed: { uid: string; ts: number }
     try {
       parsed = JSON.parse(Buffer.from(stateRaw, 'base64url').toString('utf-8'))
     } catch {
@@ -264,7 +253,7 @@ setTimeout(() => { try { window.close() } catch (e) {} }, 2000);
 
     try {
       const tokens = await exchangeCodeForTokens(code)
-      await saveDriveAuth(parsed.companyId, tokens)
+      await saveDriveAuth(parsed.uid, tokens)
       res.status(200).send(html('ok', 'Drive fue conectado correctamente.', tokens.email))
     } catch (err) {
       const msg = (err as Error).message ?? 'Error desconocido'

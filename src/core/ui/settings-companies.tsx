@@ -62,15 +62,15 @@ export function SettingsCompanies() {
     return () => document.removeEventListener('keydown', handleKey, true)
   }, [expandedId])
 
-  const fetchDriveAuthStatus = useCallback(async (companyId: string) => {
+  const fetchDriveAuthStatus = useCallback(async () => {
     setDriveAuth({ kind: 'loading' })
     try {
       const fns = await getAppFunctions()
       const fn = httpsCallable<
-        { companyId: string },
+        Record<string, never>,
         { connected: boolean; email: string | null; connectedAt: number | null }
       >(fns, 'driveAuthStatus')
-      const res = await fn({ companyId })
+      const res = await fn({})
       if (res.data.connected) {
         setDriveAuth({ kind: 'connected', email: res.data.email })
       } else {
@@ -81,13 +81,17 @@ export function SettingsCompanies() {
     }
   }, [])
 
+  // Una sola conexión por usuario, válida para todas las empresas.
+  useEffect(() => {
+    void fetchDriveAuthStatus()
+  }, [fetchDriveAuthStatus])
+
   function toggleExpand(company: typeof companies[0]) {
     if (expandedId === company.id) {
       setExpandedId(null)
       setForm(null)
       setConfirmDelete(false)
       setDriveValidation({ kind: 'idle' })
-      setDriveAuth({ kind: 'loading' })
     } else {
       setExpandedId(company.id)
       setForm({
@@ -102,19 +106,16 @@ export function SettingsCompanies() {
       setSavedId(null)
       setConfirmDelete(false)
       setDriveValidation({ kind: 'idle' })
-      void fetchDriveAuthStatus(company.id)
     }
   }
 
   async function handleConnectDrive() {
-    if (!form) return
     setConnecting(true)
     try {
       const fns = await getAppFunctions()
-      const fn = httpsCallable<{ companyId: string }, { url: string }>(fns, 'driveAuthStart')
-      const res = await fn({ companyId: form.id })
+      const fn = httpsCallable<Record<string, never>, { url: string }>(fns, 'driveAuthStart')
+      const res = await fn({})
       const url = res.data.url
-      // Abre popup centrado y escucha postMessage.
       const w = 500, h = 700
       const left = window.screenX + (window.outerWidth - w) / 2
       const top = window.screenY + (window.outerHeight - h) / 2
@@ -129,19 +130,18 @@ export function SettingsCompanies() {
         window.removeEventListener('message', onMessage)
         setConnecting(false)
         if (e.data.status === 'ok') {
-          void fetchDriveAuthStatus(form!.id)
+          void fetchDriveAuthStatus()
         } else {
           setDriveAuth({ kind: 'error', error: e.data.message ?? 'Error al conectar' })
         }
       }
       window.addEventListener('message', onMessage)
-      // Fallback: si el popup se cierra sin postMessage en 5 min, refetch.
       const poll = setInterval(() => {
         if (popup.closed) {
           clearInterval(poll)
           window.removeEventListener('message', onMessage)
           setConnecting(false)
-          void fetchDriveAuthStatus(form!.id)
+          void fetchDriveAuthStatus()
         }
       }, 1000)
     } catch (err) {
@@ -151,11 +151,10 @@ export function SettingsCompanies() {
   }
 
   async function handleDisconnectDrive() {
-    if (!form) return
     try {
       const fns = await getAppFunctions()
-      const fn = httpsCallable<{ companyId: string }, { ok: boolean }>(fns, 'driveAuthDisconnect')
-      await fn({ companyId: form.id })
+      const fn = httpsCallable<Record<string, never>, { ok: boolean }>(fns, 'driveAuthDisconnect')
+      await fn({})
       setDriveAuth({ kind: 'disconnected' })
       setDriveValidation({ kind: 'idle' })
     } catch (err) {
@@ -230,6 +229,66 @@ export function SettingsCompanies() {
   return (
     <PageTransition>
       <PageHeader title="Compañías" />
+
+      {/* Conexión global de Drive — una vez por usuario, sirve para todas las empresas */}
+      <div className="mb-4 p-4 rounded-xl bg-surface card-elevated">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div className="min-w-0">
+            <div className="text-caption uppercase tracking-wider text-mid-gray mb-1">Google Drive</div>
+            <p className="text-body text-mid-gray">
+              Conecta tu Drive una sola vez. Después asigna una carpeta a cada empresa abajo.
+            </p>
+          </div>
+          <div className="shrink-0">
+            {driveAuth.kind === 'loading' && (
+              <span className="text-caption text-mid-gray">Cargando…</span>
+            )}
+            {driveAuth.kind === 'disconnected' && (
+              <button
+                type="button"
+                onClick={handleConnectDrive}
+                disabled={connecting}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-body font-medium text-graphite bg-bone border border-border/60 hover:bg-bone/70 transition-colors disabled:opacity-50"
+              >
+                <Cloud size={14} strokeWidth={1.5} />
+                {connecting ? 'Esperando autorización…' : 'Conectar Drive'}
+              </button>
+            )}
+            {driveAuth.kind === 'connected' && (
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-positive-bg border border-border/60 text-body text-graphite">
+                  <Check size={13} strokeWidth={2.5} className="text-positive" />
+                  {driveAuth.email ?? 'Conectado'}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleDisconnectDrive}
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded text-caption text-mid-gray hover:text-graphite hover:bg-bone transition-colors"
+                  title="Desconectar Drive"
+                >
+                  <LogOut size={12} strokeWidth={1.5} />
+                  Desconectar
+                </button>
+              </div>
+            )}
+            {driveAuth.kind === 'error' && (
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-negative-bg border border-border/60 text-caption text-negative-text">
+                  <CloudOff size={13} strokeWidth={2} />
+                  {driveAuth.error}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleConnectDrive}
+                  className="px-3 py-1.5 rounded-lg text-caption font-medium text-graphite bg-bone border border-border/60 hover:bg-bone/70 transition-colors"
+                >
+                  Reintentar
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
 
       <div className="rounded-xl bg-surface card-elevated overflow-x-auto">
         <table className="w-full table-fixed min-w-[600px]">
@@ -361,97 +420,43 @@ export function SettingsCompanies() {
                           </div>
                         </div>
 
-                        {/* Drive integration (OAuth) */}
-                        <div className="mt-5 pt-4 border-t border-border space-y-3">
-                          <div>
-                            <div className="text-caption uppercase tracking-wider text-mid-gray mb-1">Google Drive</div>
-                            <p className="text-caption text-mid-gray mb-3">
-                              Conecta tu Drive para guardar Facturas, Pagos y Compras de esta empresa. Los archivos se organizan automáticamente por año y mes en la carpeta que elijas.
+                        {/* Carpeta de Drive — la conexión vive arriba, una sola por usuario */}
+                        {driveAuth.kind === 'connected' && (
+                          <div className="mt-5 pt-4 border-t border-border">
+                            <label className="block text-caption uppercase tracking-wider text-mid-gray mb-1">Carpeta de Drive</label>
+                            <p className="text-caption text-mid-gray mb-2">
+                              Pega el ID de la carpeta donde guardar los documentos de esta empresa (de la URL: <code>drive.google.com/drive/folders/<b>ID</b></code>).
                             </p>
-
-                            {/* Estado de conexión */}
-                            {driveAuth.kind === 'loading' && (
-                              <div className="text-caption text-mid-gray">Cargando estado…</div>
-                            )}
-
-                            {driveAuth.kind === 'disconnected' && (
+                            <div className="flex items-center gap-2">
+                              <input
+                                value={form.driveRootFolderId}
+                                onChange={(e) => { setForm({ ...form, driveRootFolderId: e.target.value }); setDriveValidation({ kind: 'idle' }); setSavedId(null) }}
+                                placeholder="Folder ID de Drive (ej: 1A2bCdEf...)"
+                                className={inputClass}
+                              />
                               <button
                                 type="button"
-                                onClick={handleConnectDrive}
-                                disabled={connecting}
-                                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-body font-medium text-graphite bg-bone border border-border/60 hover:bg-bone/70 transition-colors disabled:opacity-50"
+                                onClick={handleValidateDrive}
+                                disabled={driveValidation.kind === 'validating' || !form.driveRootFolderId.trim()}
+                                className="px-3 py-2 rounded-lg text-body font-medium text-graphite bg-bone border border-border/60 hover:bg-bone/70 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                               >
-                                <Cloud size={14} strokeWidth={1.5} />
-                                {connecting ? 'Esperando autorización…' : 'Conectar Drive'}
+                                {driveValidation.kind === 'validating' ? 'Validando…' : 'Validar'}
                               </button>
-                            )}
-
-                            {driveAuth.kind === 'connected' && (
-                              <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-positive-bg border border-border/60">
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <Check size={14} strokeWidth={2.5} className="text-positive shrink-0" />
-                                  <span className="text-body text-graphite truncate">
-                                    Conectado{driveAuth.email ? ` como ${driveAuth.email}` : ''}
-                                  </span>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={handleDisconnectDrive}
-                                  className="inline-flex items-center gap-1 px-2 py-1 rounded text-caption text-mid-gray hover:text-graphite hover:bg-bone transition-colors shrink-0"
-                                  title="Desconectar Drive"
-                                >
-                                  <LogOut size={12} strokeWidth={1.5} />
-                                  Desconectar
-                                </button>
+                            </div>
+                            {driveValidation.kind === 'valid' && (
+                              <div className="flex items-center gap-1.5 mt-2 text-caption text-positive">
+                                <Check size={12} strokeWidth={2} />
+                                Carpeta "{driveValidation.folderName}" accesible
                               </div>
                             )}
-
-                            {driveAuth.kind === 'error' && (
-                              <div className="flex items-start gap-2 p-3 rounded-lg bg-negative-bg border border-border/60 text-caption text-negative-text">
-                                <CloudOff size={14} strokeWidth={2} className="mt-0.5 shrink-0" />
-                                <span>{driveAuth.error}</span>
+                            {driveValidation.kind === 'invalid' && (
+                              <div className="flex items-center gap-1.5 mt-2 text-caption text-destructive">
+                                <AlertCircle size={12} strokeWidth={2} />
+                                {driveValidation.error}
                               </div>
                             )}
                           </div>
-
-                          {/* Folder ID — solo visible cuando hay conexión */}
-                          {driveAuth.kind === 'connected' && (
-                            <div className="pt-2">
-                              <label className="block text-caption uppercase tracking-wider text-mid-gray mb-1">Carpeta raíz</label>
-                              <p className="text-caption text-mid-gray mb-2">
-                                Pega el ID de la carpeta en tu Drive donde guardar los documentos de esta empresa (de la URL: <code>drive.google.com/drive/folders/<b>ID</b></code>).
-                              </p>
-                              <div className="flex items-center gap-2">
-                                <input
-                                  value={form.driveRootFolderId}
-                                  onChange={(e) => { setForm({ ...form, driveRootFolderId: e.target.value }); setDriveValidation({ kind: 'idle' }); setSavedId(null) }}
-                                  placeholder="Folder ID de Drive (ej: 1A2bCdEf...)"
-                                  className={inputClass}
-                                />
-                                <button
-                                  type="button"
-                                  onClick={handleValidateDrive}
-                                  disabled={driveValidation.kind === 'validating' || !form.driveRootFolderId.trim()}
-                                  className="px-3 py-2 rounded-lg text-body font-medium text-graphite bg-bone border border-border/60 hover:bg-bone/70 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-                                >
-                                  {driveValidation.kind === 'validating' ? 'Validando…' : 'Validar'}
-                                </button>
-                              </div>
-                              {driveValidation.kind === 'valid' && (
-                                <div className="flex items-center gap-1.5 mt-2 text-caption text-positive">
-                                  <Check size={12} strokeWidth={2} />
-                                  Carpeta "{driveValidation.folderName}" accesible
-                                </div>
-                              )}
-                              {driveValidation.kind === 'invalid' && (
-                                <div className="flex items-center gap-1.5 mt-2 text-caption text-destructive">
-                                  <AlertCircle size={12} strokeWidth={2} />
-                                  {driveValidation.error}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
+                        )}
 
                         {/* Actions */}
                         <div className="flex items-center gap-3 mt-5 pt-4 border-t border-border">

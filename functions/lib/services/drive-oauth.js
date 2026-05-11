@@ -60,8 +60,14 @@ export async function exchangeCodeForTokens(code) {
         email,
     };
 }
-export async function saveDriveAuth(companyId, data) {
-    await db.collection('companies').doc(companyId).set({
+/**
+ * El token vive a nivel usuario (no por empresa). Una vez que el usuario
+ * conecta su Drive, lo usa para todas las empresas a las que tiene acceso.
+ * Los archivos van a la carpeta `driveRootFolderId` que la empresa tenga
+ * configurada (esa sí es por-empresa).
+ */
+export async function saveDriveAuth(uid, data) {
+    await db.collection('users').doc(uid).set({
         driveAuth: {
             refreshToken: data.refreshToken,
             email: data.email,
@@ -69,22 +75,22 @@ export async function saveDriveAuth(companyId, data) {
         },
     }, { merge: true });
 }
-export async function clearDriveAuth(companyId) {
-    await db.collection('companies').doc(companyId).set({ driveAuth: null }, { merge: true });
+export async function clearDriveAuth(uid) {
+    await db.collection('users').doc(uid).set({ driveAuth: null }, { merge: true });
 }
-export async function getCompanyDriveAuth(companyId) {
-    const snap = await db.collection('companies').doc(companyId).get();
+export async function getUserDriveAuth(uid) {
+    const snap = await db.collection('users').doc(uid).get();
     if (!snap.exists)
         return null;
     const data = snap.data();
     return data.driveAuth ?? null;
 }
 /**
- * Devuelve un cliente de Drive autenticado con el refresh token de la
- * empresa. Lanza error si no hay token configurado.
+ * Devuelve un cliente de Drive autenticado con el refresh token del usuario.
+ * Lanza error si no hay token configurado.
  */
-export async function getDriveForCompany(companyId) {
-    const auth = await getCompanyDriveAuth(companyId);
+export async function getDriveForUser(uid) {
+    const auth = await getUserDriveAuth(uid);
     if (!auth?.refreshToken) {
         throw new Error('DRIVE_NOT_CONNECTED');
     }
@@ -140,8 +146,8 @@ async function findOrCreateFolder(drive, parentId, name) {
         throw new Error(`No se pudo crear la carpeta "${name}"`);
     return created.data.id;
 }
-export async function ensureFolderPath(companyId, rootFolderId, segments) {
-    const drive = await getDriveForCompany(companyId);
+export async function ensureFolderPath(uid, companyId, rootFolderId, segments) {
+    const drive = await getDriveForUser(uid);
     let parent = rootFolderId;
     const acc = [];
     for (const seg of segments) {
@@ -158,8 +164,8 @@ export async function ensureFolderPath(companyId, rootFolderId, segments) {
     }
     return parent;
 }
-export async function uploadFile(companyId, parentFolderId, fileName, mimeType, fileBase64) {
-    const drive = await getDriveForCompany(companyId);
+export async function uploadFile(uid, parentFolderId, fileName, mimeType, fileBase64) {
+    const drive = await getDriveForUser(uid);
     const buffer = Buffer.from(fileBase64, 'base64');
     const body = Readable.from(buffer);
     const created = await drive.files.create({
@@ -177,9 +183,9 @@ export async function uploadFile(companyId, parentFolderId, fileName, mimeType, 
         fileName: created.data.name ?? fileName,
     };
 }
-export async function validateRootFolderAccess(companyId, rootFolderId) {
+export async function validateRootFolderAccess(uid, rootFolderId) {
     try {
-        const drive = await getDriveForCompany(companyId);
+        const drive = await getDriveForUser(uid);
         const meta = await drive.files.get({
             fileId: rootFolderId,
             fields: 'id, name, mimeType, capabilities(canAddChildren)',

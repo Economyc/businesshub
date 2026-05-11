@@ -79,45 +79,51 @@ export async function exchangeCodeForTokens(code: string): Promise<ExchangeResul
   }
 }
 
-interface CompanyDriveAuth {
+interface UserDriveAuth {
   refreshToken: string
   email: string | null
   connectedAt: number
 }
 
-export async function saveDriveAuth(companyId: string, data: ExchangeResult): Promise<void> {
-  await db.collection('companies').doc(companyId).set(
+/**
+ * El token vive a nivel usuario (no por empresa). Una vez que el usuario
+ * conecta su Drive, lo usa para todas las empresas a las que tiene acceso.
+ * Los archivos van a la carpeta `driveRootFolderId` que la empresa tenga
+ * configurada (esa sí es por-empresa).
+ */
+export async function saveDriveAuth(uid: string, data: ExchangeResult): Promise<void> {
+  await db.collection('users').doc(uid).set(
     {
       driveAuth: {
         refreshToken: data.refreshToken,
         email: data.email,
         connectedAt: Date.now(),
-      } as CompanyDriveAuth,
+      } as UserDriveAuth,
     },
     { merge: true },
   )
 }
 
-export async function clearDriveAuth(companyId: string): Promise<void> {
-  await db.collection('companies').doc(companyId).set(
+export async function clearDriveAuth(uid: string): Promise<void> {
+  await db.collection('users').doc(uid).set(
     { driveAuth: null },
     { merge: true },
   )
 }
 
-export async function getCompanyDriveAuth(companyId: string): Promise<CompanyDriveAuth | null> {
-  const snap = await db.collection('companies').doc(companyId).get()
+export async function getUserDriveAuth(uid: string): Promise<UserDriveAuth | null> {
+  const snap = await db.collection('users').doc(uid).get()
   if (!snap.exists) return null
-  const data = snap.data() as { driveAuth?: CompanyDriveAuth | null }
+  const data = snap.data() as { driveAuth?: UserDriveAuth | null }
   return data.driveAuth ?? null
 }
 
 /**
- * Devuelve un cliente de Drive autenticado con el refresh token de la
- * empresa. Lanza error si no hay token configurado.
+ * Devuelve un cliente de Drive autenticado con el refresh token del usuario.
+ * Lanza error si no hay token configurado.
  */
-export async function getDriveForCompany(companyId: string): Promise<drive_v3.Drive> {
-  const auth = await getCompanyDriveAuth(companyId)
+export async function getDriveForUser(uid: string): Promise<drive_v3.Drive> {
+  const auth = await getUserDriveAuth(uid)
   if (!auth?.refreshToken) {
     throw new Error('DRIVE_NOT_CONNECTED')
   }
@@ -187,11 +193,12 @@ async function findOrCreateFolder(
 }
 
 export async function ensureFolderPath(
+  uid: string,
   companyId: string,
   rootFolderId: string,
   segments: string[],
 ): Promise<string> {
-  const drive = await getDriveForCompany(companyId)
+  const drive = await getDriveForUser(uid)
   let parent = rootFolderId
   const acc: string[] = []
   for (const seg of segments) {
@@ -216,13 +223,13 @@ export interface UploadResult {
 }
 
 export async function uploadFile(
-  companyId: string,
+  uid: string,
   parentFolderId: string,
   fileName: string,
   mimeType: string,
   fileBase64: string,
 ): Promise<UploadResult> {
-  const drive = await getDriveForCompany(companyId)
+  const drive = await getDriveForUser(uid)
   const buffer = Buffer.from(fileBase64, 'base64')
   const body = Readable.from(buffer)
   const created = await drive.files.create({
@@ -242,11 +249,11 @@ export async function uploadFile(
 }
 
 export async function validateRootFolderAccess(
-  companyId: string,
+  uid: string,
   rootFolderId: string,
 ): Promise<{ ok: true; folderName: string } | { ok: false; error: string }> {
   try {
-    const drive = await getDriveForCompany(companyId)
+    const drive = await getDriveForUser(uid)
     const meta = await drive.files.get({
       fileId: rootFolderId,
       fields: 'id, name, mimeType, capabilities(canAddChildren)',

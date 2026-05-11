@@ -17,27 +17,33 @@ export interface ExchangeResult {
     email: string | null;
 }
 export declare function exchangeCodeForTokens(code: string): Promise<ExchangeResult>;
-interface CompanyDriveAuth {
+interface UserDriveAuth {
     refreshToken: string;
     email: string | null;
     connectedAt: number;
 }
-export declare function saveDriveAuth(companyId: string, data: ExchangeResult): Promise<void>;
-export declare function clearDriveAuth(companyId: string): Promise<void>;
-export declare function getCompanyDriveAuth(companyId: string): Promise<CompanyDriveAuth | null>;
 /**
- * Devuelve un cliente de Drive autenticado con el refresh token de la
- * empresa. Lanza error si no hay token configurado.
+ * El token vive a nivel usuario (no por empresa). Una vez que el usuario
+ * conecta su Drive, lo usa para todas las empresas a las que tiene acceso.
+ * Los archivos van a la carpeta `driveRootFolderId` que la empresa tenga
+ * configurada (esa sí es por-empresa).
  */
-export declare function getDriveForCompany(companyId: string): Promise<drive_v3.Drive>;
-export declare function ensureFolderPath(companyId: string, rootFolderId: string, segments: string[]): Promise<string>;
+export declare function saveDriveAuth(uid: string, data: ExchangeResult): Promise<void>;
+export declare function clearDriveAuth(uid: string): Promise<void>;
+export declare function getUserDriveAuth(uid: string): Promise<UserDriveAuth | null>;
+/**
+ * Devuelve un cliente de Drive autenticado con el refresh token del usuario.
+ * Lanza error si no hay token configurado.
+ */
+export declare function getDriveForUser(uid: string): Promise<drive_v3.Drive>;
+export declare function ensureFolderPath(uid: string, companyId: string, rootFolderId: string, segments: string[]): Promise<string>;
 export interface UploadResult {
     driveFileId: string;
     webViewLink: string;
     fileName: string;
 }
-export declare function uploadFile(companyId: string, parentFolderId: string, fileName: string, mimeType: string, fileBase64: string): Promise<UploadResult>;
-export declare function validateRootFolderAccess(companyId: string, rootFolderId: string): Promise<{
+export declare function uploadFile(uid: string, parentFolderId: string, fileName: string, mimeType: string, fileBase64: string): Promise<UploadResult>;
+export declare function validateRootFolderAccess(uid: string, rootFolderId: string): Promise<{
     ok: true;
     folderName: string;
 } | {
