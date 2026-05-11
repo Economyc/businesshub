@@ -20,9 +20,9 @@ const MODULE_GROUPS: { title: string; modules: { key: ModuleKey; label: string; 
     ],
   },
   {
-    title: 'Contabilidad',
+    title: 'Finanzas',
     modules: [
-      { key: 'finance', label: 'Finanzas', description: 'Transacciones, flujo de caja, presupuesto' },
+      { key: 'finance', label: 'Contabilidad', description: 'Transacciones, flujo de caja, presupuesto' },
       { key: 'closings', label: 'Cierres de Caja', description: 'Cierres diarios y descuentos' },
     ],
   },

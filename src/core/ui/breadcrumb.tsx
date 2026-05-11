@@ -3,7 +3,7 @@ import { ChevronRight } from 'lucide-react'
 
 const LABELS: Record<string, string> = {
   home: 'Inicio',
-  finance: 'Finanzas',
+  finance: 'Contabilidad',
   new: 'Nueva',
   edit: 'Editar',
   recurring: 'Recurrentes',

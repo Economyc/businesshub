@@ -38,9 +38,9 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: 'Contabilidad',
+    title: 'Finanzas',
     items: [
-      { to: '/finance', label: 'Finanzas', icon: DollarSign, moduleKey: 'finance' },
+      { to: '/finance', label: 'Contabilidad', icon: DollarSign, moduleKey: 'finance' },
       { to: '/closings', label: 'Cierres de Caja', icon: ClipboardList, moduleKey: 'closings' },
     ],
   },
@@ -76,7 +76,7 @@ const SETTINGS_ITEMS = [
 ]
 
 const FINANCE_ITEMS: (Omit<NavItem, 'icon'> & { icon: typeof Home; end?: boolean })[] = [
-  { to: '/finance', label: 'Transacciones', icon: List, end: true },
+  { to: '/finance', label: 'Facturación', icon: List, end: true },
   { to: '/finance/cash-flow', label: 'Flujo de Caja', icon: Wallet },
   { to: '/finance/income-statement', label: 'Estado de Resultados', icon: FileText },
   { to: '/finance/budget', label: 'Presupuesto', icon: Target },
@@ -634,7 +634,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
         )}
       >
         <div className="px-4 mb-4">
-          <h3 className="text-caption uppercase tracking-wider text-mid-gray font-medium">Finanzas</h3>
+          <h3 className="text-caption uppercase tracking-wider text-mid-gray font-medium">Contabilidad</h3>
         </div>
         <div className="flex flex-col gap-0.5 flex-1">
           {FINANCE_ITEMS.map(({ to, label, icon: Icon, end }) => (

@@ -315,7 +315,7 @@ type SuggestionGroup = { label: string; items: SuggestionItem[] }
 
 const SUGGESTION_GROUPS: SuggestionGroup[] = [
   {
-    label: 'Finanzas',
+    label: 'Contabilidad',
     items: [
       { text: 'Resumen ejecutivo del mes', icon: TrendingUp },
       { text: 'Gráfico de gastos por categoría', icon: BarChart3 },

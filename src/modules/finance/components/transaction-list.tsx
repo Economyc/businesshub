@@ -501,7 +501,7 @@ export function TransactionList() {
         open={inlineAgent.open}
         onOpenChange={inlineAgent.setOpen}
         contextSnapshot={inlineAgent.contextSnapshot}
-        module="Finanzas"
+        module="Contabilidad"
         suggestions={[
           'Categorizar las que no tienen categoría',
           'Encontrar duplicados',
