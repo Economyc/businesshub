@@ -84,6 +84,7 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
   const [kind, setKind] = useState<DocumentKind>(defaultKind)
   const [file, setFile] = useState<File | null>(null)
   const [supplierId, setSupplierId] = useState('')
+  const [customSupplier, setCustomSupplier] = useState('')
   const [docNumber, setDocNumber] = useState('')
   const [date, setDate] = useState(todayLocalISO())
   const [amount, setAmount] = useState('')
@@ -94,15 +95,18 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
   const [error, setError] = useState<string | null>(null)
   const [step, setStep] = useState<'idle' | 'uploading' | 'saving' | 'done'>('idle')
 
-  const supplierName = useMemo(
-    () => suppliers.find((s) => s.id === supplierId)?.name ?? '',
-    [suppliers, supplierId],
-  )
+  const CUSTOM = '__custom__'
+  const isCustom = supplierId === CUSTOM
+  const supplierName = useMemo(() => {
+    if (isCustom) return customSupplier.trim()
+    return suppliers.find((s) => s.id === supplierId)?.name ?? ''
+  }, [suppliers, supplierId, isCustom, customSupplier])
 
   const supplierOptions = useMemo(
     () => [
       { value: '', label: '— Selecciona proveedor —' },
       ...suppliers.map((s) => ({ value: s.id, label: s.name })),
+      { value: CUSTOM, label: '+ Otro proveedor (escribir nombre)' },
     ],
     [suppliers],
   )
@@ -112,6 +116,7 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
       setKind(defaultKind)
       setFile(null)
       setSupplierId('')
+      setCustomSupplier('')
       setDocNumber('')
       setDate(todayLocalISO())
       setAmount('')
@@ -173,7 +178,8 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
   }, [processFile])
 
   function canSubmit(): boolean {
-    return !submitting && !!file && !!supplierId && !!docNumber.trim() && !!date && Number(amount) > 0 && !!category
+    const hasSupplier = isCustom ? !!customSupplier.trim() : !!supplierId
+    return !submitting && !!file && hasSupplier && !!docNumber.trim() && !!date && Number(amount) > 0 && !!category
   }
 
   async function handleSubmit() {
@@ -231,7 +237,9 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
         date: dateTs,
         status: kind === 'invoice' ? 'pending' : 'paid',
         notes: notes.trim() || undefined,
-        payeeRef: { type: 'supplier', id: supplierId, name: supplierName },
+        payeeRef: isCustom
+          ? { type: 'external', id: '', name: supplierName }
+          : { type: 'supplier', id: supplierId, name: supplierName },
         documentKind: kind,
         docNumber: docNumber.trim(),
         sourceDocument,
@@ -368,13 +376,27 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
 
             {/* Form fields */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-caption uppercase tracking-wider text-mid-gray mb-1">Proveedor</label>
-                <SelectInput
-                  value={supplierId}
-                  onChange={setSupplierId}
-                  options={supplierOptions}
-                />
+              <div className={isCustom ? 'sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3' : ''}>
+                <div>
+                  <label className="block text-caption uppercase tracking-wider text-mid-gray mb-1">Proveedor</label>
+                  <SelectInput
+                    value={supplierId}
+                    onChange={(v) => { setSupplierId(v); if (v !== CUSTOM) setCustomSupplier('') }}
+                    options={supplierOptions}
+                  />
+                </div>
+                {isCustom && (
+                  <div>
+                    <label className="block text-caption uppercase tracking-wider text-mid-gray mb-1">Nombre del proveedor</label>
+                    <input
+                      autoFocus
+                      value={customSupplier}
+                      onChange={(e) => setCustomSupplier(e.target.value)}
+                      placeholder="Ej: Ferretería La 70"
+                      className="w-full px-3 py-2.5 rounded-lg border border-input-border bg-input-bg text-body text-graphite placeholder:text-mid-gray/60 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all"
+                    />
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-caption uppercase tracking-wider text-mid-gray mb-1">

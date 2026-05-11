@@ -72,7 +72,10 @@ export function TaskForm({ open, task, onClose }: TaskFormProps) {
   const companyOptions = useMemo(
     () => [
       { value: NO_COMPANY, label: 'Sin etiqueta' },
-      ...companies.map((c) => ({ value: c.id, label: c.name })),
+      ...companies.map((c) => ({
+        value: c.id,
+        label: c.location ? `${c.name} · ${c.location}` : c.name,
+      })),
     ],
     [companies]
   )
