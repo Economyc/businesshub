@@ -19,9 +19,15 @@ export declare class LLMRouter {
     /**
      * Get the best available model. Skips rate-limited providers.
      * If the request includes images, only returns vision-capable models.
+     * Si needsPdfNative=true, solo devuelve providers que pueden leer PDFs como input
+     * (excluye groq-scout que solo lee imágenes).
+     * Si `exclude` está presente, salta esos providers (útil para iterar dentro de una
+     * misma request sin marcarlos rate-limited).
      */
     getModel(options?: {
         needsVision?: boolean;
+        needsPdfNative?: boolean;
+        exclude?: ReadonlySet<string>;
     }): Promise<{
         model: LanguageModelV1;
         provider: string;
@@ -41,6 +47,13 @@ export declare class LLMRouter {
         cooldownRemaining: number;
     }[]>;
 }
+/**
+ * Detecta errores de "no hay saldo / créditos agotados / sin quota prepagada".
+ * Estos NO se recuperan en minutos — necesitan acción manual (topup). Cuando
+ * pasan aplicamos un cooldown largo para no quemar el chain entero en cada
+ * request mientras el dueño recarga.
+ */
+export declare function isCreditDepletedError(error: unknown): boolean;
 /**
  * Check if a streamText error is a rate limit error (HTTP 429).
  */

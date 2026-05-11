@@ -3,16 +3,15 @@ import { Dialog as DialogPrimitive } from '@base-ui/react/dialog'
 import { Sparkles, X, ChevronDown, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AgentChatEmbedded } from './agent-chat-embedded'
+import { buildInlineSubtitle } from '../utils/inline-context'
 
 interface InlineAgentSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   /** Snapshot del contexto que el usuario tiene en pantalla. */
   contextSnapshot?: Record<string, unknown> | null
-  /** Etiqueta legible del modulo (ej. "Finanzas"). */
+  /** Etiqueta legible del modulo (ej. "Facturación"). */
   module: string
-  /** Sugerencias rapidas que se envian directo como prompt al hacer click. */
-  suggestions?: string[]
 }
 
 const MAX_CONTEXT_ROWS = 6
@@ -52,7 +51,6 @@ export function InlineAgentSheet({
   onOpenChange,
   contextSnapshot,
   module,
-  suggestions = [],
 }: InlineAgentSheetProps) {
   const [contextExpanded, setContextExpanded] = useState(false)
   // Cuando el sheet se cierra y vuelve a abrir con otro snapshot, reusamos el
@@ -63,6 +61,8 @@ export function InlineAgentSheet({
     if (!contextSnapshot) return []
     return flattenForDisplay(contextSnapshot)
   }, [contextSnapshot])
+
+  const subtitle = useMemo(() => buildInlineSubtitle(module, contextSnapshot ?? null), [module, contextSnapshot])
 
   const visibleRows = flattened.slice(0, MAX_CONTEXT_ROWS)
   const hiddenCount = Math.max(0, flattened.length - MAX_CONTEXT_ROWS)
@@ -105,7 +105,7 @@ export function InlineAgentSheet({
                 <DialogPrimitive.Title className="text-subheading font-medium text-dark-graphite">
                   Asistente AI
                 </DialogPrimitive.Title>
-                <p className="text-caption text-mid-gray truncate">{module}</p>
+                <p className="text-caption text-mid-gray truncate">{subtitle}</p>
               </div>
             </div>
             <DialogPrimitive.Close
@@ -116,55 +116,38 @@ export function InlineAgentSheet({
             </DialogPrimitive.Close>
           </div>
 
-          {/* Contexto colapsable + sugerencias */}
-          {(flattened.length > 0 || suggestions.length > 0) && (
-            <div className="px-6 py-4 border-b border-border/60 space-y-4">
-              {flattened.length > 0 && (
-                <div>
-                  <button
-                    type="button"
-                    onClick={() => setContextExpanded((v) => !v)}
-                    className="flex items-center gap-1.5 text-caption font-medium text-mid-gray uppercase tracking-wide hover:text-graphite transition-colors"
-                  >
-                    {contextExpanded ? (
-                      <ChevronDown size={12} strokeWidth={2} />
-                    ) : (
-                      <ChevronRight size={12} strokeWidth={2} />
-                    )}
-                    Contexto
-                    <span className="text-mid-gray normal-case tracking-normal font-normal">
-                      ({flattened.length})
-                    </span>
-                  </button>
-                  {contextExpanded && (
-                    <ul className="mt-2 space-y-1">
-                      {visibleRows.map(({ key, value }) => (
-                        <li key={key} className="flex items-start gap-2 text-caption">
-                          <span className="text-mid-gray shrink-0">{key}:</span>
-                          <span className="text-graphite truncate">{value}</span>
-                        </li>
-                      ))}
-                      {hiddenCount > 0 && (
-                        <li className="text-caption text-mid-gray italic">
-                          + {hiddenCount} campos más
-                        </li>
-                      )}
-                    </ul>
+          {/* Contexto colapsable */}
+          {flattened.length > 0 && (
+            <div className="px-6 py-4 border-b border-border/60">
+              <button
+                type="button"
+                onClick={() => setContextExpanded((v) => !v)}
+                className="flex items-center gap-1.5 text-caption font-medium text-mid-gray uppercase tracking-wide hover:text-graphite transition-colors"
+              >
+                {contextExpanded ? (
+                  <ChevronDown size={12} strokeWidth={2} />
+                ) : (
+                  <ChevronRight size={12} strokeWidth={2} />
+                )}
+                Contexto
+                <span className="text-mid-gray normal-case tracking-normal font-normal">
+                  ({flattened.length})
+                </span>
+              </button>
+              {contextExpanded && (
+                <ul className="mt-2 space-y-1">
+                  {visibleRows.map(({ key, value }) => (
+                    <li key={key} className="flex items-start gap-2 text-caption">
+                      <span className="text-mid-gray shrink-0">{key}:</span>
+                      <span className="text-graphite truncate">{value}</span>
+                    </li>
+                  ))}
+                  {hiddenCount > 0 && (
+                    <li className="text-caption text-mid-gray italic">
+                      + {hiddenCount} campos más
+                    </li>
                   )}
-                </div>
-              )}
-
-              {suggestions.length > 0 && (
-                <div>
-                  <p className="text-caption font-medium text-mid-gray uppercase tracking-wide mb-2">
-                    Sugerencias rápidas
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {suggestions.map((s) => (
-                      <SuggestionPill key={s} text={s} chatKey={chatKey} />
-                    ))}
-                  </div>
-                </div>
+                </ul>
               )}
             </div>
           )}
@@ -182,33 +165,3 @@ export function InlineAgentSheet({
   )
 }
 
-/**
- * Pill clickeable que dispara una sugerencia. Como AgentChatEmbedded maneja
- * su propio estado interno, las sugerencias se delegan via un evento
- * personalizado en el documento, escuchado por el chat embebido.
- *
- * Implementacion alternativa: pasar un ref/callback a AgentChatEmbedded. Por
- * ahora el evento mantiene el componente desacoplado del sheet.
- */
-function SuggestionPill({ text, chatKey }: { text: string; chatKey: number }) {
-  function handleClick() {
-    const event = new CustomEvent('inline-agent:suggestion', {
-      detail: { text, chatKey },
-    })
-    window.dispatchEvent(event)
-  }
-  return (
-    <button
-      type="button"
-      onClick={handleClick}
-      className={cn(
-        'px-3 py-1.5 rounded-full border border-border/60 bg-card-bg',
-        'text-caption text-graphite',
-        'hover:bg-bone hover:border-border-hover transition-colors',
-        'active:scale-95',
-      )}
-    >
-      {text}
-    </button>
-  )
-}

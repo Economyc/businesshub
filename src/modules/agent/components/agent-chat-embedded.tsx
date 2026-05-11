@@ -1,5 +1,5 @@
 import { useChat } from '@ai-sdk/react'
-import { useCallback, useEffect } from 'react'
+import { useCallback, useMemo } from 'react'
 import { AlertCircle } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useCompany } from '@/core/hooks/use-company'
@@ -14,6 +14,7 @@ import { exportToPDF, exportToExcel } from '../utils/export-report'
 import { preprocessImage, isImageFile, isSpreadsheetFile, isPdfFile } from '../utils/image-preprocessing'
 import { parseSpreadsheetToText } from '../utils/parse-spreadsheet'
 import { getUserMemory } from '../services'
+import { buildInlinePlaceholder } from '../utils/inline-context'
 
 const AGENT_API_URL = import.meta.env.VITE_AGENT_API_URL || '/api/agent/chat'
 
@@ -186,19 +187,7 @@ export function AgentChatEmbedded({ inlineContext }: AgentChatEmbeddedProps) {
     return true
   }, [selectedCompany, append])
 
-  // Las pills de sugerencias en InlineAgentSheet viven fuera de este componente.
-  // Para evitar acoplar el sheet al estado de useChat, escuchamos un evento
-  // global y disparamos `append` cuando llega.
-  useEffect(() => {
-    function onSuggestion(e: Event) {
-      const detail = (e as CustomEvent<{ text: string }>).detail
-      if (detail?.text) {
-        append({ role: 'user', content: detail.text })
-      }
-    }
-    window.addEventListener('inline-agent:suggestion', onSuggestion)
-    return () => window.removeEventListener('inline-agent:suggestion', onSuggestion)
-  }, [append])
+  const placeholder = useMemo(() => buildInlinePlaceholder(inlineContext ?? null), [inlineContext])
 
   const { toasts, showUndoToast, dismissToast } = useUndoToasts()
 
@@ -309,6 +298,7 @@ export function AgentChatEmbedded({ inlineContext }: AgentChatEmbeddedProps) {
         onToolConfirm={handleToolConfirm}
         onToolCancel={handleToolCancel}
         onExportReport={handleExportReport}
+        variant="embedded"
       />
 
       {error && (
@@ -337,6 +327,7 @@ export function AgentChatEmbedded({ inlineContext }: AgentChatEmbeddedProps) {
         onSendWithFiles={handleSendWithFiles}
         isLoading={isLoading}
         onStop={stop}
+        placeholder={placeholder}
       />
 
       <UndoToastContainer toasts={toasts} onDismiss={dismissToast} />

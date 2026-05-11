@@ -9,6 +9,8 @@ interface ProviderConfig {
   name: string
   createModel: () => LanguageModelV1
   supportsVision: boolean
+  /** True si el provider puede leer PDFs como input vision nativo (Gemini sí, Groq Scout no). */
+  supportsPdfNative: boolean
   /** Default cooldown in ms when 429 is received and no Retry-After is given. */
   defaultCooldownMs: number
 }
@@ -68,6 +70,7 @@ export class LLMRouter {
       name: 'gemini',
       createModel: () => google('gemini-2.5-flash'),
       supportsVision: true,
+      supportsPdfNative: true,
       defaultCooldownMs: DEFAULT_COOLDOWNS.gemini,
     })
     return this
@@ -76,11 +79,13 @@ export class LLMRouter {
   addGroq(apiKey: string) {
     if (!apiKey) return this
     const groq = createGroq({ apiKey })
-    // Vision-capable model first
+    // Vision-capable model first. Scout NO soporta PDFs vía API — solo imágenes
+    // como image_url. Si llega un PDF, el router lo salta.
     this.providers.push({
       name: 'groq-scout',
       createModel: () => groq('meta-llama/llama-4-scout-17b-16e-instruct'),
       supportsVision: true,
+      supportsPdfNative: false,
       defaultCooldownMs: DEFAULT_COOLDOWNS['groq-scout'],
     })
     // Text-only model como fallback adicional
@@ -88,6 +93,7 @@ export class LLMRouter {
       name: 'groq-llama70b',
       createModel: () => groq('llama-3.3-70b-versatile'),
       supportsVision: false,
+      supportsPdfNative: false,
       defaultCooldownMs: DEFAULT_COOLDOWNS['groq-llama70b'],
     })
     return this
@@ -100,6 +106,7 @@ export class LLMRouter {
       name: 'cerebras-llama8b',
       createModel: () => cerebras('llama-3.1-8b'),
       supportsVision: false,
+      supportsPdfNative: false,
       defaultCooldownMs: DEFAULT_COOLDOWNS['cerebras-llama8b'],
     })
     return this
@@ -158,19 +165,33 @@ export class LLMRouter {
   /**
    * Get the best available model. Skips rate-limited providers.
    * If the request includes images, only returns vision-capable models.
+   * Si needsPdfNative=true, solo devuelve providers que pueden leer PDFs como input
+   * (excluye groq-scout que solo lee imágenes).
+   * Si `exclude` está presente, salta esos providers (útil para iterar dentro de una
+   * misma request sin marcarlos rate-limited).
    */
-  async getModel(options?: { needsVision?: boolean }): Promise<{ model: LanguageModelV1; provider: string }> {
+  async getModel(options?: {
+    needsVision?: boolean
+    needsPdfNative?: boolean
+    exclude?: ReadonlySet<string>
+  }): Promise<{ model: LanguageModelV1; provider: string }> {
     const now = Date.now()
     const needsVision = options?.needsVision ?? false
+    const needsPdfNative = options?.needsPdfNative ?? false
+    const exclude = options?.exclude
     const rateLimits = await this.loadRateLimits()
 
     for (const provider of this.providers) {
+      if (exclude?.has(provider.name)) continue
       const until = rateLimits.get(provider.name) ?? 0
       if (until > now) {
         console.log(`[LLMRouter] Skipping ${provider.name} (rate limited until ${new Date(until).toISOString()})`)
         continue
       }
       if (needsVision && !provider.supportsVision) {
+        continue
+      }
+      if (needsPdfNative && !provider.supportsPdfNative) {
         continue
       }
       return { model: provider.createModel(), provider: provider.name }
@@ -226,6 +247,25 @@ export class LLMRouter {
       }
     })
   }
+}
+
+/**
+ * Detecta errores de "no hay saldo / créditos agotados / sin quota prepagada".
+ * Estos NO se recuperan en minutos — necesitan acción manual (topup). Cuando
+ * pasan aplicamos un cooldown largo para no quemar el chain entero en cada
+ * request mientras el dueño recarga.
+ */
+export function isCreditDepletedError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false
+  const msg = error.message.toLowerCase()
+  return (
+    msg.includes('prepayment credits are depleted') ||
+    msg.includes('credits are depleted') ||
+    msg.includes('credits depleted') ||
+    msg.includes('insufficient funds') ||
+    msg.includes('insufficient_quota') ||
+    msg.includes('billing account')
+  )
 }
 
 /**

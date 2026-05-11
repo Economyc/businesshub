@@ -55,6 +55,13 @@ interface MessageListProps {
   // endpoint local del plugin Local REST API.
   onObsidianSave?: (toolCallId: string, result: SaveNoteResult) => void
   onObsidianCancel?: (toolCallId: string) => void
+  /**
+   * 'standalone' (default) renderiza el hero + SUGGESTION_GROUPS cuando no hay
+   * mensajes. 'embedded' deja el cuerpo vacío — usado por el panel lateral en
+   * otros módulos (Facturación, etc.) donde el chat vacío no debe duplicar la
+   * experiencia de la página /agent.
+   */
+  variant?: 'standalone' | 'embedded'
 }
 
 // Encuentra el último texto del usuario antes (o en) un mensaje dado.
@@ -86,6 +93,7 @@ export function MessageList({
   planExecutions,
   onObsidianSave,
   onObsidianCancel,
+  variant = 'standalone',
 }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const endRef = useRef<HTMLDivElement>(null)
@@ -104,6 +112,9 @@ export function MessageList({
   }, [messages, isLoading])
 
   if (messages.length === 0) {
+    if (variant === 'embedded') {
+      return <div className="flex-1 overflow-y-auto" />
+    }
     return (
       <div className="flex-1 overflow-y-auto">
         <div className="flex items-center justify-center min-h-full p-6 sm:p-8">

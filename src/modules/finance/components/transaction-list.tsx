@@ -471,13 +471,7 @@ export function TransactionList() {
         open={inlineAgent.open}
         onOpenChange={inlineAgent.setOpen}
         contextSnapshot={inlineAgent.contextSnapshot}
-        module="Contabilidad"
-        suggestions={[
-          'Cuáles facturas están vencidas',
-          'Top 5 proveedores con más deuda',
-          'Resumen del mes',
-          'Facturas inmediatas por pagar',
-        ]}
+        module="Facturación"
       />
     </PageTransition>
   )

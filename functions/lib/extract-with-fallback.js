@@ -1,15 +1,22 @@
 // Helper genérico de extracción estructurada con cadena de fallback.
-// Estrategia:
-//   1) Vision providers (Gemini, Groq Scout si está) — leen archivo binario directo
-//   2) Si todos los vision fallan y es PDF → pdf-parse extrae texto → text-only
-//      providers (Cerebras) lo procesan como string
-//   3) Si todo falla → ExtractionFailedError con detalle por proveedor
+// Estrategia (orden de intento):
+//   Fase 1 — Vision providers (Gemini, Groq Scout):
+//     * Gemini recibe el archivo como { type: 'file' } (PDF o imagen).
+//     * Groq Scout sólo se usa para imágenes (no soporta PDFs nativos) y
+//       recibe el contenido como { type: 'image' } con data URL base64.
+//   Fase 2 — Si el archivo es PDF y la fase 1 falló:
+//     * pdf-parse extrae texto → Cerebras / Groq-llama70b lo procesan.
+//   Fase 3 — Si el archivo es imagen y la fase 1 falló:
+//     * Google Cloud Vision OCR extrae texto → text-only providers
+//       (Cerebras / Groq-llama70b) lo procesan.
+//   Si todo falla → ExtractionFailedError con detalle por proveedor.
 //
 // El caller decide qué hacer con el error: típicamente devuelve
 // extractionFailed=true al cliente para que muestre toast y permita
 // llenar manualmente.
 import { generateObject } from 'ai';
-import { isRateLimitError, parseRetryAfter } from './llm-router.js';
+import { isRateLimitError, isCreditDepletedError, parseRetryAfter, } from './llm-router.js';
+import { ocrImageBase64 } from './cloud-vision-ocr.js';
 export class ExtractionFailedError extends Error {
     attempts;
     constructor(attempts) {
@@ -19,27 +26,41 @@ export class ExtractionFailedError extends Error {
         this.name = 'ExtractionFailedError';
     }
 }
+/** Cooldown largo cuando un provider se quedó sin créditos prepagados. */
+const CREDITS_DEPLETED_COOLDOWN_MS = 6 * 60 * 60 * 1000; // 6 horas
 /**
- * Intenta extraer datos estructurados de un archivo (imagen o PDF) usando
- * la cadena Gemini → Groq Scout → (PDF only) pdf-parse → Cerebras.
- *
- * Lanza ExtractionFailedError si todos los proveedores fallan.
+ * Construye el content array para `generateObject` según el provider y el tipo
+ * de archivo. Groq y Gemini esperan formatos distintos.
  */
-export async function extractWithFallback(params) {
-    const { router, schema, prompt, fileBase64, mimeType, maxVisionAttempts = 3, maxTextAttempts = 3, } = params;
-    const isPdf = mimeType === 'application/pdf';
-    const attempts = [];
-    let isPrimary = true;
-    // ── Fase 1: vision providers ──────────────────────────────────────
-    for (let i = 0; i < maxVisionAttempts; i++) {
+function buildContent(provider, prompt, fileBase64, mimeType) {
+    // Groq Scout sólo entiende imágenes vía content type 'image' con data URL.
+    if (provider === 'groq-scout') {
+        return [
+            { type: 'text', text: prompt },
+            { type: 'image', image: `data:${mimeType};base64,${fileBase64}` },
+        ];
+    }
+    // Gemini (y cualquier otro provider que se agregue con file-input nativo).
+    return [
+        { type: 'text', text: prompt },
+        { type: 'file', data: fileBase64, mimeType },
+    ];
+}
+/**
+ * Llama a un provider text-only con un prompt + texto adjunto y devuelve el resultado
+ * parseado por el schema. Maneja rate-limit y errores de créditos.
+ */
+async function tryTextOnlyProviders(router, schema, prompt, textBody, textSourceLabel, maxAttempts, attempts) {
+    const tried = new Set();
+    for (let i = 0; i < maxAttempts; i++) {
         let modelInfo;
         try {
-            modelInfo = await router.getModel({ needsVision: true });
+            modelInfo = await router.getModel({ needsVision: false, exclude: tried });
         }
         catch {
-            // No hay vision providers disponibles (todos rate-limited o no configurados)
             break;
         }
+        tried.add(modelInfo.provider);
         try {
             const result = await generateObject({
                 model: modelInfo.model,
@@ -47,10 +68,70 @@ export async function extractWithFallback(params) {
                 messages: [
                     {
                         role: 'user',
-                        content: [
-                            { type: 'text', text: prompt },
-                            { type: 'file', data: fileBase64, mimeType },
-                        ],
+                        content: `${prompt}\n\nTexto extraído (puede estar desordenado por columnas):\n\n${textBody}`,
+                    },
+                ],
+            });
+            return {
+                object: result.object,
+                provider: `${modelInfo.provider}+${textSourceLabel}`,
+            };
+        }
+        catch (err) {
+            const errMsg = err.message ?? String(err);
+            attempts.push({ provider: modelInfo.provider, error: errMsg });
+            console.warn(`[extractWithFallback] ${modelInfo.provider} (text) failed:`, errMsg);
+            if (isCreditDepletedError(err)) {
+                await router.markRateLimited(modelInfo.provider, CREDITS_DEPLETED_COOLDOWN_MS, 'credits depleted');
+                continue;
+            }
+            if (isRateLimitError(err)) {
+                await router.markRateLimited(modelInfo.provider, parseRetryAfter(err), 'extraction 429');
+                continue;
+            }
+            await router.markRateLimited(modelInfo.provider, 30_000, 'extraction error');
+        }
+    }
+    return null;
+}
+/**
+ * Intenta extraer datos estructurados de un archivo (imagen o PDF) usando
+ * la cadena Gemini → Groq Scout (sólo imágenes) → (PDF) pdf-parse → text-only
+ *                                                → (imagen) Cloud Vision OCR → text-only.
+ *
+ * Lanza ExtractionFailedError si todos los proveedores fallan.
+ */
+export async function extractWithFallback(params) {
+    const { router, schema, prompt, fileBase64, mimeType, maxVisionAttempts = 3, maxTextAttempts = 3, } = params;
+    const isPdf = mimeType === 'application/pdf';
+    const isImage = mimeType.startsWith('image/');
+    const attempts = [];
+    let isPrimary = true;
+    // ── Fase 1: vision providers ──────────────────────────────────────
+    const triedVision = new Set();
+    for (let i = 0; i < maxVisionAttempts; i++) {
+        let modelInfo;
+        try {
+            modelInfo = await router.getModel({
+                needsVision: true,
+                // Si es PDF, sólo aceptamos providers con soporte PDF nativo (Gemini).
+                needsPdfNative: isPdf,
+                exclude: triedVision,
+            });
+        }
+        catch {
+            // No quedan vision providers viables — pasar a fase 2/3.
+            break;
+        }
+        triedVision.add(modelInfo.provider);
+        try {
+            const result = await generateObject({
+                model: modelInfo.model,
+                schema,
+                messages: [
+                    {
+                        role: 'user',
+                        content: buildContent(modelInfo.provider, prompt, fileBase64, mimeType),
                     },
                 ],
             });
@@ -64,6 +145,11 @@ export async function extractWithFallback(params) {
             const errMsg = err.message ?? String(err);
             attempts.push({ provider: modelInfo.provider, error: errMsg });
             console.warn(`[extractWithFallback] ${modelInfo.provider} failed:`, errMsg);
+            if (isCreditDepletedError(err)) {
+                await router.markRateLimited(modelInfo.provider, CREDITS_DEPLETED_COOLDOWN_MS, 'credits depleted');
+                isPrimary = false;
+                continue;
+            }
             if (isRateLimitError(err)) {
                 await router.markRateLimited(modelInfo.provider, parseRetryAfter(err), 'extraction 429');
                 isPrimary = false;
@@ -100,44 +186,37 @@ export async function extractWithFallback(params) {
             throw new ExtractionFailedError(attempts);
         }
         // Truncar texto muy largo para no exceder context windows pequeños (Cerebras 8B = 8K tokens).
-        // 20K chars ≈ 5K tokens, deja espacio para prompt + schema + output.
         const truncated = pdfText.length > 20_000 ? pdfText.slice(0, 20_000) + '\n[...truncado]' : pdfText;
-        for (let i = 0; i < maxTextAttempts; i++) {
-            let modelInfo;
-            try {
-                modelInfo = await router.getModel({ needsVision: false });
-            }
-            catch {
-                break;
-            }
-            try {
-                const result = await generateObject({
-                    model: modelInfo.model,
-                    schema,
-                    messages: [
-                        {
-                            role: 'user',
-                            content: `${prompt}\n\nTexto extraído del PDF (puede estar desordenado por columnas):\n\n${truncated}`,
-                        },
-                    ],
-                });
-                return {
-                    object: result.object,
-                    provider: `${modelInfo.provider}+pdf-parse`,
-                    fallbackUsed: true,
-                };
-            }
-            catch (err) {
-                const errMsg = err.message ?? String(err);
-                attempts.push({ provider: modelInfo.provider, error: errMsg });
-                console.warn(`[extractWithFallback] ${modelInfo.provider} (text) failed:`, errMsg);
-                if (isRateLimitError(err)) {
-                    await router.markRateLimited(modelInfo.provider, parseRetryAfter(err), 'extraction 429');
-                    continue;
-                }
-                await router.markRateLimited(modelInfo.provider, 30_000, 'extraction error');
-            }
+        const success = await tryTextOnlyProviders(router, schema, prompt, truncated, 'pdf-parse', maxTextAttempts, attempts);
+        if (success) {
+            return { object: success.object, provider: success.provider, fallbackUsed: true };
         }
+        throw new ExtractionFailedError(attempts);
+    }
+    // ── Fase 3: imagen → Cloud Vision OCR → text-only providers ───────
+    if (isImage) {
+        let ocrText;
+        try {
+            ocrText = await ocrImageBase64(fileBase64);
+        }
+        catch (err) {
+            const errMsg = err.message ?? String(err);
+            attempts.push({ provider: 'cloud-vision-ocr', error: errMsg });
+            throw new ExtractionFailedError(attempts);
+        }
+        if (!ocrText) {
+            attempts.push({
+                provider: 'cloud-vision-ocr',
+                error: 'Imagen sin texto detectable',
+            });
+            throw new ExtractionFailedError(attempts);
+        }
+        const truncated = ocrText.length > 20_000 ? ocrText.slice(0, 20_000) + '\n[...truncado]' : ocrText;
+        const success = await tryTextOnlyProviders(router, schema, prompt, truncated, 'vision-ocr', maxTextAttempts, attempts);
+        if (success) {
+            return { object: success.object, provider: success.provider, fallbackUsed: true };
+        }
+        throw new ExtractionFailedError(attempts);
     }
     throw new ExtractionFailedError(attempts);
 }

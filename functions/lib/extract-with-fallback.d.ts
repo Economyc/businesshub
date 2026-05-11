@@ -9,12 +9,12 @@ interface ExtractParams<T> {
     mimeType: string;
     /** Máximo de proveedores vision a intentar antes de caer a text-only. Default 3. */
     maxVisionAttempts?: number;
-    /** Máximo de proveedores text-only a intentar (solo aplica para PDFs). Default 3. */
+    /** Máximo de proveedores text-only a intentar (PDF text o image OCR). Default 3. */
     maxTextAttempts?: number;
 }
 interface ExtractResult<T> {
     object: T;
-    /** Provider que tuvo éxito. Ej: 'gemini', 'groq-scout', 'cerebras-llama8b+pdf-parse' */
+    /** Provider que tuvo éxito. Ej: 'gemini', 'groq-scout', 'cerebras-llama8b+pdf-parse', 'cerebras-llama8b+vision-ocr' */
     provider: string;
     /** True si tuvo que caer a un proveedor secundario (no fue el primario). */
     fallbackUsed: boolean;
@@ -29,7 +29,8 @@ export declare class ExtractionFailedError extends Error {
 }
 /**
  * Intenta extraer datos estructurados de un archivo (imagen o PDF) usando
- * la cadena Gemini → Groq Scout → (PDF only) pdf-parse → Cerebras.
+ * la cadena Gemini → Groq Scout (sólo imágenes) → (PDF) pdf-parse → text-only
+ *                                                → (imagen) Cloud Vision OCR → text-only.
  *
  * Lanza ExtractionFailedError si todos los proveedores fallan.
  */

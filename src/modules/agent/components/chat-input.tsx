@@ -24,9 +24,10 @@ interface ChatInputProps {
   onSendWithFiles?: (text: string, files: File[]) => Promise<boolean> | boolean | void
   isLoading: boolean
   onStop?: () => void
+  placeholder?: string
 }
 
-export function ChatInput({ input, onInputChange, onSubmit, onSendWithFiles, isLoading, onStop }: ChatInputProps) {
+export function ChatInput({ input, onInputChange, onSubmit, onSendWithFiles, isLoading, onStop, placeholder }: ChatInputProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [attachedFiles, setAttachedFiles] = useState<File[]>([])
@@ -393,7 +394,7 @@ export function ChatInput({ input, onInputChange, onSubmit, onSendWithFiles, isL
               handleTextareaInput()
             }}
             onKeyDown={handleKeyDown}
-            placeholder={attachedFiles.length > 0 ? 'Describe qué hacer con el archivo...' : 'Pregunta sobre tus datos... ( / para comandos)'}
+            placeholder={attachedFiles.length > 0 ? 'Describe qué hacer con el archivo...' : (placeholder ?? 'Pregunta sobre tus datos... ( / para comandos)')}
             rows={1}
             className={cn(
               'w-full resize-none bg-transparent px-4 py-2.5 text-body text-graphite',
