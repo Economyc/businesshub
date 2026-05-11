@@ -225,7 +225,7 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
     <>
       <AnimatePresence>
         {open && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
             {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
@@ -241,10 +241,10 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
               initial="initial"
               animate="animate"
               exit="exit"
-              className="relative bg-surface-elevated rounded-xl shadow-xl border border-border w-full max-w-lg max-h-[90vh] flex flex-col z-10"
+              className="relative bg-surface-elevated rounded-xl shadow-xl border border-border w-full max-w-lg lg:max-w-xl max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-2rem)] flex flex-col z-10"
             >
               {/* Header */}
-              <div className="flex items-center justify-between px-6 pt-5 pb-3 shrink-0 border-b border-border">
+              <div className="flex items-center justify-between px-4 sm:px-6 pt-4 sm:pt-5 pb-3 shrink-0 border-b border-border">
                 <h2 className="text-subheading font-semibold text-dark-graphite">
                   {loading ? 'Cargando...' : isLinked ? 'Transacción Vinculada' : transactionId ? 'Editar Transacción' : 'Nueva Transacción'}
                 </h2>
@@ -290,7 +290,7 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
-                  <div className="overflow-y-auto px-6 py-5 flex-1">
+                  <div className="overflow-y-auto px-4 sm:px-6 py-5 flex-1">
                   {isRecurring && (
                     <div className="mb-4 px-3 py-2 rounded-lg bg-purple-50 border border-purple-200 text-caption text-purple-700">
                       Generada automáticamente desde una transacción recurrente.
@@ -440,7 +440,7 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
                   </div>
 
                   </div>
-                  <div className="flex gap-3 px-6 py-4 border-t border-border shrink-0">
+                  <div className="flex gap-3 px-4 sm:px-6 py-4 border-t border-border shrink-0">
                     <button
                       type="submit"
                       disabled={saveMutation.isPending}
