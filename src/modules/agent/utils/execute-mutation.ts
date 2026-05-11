@@ -11,7 +11,14 @@ import { notificationService } from '@/modules/notifications/services'
 import { templateService, contractService } from '@/modules/contracts/services'
 import type { EmployeeFormData } from '@/modules/talent/types'
 import type { SupplierFormData } from '@/modules/suppliers/types'
-import type { TransactionFormData, PayeeRef, PayeeType, PayableFile, DocumentKind } from '@/modules/finance/types'
+import type {
+  TransactionFormData,
+  PayeeRef,
+  PayeeType,
+  PayableFile,
+  DocumentKind,
+  TransactionPriority,
+} from '@/modules/finance/types'
 import type { ClosingFormData } from '@/modules/closings/types'
 import type { InfluencerVisitFormData, SocialNetwork, SocialPlatform } from '@/modules/marketing/influencers/types'
 import type { NotificationFormData, NotificationType } from '@/modules/notifications/types'
@@ -314,6 +321,9 @@ export async function executeMutation(
       if (changes.date) updateData.date = toTimestamp(String(changes.date))
       if (changes.status) updateData.status = changes.status as 'paid' | 'pending'
       if (changes.notes !== undefined) updateData.notes = String(changes.notes)
+      if (changes.priority) updateData.priority = changes.priority as TransactionPriority
+      if (changes.documentKind) updateData.documentKind = changes.documentKind as DocumentKind
+      if (changes.paidDate) updateData.paidDate = toTimestamp(String(changes.paidDate))
       await financeService.update(companyId, String(id), updateData)
       return { success: true, message: 'Transacción actualizada exitosamente.' }
     }
@@ -321,6 +331,97 @@ export async function executeMutation(
     case 'deleteTransaction': {
       await financeService.remove(companyId, String(args.id))
       return { success: true, message: `Transacción "${args.concept}" eliminada.` }
+    }
+
+    case 'quickMarkInvoiceAsPaid': {
+      const id = String(args.id)
+      const existing = await financeService.getById(companyId, id)
+      if (!existing) return { success: false, message: 'No encontré esa factura.' }
+      if (existing.status !== 'pending') {
+        return { success: false, message: 'Esa factura no está pendiente — ya está pagada o cancelada.' }
+      }
+      const paidDateStr = args.paidDate
+        ? String(args.paidDate)
+        : new Date().toISOString().slice(0, 10)
+      await financeService.update(companyId, id, {
+        status: 'paid',
+        paidDate: toTimestamp(paidDateStr),
+      } as Partial<TransactionFormData>)
+      const supplier = args.supplierName ? ` de ${String(args.supplierName)}` : ''
+      const amountLabel =
+        args.amount !== undefined ? ` por $${Number(args.amount).toLocaleString('es-CO')}` : ''
+      return {
+        success: true,
+        message: `Factura "${String(args.concept)}"${supplier}${amountLabel} marcada como Pagada.`,
+        id,
+      }
+    }
+
+    case 'bulkMarkAsPaid': {
+      const items =
+        (args.items as Array<{ id: string; concept?: string; amount?: number }>) ?? []
+      if (items.length === 0) {
+        return { success: false, message: 'No se recibieron facturas a marcar como pagadas.' }
+      }
+      const paidDateStr = args.paidDate
+        ? String(args.paidDate)
+        : new Date().toISOString().slice(0, 10)
+      const paidTs = toTimestamp(paidDateStr)
+
+      const results = await Promise.allSettled(
+        items.map((it) =>
+          financeService.update(companyId, String(it.id), {
+            status: 'paid',
+            paidDate: paidTs,
+          } as Partial<TransactionFormData>),
+        ),
+      )
+
+      const failed = results
+        .map((r, i) => ({ r, item: items[i] }))
+        .filter((x) => x.r.status === 'rejected')
+
+      const successCount = results.length - failed.length
+      const failSummary = failed.length
+        ? ` (${failed.length} fallaron: ${failed.map((f) => f.item.concept ?? f.item.id).join(', ')})`
+        : ''
+      return {
+        success: successCount > 0,
+        message: `${successCount} de ${items.length} facturas marcadas como Pagadas${failSummary}.`,
+      }
+    }
+
+    case 'bulkSetPriority': {
+      const items = (args.items as Array<{ id: string; concept?: string }>) ?? []
+      const priority = args.priority as TransactionPriority
+      if (items.length === 0) {
+        return { success: false, message: 'No se recibieron transacciones a actualizar.' }
+      }
+      if (priority !== 'immediate' && priority !== 'waiting') {
+        return { success: false, message: 'Prioridad inválida — debe ser "immediate" o "waiting".' }
+      }
+
+      const results = await Promise.allSettled(
+        items.map((it) =>
+          financeService.update(companyId, String(it.id), {
+            priority,
+          } as Partial<TransactionFormData>),
+        ),
+      )
+
+      const failed = results
+        .map((r, i) => ({ r, item: items[i] }))
+        .filter((x) => x.r.status === 'rejected')
+
+      const successCount = results.length - failed.length
+      const priorityLabel = priority === 'immediate' ? 'urgente' : 'normal'
+      const failSummary = failed.length
+        ? ` (${failed.length} fallaron: ${failed.map((f) => f.item.concept ?? f.item.id).join(', ')})`
+        : ''
+      return {
+        success: successCount > 0,
+        message: `${successCount} de ${items.length} marcadas como ${priorityLabel}${failSummary}.`,
+      }
     }
 
     case 'updateBudget': {
@@ -642,6 +743,10 @@ export async function executeMutation(
         uploadedAt: Timestamp.now(),
       }
 
+      const priorityArg =
+        args.priority === 'immediate' || args.priority === 'waiting'
+          ? (args.priority as TransactionPriority)
+          : undefined
       const data: TransactionFormData = {
         concept: `${payeeRef.name} - ${docType} ${docNumber}`,
         category,
@@ -655,6 +760,7 @@ export async function executeMutation(
         docNumber,
         sourceDocument,
         ...(documentKind === 'purchase' ? { paidDate: dateTs } : {}),
+        ...(documentKind === 'invoice' && priorityArg ? { priority: priorityArg } : {}),
       }
       const id = await financeService.create(companyId, data)
       void reportProgressClient(toolCallId, { label: 'Guardado', status: 'done' })

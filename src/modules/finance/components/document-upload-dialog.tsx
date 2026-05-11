@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Upload, X, FileText, ImageIcon, FileIcon, Loader2, AlertCircle, Check } from 'lucide-react'
+import { Upload, X, FileText, ImageIcon, FileIcon, Loader2, AlertCircle, Check, Sparkles } from 'lucide-react'
 import { httpsCallable } from 'firebase/functions'
 import { Timestamp } from 'firebase/firestore'
 import { CategorySelect } from '@/core/ui/category-select'
@@ -13,7 +13,10 @@ import { useCompany } from '@/core/hooks/use-company'
 import { useCollection } from '@/core/hooks/use-firestore'
 import { queryClient } from '@/core/query/query-client'
 import { financeService } from '../services'
+import { generateVirtualInvoicePDF } from '../utils/generate-virtual-invoice-pdf'
 import type { DocumentKind, PayableFile, TransactionPriority } from '../types'
+
+type UploadMode = 'file' | 'virtual'
 
 const MAX_SIZE = 10 * 1024 * 1024 // 10 MB
 const ACCEPTED_MIMES = [
@@ -82,6 +85,7 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
   const [isDragging, setIsDragging] = useState(false)
 
   const [kind, setKind] = useState<DocumentKind>(defaultKind)
+  const [mode, setMode] = useState<UploadMode>('file')
   const [file, setFile] = useState<File | null>(null)
   const [supplierId, setSupplierId] = useState('')
   const [customSupplier, setCustomSupplier] = useState('')
@@ -115,6 +119,7 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
   useEffect(() => {
     if (open) {
       setKind(defaultKind)
+      setMode('file')
       setFile(null)
       setSupplierId('')
       setCustomSupplier('')
@@ -181,17 +186,44 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
 
   function canSubmit(): boolean {
     const hasSupplier = isCustom ? !!customSupplier.trim() : !!supplierId
-    return !submitting && !!file && hasSupplier && !!docNumber.trim() && !!date && Number(amount) > 0 && !!category
+    const isVirtual = kind === 'invoice' && mode === 'virtual'
+    const hasFile = isVirtual ? true : !!file
+    return !submitting && hasFile && hasSupplier && !!docNumber.trim() && !!date && Number(amount) > 0 && !!category
   }
 
   async function handleSubmit() {
-    if (!canSubmit() || !file || !companyId) return
+    if (!canSubmit() || !companyId) return
+    const isVirtual = kind === 'invoice' && mode === 'virtual'
+    if (!isVirtual && !file) return
+
     setSubmitting(true)
     setError(null)
     try {
-      // 1) Subir archivo a Drive via callable.
+      // 1) Preparar archivo:
+      //    - file: subida normal, mimeType del archivo original
+      //    - virtual: generamos PDF en cliente con jspdf, mimeType pdf
       setStep('uploading')
-      const base64 = await fileToBase64(file)
+      let fileBase64: string
+      let fileName: string
+      let mimeType: string
+      if (isVirtual) {
+        fileBase64 = await generateVirtualInvoicePDF({
+          companyName: selectedCompany?.name ?? 'Empresa',
+          supplierName,
+          docNumber: docNumber.trim(),
+          date,
+          amount: Number(amount),
+          category,
+          notes: notes.trim() || undefined,
+        })
+        fileName = `Factura virtual - ${supplierName} ${docNumber.trim()}.pdf`
+        mimeType = 'application/pdf'
+      } else {
+        fileBase64 = await fileToBase64(file!)
+        fileName = file!.name
+        mimeType = file!.type
+      }
+
       const fns = await getAppFunctions()
       const upload = httpsCallable<
         {
@@ -214,9 +246,9 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
         supplierName,
         docNumber: docNumber.trim(),
         date,
-        fileBase64: base64,
-        fileName: file.name,
-        mimeType: file.type,
+        fileBase64,
+        fileName,
+        mimeType,
       })
 
       // 2) Crear transaction con sourceDocument.
@@ -226,10 +258,10 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
         driveFileId: uploadRes.data.driveFileId,
         driveWebViewLink: uploadRes.data.webViewLink,
         fileName: uploadRes.data.fileName,
-        mimeType: file.type,
+        mimeType,
         uploadedAt: Timestamp.now(),
       }
-      const conceptLabel = `${supplierName} - ${docType} ${docNumber.trim()}`
+      const conceptLabel = `${supplierName} - ${docType} ${docNumber.trim()}${isVirtual ? ' (virtual)' : ''}`
 
       await financeService.create(companyId, {
         concept: conceptLabel,
@@ -284,7 +316,9 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
           className="bg-surface rounded-2xl card-elevated w-full max-w-xl max-h-[90vh] overflow-y-auto"
         >
           <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-            <h2 className="text-subheading font-medium text-graphite">Subir documento</h2>
+            <h2 className="text-subheading font-medium text-graphite">
+              {kind === 'invoice' && mode === 'virtual' ? 'Crear factura virtual' : 'Subir documento'}
+            </h2>
             <button
               type="button"
               onClick={() => { if (!submitting) onClose() }}
@@ -309,7 +343,7 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
               </button>
               <button
                 type="button"
-                onClick={() => setKind('purchase')}
+                onClick={() => { setKind('purchase'); setMode('file') }}
                 disabled={submitting}
                 className={`px-4 py-2 rounded-md text-body font-medium transition-colors ${
                   kind === 'purchase' ? 'bg-surface text-graphite card-elevated' : 'text-mid-gray hover:text-graphite'
@@ -324,7 +358,41 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
                 : 'Compra ya pagada al momento. Se registra como Pagada directamente.'}
             </p>
 
-            {/* Drop zone */}
+            {/* Toggle Archivo | Virtual (solo para facturas) */}
+            {kind === 'invoice' && (
+              <div className="grid grid-cols-2 gap-2 p-1 rounded-lg bg-bone/60 border border-border/60">
+                <button
+                  type="button"
+                  onClick={() => setMode('file')}
+                  disabled={submitting}
+                  className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-body font-medium transition-colors ${
+                    mode === 'file' ? 'bg-surface text-graphite card-elevated' : 'text-mid-gray hover:text-graphite'
+                  }`}
+                >
+                  <Upload size={14} strokeWidth={1.5} />
+                  Tengo archivo
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setMode('virtual'); setFile(null) }}
+                  disabled={submitting}
+                  className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-body font-medium transition-colors ${
+                    mode === 'virtual' ? 'bg-surface text-graphite card-elevated' : 'text-mid-gray hover:text-graphite'
+                  }`}
+                >
+                  <Sparkles size={14} strokeWidth={1.5} />
+                  Factura virtual
+                </button>
+              </div>
+            )}
+            {kind === 'invoice' && mode === 'virtual' && (
+              <p className="text-caption text-mid-gray -mt-3">
+                Se genera un PDF placeholder con los datos y se guarda en Drive. Útil cuando se perdió el papel físico.
+              </p>
+            )}
+
+            {/* Drop zone — solo cuando tenemos archivo real */}
+            {mode === 'file' && (
             <div
               onDragEnter={handleDragEnter}
               onDragLeave={handleDragLeave}
@@ -376,6 +444,7 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
                 </div>
               )}
             </div>
+            )}
 
             {/* Form fields */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -458,7 +527,7 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
             {step === 'uploading' && (
               <div className="flex items-center gap-2 text-caption text-mid-gray">
                 <Loader2 size={14} className="animate-spin" />
-                Subiendo a Drive...
+                {kind === 'invoice' && mode === 'virtual' ? 'Generando PDF y subiendo a Drive...' : 'Subiendo a Drive...'}
               </div>
             )}
             {step === 'saving' && (
@@ -489,7 +558,13 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
               disabled={!canSubmit()}
               className="px-4 py-2 rounded-lg btn-primary text-body font-medium transition-all disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {submitting ? 'Procesando…' : kind === 'invoice' ? 'Crear factura' : 'Crear compra'}
+              {submitting
+                ? 'Procesando…'
+                : kind === 'invoice'
+                  ? mode === 'virtual'
+                    ? 'Crear factura virtual'
+                    : 'Crear factura'
+                  : 'Crear compra'}
             </button>
           </div>
         </motion.div>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Check, X, AlertTriangle, UserPlus, UserMinus, Briefcase, DollarSign, Pencil, Trash2, Wallet, PlusCircle, CheckCircle2, Split, ArrowRight, Loader2 } from 'lucide-react'
+import { Check, X, AlertTriangle, UserPlus, UserMinus, Briefcase, DollarSign, Pencil, Trash2, Wallet, PlusCircle, CheckCircle2, Split, ArrowRight, Loader2, ListChecks, Flag } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useCompany } from '@/core/hooks/use-company'
 import { supplierService } from '@/modules/suppliers/services'
@@ -27,6 +27,9 @@ const TOOL_CONFIG: Record<string, { label: string; type: ActionType; icon: typeo
   createSplitExpense: { label: 'Crear Gasto Compartido', type: 'create', icon: Split },
   updateTransaction: { label: 'Actualizar Transacción', type: 'update', icon: Pencil },
   deleteTransaction: { label: 'Eliminar Transacción', type: 'delete', icon: Trash2 },
+  quickMarkInvoiceAsPaid: { label: 'Marcar Factura como Pagada', type: 'update', icon: CheckCircle2 },
+  bulkMarkAsPaid: { label: 'Marcar Facturas como Pagadas', type: 'update', icon: ListChecks },
+  bulkSetPriority: { label: 'Cambiar Prioridad', type: 'update', icon: Flag },
   updateBudget: { label: 'Actualizar Presupuesto', type: 'update', icon: Wallet },
   addBudgetItem: { label: 'Agregar Item de Presupuesto', type: 'create', icon: PlusCircle },
   deleteBudgetItem: { label: 'Eliminar Item de Presupuesto', type: 'delete', icon: Trash2 },
@@ -62,10 +65,14 @@ const TYPE_STYLES: Record<ActionType, { bg: string; border: string; icon: string
 }
 
 // Fields that should not be shown to the user
-const HIDDEN_FIELDS = new Set(['id', 'splits', 'totalAmount', 'splitMode'])
+const HIDDEN_FIELDS = new Set(['id', 'splits', 'totalAmount', 'splitMode', 'items', 'summary'])
 
 function formatFieldName(key: string): string {
   const labels: Record<string, string> = {
+    priority: 'Prioridad',
+    documentKind: 'Tipo doc.',
+    paidDate: 'Fecha pago',
+    supplierName: 'Proveedor',
     name: 'Nombre',
     identification: 'Identificación',
     role: 'Cargo',
@@ -127,6 +134,12 @@ function formatValue(key: string, value: unknown): string {
     }
     return statusLabels[String(value)] ?? String(value)
   }
+  if (key === 'priority') {
+    return value === 'immediate' ? 'Urgente' : value === 'waiting' ? 'Normal' : String(value)
+  }
+  if (key === 'documentKind') {
+    return value === 'invoice' ? 'Factura' : value === 'purchase' ? 'Compra' : String(value)
+  }
   // Firestore Timestamp-shaped value
   if (value && typeof value === 'object' && 'seconds' in (value as Record<string, unknown>)) {
     const seconds = Number((value as { seconds: number }).seconds)
@@ -135,6 +148,52 @@ function formatValue(key: string, value: unknown): string {
     }
   }
   return String(value)
+}
+
+interface BulkItem {
+  id: string
+  concept?: string
+  amount?: number
+}
+
+function renderBulkItems(args: Record<string, unknown>, toolName: string) {
+  const items = (args.items as BulkItem[] | undefined) ?? []
+  if (items.length === 0) return null
+  const summary = args.summary ? String(args.summary) : null
+  const priority = args.priority as string | undefined
+  const headerExtra =
+    toolName === 'bulkSetPriority' && priority
+      ? ` · prioridad → ${priority === 'immediate' ? 'Urgente' : 'Normal'}`
+      : ''
+  const total = items.reduce((s, it) => s + (Number(it.amount) || 0), 0)
+  const showTotal = items.some((it) => typeof it.amount === 'number')
+
+  return (
+    <div className="rounded-lg bg-card-bg p-4 mb-4 border border-border/60">
+      <div className="text-caption text-mid-gray font-medium mb-2">
+        {summary ?? `${items.length} ${items.length === 1 ? 'item' : 'items'}`}
+        {headerExtra}
+      </div>
+      <div className="space-y-1 max-h-48 overflow-y-auto">
+        {items.map((it, i) => (
+          <div key={`${it.id}-${i}`} className="flex items-baseline justify-between gap-2 text-caption">
+            <span className="text-dark-graphite truncate">{it.concept ?? it.id}</span>
+            {typeof it.amount === 'number' && (
+              <span className="text-dark-graphite tabular-nums shrink-0">
+                ${Number(it.amount).toLocaleString('es-CO')}
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+      {showTotal && (
+        <div className="mt-2 pt-2 border-t border-border/60 flex items-baseline justify-between text-caption font-semibold">
+          <span className="text-graphite">Total</span>
+          <span className="text-dark-graphite tabular-nums">${total.toLocaleString('es-CO')}</span>
+        </div>
+      )}
+    </div>
+  )
 }
 
 interface SplitItem {
@@ -292,6 +351,7 @@ export function ConfirmationCard({ toolName, args, onConfirm, onCancel, userQuot
   const Icon = config.icon
   const isUpdate = isUpdateTool(toolName)
   const isSplit = toolName === 'createSplitExpense'
+  const isBulk = toolName === 'bulkMarkAsPaid' || toolName === 'bulkSetPriority'
 
   useEffect(() => {
     let cancelled = false
@@ -338,8 +398,11 @@ export function ConfirmationCard({ toolName, args, onConfirm, onCancel, userQuot
       {/* Split breakdown (solo para createSplitExpense) */}
       {isSplit && renderSplits(args)}
 
+      {/* Bulk: lista de items afectados */}
+      {isBulk && renderBulkItems(args, toolName)}
+
       {/* Update: diff antes → después */}
-      {isUpdate && (
+      {isUpdate && !isBulk && (
         <div className="mb-4">
           {loadingPrev ? (
             <div className="flex items-center gap-2 text-caption text-mid-gray">
@@ -398,7 +461,7 @@ export function ConfirmationCard({ toolName, args, onConfirm, onCancel, userQuot
       )}
 
       {/* Create / delete: lista plana de campos */}
-      {!isUpdate && !isSplit && (
+      {!isUpdate && !isSplit && !isBulk && (
         <div className="space-y-1.5 mb-4">
           {fields.map(([key, value]) => (
             <div key={key} className="flex items-baseline gap-2 text-caption">
