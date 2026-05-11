@@ -75,6 +75,9 @@ export function TaskCard({ task, onToggleStatus, onClick }: TaskCardProps) {
 
       {(task.companyTag || priorityVariant) && (
         <div className="flex flex-wrap items-center gap-2">
+          {priorityVariant && (
+            <Badge variant={priorityVariant}>{PRIORITY_LABEL[task.priority]}</Badge>
+          )}
           {task.companyTag && (
             <Badge
               variant="default"
@@ -86,9 +89,6 @@ export function TaskCard({ task, onToggleStatus, onClick }: TaskCardProps) {
             >
               {task.companyTag.name}
             </Badge>
-          )}
-          {priorityVariant && (
-            <Badge variant={priorityVariant}>{PRIORITY_LABEL[task.priority]}</Badge>
           )}
         </div>
       )}
