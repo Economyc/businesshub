@@ -101,6 +101,7 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
   const [step, setStep] = useState<'idle' | 'uploading' | 'saving' | 'done'>('idle')
   const [analyzing, setAnalyzing] = useState(false)
   const [aiFilled, setAiFilled] = useState(false)
+  const [aiFailed, setAiFailed] = useState(false)
 
   const CUSTOM = '__custom__'
   const isCustom = supplierId === CUSTOM
@@ -136,6 +137,7 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
       setSubmitting(false)
       setAnalyzing(false)
       setAiFilled(false)
+      setAiFailed(false)
     }
   }, [open, defaultKind])
 
@@ -152,6 +154,7 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
     if (!companyId) return
     setAnalyzing(true)
     setAiFilled(false)
+    setAiFailed(false)
     try {
       const base64 = await fileToBase64(f)
       const fns = await getAppFunctions()
@@ -168,9 +171,18 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
           }
           supplierMatch?: { id: string; name: string; score: number }
           categoryExists: boolean
+          extractionFailed?: boolean
+          provider?: string
+          fallbackUsed?: boolean
         }
       >(fns, 'analyzeInvoiceDocument')
       const res = await analyze({ companyId, fileBase64: base64, mimeType: f.type, kind })
+
+      if (res.data.extractionFailed) {
+        setAiFailed(true)
+        return
+      }
+
       const x = res.data.extracted
 
       // Pre-llenar campos. Si la AI no devolvió algo, no sobreescribir
@@ -187,10 +199,14 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
       if (x.amount > 0) setAmount(String(x.amount))
       if (x.category) setCategory(x.category)
       if (x.notes) setNotes(x.notes)
-      setAiFilled(true)
+
+      // aiFilled solo si al menos un campo se llenó
+      const filled = !!(x.supplierName || x.docNumber || x.amount > 0 || x.category)
+      setAiFilled(filled)
     } catch (err) {
-      // El análisis es opcional: si falla, no bloqueamos al usuario.
+      // Error de red o callable rechazada — mostramos como fallo IA.
       console.error('analyzeInvoiceDocument failed', err)
+      setAiFailed(true)
     } finally {
       setAnalyzing(false)
     }
@@ -490,7 +506,7 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
                   </div>
                   <button
                     type="button"
-                    onClick={(e) => { e.stopPropagation(); setFile(null); setAiFilled(false) }}
+                    onClick={(e) => { e.stopPropagation(); setFile(null); setAiFilled(false); setAiFailed(false) }}
                     disabled={submitting || analyzing}
                     className="p-1.5 rounded-lg text-mid-gray hover:text-graphite hover:bg-bone transition-colors disabled:opacity-50"
                   >
@@ -512,6 +528,12 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
               <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-positive-bg/50 border border-positive/20 text-caption text-positive-text">
                 <Sparkles size={13} strokeWidth={1.5} />
                 Campos pre-llenados por IA. Revisa antes de guardar.
+              </div>
+            )}
+            {aiFailed && !analyzing && (
+              <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-warning-bg/50 border border-warning/20 text-caption text-warning-text">
+                <AlertCircle size={13} strokeWidth={1.5} className="mt-0.5 shrink-0" />
+                <span>No pudimos leer el documento con IA. Llena los campos manualmente.</span>
               </div>
             )}
 

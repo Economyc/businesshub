@@ -21,5 +21,8 @@ export declare const analyzePaymentReceipt: import("firebase-functions/v2/https"
         amount: number;
         date: string | null;
     }[];
+    extractionFailed: boolean;
+    provider: string;
+    fallbackUsed: boolean;
 }>, unknown>;
 //# sourceMappingURL=analyze-payment-receipt.d.ts.map

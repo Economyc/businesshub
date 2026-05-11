@@ -13,5 +13,8 @@ export declare const analyzeInvoiceDocument: import("firebase-functions/v2/https
         score: number;
     } | undefined;
     categoryExists: boolean;
+    extractionFailed: boolean;
+    provider: string;
+    fallbackUsed: boolean;
 }>, unknown>;
 //# sourceMappingURL=analyze-invoice-document.d.ts.map

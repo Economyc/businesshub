@@ -1,21 +1,25 @@
-// Callable que analiza una factura o compra (PDF o imagen) con Gemini
-// Flash 2.5 y extrae los campos del formulario:
-//   supplierName, docNumber, date, amount, category, notes
+// Callable que analiza una factura o compra (PDF o imagen) y extrae los
+// campos del formulario: supplierName, docNumber, date, amount, category, notes.
 //
-// Para la categoría, recibe la lista de categorías que la empresa ya
-// usa y pide al modelo que escoja la mejor (o sugiera nueva si nada
-// calza). Devuelve también un sugerido de match contra el listado de
-// proveedores registrados (suppliers) para que el cliente pueda
-// auto-seleccionar en el dropdown sin que el usuario teclee de nuevo.
+// Cadena de proveedores (en extract-with-fallback.ts):
+//   1) Gemini 2.5 Flash (vision nativo, lee PDFs e imágenes directo)
+//   2) Groq Llama 4 Scout (vision, si GROQ_API_KEY está configurada)
+//   3) Para PDFs solamente: pdf-parse → Cerebras Llama 3.1 8B
+//
+// La respuesta incluye flags para que el cliente sepa si la extracción
+// realmente falló (vs. salió vacía intencionalmente porque el documento
+// no era legible).
 
 import { onCall, HttpsError } from 'firebase-functions/v2/https'
 import { defineSecret } from 'firebase-functions/params'
-import { createGoogleGenerativeAI } from '@ai-sdk/google'
-import { generateObject } from 'ai'
 import { z } from 'zod'
 import { db } from './firestore.js'
+import { LLMRouter } from './llm-router.js'
+import { extractWithFallback, ExtractionFailedError } from './extract-with-fallback.js'
 
 const geminiApiKey = defineSecret('GEMINI_API_KEY')
+const groqApiKey = defineSecret('GROQ_API_KEY')
+const cerebrasApiKey = defineSecret('CEREBRAS_API_KEY')
 
 interface AnalyzeInput {
   companyId: string
@@ -70,6 +74,15 @@ const ExtractionSchema = z.object({
 
 type Extraction = z.infer<typeof ExtractionSchema>
 
+const EMPTY_EXTRACTION: Extraction = {
+  supplierName: '',
+  docNumber: '',
+  date: '',
+  amount: 0,
+  category: '',
+  notes: undefined,
+}
+
 function normalize(s: string): string {
   return (s || '')
     .toLowerCase()
@@ -94,8 +107,25 @@ function similarSupplier(extractedName: string, supplierName: string): number {
   return shared / Math.max(ta.size, tb.size)
 }
 
+// Singleton router (sobrevive entre invocaciones warm).
+let router: LLMRouter | null = null
+function getRouter(): LLMRouter {
+  if (!router) {
+    router = new LLMRouter()
+      .addGemini(geminiApiKey.value())
+      .addGroq(groqApiKey.value())
+      .addCerebras(cerebrasApiKey.value())
+  }
+  return router
+}
+
 export const analyzeInvoiceDocument = onCall(
-  { region: 'us-central1', memory: '512MiB', timeoutSeconds: 60, secrets: [geminiApiKey] },
+  {
+    region: 'us-central1',
+    memory: '512MiB',
+    timeoutSeconds: 60,
+    secrets: [geminiApiKey, groqApiKey, cerebrasApiKey],
+  },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Login requerido')
@@ -110,8 +140,7 @@ export const analyzeInvoiceDocument = onCall(
 
     await assertCompanyMember(request.auth.uid, data.companyId)
 
-    // Cargar categorías y proveedores para que el modelo escoja del
-    // catálogo existente cuando aplique.
+    // Cargar categorías y proveedores para que el modelo escoja del catálogo.
     const [settingsSnap, suppliersSnap] = await Promise.all([
       db.collection('companies').doc(data.companyId).collection('settings').doc('categories').get(),
       db.collection('companies').doc(data.companyId).collection('suppliers').get(),
@@ -136,45 +165,40 @@ export const analyzeInvoiceDocument = onCall(
       ? `Categorías existentes en la empresa (devuelve una de estas si calza, exacta): ${categoryItems.join(', ')}.`
       : 'No hay categorías registradas todavía — propone una en español capitalizada.'
 
-    const apiKey = geminiApiKey.value()
-    if (!apiKey) throw new HttpsError('failed-precondition', 'GEMINI_API_KEY no configurada')
-    const google = createGoogleGenerativeAI({ apiKey })
-    const model = google('gemini-2.5-flash')
+    const prompt =
+      `Este documento es una ${docKindLabel}. Extrae los campos del formulario:\n` +
+      `- supplierName: razón social o nombre comercial del proveedor que EMITE el documento (no el cliente).\n` +
+      `- docNumber: solo el número/código de la factura, recibo o cuenta de cobro.\n` +
+      `- date: fecha de emisión en YYYY-MM-DD.\n` +
+      `- amount: total a pagar (sin separadores ni símbolos), solo el número.\n` +
+      `- category: ${categoryHint}\n` +
+      `- notes (opcional): 1 línea con concepto o descripción si aparece.\n\n` +
+      `Si algún campo no se puede leer con seguridad, déjalo vacío (string vacío o 0). NO inventes datos.`
 
-    let extracted: Extraction
+    let extracted: Extraction = EMPTY_EXTRACTION
+    let extractionFailed = false
+    let provider = 'none'
+    let fallbackUsed = false
+
     try {
-      const result = await generateObject({
-        model,
+      const result = await extractWithFallback({
+        router: getRouter(),
         schema: ExtractionSchema,
-        messages: [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text:
-                  `Este documento es una ${docKindLabel}. Extrae los campos del formulario:\n` +
-                  `- supplierName: razón social o nombre comercial del proveedor que EMITE el documento (no el cliente).\n` +
-                  `- docNumber: solo el número/código de la factura, recibo o cuenta de cobro.\n` +
-                  `- date: fecha de emisión en YYYY-MM-DD.\n` +
-                  `- amount: total a pagar (sin separadores ni símbolos), solo el número.\n` +
-                  `- category: ${categoryHint}\n` +
-                  `- notes (opcional): 1 línea con concepto o descripción si aparece.\n\n` +
-                  `Si algún campo no se puede leer con seguridad, déjalo vacío (string vacío o 0). NO inventes datos.`,
-              },
-              {
-                type: 'file',
-                data: data.fileBase64,
-                mimeType: data.mimeType,
-              },
-            ],
-          },
-        ],
+        prompt,
+        fileBase64: data.fileBase64,
+        mimeType: data.mimeType,
       })
       extracted = result.object
+      provider = result.provider
+      fallbackUsed = result.fallbackUsed
+      console.log(`[analyzeInvoiceDocument] extracted via ${provider} (fallback=${fallbackUsed})`)
     } catch (err) {
-      extracted = { supplierName: '', docNumber: '', date: '', amount: 0, category: '', notes: undefined }
-      console.error('analyzeInvoiceDocument: gemini extraction failed', err)
+      extractionFailed = true
+      if (err instanceof ExtractionFailedError) {
+        console.error('[analyzeInvoiceDocument] all providers failed:', err.attempts)
+      } else {
+        console.error('[analyzeInvoiceDocument] unexpected error:', err)
+      }
     }
 
     // Match de proveedor contra el catálogo registrado.
@@ -188,14 +212,15 @@ export const analyzeInvoiceDocument = onCall(
       }
     }
 
-    // Si la categoría devuelta no calza exactamente con alguna existente,
-    // devolvemos también la propuesta para que el cliente sepa que es nueva.
     const categoryExists = categoryItems.includes(extracted.category)
 
     return {
       extracted,
       supplierMatch,
       categoryExists,
+      extractionFailed,
+      provider,
+      fallbackUsed,
     }
   },
 )

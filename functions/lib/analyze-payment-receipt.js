@@ -1,22 +1,21 @@
-// Callable que analiza un comprobante de pago con Gemini Flash 2.5,
-// extrae proveedor + monto + fecha, y devuelve la mejor sugerencia de
-// factura pendiente (status='pending', documentKind='invoice') más
-// la lista completa de candidatos para que el usuario pueda escoger
-// manualmente si la sugerencia no calza.
+// Callable que analiza un comprobante de pago (PDF o imagen), extrae
+// proveedor + monto + fecha + referencia, y devuelve la mejor sugerencia
+// de factura pendiente (status='pending', documentKind='invoice') más
+// la lista completa de candidatos.
 //
-// El cliente:
-//   1. Llama analyzePaymentReceipt con el archivo en base64
-//   2. Muestra la sugerencia con badge de confianza
-//   3. Al confirmar: sube el archivo a Drive (uploadDocumentToDrive con
-//      docType='Pago') y actualiza la transaction (status='paid',
-//      paidDate, paymentProof). No se reusa esta callable en ese paso.
+// Cadena de proveedores (en extract-with-fallback.ts):
+//   1) Gemini 2.5 Flash (vision)
+//   2) Groq Llama 4 Scout (vision, si GROQ_API_KEY está configurada)
+//   3) Para PDFs solamente: pdf-parse → Cerebras Llama 3.1 8B
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { generateObject } from 'ai';
 import { z } from 'zod';
 import { db } from './firestore.js';
+import { LLMRouter } from './llm-router.js';
+import { extractWithFallback, ExtractionFailedError } from './extract-with-fallback.js';
 const geminiApiKey = defineSecret('GEMINI_API_KEY');
+const groqApiKey = defineSecret('GROQ_API_KEY');
+const cerebrasApiKey = defineSecret('CEREBRAS_API_KEY');
 async function assertCompanyMember(uid, companyId) {
     const snap = await db
         .collection('companies')
@@ -47,6 +46,12 @@ const ExtractionSchema = z.object({
         .optional()
         .describe('Número de referencia, transacción o factura asociada si aparece visible.'),
 });
+const EMPTY_EXTRACTION = {
+    supplierName: '',
+    amount: 0,
+    date: '',
+    referenceNumber: undefined,
+};
 function normalize(s) {
     return (s || '')
         .toLowerCase()
@@ -65,7 +70,6 @@ function nameSimilarity(a, b) {
         return 1;
     if (na.includes(nb) || nb.includes(na))
         return 0.85;
-    // Token overlap
     const ta = new Set(na.split(' ').filter((x) => x.length > 2));
     const tb = new Set(nb.split(' ').filter((x) => x.length > 2));
     if (ta.size === 0 || tb.size === 0)
@@ -86,7 +90,23 @@ function tsToDateStr(ts) {
     const d = new Date(seconds * 1000);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
-export const analyzePaymentReceipt = onCall({ region: 'us-central1', memory: '512MiB', timeoutSeconds: 60, secrets: [geminiApiKey] }, async (request) => {
+// Singleton router.
+let router = null;
+function getRouter() {
+    if (!router) {
+        router = new LLMRouter()
+            .addGemini(geminiApiKey.value())
+            .addGroq(groqApiKey.value())
+            .addCerebras(cerebrasApiKey.value());
+    }
+    return router;
+}
+export const analyzePaymentReceipt = onCall({
+    region: 'us-central1',
+    memory: '512MiB',
+    timeoutSeconds: 60,
+    secrets: [geminiApiKey, groqApiKey, cerebrasApiKey],
+}, async (request) => {
     if (!request.auth) {
         throw new HttpsError('unauthenticated', 'Login requerido');
     }
@@ -98,45 +118,37 @@ export const analyzePaymentReceipt = onCall({ region: 'us-central1', memory: '51
     if (!data.mimeType)
         throw new HttpsError('invalid-argument', 'mimeType requerido');
     await assertCompanyMember(request.auth.uid, data.companyId);
-    // 1) Extraer datos del comprobante con Gemini Vision.
-    const apiKey = geminiApiKey.value();
-    if (!apiKey)
-        throw new HttpsError('failed-precondition', 'GEMINI_API_KEY no configurada');
-    const google = createGoogleGenerativeAI({ apiKey });
-    const model = google('gemini-2.5-flash');
-    let extracted;
+    // 1) Extraer datos del comprobante con la cadena de fallback.
+    const prompt = 'Este es un comprobante de pago (transferencia, recibo, soporte bancario, etc.). ' +
+        'Extrae el nombre del proveedor/beneficiario que RECIBE el dinero, el monto pagado, ' +
+        'la fecha del pago y un número de referencia si aparece visible. ' +
+        'Para amount devuelve solo el número sin separadores ni símbolo. ' +
+        'Si algún campo no está claro, déjalo vacío (string vacío o 0). NO inventes datos.';
+    let extracted = EMPTY_EXTRACTION;
+    let extractionFailed = false;
+    let provider = 'none';
+    let fallbackUsed = false;
     try {
-        const result = await generateObject({
-            model,
+        const result = await extractWithFallback({
+            router: getRouter(),
             schema: ExtractionSchema,
-            messages: [
-                {
-                    role: 'user',
-                    content: [
-                        {
-                            type: 'text',
-                            text: 'Este es un comprobante de pago (transferencia, recibo, soporte bancario, etc.). ' +
-                                'Extrae el nombre del proveedor/beneficiario que RECIBE el dinero, el monto pagado, ' +
-                                'la fecha del pago y un número de referencia si aparece visible. ' +
-                                'Para amount devuelve solo el número sin separadores ni símbolo. ' +
-                                'Si algún campo no está claro, déjalo vacío (string vacío o 0). NO inventes datos.',
-                        },
-                        {
-                            type: 'file',
-                            data: data.fileBase64,
-                            mimeType: data.mimeType,
-                        },
-                    ],
-                },
-            ],
+            prompt,
+            fileBase64: data.fileBase64,
+            mimeType: data.mimeType,
         });
         extracted = result.object;
+        provider = result.provider;
+        fallbackUsed = result.fallbackUsed;
+        console.log(`[analyzePaymentReceipt] extracted via ${provider} (fallback=${fallbackUsed})`);
     }
     catch (err) {
-        // Si Gemini falla devolvemos extracted vacío para que el cliente
-        // muestre directamente el dropdown manual.
-        extracted = { supplierName: '', amount: 0, date: '', referenceNumber: undefined };
-        console.error('analyzePaymentReceipt: gemini extraction failed', err);
+        extractionFailed = true;
+        if (err instanceof ExtractionFailedError) {
+            console.error('[analyzePaymentReceipt] all providers failed:', err.attempts);
+        }
+        else {
+            console.error('[analyzePaymentReceipt] unexpected error:', err);
+        }
     }
     // 2) Traer pending invoices de la empresa.
     const txSnap = await db
@@ -157,20 +169,18 @@ export const analyzePaymentReceipt = onCall({ region: 'us-central1', memory: '51
             date: tsToDateStr(t.date),
         };
     });
-    // 3) Rankear contra el extracted. Combina similitud de nombre +
-    //    cercanía de monto. Tolerancia ±5% para confianza alta.
+    // 3) Rankear contra el extracted. Combina similitud de nombre + cercanía de monto.
     const candidates = pendings.map((p) => {
         const nameScore = nameSimilarity(extracted.supplierName, p.supplierName);
         const amountDeltaPct = p.amount > 0
             ? Math.abs(extracted.amount - p.amount) / p.amount
             : 1;
-        // Score: ponderado — nombre 60% + monto 40% (con caída suave del monto).
-        const amountScore = Math.max(0, 1 - amountDeltaPct * 4); // 5% off → 0.8, 25% off → 0
+        const amountScore = Math.max(0, 1 - amountDeltaPct * 4);
         const score = nameScore * 0.6 + amountScore * 0.4;
         return { invoiceId: p.id, ...p, nameScore, amountDeltaPct, score };
     });
     candidates.sort((a, b) => b.score - a.score);
-    // 4) Construir sugerencia top con nivel de confianza.
+    // 4) Sugerencia top con nivel de confianza.
     let suggestion;
     const top = candidates[0];
     if (top && top.score > 0.1) {
@@ -194,6 +204,24 @@ export const analyzePaymentReceipt = onCall({ region: 'us-central1', memory: '51
             amountDeltaPct: top.amountDeltaPct,
         };
     }
+    // 5) Fallback adicional: si la extracción no dio nombre pero hay UNA SOLA factura
+    //    pendiente con monto exacto (±2%), sugerirla con confianza media. Esto cubre
+    //    comprobantes bancarios COL (Bancolombia/Nequi/PSE) que rara vez traen nombre.
+    if (!suggestion && extracted.amount > 0) {
+        const exactAmount = candidates.filter((c) => Math.abs(extracted.amount - c.amount) / c.amount <= 0.02);
+        if (exactAmount.length === 1) {
+            const c = exactAmount[0];
+            suggestion = {
+                invoiceId: c.invoiceId,
+                docNumber: c.docNumber,
+                supplierName: c.supplierName,
+                amount: c.amount,
+                date: c.date,
+                confidence: 'medium',
+                amountDeltaPct: c.amountDeltaPct,
+            };
+        }
+    }
     return {
         extracted,
         suggestion,
@@ -204,6 +232,9 @@ export const analyzePaymentReceipt = onCall({ region: 'us-central1', memory: '51
             amount: c.amount,
             date: c.date,
         })),
+        extractionFailed,
+        provider,
+        fallbackUsed,
     };
 });
 //# sourceMappingURL=analyze-payment-receipt.js.map

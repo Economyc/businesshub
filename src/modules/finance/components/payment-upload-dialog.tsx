@@ -54,6 +54,9 @@ interface AnalysisResult {
     amount: number
     date: string | null
   }>
+  extractionFailed?: boolean
+  provider?: string
+  fallbackUsed?: boolean
 }
 
 function fileIcon(mime: string) {
@@ -170,7 +173,9 @@ export function PaymentUploadDialog({ open, onClose, onSaved, pendingInvoices }:
       >(fns, 'analyzePaymentReceipt')
       const res = await analyze({ companyId, fileBase64: base64, mimeType: f.type })
       setAnalysis(res.data)
-      if (res.data.suggestion) {
+      if (res.data.extractionFailed) {
+        setAnalyzeError('No pudimos leer el comprobante con IA — escoge la factura manualmente.')
+      } else if (res.data.suggestion) {
         setSelectedInvoiceId(res.data.suggestion.invoiceId)
       }
       // Si la AI extrajo una fecha, pre-llena el campo de pago.
