@@ -106,7 +106,7 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
     () => [
       { value: '', label: '— Selecciona proveedor —' },
       ...suppliers.map((s) => ({ value: s.id, label: s.name })),
-      { value: CUSTOM, label: '+ Otro proveedor (escribir nombre)' },
+      { value: CUSTOM, label: '+ Otro Proveedor' },
     ],
     [suppliers],
   )
