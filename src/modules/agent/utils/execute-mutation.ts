@@ -687,21 +687,33 @@ export async function executeMutation(
         return { success: false, message: 'Faltan campos requeridos (proveedor, número, fecha, monto, categoría).' }
       }
 
-      // Resuelve supplier (debe existir — sino el match no es confiable).
-      const resolution = await resolvePayeeOnCompany(companyId, 'supplier', supplierName)
-      if (!resolution.ok) {
-        if (resolution.reason === 'ambiguous') {
+      // Resolución del proveedor:
+      //  - customSupplier=true  → external (proveedor ocasional, no se registra).
+      //  - customSupplier=false → busca en suppliers; si no existe, devuelve error
+      //    pidiendo confirmación para usar custom o registrarlo primero.
+      const useCustomSupplier = args.customSupplier === true
+      let payeeRef: PayeeRef
+      if (useCustomSupplier) {
+        payeeRef = { type: 'external', id: 'external', name: supplierName }
+      } else {
+        const resolution = await resolvePayeeOnCompany(companyId, 'supplier', supplierName)
+        if (!resolution.ok) {
+          if (resolution.reason === 'ambiguous') {
+            return {
+              success: false,
+              message: `Hay varios "${supplierName}" registrados. Sé más específico.`,
+            }
+          }
           return {
             success: false,
-            message: `Hay varios "${supplierName}" registrados. Sé más específico.`,
+            message:
+              `No encontré "${supplierName}" en proveedores. ` +
+              `Si es un proveedor ocasional que no quieres registrar, vuelve a intentarlo pasando customSupplier=true. ` +
+              `Si debería quedar registrado, crea primero el proveedor.`,
           }
         }
-        return {
-          success: false,
-          message: `No encontré "${supplierName}" en proveedores. Créalo primero antes de subir la factura.`,
-        }
+        payeeRef = resolution.payee
       }
-      const payeeRef: PayeeRef = resolution.payee
 
       // Sube a Drive.
       const docType: 'Factura' | 'Compra' = documentKind === 'invoice' ? 'Factura' : 'Compra'
