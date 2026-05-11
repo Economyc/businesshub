@@ -11,6 +11,7 @@ import { useCompany } from '@/core/hooks/use-company'
 import { queryClient } from '@/core/query/query-client'
 import { formatCurrency } from '@/core/utils/format'
 import { financeService } from '../services'
+import { AiUsageBanner, type AiUsageSnapshot } from './ai-usage-banner'
 import type { Transaction, PayableFile, TransactionFormData } from '../types'
 
 const MAX_SIZE = 10 * 1024 * 1024
@@ -57,6 +58,7 @@ interface AnalysisResult {
   extractionFailed?: boolean
   provider?: string
   fallbackUsed?: boolean
+  usage?: AiUsageSnapshot
 }
 
 function fileIcon(mime: string) {
@@ -424,6 +426,10 @@ export function PaymentUploadDialog({ open, onClose, onSaved, pendingInvoices }:
                 <AlertCircle size={14} strokeWidth={2} className="mt-0.5 shrink-0" />
                 <span>No pudimos analizar el archivo: {analyzeError}. Escoge la factura manualmente.</span>
               </div>
+            )}
+
+            {analysis?.usage && !analyzing && (
+              <AiUsageBanner usage={analysis.usage} provider={analysis.provider} />
             )}
 
             {/* Sugerencia AI */}

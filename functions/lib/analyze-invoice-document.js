@@ -15,6 +15,7 @@ import { z } from 'zod';
 import { db } from './firestore.js';
 import { LLMRouter } from './llm-router.js';
 import { extractWithFallback, ExtractionFailedError } from './extract-with-fallback.js';
+import { getUsageSnapshot } from './ai-usage-stats.js';
 const geminiApiKey = defineSecret('GEMINI_API_KEY');
 const groqApiKey = defineSecret('GROQ_API_KEY');
 const cerebrasApiKey = defineSecret('CEREBRAS_API_KEY');
@@ -187,6 +188,14 @@ export const analyzeInvoiceDocument = onCall({
         }
     }
     const categoryExists = categoryItems.includes(extracted.category);
+    // Snapshot mensual de uso IA (fail-soft: si Firestore falla, omitimos).
+    let usage;
+    try {
+        usage = await getUsageSnapshot();
+    }
+    catch (err) {
+        console.warn('[analyzeInvoiceDocument] getUsageSnapshot failed:', err);
+    }
     return {
         extracted,
         supplierMatch,
@@ -194,6 +203,7 @@ export const analyzeInvoiceDocument = onCall({
         extractionFailed,
         provider,
         fallbackUsed,
+        usage,
     };
 });
 //# sourceMappingURL=analyze-invoice-document.js.map

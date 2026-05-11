@@ -14,6 +14,7 @@ import { useCollection } from '@/core/hooks/use-firestore'
 import { queryClient } from '@/core/query/query-client'
 import { financeService } from '../services'
 import { generateVirtualInvoicePDF } from '../utils/generate-virtual-invoice-pdf'
+import { AiUsageBanner, type AiUsageSnapshot } from './ai-usage-banner'
 import type { DocumentKind, PayableFile, TransactionPriority } from '../types'
 
 type UploadMode = 'file' | 'virtual'
@@ -102,6 +103,8 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
   const [analyzing, setAnalyzing] = useState(false)
   const [aiFilled, setAiFilled] = useState(false)
   const [aiFailed, setAiFailed] = useState(false)
+  const [usage, setUsage] = useState<AiUsageSnapshot | null>(null)
+  const [aiProvider, setAiProvider] = useState<string | undefined>(undefined)
 
   const CUSTOM = '__custom__'
   const isCustom = supplierId === CUSTOM
@@ -138,6 +141,8 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
       setAnalyzing(false)
       setAiFilled(false)
       setAiFailed(false)
+      setUsage(null)
+      setAiProvider(undefined)
     }
   }, [open, defaultKind])
 
@@ -174,9 +179,13 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
           extractionFailed?: boolean
           provider?: string
           fallbackUsed?: boolean
+          usage?: AiUsageSnapshot
         }
       >(fns, 'analyzeInvoiceDocument')
       const res = await analyze({ companyId, fileBase64: base64, mimeType: f.type, kind })
+
+      if (res.data.usage) setUsage(res.data.usage)
+      setAiProvider(res.data.provider)
 
       if (res.data.extractionFailed) {
         setAiFailed(true)
@@ -506,7 +515,7 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
                   </div>
                   <button
                     type="button"
-                    onClick={(e) => { e.stopPropagation(); setFile(null); setAiFilled(false); setAiFailed(false) }}
+                    onClick={(e) => { e.stopPropagation(); setFile(null); setAiFilled(false); setAiFailed(false); setUsage(null); setAiProvider(undefined) }}
                     disabled={submitting || analyzing}
                     className="p-1.5 rounded-lg text-mid-gray hover:text-graphite hover:bg-bone transition-colors disabled:opacity-50"
                   >
@@ -536,6 +545,7 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
                 <span>No pudimos leer el documento con IA. Llena los campos manualmente.</span>
               </div>
             )}
+            {usage && !analyzing && <AiUsageBanner usage={usage} provider={aiProvider} />}
 
             {/* Form fields */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

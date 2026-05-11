@@ -17,6 +17,7 @@
 import { generateObject } from 'ai';
 import { isRateLimitError, isCreditDepletedError, parseRetryAfter, } from './llm-router.js';
 import { ocrImageBase64 } from './cloud-vision-ocr.js';
+import { recordUsage, providerToField } from './ai-usage-stats.js';
 export class ExtractionFailedError extends Error {
     attempts;
     constructor(attempts) {
@@ -28,6 +29,17 @@ export class ExtractionFailedError extends Error {
 }
 /** Cooldown largo cuando un provider se quedó sin créditos prepagados. */
 const CREDITS_DEPLETED_COOLDOWN_MS = 6 * 60 * 60 * 1000; // 6 horas
+/** Telemetría fire-and-forget de éxito por provider. No bloquea la respuesta. */
+function trackSuccess(provider) {
+    const field = providerToField(provider);
+    if (field)
+        void recordUsage(field);
+    void recordUsage('totalExtractions');
+}
+/** Telemetría fire-and-forget de fallo total del chain. */
+function trackFailure() {
+    void recordUsage('totalFailed');
+}
 /**
  * Construye el content array para `generateObject` según el provider y el tipo
  * de archivo. Groq y Gemini esperan formatos distintos.
@@ -72,6 +84,7 @@ async function tryTextOnlyProviders(router, schema, prompt, textBody, textSource
                     },
                 ],
             });
+            trackSuccess(modelInfo.provider);
             return {
                 object: result.object,
                 provider: `${modelInfo.provider}+${textSourceLabel}`,
@@ -135,6 +148,7 @@ export async function extractWithFallback(params) {
                     },
                 ],
             });
+            trackSuccess(modelInfo.provider);
             return {
                 object: result.object,
                 provider: modelInfo.provider,
@@ -183,6 +197,7 @@ export async function extractWithFallback(params) {
                 provider: 'pdf-parse',
                 error: 'PDF sin texto extraíble (probablemente escaneado o solo imágenes)',
             });
+            trackFailure();
             throw new ExtractionFailedError(attempts);
         }
         // Truncar texto muy largo para no exceder context windows pequeños (Cerebras 8B = 8K tokens).
@@ -191,17 +206,22 @@ export async function extractWithFallback(params) {
         if (success) {
             return { object: success.object, provider: success.provider, fallbackUsed: true };
         }
+        trackFailure();
         throw new ExtractionFailedError(attempts);
     }
     // ── Fase 3: imagen → Cloud Vision OCR → text-only providers ───────
     if (isImage) {
         let ocrText;
+        // Contamos contra el free tier antes de invocar — si el shot va a llegar
+        // a Cloud Vision aunque luego falle el parsing, igual nos cobra el OCR.
+        void recordUsage('cloudVisionOcr');
         try {
             ocrText = await ocrImageBase64(fileBase64);
         }
         catch (err) {
             const errMsg = err.message ?? String(err);
             attempts.push({ provider: 'cloud-vision-ocr', error: errMsg });
+            trackFailure();
             throw new ExtractionFailedError(attempts);
         }
         if (!ocrText) {
@@ -209,6 +229,7 @@ export async function extractWithFallback(params) {
                 provider: 'cloud-vision-ocr',
                 error: 'Imagen sin texto detectable',
             });
+            trackFailure();
             throw new ExtractionFailedError(attempts);
         }
         const truncated = ocrText.length > 20_000 ? ocrText.slice(0, 20_000) + '\n[...truncado]' : ocrText;
@@ -216,8 +237,10 @@ export async function extractWithFallback(params) {
         if (success) {
             return { object: success.object, provider: success.provider, fallbackUsed: true };
         }
+        trackFailure();
         throw new ExtractionFailedError(attempts);
     }
+    trackFailure();
     throw new ExtractionFailedError(attempts);
 }
 //# sourceMappingURL=extract-with-fallback.js.map

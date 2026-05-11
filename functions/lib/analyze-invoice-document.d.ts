@@ -1,3 +1,4 @@
+import { type UsageSnapshot } from './ai-usage-stats.js';
 export declare const analyzeInvoiceDocument: import("firebase-functions/v2/https").CallableFunction<any, Promise<{
     extracted: {
         date: string;
@@ -16,5 +17,6 @@ export declare const analyzeInvoiceDocument: import("firebase-functions/v2/https
     extractionFailed: boolean;
     provider: string;
     fallbackUsed: boolean;
+    usage: UsageSnapshot | undefined;
 }>, unknown>;
 //# sourceMappingURL=analyze-invoice-document.d.ts.map

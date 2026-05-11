@@ -13,6 +13,7 @@ import { z } from 'zod';
 import { db } from './firestore.js';
 import { LLMRouter } from './llm-router.js';
 import { extractWithFallback, ExtractionFailedError } from './extract-with-fallback.js';
+import { getUsageSnapshot } from './ai-usage-stats.js';
 const geminiApiKey = defineSecret('GEMINI_API_KEY');
 const groqApiKey = defineSecret('GROQ_API_KEY');
 const cerebrasApiKey = defineSecret('CEREBRAS_API_KEY');
@@ -222,6 +223,13 @@ export const analyzePaymentReceipt = onCall({
             };
         }
     }
+    let usage;
+    try {
+        usage = await getUsageSnapshot();
+    }
+    catch (err) {
+        console.warn('[analyzePaymentReceipt] getUsageSnapshot failed:', err);
+    }
     return {
         extracted,
         suggestion,
@@ -235,6 +243,7 @@ export const analyzePaymentReceipt = onCall({
         extractionFailed,
         provider,
         fallbackUsed,
+        usage,
     };
 });
 //# sourceMappingURL=analyze-payment-receipt.js.map
