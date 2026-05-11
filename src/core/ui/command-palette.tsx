@@ -5,21 +5,20 @@ import { AnimatePresence, motion } from 'framer-motion'
 import {
   Search, Home, BarChart3, Users, Briefcase, DollarSign, Handshake,
   ClipboardList, FileSignature, Building2, Tags, BadgeCheck, Network,
-  ArrowRight, Clock, Plus, CornerDownLeft, Wallet, Gift,
+  ArrowRight, Clock, Plus, CornerDownLeft,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useEmployees } from '@/modules/talent/hooks'
 import { useTransactions } from '@/modules/finance/hooks'
 import { useSuppliers } from '@/modules/suppliers/hooks'
 import { usePartners } from '@/modules/partners/hooks'
-import { usePurchases } from '@/modules/purchases/hooks'
 import { formatCurrency } from '@/core/utils/format'
 
 // --- Types ---
 
 interface SearchResult {
   id: string
-  type: 'navigation' | 'action' | 'employee' | 'transaction' | 'supplier' | 'partner' | 'purchase' | 'recent'
+  type: 'navigation' | 'action' | 'employee' | 'transaction' | 'supplier' | 'partner' | 'recent'
   label: string
   description?: string
   icon: React.ReactNode
@@ -35,24 +34,16 @@ const STROKE = 1.5
 
 const NAV_RESULTS: SearchResult[] = [
   { id: 'nav-home', type: 'navigation', label: 'Home', icon: <Home size={ICON_SIZE} strokeWidth={STROKE} />, to: '/home', keywords: 'inicio home dashboard' },
-  { id: 'nav-analytics', type: 'navigation', label: 'Analisis', icon: <BarChart3 size={ICON_SIZE} strokeWidth={STROKE} />, to: '/analytics', keywords: 'reportes estadisticas graficos kpi metricas analytics analisis costos nomina compras' },
-  { id: 'nav-analytics-costs', type: 'navigation', label: 'Estructura de Costos', icon: <BarChart3 size={ICON_SIZE} strokeWidth={STROKE} />, to: '/analytics/costs', keywords: 'costos estructura fijos variables rubros gastos' },
-  { id: 'nav-analytics-purchases', type: 'navigation', label: 'Analisis de Compras', icon: <BarChart3 size={ICON_SIZE} strokeWidth={STROKE} />, to: '/analytics/purchases', keywords: 'compras insumos proveedores tendencia productos' },
-  { id: 'nav-analytics-payroll', type: 'navigation', label: 'Analisis de Nomina', icon: <BarChart3 size={ICON_SIZE} strokeWidth={STROKE} />, to: '/analytics/payroll', keywords: 'nomina salarios empleados departamentos cargos' },
-  { id: 'nav-talent', type: 'navigation', label: 'Equipo', icon: <Users size={ICON_SIZE} strokeWidth={STROKE} />, to: '/talent', keywords: 'empleados personas equipo talento recurso humano nomina' },
-  { id: 'nav-suppliers', type: 'navigation', label: 'Proveedores', icon: <Briefcase size={ICON_SIZE} strokeWidth={STROKE} />, to: '/suppliers', keywords: 'proveedores compras suministros vendors' },
+  { id: 'nav-analytics', type: 'navigation', label: 'Analisis', icon: <BarChart3 size={ICON_SIZE} strokeWidth={STROKE} />, to: '/analytics', keywords: 'reportes estadisticas graficos kpi metricas analytics analisis pos ventas' },
+  { id: 'nav-talent', type: 'navigation', label: 'Equipo', icon: <Users size={ICON_SIZE} strokeWidth={STROKE} />, to: '/talent', keywords: 'empleados personas equipo talento recurso humano' },
+  { id: 'nav-suppliers', type: 'navigation', label: 'Proveedores', icon: <Briefcase size={ICON_SIZE} strokeWidth={STROKE} />, to: '/suppliers', keywords: 'proveedores suministros vendors' },
   { id: 'nav-finance', type: 'navigation', label: 'Finanzas', icon: <DollarSign size={ICON_SIZE} strokeWidth={STROKE} />, to: '/finance', keywords: 'finanzas transacciones pagos ingresos egresos contabilidad' },
-  { id: 'nav-purchases', type: 'navigation', label: 'Compras', icon: <DollarSign size={ICON_SIZE} strokeWidth={STROKE} />, to: '/finance/purchases', keywords: 'compras insumos pedidos ordenes proveedores' },
-  { id: 'nav-products', type: 'navigation', label: 'Catalogo de Insumos', icon: <DollarSign size={ICON_SIZE} strokeWidth={STROKE} />, to: '/finance/purchases/products', keywords: 'insumos productos catalogo ingredientes inventario' },
   { id: 'nav-cashflow', type: 'navigation', label: 'Flujo de Caja', icon: <DollarSign size={ICON_SIZE} strokeWidth={STROKE} />, to: '/finance/cash-flow', keywords: 'flujo caja efectivo cash flow saldo entradas salidas balance' },
   { id: 'nav-income', type: 'navigation', label: 'Estado de Resultados', icon: <DollarSign size={ICON_SIZE} strokeWidth={STROKE} />, to: '/finance/income-statement', keywords: 'estado resultados p&l perdidas ganancias utilidad margen' },
   { id: 'nav-budget', type: 'navigation', label: 'Presupuesto vs Real', icon: <DollarSign size={ICON_SIZE} strokeWidth={STROKE} />, to: '/finance/budget', keywords: 'presupuesto budget meta objetivo comparar real ejecucion' },
   { id: 'nav-import', type: 'navigation', label: 'Importar Transacciones', icon: <DollarSign size={ICON_SIZE} strokeWidth={STROKE} />, to: '/finance/import', keywords: 'importar csv excel transacciones carga masiva' },
-  { id: 'nav-reconciliation', type: 'navigation', label: 'Conciliacion Bancaria', icon: <DollarSign size={ICON_SIZE} strokeWidth={STROKE} />, to: '/finance/reconciliation', keywords: 'conciliacion bancaria extracto banco bank reconciliation statement ofx' },
-  { id: 'nav-cartera', type: 'navigation', label: 'Cartera', icon: <Wallet size={ICON_SIZE} strokeWidth={STROKE} />, to: '/cartera', keywords: 'cartera cuentas cobrar pagar pendientes abonos pagos vencidos receivables payables rappi' },
   { id: 'nav-partners', type: 'navigation', label: 'Socios', icon: <Handshake size={ICON_SIZE} strokeWidth={STROKE} />, to: '/partners', keywords: 'socios partners inversion participacion accionistas' },
   { id: 'nav-closings', type: 'navigation', label: 'Cierres de Caja', icon: <ClipboardList size={ICON_SIZE} strokeWidth={STROKE} />, to: '/closings', keywords: 'cierres cierre caja diario ventas efectivo datafono propinas' },
-  { id: 'nav-prestaciones', type: 'navigation', label: 'Prestaciones Sociales', icon: <Gift size={ICON_SIZE} strokeWidth={STROKE} />, to: '/prestaciones', keywords: 'prestaciones sociales prima cesantias intereses vacaciones liquidacion definitiva terminacion' },
   { id: 'nav-contracts', type: 'navigation', label: 'Contratos', icon: <FileSignature size={ICON_SIZE} strokeWidth={STROKE} />, to: '/contracts', keywords: 'contratos laborales documentos legales' },
   { id: 'nav-templates', type: 'navigation', label: 'Plantillas de Contratos', icon: <FileSignature size={ICON_SIZE} strokeWidth={STROKE} />, to: '/contracts/templates', keywords: 'plantillas templates modelos contratos clausulas' },
   { id: 'nav-settings-companies', type: 'navigation', label: 'Companias', icon: <Building2 size={ICON_SIZE} strokeWidth={STROKE} />, to: '/settings/companies', keywords: 'ajustes configuracion companias empresas settings' },
@@ -66,10 +57,8 @@ const NAV_RESULTS: SearchResult[] = [
 function getActionResults(_navigate: ReturnType<typeof useNavigate>): SearchResult[] {
   return [
     { id: 'act-new-transaction', type: 'action', label: 'Nueva Transaccion', description: 'Registrar ingreso o egreso', icon: <Plus size={ICON_SIZE} strokeWidth={STROKE} />, to: '/finance', keywords: 'crear nueva transaccion pago ingreso egreso' },
-    { id: 'act-new-purchase', type: 'action', label: 'Nueva Compra', description: 'Registrar orden de compra', icon: <Plus size={ICON_SIZE} strokeWidth={STROKE} />, to: '/finance/purchases/new', keywords: 'crear nueva compra orden pedido' },
     { id: 'act-new-contract', type: 'action', label: 'Generar Contrato', description: 'Crear contrato laboral', icon: <Plus size={ICON_SIZE} strokeWidth={STROKE} />, to: '/contracts/new', keywords: 'generar crear nuevo contrato laboral' },
     { id: 'act-import', type: 'action', label: 'Importar Transacciones', description: 'Carga masiva CSV/Excel', icon: <Plus size={ICON_SIZE} strokeWidth={STROKE} />, to: '/finance/import', keywords: 'importar csv excel transacciones carga masiva' },
-    { id: 'act-new-settlement', type: 'action', label: 'Nueva Liquidacion de Prestaciones', description: 'Prima, cesantias, vacaciones o liquidacion definitiva', icon: <Plus size={ICON_SIZE} strokeWidth={STROKE} />, to: '/prestaciones', keywords: 'crear nueva liquidacion prestaciones prima cesantias vacaciones' },
   ]
 }
 
@@ -119,7 +108,6 @@ export function CommandPalette() {
   const { data: transactions } = useTransactions()
   const { data: suppliers } = useSuppliers()
   const { data: partners } = usePartners()
-  const { data: purchases } = usePurchases()
 
   const actions = useMemo(() => getActionResults(navigate), [navigate])
 
@@ -265,25 +253,8 @@ export function CommandPalette() {
       }
     }
 
-    for (const pur of purchases) {
-      if (
-        normalize(pur.supplierName).includes(q) ||
-        normalize(pur.invoiceNumber || '').includes(q) ||
-        normalize(pur.notes || '').includes(q)
-      ) {
-        results.push({
-          id: `pur-${pur.id}`,
-          type: 'purchase',
-          label: `Compra #${pur.invoiceNumber || pur.id.slice(0, 6)}`,
-          description: `${pur.supplierName} · ${formatCurrency(pur.total)}`,
-          icon: <ClipboardList size={ICON_SIZE} strokeWidth={STROKE} className="text-teal-500" />,
-          to: `/finance/purchases/${pur.id}`,
-        })
-      }
-    }
-
     return results.slice(0, 8)
-  }, [query, employees, transactions, suppliers, partners, purchases])
+  }, [query, employees, transactions, suppliers, partners])
 
   const filteredNav = useMemo(() => {
     const q = normalize(query)
@@ -374,7 +345,6 @@ export function CommandPalette() {
     transaction: 'Transaccion',
     supplier: 'Proveedor',
     partner: 'Socio',
-    purchase: 'Compra',
   }
 
   let globalIndex = -1

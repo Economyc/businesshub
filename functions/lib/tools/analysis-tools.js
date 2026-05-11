@@ -132,56 +132,6 @@ export function createAnalysisTools(companyId) {
                 return result;
             },
         }),
-        analyzeSupplierPrices: tool({
-            description: 'Analiza el historial de compras por proveedor o categoría. Muestra tendencia de precios y volumen de compras.',
-            parameters: z.object({
-                months: z
-                    .number()
-                    .optional()
-                    .default(6)
-                    .describe('Cantidad de meses hacia atrás a analizar (default: 6)'),
-            }),
-            execute: async ({ months }) => {
-                const [purchases, suppliers] = await Promise.all([
-                    fetchCollection(companyId, 'purchases'),
-                    fetchCollection(companyId, 'suppliers'),
-                ]);
-                const cutoff = new Date();
-                cutoff.setMonth(cutoff.getMonth() - months);
-                // Filter purchases in range
-                const recentPurchases = purchases.filter((p) => {
-                    const d = tsToDate(p.date) ?? tsToDate(p.createdAt);
-                    return d && d >= cutoff;
-                });
-                // Group by supplier
-                const supplierMap = new Map();
-                const supplierLookup = new Map(suppliers.map((s) => [String(s.id), String(s.name)]));
-                for (const p of recentPurchases) {
-                    const supplierId = String(p.supplierId || 'unknown');
-                    const supplierName = supplierLookup.get(supplierId) ?? String(p.supplierName ?? supplierId);
-                    if (!supplierMap.has(supplierId)) {
-                        supplierMap.set(supplierId, { name: supplierName, purchases: [] });
-                    }
-                    supplierMap.get(supplierId).purchases.push(p);
-                }
-                const supplierAnalysis = Array.from(supplierMap.entries()).map(([id, { name, purchases: pList }]) => {
-                    const totalSpent = pList.reduce((s, p) => s + (Number(p.total) || 0), 0);
-                    return {
-                        supplierId: id,
-                        supplierName: name,
-                        purchaseCount: pList.length,
-                        totalSpent,
-                        averagePerPurchase: pList.length > 0 ? Math.round(totalSpent / pList.length) : 0,
-                    };
-                }).sort((a, b) => b.totalSpent - a.totalSpent);
-                return {
-                    periodMonths: months,
-                    totalPurchases: recentPurchases.length,
-                    totalSpent: recentPurchases.reduce((s, p) => s + (Number(p.total) || 0), 0),
-                    supplierBreakdown: supplierAnalysis,
-                };
-            },
-        }),
         generateExecutiveReport: tool({
             description: 'Genera un resumen ejecutivo completo del periodo: ingresos, gastos, márgenes, comparación con presupuesto, y alertas de tendencias preocupantes.',
             parameters: z.object({

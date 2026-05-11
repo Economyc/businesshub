@@ -1,6 +1,5 @@
 import type { Timestamp } from 'firebase/firestore'
 import type { BaseEntity, TransactionType, TransactionStatus } from '@/core/types'
-import { statusPill } from '@/core/ui/status-colors'
 
 export type PayeeType = 'partner' | 'employee' | 'supplier' | 'external'
 
@@ -22,7 +21,7 @@ export interface Transaction extends BaseEntity {
   date: Timestamp
   status: TransactionStatus
   notes?: string
-  sourceType?: 'closing' | 'purchase' | 'recurring' | 'payroll'
+  sourceType?: 'closing' | 'recurring'
   sourceId?: string
   sourceLabel?: string
   payeeRef?: PayeeRef
@@ -59,56 +58,3 @@ export interface BudgetItem {
 export interface BudgetConfig {
   items: BudgetItem[]
 }
-
-/* ─── Conciliacion Bancaria ─── */
-
-export type BankEntryType = 'credit' | 'debit'
-
-export interface BankEntry {
-  id: string
-  date: string
-  description: string
-  amount: number
-  type: BankEntryType
-  reference?: string
-  balance?: number
-}
-
-export interface ReconciliationMatch {
-  bankEntryId: string
-  transactionId: string
-  confidence: number
-  matchedBy: 'auto' | 'manual'
-}
-
-export type ReconciliationStatus = 'pending' | 'reconciled' | 'partial'
-
-export const RECONCILIATION_STATUS_LABELS: Record<ReconciliationStatus, string> = {
-  pending: 'Pendiente',
-  reconciled: 'Conciliado',
-  partial: 'Parcial',
-}
-
-export const RECONCILIATION_STATUS_COLORS: Record<ReconciliationStatus, string> = {
-  pending: statusPill.warning,
-  reconciled: statusPill.positive,
-  partial: statusPill.info,
-}
-
-export interface BankStatement extends BaseEntity {
-  fileName: string
-  fileFormat: 'csv' | 'ofx'
-  bankName?: string
-  accountNumber?: string
-  periodStart: string
-  periodEnd: string
-  entries: BankEntry[]
-  matches: ReconciliationMatch[]
-  status: ReconciliationStatus
-  entryCount: number
-  matchedCount: number
-  unmatchedBankCount: number
-  unmatchedTransactionCount: number
-}
-
-export type BankStatementFormData = Omit<BankStatement, 'id' | 'createdAt' | 'updatedAt'>

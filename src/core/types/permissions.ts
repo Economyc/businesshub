@@ -5,10 +5,7 @@ export type ModuleKey =
   | 'analytics'
   | 'agent'
   | 'finance'
-  | 'cartera'
   | 'closings'
-  | 'payroll'
-  | 'prestaciones'
   | 'contracts'
   | 'partners'
   | 'talent'
@@ -52,10 +49,7 @@ export const ROUTE_MODULE_MAP: Record<string, ModuleKey> = {
   '/analytics': 'analytics',
   '/agent': 'agent',
   '/finance': 'finance',
-  '/cartera': 'cartera',
   '/closings': 'closings',
-  '/payroll': 'payroll',
-  '/prestaciones': 'prestaciones',
   '/contracts': 'contracts',
   '/partners': 'partners',
   '/talent': 'talent',

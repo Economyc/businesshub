@@ -57,7 +57,7 @@ export function createClosingTools(companyId: string) {
   return {
     generateMonthClosingPreview: tool({
       description:
-        'Genera un preview del cierre de mes: resumen financiero (P&L), transacciones recurrentes pendientes, items vencidos, y estado de nómina. NO ejecuta ninguna acción.',
+        'Genera un preview del cierre de mes: resumen financiero (P&L), transacciones recurrentes pendientes e items vencidos. NO ejecuta ninguna acción.',
       parameters: z.object({
         year: z.number().describe('Año del cierre'),
         month: z.number().min(1).max(12).describe('Mes del cierre (1-12)'),
@@ -67,11 +67,10 @@ export function createClosingTools(companyId: string) {
         const lastDay = new Date(year, month, 0).getDate()
         const endDate = `${year}-${String(month).padStart(2, '0')}-${lastDay}`
 
-        const [allTxs, budgetDoc, employees, payrolls] = await Promise.all([
+        const [allTxs, budgetDoc, employees] = await Promise.all([
           fetchCollection(companyId, 'transactions'),
           fetchSettingsDoc(companyId, 'budget'),
           fetchCollection(companyId, 'employees'),
-          fetchCollection(companyId, 'payrolls'),
         ])
 
         // P&L Summary
@@ -101,11 +100,6 @@ export function createClosingTools(companyId: string) {
           ? Math.round((totalExpenses / totalBudgetedExpenses) * 100)
           : null
 
-        // Payroll status
-        const monthPayroll = payrolls.find(
-          (p) => Number(p.year) === year && Number(p.month) === month
-        )
-
         // Active employees
         const activeEmployees = employees.filter((e) => e.status === 'active').length
 
@@ -119,11 +113,6 @@ export function createClosingTools(companyId: string) {
         }
         if (pendingTxs.length > 0) {
           pendingActions.push(`${pendingTxs.length} transacciones pendientes por $${pendingTotal.toLocaleString('es-CO')}`)
-        }
-        if (!monthPayroll) {
-          pendingActions.push(`Nómina de ${MONTH_NAMES[month - 1]} no ha sido generada`)
-        } else if (monthPayroll.status === 'draft') {
-          pendingActions.push(`Nómina de ${MONTH_NAMES[month - 1]} está en borrador — falta aprobación`)
         }
 
         return {
@@ -152,7 +141,6 @@ export function createClosingTools(companyId: string) {
             pendingCount: pendingTxs.length,
             pendingTotal,
             pendingRecurringCount,
-            payrollStatus: monthPayroll ? String(monthPayroll.status) : 'not_created',
             activeEmployees,
           },
           // Actions needed

@@ -5,7 +5,6 @@ import { db } from '@/core/firebase/config'
 import { useCollection } from '@/core/hooks/use-firestore'
 import { useTransactionsInRange, classifyExpense } from '@/modules/finance/hooks'
 import { useClosings } from '@/modules/closings/hooks'
-import { useCarteraOverview } from '@/modules/cartera/hooks'
 import { useBudgetComparison } from '@/modules/finance/hooks'
 import { useDateRange } from '@/modules/finance/context/date-range-context'
 import { usePosVentas } from '@/modules/pos-sync/hooks'
@@ -35,9 +34,6 @@ export interface DashboardKPIs {
   costo: number
   costoChange: string
   costoTrend: 'up' | 'down'
-  porCobrar: number
-  porCobrarChange: string
-  porCobrarTrend: 'up' | 'down' | 'neutral'
 }
 
 export interface SalesTrendPoint {
@@ -66,7 +62,6 @@ export interface AlertItem {
 }
 
 export interface DashboardAlerts {
-  overdueItems: AlertItem[]
   budgetExceeded: AlertItem[]
   expiringContracts: AlertItem[]
 }
@@ -98,12 +93,6 @@ function pctChange(current: number, previous: number): string {
   const pct = ((current - previous) / Math.abs(previous)) * 100
   const sign = pct >= 0 ? '+' : ''
   return `${sign}${pct.toFixed(1)}%`
-}
-
-function formatCurrencyShort(n: number): string {
-  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`
-  if (n >= 1_000) return `$${(n / 1_000).toFixed(0)}K`
-  return `$${n.toLocaleString('es-CO')}`
 }
 
 function buildComparisonLabel(activePreset: string, prevStart: Date): string {
@@ -158,10 +147,6 @@ export function useDashboardData() {
     endDate,
   )
   const { data: closings, loading: closingsLoading } = useClosings()
-  // Resumen denormalizado escrito por carteraSummaryNightly. Tiene desfase
-  // de hasta 24h pero evita descargar transactions+purchases+payments en el
-  // Home. La pantalla /cartera mantiene la data live para detalle.
-  const { overview: carteraOverview, loading: carteraLoading } = useCarteraOverview()
   const { data: suppliers, loading: suppliersLoading } = useCollection<Supplier>('suppliers')
   const { data: contracts, loading: contractsLoading } = useCollection<Contract>('contracts')
   const { localIds, loading: localIdsLoading } = useCompanyLocalIds()
@@ -675,11 +660,6 @@ export function useDashboardData() {
       })
       .reduce((s, t) => s + t.amount, 0)
 
-    // Cuentas por cobrar (resumen precalculado por Cloud Function)
-    const porCobrar = carteraOverview.totalReceivables
-    const overdueCount = carteraOverview.receivablesOverdueCount
-    const pendingCount = carteraOverview.receivablesPendingCount
-
     return {
       ventasHoy: ventas,
       ventasHoyChange: pctChange(ventas, ventasPrev),
@@ -690,11 +670,8 @@ export function useDashboardData() {
       costo,
       costoChange: pctChange(costo, costoPrev),
       costoTrend: costo >= costoPrev ? 'up' : 'down',
-      porCobrar,
-      porCobrarChange: overdueCount > 0 ? `${overdueCount} vencidas` : porCobrar > 0 ? `${pendingCount} pendientes` : 'Al día',
-      porCobrarTrend: overdueCount > 0 ? 'down' : porCobrar > 0 ? 'neutral' : 'up',
     }
-  }, [transactions, closings, posSalesByDate, carteraOverview, startDate, endDate, prevStart, prevEnd])
+  }, [transactions, closings, posSalesByDate, startDate, endDate, prevStart, prevEnd])
 
   // ─── Sales Trend (filtered by date range) ──────────────────────
   const salesTrend = useMemo<SalesTrendPoint[]>(() => {
@@ -854,20 +831,6 @@ export function useDashboardData() {
 
   // ─── Alerts ─────────────────────────────────────────────────────
   const alerts = useMemo<DashboardAlerts>(() => {
-    // Overdue items (top N del resumen precalculado)
-    const overdueItems: AlertItem[] = [
-      ...carteraOverview.overdueReceivables.map((r) => ({
-        id: r.id,
-        label: r.concept,
-        detail: formatCurrencyShort(r.balance),
-      })),
-      ...carteraOverview.overduePayables.map((p) => ({
-        id: p.id,
-        label: p.concept,
-        detail: formatCurrencyShort(p.balance),
-      })),
-    ]
-
     // Budget exceeded
     const budgetExceeded: AlertItem[] = budgetComparison.rows
       .filter((r) => r.type === 'expense' && r.budgeted > 0 && r.execution > 100)
@@ -904,8 +867,8 @@ export function useDashboardData() {
       }
     }
 
-    return { overdueItems, budgetExceeded, expiringContracts }
-  }, [carteraOverview, budgetComparison, suppliers, contracts])
+    return { budgetExceeded, expiringContracts }
+  }, [budgetComparison, suppliers, contracts])
 
   // Todas las secciones del Home bloquean hasta que las ventas del filtro
   // carguen, aunque su propia fuente (transacciones, cartera, alerts) ya esté
@@ -916,10 +879,9 @@ export function useDashboardData() {
   const ventasLoading = posColdLoading
   const gastosLoading = posColdLoading || txLoading
   const costoLoading = posColdLoading || txLoading
-  const porCobrarLoading = posColdLoading || carteraLoading
   const chartLoading = posColdLoading || txLoading || closingsLoading
   const alertsLoading =
-    posColdLoading || carteraLoading || budgetLoading || suppliersLoading || contractsLoading
+    posColdLoading || budgetLoading || suppliersLoading || contractsLoading
 
   const syncStatus = useMemo<DashboardSyncStatus>(
     () => ({
@@ -999,7 +961,6 @@ export function useDashboardData() {
     ventasLoading,
     gastosLoading,
     costoLoading,
-    porCobrarLoading,
     chartLoading,
     alertsLoading,
     syncStatus,

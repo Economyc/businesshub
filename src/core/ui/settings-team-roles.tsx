@@ -22,11 +22,8 @@ const MODULE_GROUPS: { title: string; modules: { key: ModuleKey; label: string; 
   {
     title: 'Contabilidad',
     modules: [
-      { key: 'finance', label: 'Finanzas', description: 'Transacciones, flujo de caja, presupuesto, conciliacion' },
-      { key: 'cartera', label: 'Cartera', description: 'Cuentas por cobrar y por pagar' },
+      { key: 'finance', label: 'Finanzas', description: 'Transacciones, flujo de caja, presupuesto' },
       { key: 'closings', label: 'Cierres de Caja', description: 'Cierres diarios y descuentos' },
-      { key: 'payroll', label: 'Nomina', description: 'Calculo y gestion de nomina' },
-      { key: 'prestaciones', label: 'Prestaciones', description: 'Liquidaciones y beneficios laborales' },
     ],
   },
   {
@@ -347,7 +344,7 @@ export function SettingsTeamRoles() {
           const viewOnly = role.permissions.filter((p) => p.actions.length === 1 && p.actions[0] === 'read').length
           const fullAccess = role.permissions.filter((p) => p.actions.length > 1).length
           const totalWithAccess = viewOnly + fullAccess
-          const totalModules = 14
+          const totalModules = 11
           const hasAllModules = totalWithAccess === totalModules
 
           return (

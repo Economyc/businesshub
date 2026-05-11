@@ -86,8 +86,7 @@ export function createMutationTools() {
         createTransaction: tool({
             description: 'Crea una nueva transacción financiera (ingreso o gasto). Requiere confirmación del usuario. ' +
                 'Usa los campos payee* cuando alguien adelantó la plata o nos vendió a crédito y ' +
-                'queda una deuda pendiente: en ese caso status debe ser "pending" y la transacción ' +
-                'aparecerá en cartera como cuenta por pagar al payee. ' +
+                'queda una deuda pendiente: en ese caso status debe ser "pending". ' +
                 'Usa targetCompanyName para escribir en otro local distinto al activo (ej: estás en Blue ' +
                 'pero el gasto fue de Filipo).',
             parameters: z.object({

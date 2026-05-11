@@ -10,9 +10,8 @@ import { db } from '@/core/firebase/config'
 import { companyCollection } from '@/core/firebase/helpers'
 import { invalidateCollection } from '@/core/query/invalidation'
 import type { Closing } from '@/modules/closings/types'
-import type { Purchase } from '@/modules/purchases/types'
 
-type SourceType = 'closing' | 'purchase'
+type SourceType = 'closing'
 
 interface TransactionData {
   concept: string
@@ -113,40 +112,3 @@ export async function syncClosingTransactions(
   invalidateCache(companyId)
 }
 
-export async function syncPurchaseTransaction(
-  companyId: string,
-  purchaseId: string,
-  purchase: Purchase | Omit<Purchase, 'id' | 'createdAt' | 'updatedAt'>
-): Promise<void> {
-  await deleteLinkedTransactions(companyId, 'purchase', purchaseId)
-
-  const invoice = purchase.invoiceNumber ? `#${purchase.invoiceNumber}` : ''
-  const concept = `Compra ${invoice} - ${purchase.supplierName}`.replace('  ', ' ')
-  const label = concept
-  const now = Timestamp.now()
-
-  const statusMap: Record<string, 'paid' | 'pending' | 'overdue'> = {
-    paid: 'paid',
-    pending: 'pending',
-    overdue: 'overdue',
-  }
-
-  const tx: TransactionData = {
-    concept,
-    category: 'Insumos',
-    amount: purchase.total,
-    type: 'expense',
-    date: purchase.date,
-    status: statusMap[purchase.paymentStatus] ?? 'pending',
-    sourceType: 'purchase',
-    sourceId: purchaseId,
-    sourceLabel: label,
-  }
-
-  const ref = companyCollection(companyId, 'transactions')
-  const batch = writeBatch(db)
-  const newDoc = doc(ref)
-  batch.set(newDoc, { ...tx, createdAt: now, updatedAt: now })
-  await batch.commit()
-  invalidateCache(companyId)
-}

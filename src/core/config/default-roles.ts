@@ -1,8 +1,8 @@
 import type { RoleDefinition, ModuleKey, PermissionAction } from '@/core/types/permissions'
 
 const ALL_MODULES: ModuleKey[] = [
-  'home', 'analytics', 'agent', 'finance', 'cartera', 'closings',
-  'payroll', 'prestaciones', 'contracts', 'partners', 'talent', 'suppliers', 'marketing', 'settings',
+  'home', 'analytics', 'agent', 'finance', 'closings',
+  'contracts', 'partners', 'talent', 'suppliers', 'marketing', 'settings',
 ]
 
 const ALL_ACTIONS: PermissionAction[] = ['read', 'create', 'update', 'delete']
@@ -39,11 +39,11 @@ export const DEFAULT_ROLES: RoleDefinition[] = [
   {
     id: 'finance',
     label: 'Finanzas',
-    description: 'Gestion financiera: transacciones, compras, cierres, cartera y proveedores',
+    description: 'Gestion financiera: transacciones, cierres y proveedores',
     color: '#0891b2',
     isSystem: true,
     permissions: [
-      ...fullAccess(['finance', 'cartera', 'closings', 'suppliers']),
+      ...fullAccess(['finance', 'closings', 'suppliers']),
       ...readOnly(['home', 'analytics', 'partners']),
     ],
     canManageUsers: false,
@@ -52,11 +52,11 @@ export const DEFAULT_ROLES: RoleDefinition[] = [
   {
     id: 'hr',
     label: 'Recursos Humanos',
-    description: 'Gestion de personal: equipo, nomina, prestaciones y contratos',
+    description: 'Gestion de personal: equipo y contratos',
     color: '#059669',
     isSystem: true,
     permissions: [
-      ...fullAccess(['talent', 'payroll', 'prestaciones', 'contracts']),
+      ...fullAccess(['talent', 'contracts']),
       ...readOnly(['home', 'analytics']),
     ],
     canManageUsers: false,

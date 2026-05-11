@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Plus, Receipt, Wallet, BarChart3, Users, PiggyBank } from 'lucide-react'
+import { Plus, Receipt, BarChart3, PiggyBank } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 interface QuickActionButtonProps {
@@ -39,12 +39,10 @@ export function QuickActions() {
   return (
     <div className="bg-surface rounded-xl card-elevated p-[18px]">
       <h2 className="text-body font-bold text-dark-graphite mb-3">Acciones rápidas</h2>
-      <div className="grid grid-cols-3 sm:grid-cols-2 gap-y-5 gap-x-2 sm:gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-2 gap-y-5 gap-x-2 sm:gap-2">
         <QuickActionButton icon={Plus} label="Nueva transacción" to="/finance" />
         <QuickActionButton icon={Receipt} label="Nuevo cierre" to="/closings" />
-        <QuickActionButton icon={Wallet} label="Ver cartera" to="/cartera" />
         <QuickActionButton icon={BarChart3} label="Análisis" to="/analytics" />
-        <QuickActionButton icon={Users} label="Nómina" to="/payroll" />
         <QuickActionButton icon={PiggyBank} label="Presupuesto" to="/finance/budget" />
       </div>
     </div>

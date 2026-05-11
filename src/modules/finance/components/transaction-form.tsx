@@ -116,7 +116,7 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
     setLoading(true)
     financeService.getById(selectedCompany.id, transactionId).then((tx: Transaction | null) => {
       if (!tx) { onClose(); return }
-      if (tx.sourceType === 'closing' || tx.sourceType === 'purchase') setIsLinked(true)
+      if (tx.sourceType === 'closing') setIsLinked(true)
       if (tx.sourceType === 'recurring') setIsRecurring(true)
       setForm({
         concept: tx.concept,

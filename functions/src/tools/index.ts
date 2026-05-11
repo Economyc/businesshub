@@ -9,7 +9,6 @@ import { createSettingsTools } from './settings-tools.js'
 import { createSearchTools } from './search-tools.js'
 import { createChartTools } from './chart-tools.js'
 import { createExportTools } from './export-tools.js'
-import { createPayrollTools } from './payroll-tools.js'
 import { createCollectionsTools } from './collections-tools.js'
 import { createObligationsTools } from './obligations-tools.js'
 import { createClosingTools } from './closing-tools.js'
@@ -38,7 +37,6 @@ export function createAgentTools(companyId: string, threadId?: string) {
     ...createChartTools(),
     ...createExportTools(),
     // Operator tools
-    ...createPayrollTools(companyId),
     ...createCollectionsTools(companyId),
     ...createObligationsTools(companyId),
     ...createClosingTools(companyId),

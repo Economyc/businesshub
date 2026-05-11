@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Users, Briefcase, DollarSign, Home, Handshake, ClipboardList, FileSignature, X, ChevronRight, Building2, Tags, BadgeCheck, Network, ChevronsUpDown, Check, MapPin, Wallet, Receipt, Gift, LogOut, List, ShoppingCart, Package, Target, Scale, FileText, Megaphone, RefreshCw, Shield, LayoutDashboard, Store, PieChart, LayoutGrid } from 'lucide-react'
+import { Users, Briefcase, DollarSign, Home, Handshake, ClipboardList, FileSignature, X, ChevronRight, Building2, Tags, BadgeCheck, Network, ChevronsUpDown, Check, MapPin, Wallet, LogOut, List, Target, FileText, Megaphone, RefreshCw, Shield, LayoutGrid } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useCompany } from '@/core/hooks/use-company'
 import { useAuth } from '@/core/hooks/use-auth'
@@ -37,10 +37,7 @@ const NAV_SECTIONS: NavSection[] = [
     title: 'Contabilidad',
     items: [
       { to: '/finance', label: 'Finanzas', icon: DollarSign, moduleKey: 'finance' },
-      { to: '/cartera', label: 'Cartera', icon: Wallet, moduleKey: 'cartera' },
       { to: '/closings', label: 'Cierres de Caja', icon: ClipboardList, moduleKey: 'closings' },
-      { to: '/payroll', label: 'Nomina', icon: Receipt, moduleKey: 'payroll' },
-      { to: '/prestaciones', label: 'Prestaciones', icon: Gift, moduleKey: 'prestaciones' },
     ],
   },
   {
@@ -76,20 +73,9 @@ const SETTINGS_ITEMS = [
 
 const FINANCE_ITEMS: (Omit<NavItem, 'icon'> & { icon: typeof Home; end?: boolean })[] = [
   { to: '/finance', label: 'Transacciones', icon: List, end: true },
-  { to: '/finance/purchases', label: 'Compras', icon: ShoppingCart, end: true },
-  { to: '/finance/purchases/products', label: 'Insumos', icon: Package },
   { to: '/finance/cash-flow', label: 'Flujo de Caja', icon: Wallet },
   { to: '/finance/income-statement', label: 'Estado de Resultados', icon: FileText },
   { to: '/finance/budget', label: 'Presupuesto', icon: Target },
-  { to: '/finance/reconciliation', label: 'Conciliacion', icon: Scale },
-]
-
-const ANALYTICS_ITEMS: (Omit<NavItem, 'icon'> & { icon: typeof Home; end?: boolean })[] = [
-  { to: '/analytics', label: 'General', icon: LayoutDashboard, end: true },
-  { to: '/analytics/pos', label: 'POS', icon: Store },
-  { to: '/analytics/costs', label: 'Costos', icon: PieChart },
-  { to: '/analytics/purchases', label: 'Compras', icon: ShoppingCart },
-  { to: '/analytics/payroll', label: 'Nómina', icon: Users },
 ]
 
 interface MobileNavProps {
@@ -114,11 +100,9 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
   const { config: avatarConfig, setConfig: setAvatarConfig } = useAvatarConfig(user?.uid)
   const location = useLocation()
   const isFinanceRoute = location.pathname.startsWith('/finance')
-  const isAnalyticsRoute = location.pathname.startsWith('/analytics')
   const [companyOpen, setCompanyOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [financeExpanded, setFinanceExpanded] = useState(isFinanceRoute)
-  const [analyticsExpanded, setAnalyticsExpanded] = useState(isAnalyticsRoute)
   const [openSections, setOpenSections] = useState<Set<string>>(() => getActiveSections(location.pathname))
 
   // Auto-expand section when navigating
@@ -138,12 +122,6 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
     if (!isFinanceRoute) setFinanceExpanded(false)
     else setFinanceExpanded(true)
   }, [location.pathname, isFinanceRoute])
-
-  // Close analytics submenu when navigating away from analytics routes
-  useEffect(() => {
-    if (!isAnalyticsRoute) setAnalyticsExpanded(false)
-    else setAnalyticsExpanded(true)
-  }, [location.pathname, isAnalyticsRoute])
 
   function toggleSection(title: string) {
     setOpenSections(prev => {
@@ -305,10 +283,10 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
                               ? 'flex items-center gap-3 mx-3 px-3 pl-14 py-2.5 rounded-xl text-body transition-all duration-150'
                               : 'flex items-center gap-3 mx-3 px-3 pl-9 py-2.5 rounded-xl text-body transition-all duration-150'
 
-                            if (to === '/finance' || to === '/analytics') {
-                              const isExpanded = to === '/finance' ? financeExpanded : analyticsExpanded
-                              const setExpanded = to === '/finance' ? setFinanceExpanded : setAnalyticsExpanded
-                              const subItems = to === '/finance' ? FINANCE_ITEMS : ANALYTICS_ITEMS
+                            if (to === '/finance') {
+                              const isExpanded = financeExpanded
+                              const setExpanded = setFinanceExpanded
+                              const subItems = FINANCE_ITEMS
                               const isOnRoute = location.pathname.startsWith(to)
                               return (
                                 <div key={to}>

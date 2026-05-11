@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { DollarSign, CreditCard, Package, Clock } from 'lucide-react'
+import { DollarSign, CreditCard, Package } from 'lucide-react'
 import { KPICard } from '@/core/ui/kpi-card'
 import { KPICardSkeleton } from '@/core/ui/skeleton'
 import { staggerContainer } from '@/core/animations/variants'
@@ -12,7 +12,6 @@ interface KPICardsRowProps {
   ventasLoading?: boolean
   gastosLoading?: boolean
   costoLoading?: boolean
-  porCobrarLoading?: boolean
 }
 
 export function KPICardsRow({
@@ -22,14 +21,13 @@ export function KPICardsRow({
   ventasLoading,
   gastosLoading,
   costoLoading,
-  porCobrarLoading,
 }: KPICardsRowProps) {
   return (
     <motion.div
       variants={staggerContainer}
       initial="initial"
       animate="animate"
-      className="grid grid-cols-2 lg:grid-cols-4 gap-4"
+      className="grid grid-cols-2 lg:grid-cols-3 gap-4"
     >
       {ventasLoading ? (
         <KPICardSkeleton />
@@ -70,18 +68,6 @@ export function KPICardsRow({
           comparison={comparisonLabel}
           icon={Package}
           inverse
-        />
-      )}
-      {porCobrarLoading ? (
-        <KPICardSkeleton />
-      ) : (
-        <KPICard
-          label="Por cobrar"
-          value={kpis.porCobrar}
-          format="currency"
-          change={kpis.porCobrarChange}
-          trend={kpis.porCobrarTrend}
-          icon={Clock}
         />
       )}
     </motion.div>

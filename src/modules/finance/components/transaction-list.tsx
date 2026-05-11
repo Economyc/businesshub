@@ -98,7 +98,6 @@ const ColumnHeader = memo(function ColumnHeader() {
 
 function SourcePill({ source }: { source: Transaction['sourceType'] }) {
   if (source === 'closing') return <span className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-700">Cierre</span>
-  if (source === 'purchase') return <span className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-orange-100 text-orange-700">Compra</span>
   if (source === 'recurring') return <span className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-100 text-purple-700">Recurrente</span>
   return null
 }

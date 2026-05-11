@@ -24,7 +24,6 @@ const MUTATION_TOOLS = new Set([
   'updateBudget',
   'addBudgetItem',
   'deleteBudgetItem',
-  'createPayrollDraft',
   'executeMonthClosing',
 ])
 

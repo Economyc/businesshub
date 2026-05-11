@@ -4,9 +4,7 @@ import { getAppFunctions } from '@/core/firebase/config'
 import { talentService } from '@/modules/talent/services'
 import { supplierService } from '@/modules/suppliers/services'
 import { financeService, budgetService } from '@/modules/finance/services'
-import { payrollService } from '@/modules/payroll/services'
 import { generatePendingTransactions } from '@/modules/finance/recurring-generator'
-import { buildPayrollDraft } from '@/modules/agent/utils/payroll-helpers'
 import { closingService } from '@/modules/closings/services'
 import { influencerService } from '@/modules/marketing/influencers/services'
 import { notificationService } from '@/modules/notifications/services'
@@ -351,18 +349,6 @@ export async function executeMutation(
       }
       await budgetService.save(companyId, budget)
       return { success: true, message: `Item "${category}" eliminado del presupuesto.` }
-    }
-
-    case 'createPayrollDraft': {
-      const year = Number(args.year)
-      const month = Number(args.month)
-      const data = await buildPayrollDraft(companyId, year, month)
-      const id = await payrollService.create(companyId, data)
-      return {
-        success: true,
-        message: `Borrador de nómina "${data.periodLabel}" creado con ${data.employeeCount} empleados. Neto a pagar: $${data.totalNetPay.toLocaleString('es-CL')}.`,
-        id,
-      }
     }
 
     case 'executeMonthClosing': {

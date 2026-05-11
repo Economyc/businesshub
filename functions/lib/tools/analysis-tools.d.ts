@@ -24,39 +24,6 @@ export declare function createAnalysisTools(companyId: string): {
             compareWithPrevious: boolean;
         }, options: import("ai").ToolExecutionOptions) => PromiseLike<Record<string, unknown>>;
     };
-    analyzeSupplierPrices: import("ai").Tool<z.ZodObject<{
-        months: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
-    }, "strip", z.ZodTypeAny, {
-        months: number;
-    }, {
-        months?: number | undefined;
-    }>, {
-        periodMonths: number;
-        totalPurchases: number;
-        totalSpent: number;
-        supplierBreakdown: {
-            supplierId: string;
-            supplierName: string;
-            purchaseCount: number;
-            totalSpent: number;
-            averagePerPurchase: number;
-        }[];
-    }> & {
-        execute: (args: {
-            months: number;
-        }, options: import("ai").ToolExecutionOptions) => PromiseLike<{
-            periodMonths: number;
-            totalPurchases: number;
-            totalSpent: number;
-            supplierBreakdown: {
-                supplierId: string;
-                supplierName: string;
-                purchaseCount: number;
-                totalSpent: number;
-                averagePerPurchase: number;
-            }[];
-        }>;
-    };
     generateExecutiveReport: import("ai").Tool<z.ZodObject<{
         startDate: z.ZodString;
         endDate: z.ZodString;

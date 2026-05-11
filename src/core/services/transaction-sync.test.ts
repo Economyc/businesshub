@@ -37,7 +37,7 @@ vi.mock('@/core/query/invalidation', () => ({
 
 import { getDocs } from 'firebase/firestore'
 import { invalidateCollection } from '@/core/query/invalidation'
-import { deleteLinkedTransactions, syncClosingTransactions, syncPurchaseTransaction } from './transaction-sync'
+import { deleteLinkedTransactions, syncClosingTransactions } from './transaction-sync'
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -155,49 +155,3 @@ describe('syncClosingTransactions', () => {
   })
 })
 
-describe('syncPurchaseTransaction', () => {
-  const basePurchase = {
-    supplierId: 'sup1',
-    supplierName: 'Proveedor ABC',
-    date: fakeTimestamp(new Date('2024-06-15')),
-    invoiceNumber: '001',
-    items: [],
-    subtotal: 100000,
-    tax: 19000,
-    total: 119000,
-    status: 'received' as const,
-    paymentStatus: 'paid' as const,
-  }
-
-  beforeEach(() => {
-    vi.mocked(getDocs).mockResolvedValue({ empty: true, docs: [] } as any)
-  })
-
-  it('creates expense transaction with category "Insumos"', async () => {
-    await syncPurchaseTransaction('company1', 'purchase1', basePurchase)
-
-    expect(mockBatchSet).toHaveBeenCalledTimes(1)
-    const setCall = mockBatchSet.mock.calls[0][1]
-    expect(setCall.category).toBe('Insumos')
-    expect(setCall.type).toBe('expense')
-    expect(setCall.amount).toBe(119000)
-  })
-
-  it('maps paymentStatus correctly', async () => {
-    await syncPurchaseTransaction('company1', 'p1', { ...basePurchase, paymentStatus: 'overdue' })
-    const setCall = mockBatchSet.mock.calls[0][1]
-    expect(setCall.status).toBe('overdue')
-  })
-
-  it('includes invoice number in concept', async () => {
-    await syncPurchaseTransaction('company1', 'p1', basePurchase)
-    const setCall = mockBatchSet.mock.calls[0][1]
-    expect(setCall.concept).toContain('#001')
-    expect(setCall.concept).toContain('Proveedor ABC')
-  })
-
-  it('invalidates cache after sync', async () => {
-    await syncPurchaseTransaction('company1', 'p1', basePurchase)
-    expect(invalidateCollection).toHaveBeenCalledWith('company1', 'transactions')
-  })
-})

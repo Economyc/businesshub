@@ -36,12 +36,6 @@ export declare function createObligationsTools(companyId: string): {
             urgency: "recurring_due";
             priority: number;
         })[];
-        payrollStatus: {
-            exists: boolean;
-            status?: string;
-            totalNetPay?: number;
-            employeeCount?: number;
-        };
     }> & {
         execute: (args: {
             weekStartDate?: string | undefined;
@@ -75,12 +69,6 @@ export declare function createObligationsTools(companyId: string): {
                 urgency: "recurring_due";
                 priority: number;
             })[];
-            payrollStatus: {
-                exists: boolean;
-                status?: string;
-                totalNetPay?: number;
-                employeeCount?: number;
-            };
         }>;
     };
 };

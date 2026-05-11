@@ -121,7 +121,6 @@ function HomePageContent() {
     ventasLoading,
     gastosLoading,
     costoLoading,
-    porCobrarLoading,
     chartLoading,
     alertsLoading,
     syncStatus,
@@ -218,7 +217,6 @@ function HomePageContent() {
           ventasLoading={ventasLoading}
           gastosLoading={gastosLoading}
           costoLoading={costoLoading}
-          porCobrarLoading={porCobrarLoading}
         />
         {!chartLoading && projection.applicable && (
           <Suspense fallback={<SalesTrendSkeleton />}>

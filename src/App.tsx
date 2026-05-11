@@ -7,19 +7,15 @@ import { AuthProvider, useAuth } from '@/core/hooks/use-auth'
 import { CompanyProvider } from '@/core/ui/company-provider'
 import { Layout } from '@/core/ui/layout'
 import { LoginPage } from '@/core/ui/login-page'
-import { GeneralDashboard, PosDashboard, CostsDashboard, PurchasesDashboard, PayrollDashboard } from '@/modules/analytics/routes'
+import { PosDashboard } from '@/modules/analytics/routes'
 import { EmployeeList, EmployeeProfile } from '@/modules/talent/routes'
 import { SupplierList, SupplierDetail } from '@/modules/suppliers/routes'
-import { TransactionList, ImportView, CashFlowView, IncomeStatementView, BudgetView, RecurringList, ReconciliationView, ReconciliationDetail } from '@/modules/finance/routes'
+import { TransactionList, ImportView, CashFlowView, IncomeStatementView, BudgetView, RecurringList } from '@/modules/finance/routes'
 import { PartnerList } from '@/modules/partners/routes'
 import { ClosingList } from '@/modules/closings/routes'
 import { ContractList, TemplateList, ContractGenerate, ContractDetail } from '@/modules/contracts/routes'
-import { PurchaseList, PurchaseForm, PurchaseDetail, ProductList, ProductDetail } from '@/modules/purchases/routes'
 import { HomePage } from '@/modules/home/routes'
 import { CompanySelectorPage } from '@/modules/home/company-selector-page'
-import { CarteraDashboard } from '@/modules/cartera/routes'
-import { PayrollList, PayrollDetail } from '@/modules/payroll/routes'
-import { SettlementList, SettlementDetail } from '@/modules/prestaciones/routes'
 import { DateRangeProvider } from '@/modules/finance/context/date-range-context'
 import { AgentPage } from '@/modules/agent/routes'
 import { PosSyncPage } from '@/modules/pos-sync/routes'
@@ -91,18 +87,12 @@ export default function App() {
                 <Route path="/home" element={<Suspense fallback={<Loading />}><HomePage /></Suspense>} />
               </Route>
               <Route element={<DateRangeProvider><Outlet /></DateRangeProvider>}>
-                <Route path="/analytics" element={<Suspense fallback={<Loading />}><GeneralDashboard /></Suspense>} />
-                <Route path="/analytics/pos" element={<Suspense fallback={<Loading />}><PosDashboard /></Suspense>} />
-                <Route path="/analytics/costs" element={<Suspense fallback={<Loading />}><CostsDashboard /></Suspense>} />
-                <Route path="/analytics/purchases" element={<Suspense fallback={<Loading />}><PurchasesDashboard /></Suspense>} />
-                <Route path="/analytics/payroll" element={<Suspense fallback={<Loading />}><PayrollDashboard /></Suspense>} />
+                <Route path="/analytics" element={<Suspense fallback={<Loading />}><PosDashboard /></Suspense>} />
+                <Route path="/analytics/pos" element={<Navigate to="/analytics" replace />} />
+                <Route path="/analytics/costs" element={<Navigate to="/analytics" replace />} />
               </Route>
               <Route path="/talent" element={<Suspense fallback={<Loading />}><EmployeeList /></Suspense>} />
               <Route path="/talent/:id" element={<Suspense fallback={<Loading />}><EmployeeProfile /></Suspense>} />
-              <Route path="/payroll" element={<Suspense fallback={<Loading />}><PayrollList /></Suspense>} />
-              <Route path="/payroll/:id" element={<Suspense fallback={<Loading />}><PayrollDetail /></Suspense>} />
-              <Route path="/prestaciones" element={<Suspense fallback={<Loading />}><SettlementList /></Suspense>} />
-              <Route path="/prestaciones/:id" element={<Suspense fallback={<Loading />}><SettlementDetail /></Suspense>} />
               <Route path="/suppliers" element={<Suspense fallback={<Loading />}><SupplierList /></Suspense>} />
               <Route path="/suppliers/:id" element={<Suspense fallback={<Loading />}><SupplierDetail /></Suspense>} />
               <Route element={<DateRangeProvider><Outlet /></DateRangeProvider>}>
@@ -114,16 +104,6 @@ export default function App() {
                 <Route path="/finance/cash-flow" element={<Suspense fallback={<Loading />}><CashFlowView /></Suspense>} />
                 <Route path="/finance/income-statement" element={<Suspense fallback={<Loading />}><IncomeStatementView /></Suspense>} />
                 <Route path="/finance/budget" element={<Suspense fallback={<Loading />}><BudgetView /></Suspense>} />
-                <Route path="/finance/reconciliation" element={<Suspense fallback={<Loading />}><ReconciliationView /></Suspense>} />
-                <Route path="/finance/reconciliation/:id" element={<Suspense fallback={<Loading />}><ReconciliationDetail /></Suspense>} />
-                <Route path="/finance/purchases" element={<Suspense fallback={<Loading />}><PurchaseList /></Suspense>} />
-                <Route path="/finance/purchases/new" element={<Suspense fallback={<Loading />}><PurchaseForm /></Suspense>} />
-                <Route path="/finance/purchases/products" element={<Suspense fallback={<Loading />}><ProductList /></Suspense>} />
-                <Route path="/finance/purchases/products/:id" element={<Suspense fallback={<Loading />}><ProductDetail /></Suspense>} />
-                <Route path="/finance/purchases/:id" element={<Suspense fallback={<Loading />}><PurchaseDetail /></Suspense>} />
-              </Route>
-              <Route element={<DateRangeProvider><Outlet /></DateRangeProvider>}>
-                <Route path="/cartera" element={<Suspense fallback={<Loading />}><CarteraDashboard /></Suspense>} />
               </Route>
               <Route path="/partners" element={<Suspense fallback={<Loading />}><PartnerList /></Suspense>} />
               <Route element={<DateRangeProvider><Outlet /></DateRangeProvider>}>

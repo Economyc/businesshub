@@ -29,7 +29,7 @@ function getWeekRange(startDateStr) {
 export function createObligationsTools(companyId) {
     return {
         getWeeklyObligations: tool({
-            description: 'Lista las obligaciones de pago de la semana: gastos pendientes, transacciones recurrentes próximas y estado de nómina. Priorizada por urgencia y monto.',
+            description: 'Lista las obligaciones de pago de la semana: gastos pendientes y transacciones recurrentes próximas. Priorizada por urgencia y monto.',
             parameters: z.object({
                 weekStartDate: z
                     .string()
@@ -39,10 +39,9 @@ export function createObligationsTools(companyId) {
             execute: async ({ weekStartDate }) => {
                 const { start, end } = getWeekRange(weekStartDate);
                 const now = new Date();
-                const [transactions, recurring, payrolls] = await Promise.all([
+                const [transactions, recurring] = await Promise.all([
                     fetchCollection(companyId, 'transactions'),
                     fetchCollection(companyId, 'recurring-transactions'),
-                    fetchCollection(companyId, 'payrolls'),
                 ]);
                 // 1. Pending/overdue expense transactions in or before this week
                 const pendingExpenses = transactions
@@ -87,22 +86,6 @@ export function createObligationsTools(companyId) {
                     urgency: 'recurring_due',
                     priority: 2,
                 }));
-                // 3. Check payroll status for current month
-                const currentMonth = now.getMonth() + 1;
-                const currentYear = now.getFullYear();
-                const currentPayroll = payrolls.find((p) => Number(p.year) === currentYear && Number(p.month) === currentMonth);
-                let payrollStatus;
-                if (!currentPayroll) {
-                    payrollStatus = { exists: false };
-                }
-                else {
-                    payrollStatus = {
-                        exists: true,
-                        status: String(currentPayroll.status),
-                        totalNetPay: Number(currentPayroll.totalNetPay) || 0,
-                        employeeCount: Number(currentPayroll.employeeCount) || 0,
-                    };
-                }
                 // Combine and sort by priority then amount
                 const allObligations = [...pendingExpenses, ...recurringDue].sort((a, b) => a.priority - b.priority || b.amount - a.amount);
                 const totalAmount = allObligations.reduce((s, o) => s + o.amount, 0);
@@ -119,7 +102,6 @@ export function createObligationsTools(companyId) {
                     overdueCount: allObligations.filter((o) => o.isOverdue).length,
                     overdueAmount,
                     obligations: allObligations,
-                    payrollStatus,
                 };
             },
         }),

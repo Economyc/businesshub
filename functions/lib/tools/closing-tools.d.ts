@@ -43,7 +43,6 @@ export declare function createClosingTools(companyId: string): {
             pendingCount: number;
             pendingTotal: number;
             pendingRecurringCount: number;
-            payrollStatus: string;
             activeEmployees: number;
         };
         pendingActions: string[];
@@ -86,7 +85,6 @@ export declare function createClosingTools(companyId: string): {
                 pendingCount: number;
                 pendingTotal: number;
                 pendingRecurringCount: number;
-                payrollStatus: string;
                 activeEmployees: number;
             };
             pendingActions: string[];

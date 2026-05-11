@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { AlertTriangle, TrendingUp, FileWarning, CheckCircle } from 'lucide-react'
+import { TrendingUp, FileWarning, CheckCircle } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { DashboardAlerts, AlertItem } from '../hooks'
 
@@ -47,8 +47,8 @@ interface AlertsPanelProps {
 
 export function AlertsPanel({ alerts }: AlertsPanelProps) {
   const navigate = useNavigate()
-  const { overdueItems, budgetExceeded, expiringContracts } = alerts
-  const hasAlerts = overdueItems.length > 0 || budgetExceeded.length > 0 || expiringContracts.length > 0
+  const { budgetExceeded, expiringContracts } = alerts
+  const hasAlerts = budgetExceeded.length > 0 || expiringContracts.length > 0
 
   return (
     <div className="bg-surface rounded-xl card-elevated p-[18px]">
@@ -61,18 +61,6 @@ export function AlertsPanel({ alerts }: AlertsPanelProps) {
         </div>
       ) : (
         <div className="space-y-4">
-          {overdueItems.length > 0 && (
-            <AlertSection
-              icon={AlertTriangle}
-              color="text-negative-text"
-              borderColor="border-negative-text"
-              title={`${overdueItems.length} pago${overdueItems.length > 1 ? 's' : ''} vencido${overdueItems.length > 1 ? 's' : ''}`}
-              items={overdueItems}
-              actionLabel="Ver cartera"
-              onAction={() => navigate('/cartera')}
-            />
-          )}
-
           {budgetExceeded.length > 0 && (
             <AlertSection
               icon={TrendingUp}

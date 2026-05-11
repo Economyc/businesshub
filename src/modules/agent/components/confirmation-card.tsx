@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Check, X, AlertTriangle, UserPlus, UserMinus, Briefcase, DollarSign, Pencil, Trash2, Wallet, PlusCircle, CalendarDays, CheckCircle2, Split, ArrowRight, Loader2 } from 'lucide-react'
+import { Check, X, AlertTriangle, UserPlus, UserMinus, Briefcase, DollarSign, Pencil, Trash2, Wallet, PlusCircle, CheckCircle2, Split, ArrowRight, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useCompany } from '@/core/hooks/use-company'
 import { supplierService } from '@/modules/suppliers/services'
@@ -30,7 +30,6 @@ const TOOL_CONFIG: Record<string, { label: string; type: ActionType; icon: typeo
   updateBudget: { label: 'Actualizar Presupuesto', type: 'update', icon: Wallet },
   addBudgetItem: { label: 'Agregar Item de Presupuesto', type: 'create', icon: PlusCircle },
   deleteBudgetItem: { label: 'Eliminar Item de Presupuesto', type: 'delete', icon: Trash2 },
-  createPayrollDraft: { label: 'Crear Borrador de Nómina', type: 'create', icon: CalendarDays },
   executeMonthClosing: { label: 'Ejecutar Cierre de Mes', type: 'create', icon: CheckCircle2 },
 }
 
