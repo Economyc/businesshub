@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Upload, Sparkles, FileText, Receipt } from 'lucide-react'
 import { TransactionForm } from './transaction-form'
 import { DocumentUploadDialog } from './document-upload-dialog'
+import { PaymentUploadDialog } from './payment-upload-dialog'
 import type { DocumentKind, Transaction } from '../types'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
@@ -120,6 +121,7 @@ export function TransactionList() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [docDialogOpen, setDocDialogOpen] = useState(false)
   const [docDialogKind, setDocDialogKind] = useState<DocumentKind>('invoice')
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false)
 
   // Solo facturas/compras: la vista "Facturación" trabaja con documentos
   // (invoice = cuenta por pagar a crédito, purchase = compra al contado).
@@ -130,6 +132,14 @@ export function TransactionList() {
       (t) => t.documentKind === 'invoice' || t.documentKind === 'purchase',
     )
   }, [transactions])
+
+  // Pendientes para cruzar pagos — sin filtro de rango: el usuario puede
+  // estar viendo mayo pero querer cruzar una factura de marzo.
+  const pendingInvoicesAll = useMemo(() => {
+    return invoiceTransactions.filter(
+      (t) => (t.status === 'pending' || t.status === 'overdue') && t.documentKind === 'invoice',
+    )
+  }, [invoiceTransactions])
 
   // Acotado al rango — usado tanto por el summary como por las tabs.
   const inRange = useMemo(() => {
@@ -311,6 +321,13 @@ export function TransactionList() {
               Subir documento
             </button>
             <button
+              onClick={() => setPaymentDialogOpen(true)}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
+            >
+              <Receipt size={15} strokeWidth={1.5} />
+              Subir pago
+            </button>
+            <button
               onClick={() => navigate('/finance/import')}
               className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
             >
@@ -443,6 +460,13 @@ export function TransactionList() {
         onClose={() => setDocDialogOpen(false)}
         onSaved={() => refetch()}
         defaultKind={docDialogKind}
+      />
+
+      <PaymentUploadDialog
+        open={paymentDialogOpen}
+        onClose={() => setPaymentDialogOpen(false)}
+        onSaved={() => refetch()}
+        pendingInvoices={pendingInvoicesAll}
       />
 
       <InlineAgentSheet
