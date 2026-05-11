@@ -142,8 +142,29 @@ export function MessageList({
 
   return (
     <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto min-h-0">
-      {messages.map((message) => (
+      {messages.map((message) => {
+        // Vercel AI SDK v4 expone los adjuntos en message.experimental_attachments
+        // (no en message.parts). Sin renderizarlos, las imágenes que el usuario
+        // sube no aparecen en su propio bubble.
+        const legacyAttachments =
+          (message as UIMessage & {
+            experimental_attachments?: Array<{ name?: string; contentType?: string; url: string }>
+          }).experimental_attachments ?? []
+        return (
         <div key={message.id}>
+          {legacyAttachments.map((att, i) => {
+            const isImage = (att.contentType ?? '').startsWith('image/')
+            if (!isImage) return null
+            return (
+              <div key={`${message.id}-att-${i}`} className="px-4 py-1 flex justify-end">
+                <img
+                  src={att.url}
+                  alt={att.name ?? 'Imagen adjunta'}
+                  className="max-w-[200px] max-h-[200px] rounded-lg border border-border object-cover"
+                />
+              </div>
+            )
+          })}
           {message.parts.map((part, i) => {
             if (part.type === 'file' && 'url' in part) {
               const filePart = part as unknown as { type: 'file'; url: string; mediaType: string; filename?: string }
@@ -290,7 +311,8 @@ export function MessageList({
             return null
           })}
         </div>
-      ))}
+      )
+      })}
 
       {isLoading && messages.length > 0 && messages[messages.length - 1].role === 'user' && (
         <div className="flex items-center gap-2.5 px-4 py-3">

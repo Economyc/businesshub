@@ -256,19 +256,21 @@ export function AgentChat({ initialMessages, conversationId, onConversationSaved
     append({ role: 'user', content: suggestion })
   }, [append])
 
-  const handleSendWithFiles = useCallback(async (text: string, files: File[]) => {
-    if (!selectedCompany) return
+  const handleSendWithFiles = useCallback(async (text: string, files: File[]): Promise<boolean> => {
+    if (!selectedCompany) {
+      throw new Error('Selecciona un local antes de enviar archivos.')
+    }
 
-    try {
-      const imageFiles = files.filter(isImageFile)
-      const spreadsheetFiles = files.filter(isSpreadsheetFile)
-      const pdfFiles = files.filter(isPdfFile)
+    const imageFiles = files.filter(isImageFile)
+    const spreadsheetFiles = files.filter(isSpreadsheetFile)
+    const pdfFiles = files.filter(isPdfFile)
 
-      let messageText = text
+    let messageText = text
 
-      const attachments: Array<{ name: string; contentType: string; url: string }> = []
+    const attachments: Array<{ name: string; contentType: string; url: string }> = []
 
-      for (const img of imageFiles) {
+    for (const img of imageFiles) {
+      try {
         const processed = await preprocessImage(img)
         const base64 = await fileToDataUrl(processed)
         attachments.push({
@@ -276,37 +278,49 @@ export function AgentChat({ initialMessages, conversationId, onConversationSaved
           contentType: processed.type,
           url: base64,
         })
+      } catch (err) {
+        console.error('preprocessImage failed:', err)
+        throw new Error(`No se pudo procesar la imagen "${img.name}". Prueba con JPG o PNG.`)
       }
+    }
 
-      for (const pdf of pdfFiles) {
+    for (const pdf of pdfFiles) {
+      try {
         const base64 = await fileToDataUrl(pdf)
         attachments.push({
           name: pdf.name,
           contentType: 'application/pdf',
           url: base64,
         })
+      } catch (err) {
+        console.error('fileToDataUrl PDF failed:', err)
+        throw new Error(`No se pudo leer el PDF "${pdf.name}".`)
       }
+    }
 
-      for (const file of spreadsheetFiles) {
+    for (const file of spreadsheetFiles) {
+      try {
         const parsed = await parseSpreadsheetToText(file)
         messageText += `\n\nContenido del archivo "${file.name}":\n${parsed}`
+      } catch (err) {
+        console.error('parseSpreadsheet failed:', err)
+        throw new Error(`No se pudo leer el archivo "${file.name}".`)
       }
-
-      if (attachments.length > 0) {
-        append({
-          role: 'user',
-          content: messageText || 'Analiza esta imagen. Si es una factura o recibo, extrae todos los datos: proveedor, RUT, fecha, monto, items, IVA, total, y sugiere una categoría de gasto.',
-          experimental_attachments: attachments,
-        })
-      } else {
-        append({
-          role: 'user',
-          content: messageText || 'Analiza los datos del archivo.',
-        })
-      }
-    } catch (err) {
-      console.error('Error processing files:', err)
     }
+
+    if (attachments.length > 0) {
+      append({
+        role: 'user',
+        content: messageText || 'Analiza esta imagen. Si es una factura o recibo, extrae todos los datos: proveedor, RUT, fecha, monto, items, IVA, total, y sugiere una categoría de gasto.',
+        experimental_attachments: attachments,
+      })
+    } else {
+      append({
+        role: 'user',
+        content: messageText || 'Analiza los datos del archivo.',
+      })
+    }
+    return true
   }, [selectedCompany, append])
 
   const { toasts, showUndoToast, dismissToast } = useUndoToasts()

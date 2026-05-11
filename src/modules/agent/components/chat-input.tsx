@@ -21,7 +21,7 @@ interface ChatInputProps {
   input: string
   onInputChange: (value: string) => void
   onSubmit: (e: FormEvent) => void
-  onSendWithFiles?: (text: string, files: File[]) => void
+  onSendWithFiles?: (text: string, files: File[]) => Promise<boolean> | boolean | void
   isLoading: boolean
   onStop?: () => void
 }
@@ -136,15 +136,27 @@ export function ChatInput({ input, onInputChange, onSubmit, onSendWithFiles, isL
     }
   }
 
-  function handleSend() {
+  async function handleSend() {
     if (isLoading) return
     if (!input.trim() && attachedFiles.length === 0) return
 
     if (attachedFiles.length > 0 && onSendWithFiles) {
-      onSendWithFiles(input.trim() || 'Analiza este archivo', attachedFiles)
-      setAttachedFiles([])
-      onInputChange('')
-      resetTextarea()
+      const filesToSend = attachedFiles
+      const textToSend = input.trim() || 'Analiza este archivo'
+      try {
+        const maybe = onSendWithFiles(textToSend, filesToSend)
+        const result = maybe instanceof Promise ? await maybe : maybe
+        // Sólo limpiamos el preview si el envío fue confirmado (o si la
+        // callback no devuelve un boolean — comportamiento legacy).
+        if (result !== false) {
+          setAttachedFiles([])
+          onInputChange('')
+          resetTextarea()
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Error al enviar el archivo'
+        showAttachErrors([msg])
+      }
     } else if (input.trim()) {
       onSubmit(new Event('submit') as unknown as FormEvent)
     }
