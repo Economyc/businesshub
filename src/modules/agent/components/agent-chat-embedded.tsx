@@ -11,6 +11,8 @@ import { executeMutation } from '../utils/execute-mutation'
 import { buildUndoAction } from '../utils/build-undo'
 import { UndoToastContainer, useUndoToasts } from './undo-toast'
 import { exportToPDF, exportToExcel } from '../utils/export-report'
+import { preprocessImage, isImageFile, isSpreadsheetFile, isPdfFile } from '../utils/image-preprocessing'
+import { parseSpreadsheetToText } from '../utils/parse-spreadsheet'
 import { getUserMemory } from '../services'
 
 const AGENT_API_URL = import.meta.env.VITE_AGENT_API_URL || '/api/agent/chat'
@@ -116,6 +118,73 @@ export function AgentChatEmbedded({ inlineContext }: AgentChatEmbeddedProps) {
   const handleSuggestionClick = useCallback((suggestion: string) => {
     append({ role: 'user', content: suggestion })
   }, [append])
+
+  const handleSendWithFiles = useCallback(async (text: string, files: File[]): Promise<boolean> => {
+    if (!selectedCompany) {
+      throw new Error('Selecciona un local antes de enviar archivos.')
+    }
+
+    const imageFiles = files.filter(isImageFile)
+    const spreadsheetFiles = files.filter(isSpreadsheetFile)
+    const pdfFiles = files.filter(isPdfFile)
+
+    let messageText = text
+
+    const attachments: Array<{ name: string; contentType: string; url: string }> = []
+
+    for (const img of imageFiles) {
+      try {
+        const processed = await preprocessImage(img)
+        const base64 = await fileToDataUrl(processed)
+        attachments.push({
+          name: processed.name,
+          contentType: processed.type,
+          url: base64,
+        })
+      } catch (err) {
+        console.error('preprocessImage failed:', err)
+        throw new Error(`No se pudo procesar la imagen "${img.name}". Prueba con JPG o PNG.`)
+      }
+    }
+
+    for (const pdf of pdfFiles) {
+      try {
+        const base64 = await fileToDataUrl(pdf)
+        attachments.push({
+          name: pdf.name,
+          contentType: 'application/pdf',
+          url: base64,
+        })
+      } catch (err) {
+        console.error('fileToDataUrl PDF failed:', err)
+        throw new Error(`No se pudo leer el PDF "${pdf.name}".`)
+      }
+    }
+
+    for (const file of spreadsheetFiles) {
+      try {
+        const parsed = await parseSpreadsheetToText(file)
+        messageText += `\n\nContenido del archivo "${file.name}":\n${parsed}`
+      } catch (err) {
+        console.error('parseSpreadsheet failed:', err)
+        throw new Error(`No se pudo leer el archivo "${file.name}".`)
+      }
+    }
+
+    if (attachments.length > 0) {
+      append({
+        role: 'user',
+        content: messageText || 'Analiza esta imagen. Si es una factura o recibo, extrae todos los datos: proveedor, RUT, fecha, monto, items, IVA, total, y sugiere una categoría de gasto.',
+        experimental_attachments: attachments,
+      })
+    } else {
+      append({
+        role: 'user',
+        content: messageText || 'Analiza los datos del archivo.',
+      })
+    }
+    return true
+  }, [selectedCompany, append])
 
   // Las pills de sugerencias en InlineAgentSheet viven fuera de este componente.
   // Para evitar acoplar el sheet al estado de useChat, escuchamos un evento
@@ -265,6 +334,7 @@ export function AgentChatEmbedded({ inlineContext }: AgentChatEmbeddedProps) {
         input={input}
         onInputChange={setInput}
         onSubmit={handleSubmit}
+        onSendWithFiles={handleSendWithFiles}
         isLoading={isLoading}
         onStop={stop}
       />
@@ -272,4 +342,13 @@ export function AgentChatEmbedded({ inlineContext }: AgentChatEmbeddedProps) {
       <UndoToastContainer toasts={toasts} onDismiss={dismissToast} />
     </div>
   )
+}
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onloadend = () => resolve(reader.result as string)
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
 }
