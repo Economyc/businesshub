@@ -31,7 +31,10 @@ type TabKey = 'pending' | 'paid'
 function formatDate(ts: Transaction['date']): string {
   const d = ts?.toDate?.()
   if (!d) return '—'
-  return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
+  const dd = String(d.getDate()).padStart(2, '0')
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const yyyy = d.getFullYear()
+  return `${dd}/${mm}/${yyyy}`
 }
 
 function getCategoryColor(category: string, categoryItems: CategoryItem[]): string {
