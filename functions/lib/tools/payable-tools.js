@@ -41,6 +41,14 @@ export function createPayableTools(companyId) {
                     .optional()
                     .describe('Solo aplica cuando documentKind="invoice". "immediate" marca la factura como urgente (rojo en la tabla). ' +
                     'Si el usuario dice "urgente", "pagar ya", "no puede esperar" → usa "immediate". Default: "waiting".'),
+                customSupplier: z
+                    .boolean()
+                    .optional()
+                    .describe('Pásalo true cuando el proveedor NO existe en la lista de proveedores registrados y el usuario quiere ' +
+                    'usarlo como tercero ocasional (equivalente al "proveedor personalizado" del UI). En ese caso el ' +
+                    'payee se guarda como external con el supplierName tal cual lo escribiste. Default: false (busca el ' +
+                    'proveedor en la lista). Antes de pasar true, confirma con el usuario que el proveedor no debe quedar ' +
+                    'registrado formalmente.'),
             }),
             // No execute — el cliente maneja la confirmación, sube el adjunto a
             // Drive con uploadDocumentToDrive, y luego crea la Transaction.

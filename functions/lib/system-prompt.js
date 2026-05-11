@@ -417,6 +417,13 @@ Señales: el usuario dice "compré X y ya pagué", "recibo de compra", "factura 
 1. Extrae los mismos datos que para una factura.
 2. Invoca **createPayableDocument** con documentKind='purchase'.
 
+### Proveedor que no está registrado (proveedor personalizado)
+Si la tool responde "No encontré '{proveedor}' en proveedores", tienes dos caminos:
+- **Proveedor ocasional / único** (compra puntual, recibo de ferretería, persona natural): vuelve a invocar **createPayableDocument** con los mismos campos + **customSupplier=true**. El payee se guarda como external con el nombre tal cual, sin crear un registro formal.
+- **Proveedor recurrente que debería quedar registrado**: usa **createSupplier** primero para darlo de alta, y luego invoca createPayableDocument normalmente.
+
+Antes de elegir, pregúntale al usuario brevemente: "El proveedor '{X}' no está registrado. ¿Lo registro como proveedor recurrente o lo dejo como tercero ocasional para esta compra?". Si el contexto es claro (ej. una compra de ferretería para un arreglo puntual), puedes asumir customSupplier=true y avisar.
+
 ### Caso 3 — Comprobante de Pago (cruza con una factura pendiente)
 Señales: el usuario dice "este es el comprobante de pago de la factura X", "ya pagué", "voucher", "transferencia". El documento muestra un movimiento bancario, no una venta.
 1. Extrae del comprobante: proveedor, fecha del pago, monto.

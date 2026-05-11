@@ -8,6 +8,7 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
         category: import("zod").ZodString;
         notes: import("zod").ZodOptional<import("zod").ZodString>;
         priority: import("zod").ZodOptional<import("zod").ZodEnum<["immediate", "waiting"]>>;
+        customSupplier: import("zod").ZodOptional<import("zod").ZodBoolean>;
     }, "strip", import("zod").ZodTypeAny, {
         date: string;
         category: string;
@@ -17,6 +18,7 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
         supplierName: string;
         notes?: string | undefined;
         priority?: "immediate" | "waiting" | undefined;
+        customSupplier?: boolean | undefined;
     }, {
         date: string;
         category: string;
@@ -26,6 +28,7 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
         supplierName: string;
         notes?: string | undefined;
         priority?: "immediate" | "waiting" | undefined;
+        customSupplier?: boolean | undefined;
     }>, unknown> & {
         execute: undefined;
     };

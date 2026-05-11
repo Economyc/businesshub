@@ -9,6 +9,7 @@ export declare function createPayableTools(companyId: string): {
         category: z.ZodString;
         notes: z.ZodOptional<z.ZodString>;
         priority: z.ZodOptional<z.ZodEnum<["immediate", "waiting"]>>;
+        customSupplier: z.ZodOptional<z.ZodBoolean>;
     }, "strip", z.ZodTypeAny, {
         date: string;
         category: string;
@@ -18,6 +19,7 @@ export declare function createPayableTools(companyId: string): {
         supplierName: string;
         notes?: string | undefined;
         priority?: "immediate" | "waiting" | undefined;
+        customSupplier?: boolean | undefined;
     }, {
         date: string;
         category: string;
@@ -27,6 +29,7 @@ export declare function createPayableTools(companyId: string): {
         supplierName: string;
         notes?: string | undefined;
         priority?: "immediate" | "waiting" | undefined;
+        customSupplier?: boolean | undefined;
     }>, unknown> & {
         execute: undefined;
     };
