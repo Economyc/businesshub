@@ -10,5 +10,8 @@ export { adminCreateUser, adminSetUserStatus, adminDeleteUser } from './users-ad
 export {
   uploadDocumentToDrive,
   validateDriveFolder,
-  getDriveServiceAccount,
+  driveAuthStart,
+  driveAuthDisconnect,
+  driveAuthStatus,
+  driveOAuthCallback,
 } from './upload-document-to-drive.js'

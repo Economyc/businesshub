@@ -1,5 +1,5 @@
-import { useState, useEffect, Fragment } from 'react'
-import { Plus, MapPin, Trash2, Check, ChevronRight, X, AlertCircle, Copy } from 'lucide-react'
+import { useState, useEffect, Fragment, useCallback } from 'react'
+import { Plus, MapPin, Trash2, Check, ChevronRight, X, AlertCircle, Cloud, CloudOff, LogOut } from 'lucide-react'
 import { httpsCallable } from 'firebase/functions'
 import { cn } from '@/lib/utils'
 import { PageTransition } from '@/core/ui/page-transition'
@@ -31,6 +31,12 @@ type DriveValidationState =
   | { kind: 'valid'; folderName: string }
   | { kind: 'invalid'; error: string }
 
+type DriveAuthState =
+  | { kind: 'loading' }
+  | { kind: 'disconnected' }
+  | { kind: 'connected'; email: string | null }
+  | { kind: 'error'; error: string }
+
 export function SettingsCompanies() {
   const { companies, updateCompany, deleteCompany, addCompany } = useCompany()
 
@@ -39,8 +45,8 @@ export function SettingsCompanies() {
   const [savedId, setSavedId] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [driveValidation, setDriveValidation] = useState<DriveValidationState>({ kind: 'idle' })
-  const [serviceAccountEmail, setServiceAccountEmail] = useState<string | null>(null)
-  const [emailCopied, setEmailCopied] = useState(false)
+  const [driveAuth, setDriveAuth] = useState<DriveAuthState>({ kind: 'loading' })
+  const [connecting, setConnecting] = useState(false)
 
   useEffect(() => {
     if (!expandedId) return
@@ -56,12 +62,32 @@ export function SettingsCompanies() {
     return () => document.removeEventListener('keydown', handleKey, true)
   }, [expandedId])
 
+  const fetchDriveAuthStatus = useCallback(async (companyId: string) => {
+    setDriveAuth({ kind: 'loading' })
+    try {
+      const fns = await getAppFunctions()
+      const fn = httpsCallable<
+        { companyId: string },
+        { connected: boolean; email: string | null; connectedAt: number | null }
+      >(fns, 'driveAuthStatus')
+      const res = await fn({ companyId })
+      if (res.data.connected) {
+        setDriveAuth({ kind: 'connected', email: res.data.email })
+      } else {
+        setDriveAuth({ kind: 'disconnected' })
+      }
+    } catch (err) {
+      setDriveAuth({ kind: 'error', error: (err as Error).message ?? 'Error de red' })
+    }
+  }, [])
+
   function toggleExpand(company: typeof companies[0]) {
     if (expandedId === company.id) {
       setExpandedId(null)
       setForm(null)
       setConfirmDelete(false)
       setDriveValidation({ kind: 'idle' })
+      setDriveAuth({ kind: 'loading' })
     } else {
       setExpandedId(company.id)
       setForm({
@@ -76,19 +102,64 @@ export function SettingsCompanies() {
       setSavedId(null)
       setConfirmDelete(false)
       setDriveValidation({ kind: 'idle' })
-      // Fetch SA email lazy una sola vez (sirve para todas las empresas).
-      if (!serviceAccountEmail) {
-        void (async () => {
-          try {
-            const fns = await getAppFunctions()
-            const fn = httpsCallable<unknown, { email: string | null }>(fns, 'getDriveServiceAccount')
-            const res = await fn({})
-            if (res.data?.email) setServiceAccountEmail(res.data.email)
-          } catch {
-            /* noop — el campo de email es informativo */
-          }
-        })()
+      void fetchDriveAuthStatus(company.id)
+    }
+  }
+
+  async function handleConnectDrive() {
+    if (!form) return
+    setConnecting(true)
+    try {
+      const fns = await getAppFunctions()
+      const fn = httpsCallable<{ companyId: string }, { url: string }>(fns, 'driveAuthStart')
+      const res = await fn({ companyId: form.id })
+      const url = res.data.url
+      // Abre popup centrado y escucha postMessage.
+      const w = 500, h = 700
+      const left = window.screenX + (window.outerWidth - w) / 2
+      const top = window.screenY + (window.outerHeight - h) / 2
+      const popup = window.open(url, 'drive-oauth', `width=${w},height=${h},left=${left},top=${top}`)
+      if (!popup) {
+        setDriveAuth({ kind: 'error', error: 'El navegador bloqueó el popup. Permite popups para este sitio.' })
+        setConnecting(false)
+        return
       }
+      function onMessage(e: MessageEvent) {
+        if (!e.data || e.data.type !== 'drive-oauth') return
+        window.removeEventListener('message', onMessage)
+        setConnecting(false)
+        if (e.data.status === 'ok') {
+          void fetchDriveAuthStatus(form!.id)
+        } else {
+          setDriveAuth({ kind: 'error', error: e.data.message ?? 'Error al conectar' })
+        }
+      }
+      window.addEventListener('message', onMessage)
+      // Fallback: si el popup se cierra sin postMessage en 5 min, refetch.
+      const poll = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(poll)
+          window.removeEventListener('message', onMessage)
+          setConnecting(false)
+          void fetchDriveAuthStatus(form!.id)
+        }
+      }, 1000)
+    } catch (err) {
+      setDriveAuth({ kind: 'error', error: (err as Error).message ?? 'Error de red' })
+      setConnecting(false)
+    }
+  }
+
+  async function handleDisconnectDrive() {
+    if (!form) return
+    try {
+      const fns = await getAppFunctions()
+      const fn = httpsCallable<{ companyId: string }, { ok: boolean }>(fns, 'driveAuthDisconnect')
+      await fn({ companyId: form.id })
+      setDriveAuth({ kind: 'disconnected' })
+      setDriveValidation({ kind: 'idle' })
+    } catch (err) {
+      setDriveAuth({ kind: 'error', error: (err as Error).message ?? 'Error de red' })
     }
   }
 
@@ -97,15 +168,18 @@ export function SettingsCompanies() {
       setDriveValidation({ kind: 'invalid', error: 'Ingresa un Folder ID' })
       return
     }
+    if (driveAuth.kind !== 'connected') {
+      setDriveValidation({ kind: 'invalid', error: 'Conecta Drive primero' })
+      return
+    }
     setDriveValidation({ kind: 'validating' })
     try {
       const fns = await getAppFunctions()
       const fn = httpsCallable<
         { companyId: string; rootFolderId: string },
-        { ok: boolean; folderName?: string; error?: string; serviceAccountEmail?: string | null }
+        { ok: boolean; folderName?: string; error?: string }
       >(fns, 'validateDriveFolder')
       const res = await fn({ companyId: form.id, rootFolderId: form.driveRootFolderId.trim() })
-      if (res.data.serviceAccountEmail) setServiceAccountEmail(res.data.serviceAccountEmail)
       if (res.data.ok && res.data.folderName) {
         setDriveValidation({ kind: 'valid', folderName: res.data.folderName })
       } else {
@@ -113,17 +187,6 @@ export function SettingsCompanies() {
       }
     } catch (err) {
       setDriveValidation({ kind: 'invalid', error: (err as Error).message ?? 'Error de red' })
-    }
-  }
-
-  async function copyEmail() {
-    if (!serviceAccountEmail) return
-    try {
-      await navigator.clipboard.writeText(serviceAccountEmail)
-      setEmailCopied(true)
-      setTimeout(() => setEmailCopied(false), 1500)
-    } catch {
-      /* noop */
     }
   }
 
@@ -298,58 +361,96 @@ export function SettingsCompanies() {
                           </div>
                         </div>
 
-                        {/* Drive integration */}
+                        {/* Drive integration (OAuth) */}
                         <div className="mt-5 pt-4 border-t border-border space-y-3">
                           <div>
-                            <div className="text-caption uppercase tracking-wider text-mid-gray mb-1">Drive — carpeta raíz</div>
-                            <p className="text-caption text-mid-gray mb-2">
-                              Crea una carpeta en tu Google Drive, compártela como editor con la cuenta de servicio, y pega el ID aquí. Los archivos de Facturas, Pagos y Compras se organizarán automáticamente por año y mes.
+                            <div className="text-caption uppercase tracking-wider text-mid-gray mb-1">Google Drive</div>
+                            <p className="text-caption text-mid-gray mb-3">
+                              Conecta tu Drive para guardar Facturas, Pagos y Compras de esta empresa. Los archivos se organizan automáticamente por año y mes en la carpeta que elijas.
                             </p>
-                            {serviceAccountEmail && (
-                              <div className="flex items-center gap-2 mb-2 text-caption text-mid-gray">
-                                <span>Cuenta de servicio:</span>
-                                <code className="px-2 py-0.5 rounded bg-bone border border-border/60 text-graphite">
-                                  {serviceAccountEmail}
-                                </code>
+
+                            {/* Estado de conexión */}
+                            {driveAuth.kind === 'loading' && (
+                              <div className="text-caption text-mid-gray">Cargando estado…</div>
+                            )}
+
+                            {driveAuth.kind === 'disconnected' && (
+                              <button
+                                type="button"
+                                onClick={handleConnectDrive}
+                                disabled={connecting}
+                                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-body font-medium text-graphite bg-bone border border-border/60 hover:bg-bone/70 transition-colors disabled:opacity-50"
+                              >
+                                <Cloud size={14} strokeWidth={1.5} />
+                                {connecting ? 'Esperando autorización…' : 'Conectar Drive'}
+                              </button>
+                            )}
+
+                            {driveAuth.kind === 'connected' && (
+                              <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-positive-bg border border-border/60">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <Check size={14} strokeWidth={2.5} className="text-positive shrink-0" />
+                                  <span className="text-body text-graphite truncate">
+                                    Conectado{driveAuth.email ? ` como ${driveAuth.email}` : ''}
+                                  </span>
+                                </div>
                                 <button
                                   type="button"
-                                  onClick={copyEmail}
-                                  className="p-1 rounded hover:bg-bone transition-colors text-mid-gray hover:text-graphite"
-                                  title="Copiar email"
+                                  onClick={handleDisconnectDrive}
+                                  className="inline-flex items-center gap-1 px-2 py-1 rounded text-caption text-mid-gray hover:text-graphite hover:bg-bone transition-colors shrink-0"
+                                  title="Desconectar Drive"
                                 >
-                                  {emailCopied ? <Check size={12} strokeWidth={2.5} /> : <Copy size={12} strokeWidth={1.5} />}
+                                  <LogOut size={12} strokeWidth={1.5} />
+                                  Desconectar
                                 </button>
                               </div>
                             )}
-                            <div className="flex items-center gap-2">
-                              <input
-                                value={form.driveRootFolderId}
-                                onChange={(e) => { setForm({ ...form, driveRootFolderId: e.target.value }); setDriveValidation({ kind: 'idle' }); setSavedId(null) }}
-                                placeholder="Folder ID de Drive (ej: 1A2bCdEf...)"
-                                className={inputClass}
-                              />
-                              <button
-                                type="button"
-                                onClick={handleValidateDrive}
-                                disabled={driveValidation.kind === 'validating' || !form.driveRootFolderId.trim()}
-                                className="px-3 py-2 rounded-lg text-body font-medium text-graphite bg-bone border border-border/60 hover:bg-bone/70 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-                              >
-                                {driveValidation.kind === 'validating' ? 'Validando…' : 'Validar'}
-                              </button>
-                            </div>
-                            {driveValidation.kind === 'valid' && (
-                              <div className="flex items-center gap-1.5 mt-2 text-caption text-positive">
-                                <Check size={12} strokeWidth={2} />
-                                Carpeta "{driveValidation.folderName}" accesible
-                              </div>
-                            )}
-                            {driveValidation.kind === 'invalid' && (
-                              <div className="flex items-center gap-1.5 mt-2 text-caption text-destructive">
-                                <AlertCircle size={12} strokeWidth={2} />
-                                {driveValidation.error}
+
+                            {driveAuth.kind === 'error' && (
+                              <div className="flex items-start gap-2 p-3 rounded-lg bg-negative-bg border border-border/60 text-caption text-negative-text">
+                                <CloudOff size={14} strokeWidth={2} className="mt-0.5 shrink-0" />
+                                <span>{driveAuth.error}</span>
                               </div>
                             )}
                           </div>
+
+                          {/* Folder ID — solo visible cuando hay conexión */}
+                          {driveAuth.kind === 'connected' && (
+                            <div className="pt-2">
+                              <label className="block text-caption uppercase tracking-wider text-mid-gray mb-1">Carpeta raíz</label>
+                              <p className="text-caption text-mid-gray mb-2">
+                                Pega el ID de la carpeta en tu Drive donde guardar los documentos de esta empresa (de la URL: <code>drive.google.com/drive/folders/<b>ID</b></code>).
+                              </p>
+                              <div className="flex items-center gap-2">
+                                <input
+                                  value={form.driveRootFolderId}
+                                  onChange={(e) => { setForm({ ...form, driveRootFolderId: e.target.value }); setDriveValidation({ kind: 'idle' }); setSavedId(null) }}
+                                  placeholder="Folder ID de Drive (ej: 1A2bCdEf...)"
+                                  className={inputClass}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={handleValidateDrive}
+                                  disabled={driveValidation.kind === 'validating' || !form.driveRootFolderId.trim()}
+                                  className="px-3 py-2 rounded-lg text-body font-medium text-graphite bg-bone border border-border/60 hover:bg-bone/70 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                                >
+                                  {driveValidation.kind === 'validating' ? 'Validando…' : 'Validar'}
+                                </button>
+                              </div>
+                              {driveValidation.kind === 'valid' && (
+                                <div className="flex items-center gap-1.5 mt-2 text-caption text-positive">
+                                  <Check size={12} strokeWidth={2} />
+                                  Carpeta "{driveValidation.folderName}" accesible
+                                </div>
+                              )}
+                              {driveValidation.kind === 'invalid' && (
+                                <div className="flex items-center gap-1.5 mt-2 text-caption text-destructive">
+                                  <AlertCircle size={12} strokeWidth={2} />
+                                  {driveValidation.error}
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
 
                         {/* Actions */}

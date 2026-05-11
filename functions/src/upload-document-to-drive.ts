@@ -1,11 +1,17 @@
-import { onCall, HttpsError } from 'firebase-functions/v2/https'
+import { onCall, onRequest, HttpsError } from 'firebase-functions/v2/https'
 import { db } from './firestore.js'
 import {
   ensureFolderPath,
   uploadFile,
   validateRootFolderAccess,
-  getServiceAccountEmail,
-} from './services/drive.js'
+  buildAuthUrl,
+  exchangeCodeForTokens,
+  saveDriveAuth,
+  clearDriveAuth,
+  getCompanyDriveAuth,
+  driveClientId,
+  driveClientSecret,
+} from './services/drive-oauth.js'
 
 // Callable de upload de documentos (Facturas, Pagos, Compras) a Drive.
 // Estructura: {Company.driveRootFolderId} / {YYYY} / {MesEs} / {filename}
@@ -23,7 +29,6 @@ interface UploadInput {
   docType: DocType
   supplierName: string
   docNumber: string
-  /** ISO date string (YYYY-MM-DD) o ms epoch */
   date: string | number
   fileBase64: string
   fileName: string
@@ -53,14 +58,11 @@ async function assertCompanyMember(uid: string, companyId: string): Promise<void
 }
 
 function sanitizeForFileName(s: string): string {
-  // Drive tolera casi cualquier cosa, pero quitamos slashes y caracteres
-  // problemáticos para mantener nombres limpios.
   return s.replace(/[\\/:*?"<>|]/g, '').trim()
 }
 
 function parseDate(input: string | number): Date {
   if (typeof input === 'number') return new Date(input)
-  // Acepta YYYY-MM-DD interpretándolo como local (sin UTC shift).
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(input)
   if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
   return new Date(input)
@@ -73,13 +75,14 @@ function extFromMime(mime: string, fallbackName: string): string {
   if (mime.includes('webp')) return 'webp'
   if (mime.includes('heic')) return 'heic'
   if (mime.includes('heif')) return 'heif'
-  // Fallback: extraer extensión del nombre original.
   const idx = fallbackName.lastIndexOf('.')
   return idx >= 0 ? fallbackName.slice(idx + 1).toLowerCase() : 'bin'
 }
 
+const SECRETS = [driveClientId, driveClientSecret]
+
 export const uploadDocumentToDrive = onCall(
-  { region: 'us-central1', memory: '512MiB', timeoutSeconds: 60 },
+  { region: 'us-central1', memory: '512MiB', timeoutSeconds: 60, secrets: SECRETS },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Login requerido')
@@ -102,7 +105,15 @@ export const uploadDocumentToDrive = onCall(
     if (!company.driveRootFolderId) {
       throw new HttpsError(
         'failed-precondition',
-        'La empresa no tiene Drive configurado. Pide al administrador que configure la carpeta raíz en Ajustes.',
+        'La empresa no tiene Drive configurado. Ve a Ajustes y conecta Drive.',
+      )
+    }
+
+    const auth = await getCompanyDriveAuth(data.companyId)
+    if (!auth?.refreshToken) {
+      throw new HttpsError(
+        'failed-precondition',
+        'Drive no está conectado para esta empresa. Ve a Ajustes → Conectar Drive.',
       )
     }
 
@@ -116,11 +127,8 @@ export const uploadDocumentToDrive = onCall(
     const docNumber = sanitizeForFileName(data.docNumber)
     const fileName = `${supplier} - ${data.docType} ${docNumber} - ${month} ${dd} ${year}.${ext}`
 
-    const targetFolderId = await ensureFolderPath(data.companyId, company.driveRootFolderId, [
-      year,
-      month,
-    ])
-    const uploaded = await uploadFile(targetFolderId, fileName, data.mimeType, data.fileBase64)
+    const targetFolderId = await ensureFolderPath(data.companyId, company.driveRootFolderId, [year, month])
+    const uploaded = await uploadFile(data.companyId, targetFolderId, fileName, data.mimeType, data.fileBase64)
 
     return {
       driveFileId: uploaded.driveFileId,
@@ -130,14 +138,13 @@ export const uploadDocumentToDrive = onCall(
   },
 )
 
-// Callable auxiliar para validar el folder raíz desde Settings.
 interface ValidateInput {
   companyId: string
   rootFolderId: string
 }
 
 export const validateDriveFolder = onCall(
-  { region: 'us-central1', memory: '256MiB', timeoutSeconds: 30 },
+  { region: 'us-central1', memory: '256MiB', timeoutSeconds: 30, secrets: SECRETS },
   async (request) => {
     if (!request.auth) throw new HttpsError('unauthenticated', 'Login requerido')
     const data = request.data as ValidateInput
@@ -145,19 +152,123 @@ export const validateDriveFolder = onCall(
       throw new HttpsError('invalid-argument', 'companyId y rootFolderId requeridos')
     }
     await assertCompanyMember(request.auth.uid, data.companyId)
-    const result = await validateRootFolderAccess(data.rootFolderId)
-    const saEmail = await getServiceAccountEmail()
-    return { ...result, serviceAccountEmail: saEmail }
+    const result = await validateRootFolderAccess(data.companyId, data.rootFolderId)
+    return result
   },
 )
 
-// Callable simple para que la UI muestre el email de la SA sin necesidad de
-// hacer una validación de carpeta.
-export const getDriveServiceAccount = onCall(
+// ─── OAuth flow ──────────────────────────────────────────────────────────
+
+export const driveAuthStart = onCall(
+  { region: 'us-central1', memory: '256MiB', timeoutSeconds: 15, secrets: SECRETS },
+  async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Login requerido')
+    const data = request.data as { companyId: string }
+    if (!data?.companyId) throw new HttpsError('invalid-argument', 'companyId requerido')
+    await assertCompanyMember(request.auth.uid, data.companyId)
+
+    // El state lleva companyId + uid firmado de manera simple (timestamp-base64).
+    // Es opaco para Google, pero nosotros lo decodificamos en el callback.
+    const state = Buffer.from(JSON.stringify({
+      companyId: data.companyId,
+      uid: request.auth.uid,
+      ts: Date.now(),
+    })).toString('base64url')
+    const url = buildAuthUrl(state)
+    return { url }
+  },
+)
+
+export const driveAuthDisconnect = onCall(
   { region: 'us-central1', memory: '256MiB', timeoutSeconds: 15 },
   async (request) => {
     if (!request.auth) throw new HttpsError('unauthenticated', 'Login requerido')
-    const email = await getServiceAccountEmail()
-    return { email }
+    const data = request.data as { companyId: string }
+    if (!data?.companyId) throw new HttpsError('invalid-argument', 'companyId requerido')
+    await assertCompanyMember(request.auth.uid, data.companyId)
+    await clearDriveAuth(data.companyId)
+    return { ok: true }
+  },
+)
+
+export const driveAuthStatus = onCall(
+  { region: 'us-central1', memory: '256MiB', timeoutSeconds: 15 },
+  async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Login requerido')
+    const data = request.data as { companyId: string }
+    if (!data?.companyId) throw new HttpsError('invalid-argument', 'companyId requerido')
+    await assertCompanyMember(request.auth.uid, data.companyId)
+    const auth = await getCompanyDriveAuth(data.companyId)
+    return {
+      connected: !!auth?.refreshToken,
+      email: auth?.email ?? null,
+      connectedAt: auth?.connectedAt ?? null,
+    }
+  },
+)
+
+// HTTP callback al que Google redirige tras consent. Lo abrimos en un popup
+// desde el frontend — el HTML resultante notifica al opener via postMessage
+// y se cierra solo.
+export const driveOAuthCallback = onRequest(
+  { region: 'us-central1', memory: '256MiB', timeoutSeconds: 30, secrets: SECRETS },
+  async (req, res) => {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8')
+    const code = req.query.code as string | undefined
+    const error = req.query.error as string | undefined
+    const stateRaw = req.query.state as string | undefined
+
+    function html(status: 'ok' | 'error', message: string, email?: string | null) {
+      return `<!doctype html>
+<html><head><meta charset="utf-8"><title>Conectando Drive…</title>
+<style>body{font-family:system-ui,-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f5f4f1;color:#2D2D2D}.card{max-width:380px;padding:32px;background:white;border-radius:16px;border:1px solid #e5e4e0;text-align:center}.ok{color:#1e8a4a}.err{color:#c43838}h1{font-size:18px;font-weight:500;margin:0 0 8px}p{font-size:14px;color:#6b6b6b;margin:0}</style>
+</head><body><div class="card">
+<h1 class="${status === 'ok' ? 'ok' : 'err'}">${status === 'ok' ? '✓ Drive conectado' : '✗ Error'}</h1>
+<p>${message}</p>
+${email ? `<p style="margin-top:8px"><code>${email}</code></p>` : ''}
+<p style="margin-top:16px;font-size:12px">Puedes cerrar esta ventana.</p>
+</div>
+<script>
+try {
+  if (window.opener) {
+    window.opener.postMessage({ type: 'drive-oauth', status: '${status}', message: ${JSON.stringify(message)}, email: ${JSON.stringify(email ?? null)} }, '*');
+  }
+} catch (e) {}
+setTimeout(() => { try { window.close() } catch (e) {} }, 2000);
+</script>
+</body></html>`
+    }
+
+    if (error) {
+      res.status(400).send(html('error', `Google retornó: ${error}`))
+      return
+    }
+    if (!code || !stateRaw) {
+      res.status(400).send(html('error', 'Faltan parámetros (code/state)'))
+      return
+    }
+
+    let parsed: { companyId: string; uid: string; ts: number }
+    try {
+      parsed = JSON.parse(Buffer.from(stateRaw, 'base64url').toString('utf-8'))
+    } catch {
+      res.status(400).send(html('error', 'State inválido'))
+      return
+    }
+
+    // El state expira tras 10 minutos.
+    if (Date.now() - parsed.ts > 10 * 60 * 1000) {
+      res.status(400).send(html('error', 'El enlace expiró, intenta de nuevo'))
+      return
+    }
+
+    try {
+      const tokens = await exchangeCodeForTokens(code)
+      await saveDriveAuth(parsed.companyId, tokens)
+      res.status(200).send(html('ok', 'Drive fue conectado correctamente.', tokens.email))
+    } catch (err) {
+      const msg = (err as Error).message ?? 'Error desconocido'
+      res.status(500).send(html('error', msg))
+    }
   },
 )

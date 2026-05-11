@@ -4,15 +4,22 @@ export declare const uploadDocumentToDrive: import("firebase-functions/v2/https"
     fileName: string;
 }>, unknown>;
 export declare const validateDriveFolder: import("firebase-functions/v2/https").CallableFunction<any, Promise<{
-    serviceAccountEmail: string | null;
     ok: true;
     folderName: string;
 } | {
-    serviceAccountEmail: string | null;
     ok: false;
     error: string;
 }>, unknown>;
-export declare const getDriveServiceAccount: import("firebase-functions/v2/https").CallableFunction<any, Promise<{
-    email: string | null;
+export declare const driveAuthStart: import("firebase-functions/v2/https").CallableFunction<any, Promise<{
+    url: string;
 }>, unknown>;
+export declare const driveAuthDisconnect: import("firebase-functions/v2/https").CallableFunction<any, Promise<{
+    ok: boolean;
+}>, unknown>;
+export declare const driveAuthStatus: import("firebase-functions/v2/https").CallableFunction<any, Promise<{
+    connected: boolean;
+    email: string | null;
+    connectedAt: number | null;
+}>, unknown>;
+export declare const driveOAuthCallback: import("firebase-functions/v2/https").HttpsFunction;
 //# sourceMappingURL=upload-document-to-drive.d.ts.map
