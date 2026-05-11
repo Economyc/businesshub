@@ -203,7 +203,9 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
       type: form.type,
       date: Timestamp.fromDate(new Date(form.date + 'T12:00:00')),
       status: form.status,
-      ...(form.notes ? { notes: form.notes } : {}),
+      // Siempre incluir notes (también al limpiar): si quedó vacío, se guarda
+      // como string vacío y el display lo lee como "sin nota".
+      notes: form.notes.trim(),
       ...(payeeRef ? { payeeRef } : {}),
       ...(attachments.documentKind && priority ? { priority } : {}),
     }
