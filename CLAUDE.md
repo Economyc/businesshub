@@ -107,9 +107,9 @@ Usar el skill `/deploy-oracle`. Hace push a GitHub + build + deploy a Oracle Clo
 - No reinventar permisos. Nuevos módulos se integran al sistema existente.
 
 ### Estructura de módulos
-- 16 módulos aislados en `src/modules/<nombre>/` con `routes.tsx` propio
+- 13 módulos aislados en `src/modules/<nombre>/` con `routes.tsx` propio
 - Lazy loading vía `Suspense` en `App.tsx`
-- Módulos actuales: agent, analytics, cartera, closings, contracts, finance, home, marketing, notifications, partners, payroll, pos-sync, prestaciones, purchases, suppliers, talent
+- Módulos actuales: agent, analytics, closings, contracts, finance, home, marketing, notifications, partners, pos-sync, scheduled-reports, suppliers, talent
 - UI compartida: `src/components/ui/` (shadcn)
 - Servicios/hooks compartidos: `src/core/` y `src/lib/`
 
@@ -119,7 +119,7 @@ Usar el skill `/deploy-oracle`. Hace push a GitHub + build + deploy a Oracle Clo
 - Imports con alias `@/...` — evitar paths relativos largos
 
 ### Navegación
-- Sidebar agrupado en secciones: **Finanzas**, **Operaciones**, **Personas**
+- Sidebar agrupado en secciones: **Contabilidad**, **Operaciones**, **Mercadeo**, **Integraciones**
 
 ### Design System
 - Ver sección **0** al inicio de este archivo y `DESIGN_SYSTEM.md` en la raíz.
