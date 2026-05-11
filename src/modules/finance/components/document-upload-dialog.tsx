@@ -99,6 +99,8 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [step, setStep] = useState<'idle' | 'uploading' | 'saving' | 'done'>('idle')
+  const [analyzing, setAnalyzing] = useState(false)
+  const [aiFilled, setAiFilled] = useState(false)
 
   const CUSTOM = '__custom__'
   const isCustom = supplierId === CUSTOM
@@ -132,6 +134,8 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
       setError(null)
       setStep('idle')
       setSubmitting(false)
+      setAnalyzing(false)
+      setAiFilled(false)
     }
   }, [open, defaultKind])
 
@@ -144,6 +148,54 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
     return () => document.removeEventListener('keydown', onKey)
   }, [open, onClose, submitting])
 
+  const runDocumentAnalysis = useCallback(async (f: File) => {
+    if (!companyId) return
+    setAnalyzing(true)
+    setAiFilled(false)
+    try {
+      const base64 = await fileToBase64(f)
+      const fns = await getAppFunctions()
+      const analyze = httpsCallable<
+        { companyId: string; fileBase64: string; mimeType: string; kind: DocumentKind },
+        {
+          extracted: {
+            supplierName: string
+            docNumber: string
+            date: string
+            amount: number
+            category: string
+            notes?: string
+          }
+          supplierMatch?: { id: string; name: string; score: number }
+          categoryExists: boolean
+        }
+      >(fns, 'analyzeInvoiceDocument')
+      const res = await analyze({ companyId, fileBase64: base64, mimeType: f.type, kind })
+      const x = res.data.extracted
+
+      // Pre-llenar campos. Si la AI no devolvió algo, no sobreescribir
+      // lo que el usuario ya pudo haber tecleado.
+      if (res.data.supplierMatch) {
+        setSupplierId(res.data.supplierMatch.id)
+        setCustomSupplier('')
+      } else if (x.supplierName) {
+        setSupplierId(CUSTOM)
+        setCustomSupplier(x.supplierName)
+      }
+      if (x.docNumber) setDocNumber(x.docNumber)
+      if (x.date && /^\d{4}-\d{2}-\d{2}$/.test(x.date)) setDate(x.date)
+      if (x.amount > 0) setAmount(String(x.amount))
+      if (x.category) setCategory(x.category)
+      if (x.notes) setNotes(x.notes)
+      setAiFilled(true)
+    } catch (err) {
+      // El análisis es opcional: si falla, no bloqueamos al usuario.
+      console.error('analyzeInvoiceDocument failed', err)
+    } finally {
+      setAnalyzing(false)
+    }
+  }, [companyId, kind])
+
   const processFile = useCallback((f: File) => {
     setError(null)
     if (f.size > MAX_SIZE) {
@@ -155,7 +207,8 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
       return
     }
     setFile(f)
-  }, [])
+    void runDocumentAnalysis(f)
+  }, [runDocumentAnalysis])
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]
@@ -435,8 +488,8 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
                   </div>
                   <button
                     type="button"
-                    onClick={(e) => { e.stopPropagation(); setFile(null) }}
-                    disabled={submitting}
+                    onClick={(e) => { e.stopPropagation(); setFile(null); setAiFilled(false) }}
+                    disabled={submitting || analyzing}
                     className="p-1.5 rounded-lg text-mid-gray hover:text-graphite hover:bg-bone transition-colors disabled:opacity-50"
                   >
                     <X size={14} strokeWidth={1.5} />
@@ -444,6 +497,20 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
                 </div>
               )}
             </div>
+            )}
+
+            {/* Estado de análisis IA */}
+            {analyzing && (
+              <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-bone/60 border border-border/60 text-caption text-mid-gray">
+                <Loader2 size={14} className="animate-spin" />
+                Leyendo el documento con IA...
+              </div>
+            )}
+            {aiFilled && !analyzing && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-positive-bg/50 border border-positive/20 text-caption text-positive-text">
+                <Sparkles size={13} strokeWidth={1.5} />
+                Campos pre-llenados por IA. Revisa antes de guardar.
+              </div>
             )}
 
             {/* Form fields */}
@@ -491,7 +558,7 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
               </div>
               <div className="sm:col-span-2">
                 <label className="block text-caption uppercase tracking-wider text-mid-gray mb-1">Categoría</label>
-                <CategorySelect value={category} onChange={setCategory} placeholder="Selecciona categoría" />
+                <CategorySelect value={category} onChange={setCategory} placeholder="Selecciona categoría" allowCustom />
               </div>
               {kind === 'invoice' && (
                 <div className="sm:col-span-2">

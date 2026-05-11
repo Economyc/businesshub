@@ -16,3 +16,4 @@ export {
   driveOAuthCallback,
 } from './upload-document-to-drive.js'
 export { analyzePaymentReceipt } from './analyze-payment-receipt.js'
+export { analyzeInvoiceDocument } from './analyze-invoice-document.js'
