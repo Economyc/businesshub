@@ -22,6 +22,7 @@ import { createPlanModeTools } from './plan-mode-tools.js'
 import { createObsidianTools } from './obsidian-tools.js'
 import { createScheduledReportsTools } from './scheduled-reports-tools.js'
 import { createContractRagTools } from './contract-rag-tools.js'
+import { createPayableTools } from './payable-tools.js'
 
 export function createAgentTools(companyId: string, threadId?: string) {
   return {
@@ -61,5 +62,7 @@ export function createAgentTools(companyId: string, threadId?: string) {
     ...createScheduledReportsTools(companyId),
     // Wave 4.1 — RAG sobre contratos (search + summarize).
     ...createContractRagTools(companyId),
+    // Cuentas por pagar: Facturas (CxP) y Compras al contado con archivos en Drive.
+    ...createPayableTools(companyId),
   }
 }

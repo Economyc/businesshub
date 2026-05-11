@@ -7,3 +7,8 @@ export { detectAnomaliesDaily } from './anomaly-detection.js'
 export { indexContractEmbeddings } from './contracts-indexer.js'
 export { dispatchScheduledReports } from './scheduled-reports-dispatch.js'
 export { adminCreateUser, adminSetUserStatus, adminDeleteUser } from './users-admin.js'
+export {
+  uploadDocumentToDrive,
+  validateDriveFolder,
+  getDriveServiceAccount,
+} from './upload-document-to-drive.js'

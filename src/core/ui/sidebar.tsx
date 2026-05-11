@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, memo } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
-import { Users, Briefcase, DollarSign, Home, ChevronsLeft, Building2, Tags, BadgeCheck, Network, Handshake, ClipboardList, FileSignature, Wallet, ChevronRight, ChevronsUpDown, Check, MapPin, LogOut, Settings, List, Target, FileText, Shield, RefreshCw, Megaphone, Lock, LockOpen, LayoutGrid } from 'lucide-react'
+import { Users, Briefcase, DollarSign, Home, ChevronsLeft, Building2, Tags, BadgeCheck, Network, Handshake, ClipboardList, FileSignature, Wallet, ChevronRight, ChevronsUpDown, Check, MapPin, LogOut, Settings, List, Target, FileText, Shield, RefreshCw, Megaphone, Lock, LockOpen, LayoutGrid, ListTodo } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { HoverHint } from '@/components/ui/tooltip'
 import { CommandPalette } from '@/core/ui/command-palette'
@@ -33,6 +33,7 @@ const NAV_SECTIONS: NavSection[] = [
   {
     items: [
       { to: '/home', label: 'Home', moduleKey: 'home' },
+      { to: '/tasks', label: 'Tasks', icon: ListTodo, moduleKey: 'tasks' },
       { to: '/agent', label: 'Asistente AI', moduleKey: 'agent' },
       { to: '/analytics', label: 'Análisis', moduleKey: 'analytics' },
     ],

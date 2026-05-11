@@ -17,6 +17,7 @@ const MODULE_GROUPS: { title: string; modules: { key: ModuleKey; label: string; 
       { key: 'home', label: 'Home', description: 'Panel principal con resumen general' },
       { key: 'analytics', label: 'Analisis', description: 'Dashboards, reportes y metricas' },
       { key: 'agent', label: 'Asistente AI', description: 'Chat con el asistente inteligente' },
+      { key: 'tasks', label: 'Tasks', description: 'Pendientes personales del usuario, compartidos cross-company' },
     ],
   },
   {

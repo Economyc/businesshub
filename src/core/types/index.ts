@@ -10,6 +10,7 @@ export interface Company {
   logoThumb?: string
   categories?: string[]
   posTenantId?: string
+  driveRootFolderId?: string
   createdAt: Timestamp
 }
 

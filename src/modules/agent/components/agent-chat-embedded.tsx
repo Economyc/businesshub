@@ -142,7 +142,20 @@ export function AgentChatEmbedded({ inlineContext }: AgentChatEmbeddedProps) {
     if (!selectedCompany) return
 
     try {
-      const result = await executeMutation(selectedCompany.id, toolName, args, { companies }, toolCallId)
+      // Busca adjunto reciente para tools que persisten archivos a Drive.
+      let latestAttachment: { name: string; contentType: string; dataUrl: string } | null = null
+      for (let i = messages.length - 1; i >= 0; i--) {
+        const m = messages[i] as typeof messages[number] & {
+          experimental_attachments?: Array<{ name: string; contentType: string; url: string }>
+        }
+        if (m.role !== 'user') continue
+        const att = m.experimental_attachments?.[0]
+        if (att?.url) {
+          latestAttachment = { name: att.name, contentType: att.contentType, dataUrl: att.url }
+          break
+        }
+      }
+      const result = await executeMutation(selectedCompany.id, toolName, args, { companies, latestAttachment }, toolCallId)
 
       const collection = TOOL_COLLECTIONS[toolName]
       if (collection) {
@@ -182,7 +195,7 @@ export function AgentChatEmbedded({ inlineContext }: AgentChatEmbeddedProps) {
         result: { success: false, message: `Error: ${message}` },
       })
     }
-  }, [selectedCompany, companies, addToolResult, showUndoToast])
+  }, [selectedCompany, companies, addToolResult, showUndoToast, messages])
 
   const handleToolCancel = useCallback((toolCallId: string) => {
     addToolResult({

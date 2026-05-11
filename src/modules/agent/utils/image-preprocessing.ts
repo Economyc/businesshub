@@ -36,6 +36,14 @@ export function isImageFile(file: File): boolean {
 }
 
 /**
+ * Checks if a file is a PDF. Gemini soporta PDFs inline como `application/pdf`,
+ * así que los enviamos directo al LLM con el mismo flujo que las imágenes.
+ */
+export function isPdfFile(file: File): boolean {
+  return file.type === 'application/pdf' || /\.pdf$/i.test(file.name)
+}
+
+/**
  * Checks if a file is an Excel or CSV file.
  */
 export function isSpreadsheetFile(file: File): boolean {

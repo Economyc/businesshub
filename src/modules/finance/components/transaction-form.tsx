@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { Timestamp } from 'firebase/firestore'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Trash2, X } from 'lucide-react'
+import { Trash2, X, FileText, Receipt } from 'lucide-react'
 import { DateInput } from '@/core/ui/date-input'
 import { CategorySelect } from '@/core/ui/category-select'
 import { SelectInput } from '@/core/ui/select-input'
@@ -13,7 +13,7 @@ import { useCompany } from '@/core/hooks/use-company'
 import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { useCollection } from '@/core/hooks/use-firestore'
 import { financeService } from '../services'
-import type { Transaction, PayeeRef, PayeeType } from '../types'
+import type { Transaction, PayeeRef, PayeeType, PayableFile } from '../types'
 
 interface NamedEntity { id: string; name: string }
 
@@ -62,6 +62,7 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
   const [payeeType, setPayeeType] = useState<PayeeType | ''>('')
   const [payeeId, setPayeeId] = useState('')
   const [payeeExternalName, setPayeeExternalName] = useState('')
+  const [attachments, setAttachments] = useState<{ source?: PayableFile; proof?: PayableFile; docNumber?: string; documentKind?: 'invoice' | 'purchase' }>({})
 
   const { data: partners } = useCollection<NamedEntity>('partners')
   const { data: employees } = useCollection<NamedEntity>('employees')
@@ -107,6 +108,7 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
       setPayeeType('')
       setPayeeId('')
       setPayeeExternalName('')
+      setAttachments({})
       return
     }
     if (!transactionId || !selectedCompany) {
@@ -118,6 +120,12 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
       if (!tx) { onClose(); return }
       if (tx.sourceType === 'closing') setIsLinked(true)
       if (tx.sourceType === 'recurring') setIsRecurring(true)
+      setAttachments({
+        source: tx.sourceDocument,
+        proof: tx.paymentProof,
+        docNumber: tx.docNumber,
+        documentKind: tx.documentKind,
+      })
       setForm({
         concept: tx.concept,
         category: tx.category,
@@ -345,6 +353,42 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
                         className={`${inputClass} min-h-[70px] resize-none`}
                       />
                     </div>
+                    {(attachments.source || attachments.proof) && (
+                      <div className="md:col-span-2 pt-2 border-t border-border/40">
+                        <label className={labelClass}>
+                          Documentos {attachments.documentKind === 'purchase' ? 'de la compra' : attachments.documentKind === 'invoice' ? 'de la factura' : 'asociados'}
+                          {attachments.docNumber && <span className="ml-2 text-mid-gray/70">#{attachments.docNumber}</span>}
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                          {attachments.source && (
+                            <a
+                              href={attachments.source.driveWebViewLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border/60 bg-bone hover:bg-bone/70 text-body text-graphite transition-colors"
+                              title={attachments.source.fileName}
+                            >
+                              <FileText size={13} strokeWidth={1.5} />
+                              <span className="truncate max-w-[220px]">
+                                {attachments.documentKind === 'purchase' ? 'Recibo de compra' : 'Factura'}
+                              </span>
+                            </a>
+                          )}
+                          {attachments.proof && (
+                            <a
+                              href={attachments.proof.driveWebViewLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border/60 bg-bone hover:bg-bone/70 text-body text-graphite transition-colors"
+                              title={attachments.proof.fileName}
+                            >
+                              <Receipt size={13} strokeWidth={1.5} />
+                              <span className="truncate max-w-[220px]">Comprobante de pago</span>
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    )}
                     <div className="md:col-span-2 pt-2 border-t border-border/40">
                       <label className={labelClass}>A quién le debemos (opcional)</label>
                       <p className="text-caption text-mid-gray mb-2">

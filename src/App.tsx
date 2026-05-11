@@ -18,6 +18,7 @@ import { HomePage } from '@/modules/home/routes'
 import { CompanySelectorPage } from '@/modules/home/company-selector-page'
 import { DateRangeProvider } from '@/modules/finance/context/date-range-context'
 import { AgentPage } from '@/modules/agent/routes'
+import { TasksPage } from '@/modules/tasks/routes'
 import { PosSyncPage } from '@/modules/pos-sync/routes'
 import { InfluencerList } from '@/modules/marketing/influencers/routes'
 import { PermissionsProvider } from '@/core/ui/permissions-provider'
@@ -114,6 +115,7 @@ export default function App() {
               <Route path="/contracts/new" element={<Suspense fallback={<Loading />}><ContractGenerate /></Suspense>} />
               <Route path="/contracts/:id" element={<Suspense fallback={<Loading />}><ContractDetail /></Suspense>} />
               <Route path="/agent" element={<Suspense fallback={<Loading />}><AgentPage /></Suspense>} />
+              <Route path="/tasks" element={<Suspense fallback={<Loading />}><TasksPage /></Suspense>} />
               <Route element={<DateRangeProvider><Outlet /></DateRangeProvider>}>
                 <Route path="/marketing/influencers" element={<Suspense fallback={<Loading />}><InfluencerList /></Suspense>} />
               </Route>

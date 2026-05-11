@@ -14,7 +14,7 @@ import { UndoToastContainer, useUndoToasts } from './undo-toast'
 import { exportToPDF, exportToExcel } from '../utils/export-report'
 import type { PlanProposal, PlanStep, StepExecution } from './plan-review-card'
 import type { SaveNoteResult } from '../utils/obsidian-client'
-import { preprocessImage, isImageFile, isSpreadsheetFile } from '../utils/image-preprocessing'
+import { preprocessImage, isImageFile, isSpreadsheetFile, isPdfFile } from '../utils/image-preprocessing'
 import { parseSpreadsheetToText } from '../utils/parse-spreadsheet'
 import { conversationService, getUserMemory, threadService } from '../services'
 import type { AgentThread } from '../types'
@@ -35,6 +35,8 @@ const TOOL_COLLECTIONS: Record<string, string> = {
   updateBudget: 'settings',
   addBudgetItem: 'settings',
   deleteBudgetItem: 'settings',
+  createPayableDocument: 'transactions',
+  markInvoiceAsPaid: 'transactions',
 }
 
 const ENTITY_LABELS: Record<string, string> = {
@@ -51,6 +53,8 @@ const ENTITY_LABELS: Record<string, string> = {
   updateBudget: 'presupuesto actualizado',
   addBudgetItem: 'item de presupuesto agregado',
   deleteBudgetItem: 'item de presupuesto eliminado',
+  createPayableDocument: 'documento creado',
+  markInvoiceAsPaid: 'factura marcada como pagada',
 }
 
 interface AgentChatProps {
@@ -81,6 +85,22 @@ function pruneLargeStrings(value: any): any {
     return out
   }
   return value
+}
+
+function findLatestUserAttachment(messages: UIMessage[]) {
+  // Camina hacia atrás buscando el último mensaje del usuario con
+  // experimental_attachments. Se usa por tools que persisten archivos a Drive.
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i] as UIMessage & {
+      experimental_attachments?: Array<{ name: string; contentType: string; url: string }>
+    }
+    if (m.role !== 'user') continue
+    const att = m.experimental_attachments?.[0]
+    if (att?.url) {
+      return { name: att.name, contentType: att.contentType, dataUrl: att.url }
+    }
+  }
+  return null
 }
 
 function sanitizeMessages(messages: UIMessage[]) {
@@ -242,6 +262,7 @@ export function AgentChat({ initialMessages, conversationId, onConversationSaved
     try {
       const imageFiles = files.filter(isImageFile)
       const spreadsheetFiles = files.filter(isSpreadsheetFile)
+      const pdfFiles = files.filter(isPdfFile)
 
       let messageText = text
 
@@ -253,6 +274,15 @@ export function AgentChat({ initialMessages, conversationId, onConversationSaved
         attachments.push({
           name: processed.name,
           contentType: processed.type,
+          url: base64,
+        })
+      }
+
+      for (const pdf of pdfFiles) {
+        const base64 = await fileToDataUrl(pdf)
+        attachments.push({
+          name: pdf.name,
+          contentType: 'application/pdf',
           url: base64,
         })
       }
@@ -291,7 +321,10 @@ export function AgentChat({ initialMessages, conversationId, onConversationSaved
     if (!selectedCompany) return
 
     try {
-      const result = await executeMutation(selectedCompany.id, toolName, args, { companies }, toolCallId)
+      // Para tools que necesitan persistir archivos (createPayableDocument,
+      // markInvoiceAsPaid), busca el adjunto más reciente del usuario.
+      const latestAttachment = findLatestUserAttachment(messagesRef.current)
+      const result = await executeMutation(selectedCompany.id, toolName, args, { companies, latestAttachment }, toolCallId)
 
       const collection = TOOL_COLLECTIONS[toolName]
       if (collection) {

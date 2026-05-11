@@ -13,6 +13,25 @@ export interface PayeeRef {
   name: string
 }
 
+// Archivo asociado a una transacción (factura, comprobante de pago, recibo de
+// compra). Vive en Google Drive — el cliente solo guarda el ID, el link de
+// visualización y metadata mínima. El archivo en sí no se duplica en Firestore.
+export interface PayableFile {
+  driveFileId: string
+  driveWebViewLink: string
+  fileName: string
+  mimeType: string
+  uploadedAt: Timestamp
+}
+
+// Distingue dos tipos de transaction documentada:
+//  - 'invoice': factura/cuenta de cobro a crédito (status='pending' al crear,
+//    luego se cruza con un comprobante de pago para pasar a 'paid').
+//  - 'purchase': compra al contado, status='paid' desde el inicio.
+// Para egresos no documentados (recurrentes, cierre de caja, etc.) este campo
+// queda undefined y la transaction se comporta como antes.
+export type DocumentKind = 'invoice' | 'purchase'
+
 export interface Transaction extends BaseEntity {
   concept: string
   category: string
@@ -26,6 +45,11 @@ export interface Transaction extends BaseEntity {
   sourceLabel?: string
   payeeRef?: PayeeRef
   splitGroupId?: string
+  documentKind?: DocumentKind
+  docNumber?: string
+  sourceDocument?: PayableFile
+  paymentProof?: PayableFile
+  paidDate?: Timestamp
 }
 
 export type RecurrenceFrequency = 'daily' | 'weekly' | 'monthly' | 'yearly'

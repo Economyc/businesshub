@@ -1,7 +1,7 @@
 import type { RoleDefinition, ModuleKey, PermissionAction } from '@/core/types/permissions'
 
 const ALL_MODULES: ModuleKey[] = [
-  'home', 'analytics', 'agent', 'finance', 'closings',
+  'home', 'analytics', 'agent', 'tasks', 'finance', 'closings',
   'contracts', 'partners', 'talent', 'suppliers', 'marketing', 'settings',
 ]
 
@@ -43,7 +43,7 @@ export const DEFAULT_ROLES: RoleDefinition[] = [
     color: '#0891b2',
     isSystem: true,
     permissions: [
-      ...fullAccess(['finance', 'closings', 'suppliers']),
+      ...fullAccess(['finance', 'closings', 'suppliers', 'tasks']),
       ...readOnly(['home', 'analytics', 'partners']),
     ],
     canManageUsers: false,
@@ -56,7 +56,7 @@ export const DEFAULT_ROLES: RoleDefinition[] = [
     color: '#059669',
     isSystem: true,
     permissions: [
-      ...fullAccess(['talent', 'contracts']),
+      ...fullAccess(['talent', 'contracts', 'tasks']),
       ...readOnly(['home', 'analytics']),
     ],
     canManageUsers: false,
@@ -68,7 +68,10 @@ export const DEFAULT_ROLES: RoleDefinition[] = [
     description: 'Puede ver informacion pero no crear, editar ni eliminar',
     color: '#6b7280',
     isSystem: true,
-    permissions: readOnly(ALL_MODULES.filter((m) => m !== 'settings')),
+    permissions: [
+      ...readOnly(ALL_MODULES.filter((m) => m !== 'settings' && m !== 'tasks')),
+      ...fullAccess(['tasks']),
+    ],
     canManageUsers: false,
     canManageCompany: false,
   },

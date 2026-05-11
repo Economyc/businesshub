@@ -38,9 +38,13 @@ const ALLOWED_IMAGE_MIMETYPES = [
   'image/heif',
 ] as const
 
+const ALLOWED_DOC_MIMETYPES = ['application/pdf'] as const
+
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024 // 5 MB
+const MAX_PDF_BYTES = 10 * 1024 * 1024 // 10 MB
 // base64 ≈ 4/3 del binario; agregamos margen por el prefijo `data:...;base64,`.
 const MAX_IMAGE_DATA_URL_LENGTH = Math.ceil(MAX_IMAGE_BYTES * 4 / 3) + 256
+const MAX_PDF_DATA_URL_LENGTH = Math.ceil(MAX_PDF_BYTES * 4 / 3) + 256
 
 type AttachmentValidationResult =
   | { ok: true }
@@ -60,25 +64,34 @@ function validateAttachments(messages: unknown): AttachmentValidationResult {
         const contentType = (att as Record<string, unknown>).contentType
         const url = (att as Record<string, unknown>).url
 
-        if (typeof contentType !== 'string' || !contentType.startsWith('image/')) {
-          continue
-        }
-
+        if (typeof contentType !== 'string') continue
         const mimetype = contentType.toLowerCase()
-        if (!(ALLOWED_IMAGE_MIMETYPES as readonly string[]).includes(mimetype)) {
-          return {
-            ok: false,
-            status: 400,
-            body: { error: 'unsupported_image_type', mimetype },
-          }
-        }
 
-        if (typeof url === 'string' && url.length > MAX_IMAGE_DATA_URL_LENGTH) {
-          return {
-            ok: false,
-            status: 400,
-            body: { error: 'image_too_large' },
+        if (mimetype.startsWith('image/')) {
+          if (!(ALLOWED_IMAGE_MIMETYPES as readonly string[]).includes(mimetype)) {
+            return {
+              ok: false,
+              status: 400,
+              body: { error: 'unsupported_image_type', mimetype },
+            }
           }
+          if (typeof url === 'string' && url.length > MAX_IMAGE_DATA_URL_LENGTH) {
+            return {
+              ok: false,
+              status: 400,
+              body: { error: 'image_too_large' },
+            }
+          }
+        } else if ((ALLOWED_DOC_MIMETYPES as readonly string[]).includes(mimetype)) {
+          if (typeof url === 'string' && url.length > MAX_PDF_DATA_URL_LENGTH) {
+            return {
+              ok: false,
+              status: 400,
+              body: { error: 'pdf_too_large' },
+            }
+          }
+        } else {
+          continue
         }
       }
     }

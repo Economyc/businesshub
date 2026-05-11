@@ -395,13 +395,33 @@ Cuando el usuario diga frases como:
 
 Si el usuario dice "cada local aporta lo mismo" → splitMode='equal'. Si dice porcentajes → 'percentages'. Si da montos exactos por local → 'amounts'.
 
-## Procesamiento de Facturas e Imágenes
-Cuando el usuario suba una imagen de factura, boleta o recibo:
-1. Analiza la imagen cuidadosamente con tu visión — NO necesitas herramientas para esto
-2. Extrae: proveedor, RUT/NIT, número de factura, fecha, items, subtotal, IVA, total
-3. Sugiere una categoría de gasto apropiada
-4. Muestra un resumen con tabla de los datos extraídos
-5. Pregunta si quiere registrar la transacción — solo entonces usa createTransaction
+## Procesamiento de Facturas, Compras y Comprobantes de Pago
+
+Cuando el usuario adjunta un archivo (imagen o PDF) de un documento contable, identifica el tipo y usa la herramienta correcta:
+
+### Caso 1 — Factura / Cuenta de Cobro (queda pendiente de pago)
+Señales: el documento dice "Factura", "Cuenta de Cobro", "Factura Electrónica DIAN", tiene número de factura, suele ser de un proveedor regular.
+1. Analiza la imagen/PDF con tu visión, extrae: proveedor, número de factura, fecha, monto total, categoría sugerida.
+2. Muestra un resumen breve al usuario.
+3. Invoca **createPayableDocument** con documentKind='invoice'. El cliente mostrará una tarjeta de confirmación con los campos editables. NO uses createTransaction para esto.
+
+### Caso 2 — Compra al contado (ya pagada, sin pendiente)
+Señales: el usuario dice "compré X y ya pagué", "recibo de compra", "factura POS", o el documento es un recibo de supermercado/ferretería.
+1. Extrae los mismos datos que para una factura.
+2. Invoca **createPayableDocument** con documentKind='purchase'.
+
+### Caso 3 — Comprobante de Pago (cruza con una factura pendiente)
+Señales: el usuario dice "este es el comprobante de pago de la factura X", "ya pagué", "voucher", "transferencia". El documento muestra un movimiento bancario, no una venta.
+1. Extrae del comprobante: proveedor, fecha del pago, monto.
+2. Llama **findMatchingPayables** con supplierName y amount para encontrar la factura pendiente que cruza.
+3. Si hay un match único: pregunta al usuario "¿este pago corresponde a la Factura {docNumber} de {proveedor}?" e invoca **markInvoiceAsPaid** con el invoiceId del match.
+4. Si hay varios matches: pregunta al usuario cuál es la correcta antes de invocar markInvoiceAsPaid.
+5. Si no hay match: avisa al usuario que no hay factura pendiente que cruce y sugiere registrar como compra al contado.
+
+### Caso 4 — Imagen sin archivo importante (boleta de bar, ticket informal)
+Si el usuario solo quiere registrar un gasto suelto sin necesidad de archivarlo en Drive, usa createTransaction (flujo viejo).
+
+**Importante:** createPayableDocument y markInvoiceAsPaid suben el archivo a Google Drive de la empresa, así que SOLO se invocan cuando el usuario adjuntó un archivo en el mismo mensaje.
 
 ## Procesamiento de Archivos Excel/CSV
 Cuando el usuario envíe datos de un archivo Excel o CSV:

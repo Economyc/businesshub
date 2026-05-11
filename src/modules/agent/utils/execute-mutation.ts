@@ -11,7 +11,7 @@ import { notificationService } from '@/modules/notifications/services'
 import { templateService, contractService } from '@/modules/contracts/services'
 import type { EmployeeFormData } from '@/modules/talent/types'
 import type { SupplierFormData } from '@/modules/suppliers/types'
-import type { TransactionFormData, PayeeRef, PayeeType } from '@/modules/finance/types'
+import type { TransactionFormData, PayeeRef, PayeeType, PayableFile, DocumentKind } from '@/modules/finance/types'
 import type { ClosingFormData } from '@/modules/closings/types'
 import type { InfluencerVisitFormData, SocialNetwork, SocialPlatform } from '@/modules/marketing/influencers/types'
 import type { NotificationFormData, NotificationType } from '@/modules/notifications/types'
@@ -26,6 +26,16 @@ function toTimestamp(dateStr: string): Timestamp {
 
 export interface MutationContext {
   companies: Company[]
+  /**
+   * Adjunto más reciente del usuario, si lo hay. Se usa por tools que
+   * persisten archivos a Drive (createPayableDocument, markInvoiceAsPaid).
+   * `dataUrl` es un data URL base64 (e.g. "data:image/jpeg;base64,...").
+   */
+  latestAttachment?: {
+    name: string
+    contentType: string
+    dataUrl: string
+  } | null
 }
 
 export interface MutationResult {
@@ -551,6 +561,186 @@ export async function executeMutation(
       return {
         success: true,
         message: `Reconciliación POS completada: ${ventasWritten} ventas escritas en ${daysWritten} días (últimos ${days}).`,
+      }
+    }
+
+    case 'createPayableDocument': {
+      // Sube el adjunto del último mensaje a Drive y crea Transaction.
+      if (!ctx?.latestAttachment) {
+        return {
+          success: false,
+          message: 'No encuentro el archivo adjunto. Sube de nuevo la factura o compra como adjunto en el mensaje.',
+        }
+      }
+      const documentKind = args.documentKind as DocumentKind
+      if (documentKind !== 'invoice' && documentKind !== 'purchase') {
+        return { success: false, message: 'documentKind inválido — debe ser "invoice" o "purchase".' }
+      }
+
+      const supplierName = String(args.supplierName ?? '').trim()
+      const docNumber = String(args.docNumber ?? '').trim()
+      const dateStr = String(args.date ?? '').trim()
+      const amount = Number(args.amount)
+      const category = String(args.category ?? '').trim()
+      if (!supplierName || !docNumber || !dateStr || !amount || !category) {
+        return { success: false, message: 'Faltan campos requeridos (proveedor, número, fecha, monto, categoría).' }
+      }
+
+      // Resuelve supplier (debe existir — sino el match no es confiable).
+      const resolution = await resolvePayeeOnCompany(companyId, 'supplier', supplierName)
+      if (!resolution.ok) {
+        if (resolution.reason === 'ambiguous') {
+          return {
+            success: false,
+            message: `Hay varios "${supplierName}" registrados. Sé más específico.`,
+          }
+        }
+        return {
+          success: false,
+          message: `No encontré "${supplierName}" en proveedores. Créalo primero antes de subir la factura.`,
+        }
+      }
+      const payeeRef: PayeeRef = resolution.payee
+
+      // Sube a Drive.
+      const docType: 'Factura' | 'Compra' = documentKind === 'invoice' ? 'Factura' : 'Compra'
+      const dataUrl = ctx.latestAttachment.dataUrl
+      const base64 = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl
+      const fns = await getAppFunctions()
+      const uploadFn = httpsCallable<
+        {
+          companyId: string
+          docType: 'Factura' | 'Pago' | 'Compra'
+          supplierName: string
+          docNumber: string
+          date: string
+          fileBase64: string
+          fileName: string
+          mimeType: string
+        },
+        { driveFileId: string; webViewLink: string; fileName: string }
+      >(fns, 'uploadDocumentToDrive')
+
+      void reportProgressClient(toolCallId, { label: 'Subiendo archivo a Drive', status: 'running' })
+      const uploadRes = await uploadFn({
+        companyId,
+        docType,
+        supplierName: payeeRef.name,
+        docNumber,
+        date: dateStr,
+        fileBase64: base64,
+        fileName: ctx.latestAttachment.name,
+        mimeType: ctx.latestAttachment.contentType,
+      })
+
+      const dateTs = toTimestamp(dateStr)
+      const sourceDocument: PayableFile = {
+        driveFileId: uploadRes.data.driveFileId,
+        driveWebViewLink: uploadRes.data.webViewLink,
+        fileName: uploadRes.data.fileName,
+        mimeType: ctx.latestAttachment.contentType,
+        uploadedAt: Timestamp.now(),
+      }
+
+      const data: TransactionFormData = {
+        concept: `${payeeRef.name} - ${docType} ${docNumber}`,
+        category,
+        amount,
+        type: 'expense',
+        date: dateTs,
+        status: documentKind === 'invoice' ? 'pending' : 'paid',
+        notes: args.notes ? String(args.notes) : undefined,
+        payeeRef,
+        documentKind,
+        docNumber,
+        sourceDocument,
+        ...(documentKind === 'purchase' ? { paidDate: dateTs } : {}),
+      }
+      const id = await financeService.create(companyId, data)
+      void reportProgressClient(toolCallId, { label: 'Guardado', status: 'done' })
+
+      return {
+        success: true,
+        message:
+          documentKind === 'invoice'
+            ? `Factura ${docNumber} de ${payeeRef.name} por $${amount.toLocaleString('es-CO')} creada en estado Pendiente. Archivo en Drive.`
+            : `Compra ${docNumber} de ${payeeRef.name} por $${amount.toLocaleString('es-CO')} registrada como pagada. Archivo en Drive.`,
+        id,
+      }
+    }
+
+    case 'markInvoiceAsPaid': {
+      if (!ctx?.latestAttachment) {
+        return {
+          success: false,
+          message: 'No encuentro el comprobante adjunto. Súbelo de nuevo en el mensaje.',
+        }
+      }
+      const invoiceId = String(args.invoiceId ?? '')
+      const supplierName = String(args.supplierName ?? '').trim()
+      const docNumber = String(args.docNumber ?? '').trim()
+      const paidDateStr = String(args.paidDate ?? '').trim()
+      if (!invoiceId || !supplierName || !docNumber || !paidDateStr) {
+        return { success: false, message: 'Faltan datos para cruzar el pago (invoiceId, proveedor, número, fecha).' }
+      }
+
+      // Verifica que la transaction exista y esté pending.
+      const existing = await financeService.getById(companyId, invoiceId)
+      if (!existing) return { success: false, message: 'No encontré esa factura.' }
+      if (existing.status !== 'pending') {
+        return { success: false, message: 'Esa factura no está pendiente — no se puede cruzar.' }
+      }
+
+      const dataUrl = ctx.latestAttachment.dataUrl
+      const base64 = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl
+      const fns = await getAppFunctions()
+      const uploadFn = httpsCallable<
+        {
+          companyId: string
+          docType: 'Factura' | 'Pago' | 'Compra'
+          supplierName: string
+          docNumber: string
+          date: string
+          fileBase64: string
+          fileName: string
+          mimeType: string
+        },
+        { driveFileId: string; webViewLink: string; fileName: string }
+      >(fns, 'uploadDocumentToDrive')
+
+      void reportProgressClient(toolCallId, { label: 'Subiendo comprobante a Drive', status: 'running' })
+      const uploadRes = await uploadFn({
+        companyId,
+        docType: 'Pago',
+        supplierName,
+        docNumber,
+        date: paidDateStr,
+        fileBase64: base64,
+        fileName: ctx.latestAttachment.name,
+        mimeType: ctx.latestAttachment.contentType,
+      })
+
+      const paidTs = toTimestamp(paidDateStr)
+      const paymentProof: PayableFile = {
+        driveFileId: uploadRes.data.driveFileId,
+        driveWebViewLink: uploadRes.data.webViewLink,
+        fileName: uploadRes.data.fileName,
+        mimeType: ctx.latestAttachment.contentType,
+        uploadedAt: Timestamp.now(),
+      }
+
+      await financeService.update(companyId, invoiceId, {
+        status: 'paid',
+        paidDate: paidTs,
+        paymentProof,
+      } as Partial<TransactionFormData>)
+
+      void reportProgressClient(toolCallId, { label: 'Cruce completado', status: 'done' })
+
+      return {
+        success: true,
+        message: `Factura ${docNumber} de ${supplierName} marcada como Pagada. Comprobante archivado en Drive.`,
+        id: invoiceId,
       }
     }
 

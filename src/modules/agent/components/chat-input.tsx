@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEven
 import { Send, Paperclip, Square, X, FileSpreadsheet, Image as ImageIcon, AlertCircle, Mic } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { HoverHint } from '@/components/ui/tooltip'
-import { isImageFile, isSpreadsheetFile } from '../utils/image-preprocessing'
+import { isImageFile, isSpreadsheetFile, isPdfFile } from '../utils/image-preprocessing'
 import { validateImageFile, formatImageError } from '../utils/image-validation'
 import {
   filterSlashCommands,
@@ -187,6 +187,12 @@ export function ChatInput({ input, onInputChange, onSubmit, onSendWithFiles, isL
         accepted.push(file)
       } else if (isSpreadsheetFile(file)) {
         accepted.push(file)
+      } else if (isPdfFile(file)) {
+        if (file.size > 10 * 1024 * 1024) {
+          errors.push(`${file.name}: PDF excede 10 MB`)
+          continue
+        }
+        accepted.push(file)
       }
       // Cualquier otro tipo se ignora silenciosamente (comportamiento previo).
     }
@@ -323,7 +329,7 @@ export function ChatInput({ input, onInputChange, onSubmit, onSendWithFiles, isL
           ref={fileInputRef}
           type="file"
           className="hidden"
-          accept="image/*,.xlsx,.xls,.csv"
+          accept="image/*,application/pdf,.pdf,.xlsx,.xls,.csv"
           multiple
           onChange={(e) => {
             if (e.target.files?.length) {

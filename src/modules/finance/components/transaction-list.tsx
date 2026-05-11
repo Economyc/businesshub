@@ -1,8 +1,10 @@
 import { useState, useMemo, useRef, memo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Upload, DollarSign, ChevronRight, Sparkles } from 'lucide-react'
+import { Plus, Upload, DollarSign, ChevronRight, Sparkles, FileText, Receipt } from 'lucide-react'
 import { useWindowVirtualizer } from '@tanstack/react-virtual'
 import { TransactionForm } from './transaction-form'
+import { DocumentUploadDialog } from './document-upload-dialog'
+import type { DocumentKind } from '../types'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
 import { SearchInput } from '@/core/ui/search-input'
@@ -38,6 +40,46 @@ function getCategoryPill(t: Transaction, categoryItems: CategoryItem[]): { label
   const catItem = categoryItems.find((c) => c.name === catName)
   const color = catItem?.color ?? '#95A5A6'
   return { label: catName || 'Otro', color }
+}
+
+// Badges para transacciones documentadas: # de factura/compra + íconos
+// clicables que abren el archivo en Drive en una pestaña nueva.
+function DocumentBadges({ t }: { t: Transaction }) {
+  if (!t.documentKind && !t.docNumber) return null
+  const docPrefix = t.documentKind === 'purchase' ? 'Comp.' : 'Fact.'
+  return (
+    <div className="flex items-center gap-1.5 shrink-0">
+      {t.docNumber && (
+        <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-bone border border-border/60 text-mid-gray text-[10px] font-medium tabular-nums">
+          {docPrefix} {t.docNumber}
+        </span>
+      )}
+      {t.sourceDocument?.driveWebViewLink && (
+        <a
+          href={t.sourceDocument.driveWebViewLink}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="inline-flex items-center justify-center w-5 h-5 rounded text-mid-gray hover:text-graphite hover:bg-bone transition-colors"
+          title={`Ver ${t.documentKind === 'purchase' ? 'compra' : 'factura'} en Drive`}
+        >
+          <FileText size={11} strokeWidth={1.5} />
+        </a>
+      )}
+      {t.paymentProof?.driveWebViewLink && (
+        <a
+          href={t.paymentProof.driveWebViewLink}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="inline-flex items-center justify-center w-5 h-5 rounded text-mid-gray hover:text-graphite hover:bg-bone transition-colors"
+          title="Ver comprobante de pago en Drive"
+        >
+          <Receipt size={11} strokeWidth={1.5} />
+        </a>
+      )}
+    </div>
+  )
 }
 
 type FlatItem =
@@ -127,9 +169,10 @@ const TransactionRow = memo(function TransactionRow({
           borderBottom: isLast ? 'none' : undefined,
         }}
       >
-        <div className="px-3 flex items-center gap-2">
-          <span className="font-medium text-dark-graphite">{t.concept}</span>
+        <div className="px-3 flex items-center gap-2 min-w-0">
+          <span className="font-medium text-dark-graphite truncate">{t.concept}</span>
           <SourcePill source={t.sourceType} />
+          <DocumentBadges t={t} />
         </div>
         <div className="px-3 flex items-center gap-1.5">
           <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium ${typePill.bg} ${typePill.text}`}>
@@ -156,14 +199,15 @@ const TransactionRow = memo(function TransactionRow({
         style={{ borderTop: '1px solid #e5e4e0' }}
       >
         <div className="flex items-center justify-between mb-1">
-          <div className="flex items-center gap-2">
-            <span className="font-medium text-dark-graphite">{t.concept}</span>
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="font-medium text-dark-graphite truncate">{t.concept}</span>
             <SourcePill source={t.sourceType} />
           </div>
           <span className={t.type === 'income' ? 'text-positive-text font-medium' : 'text-graphite'}>
             {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount, 2)}
           </span>
         </div>
+        <DocumentBadges t={t} />
         <div className="flex items-center gap-2 text-caption">
           <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium ${typePill.bg} ${typePill.text}`}>
             {typePill.label}
@@ -192,6 +236,8 @@ export function TransactionList() {
   const [statusFilter, setStatusFilter] = useState('')
   const [formOpen, setFormOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [docDialogOpen, setDocDialogOpen] = useState(false)
+  const [docDialogKind, setDocDialogKind] = useState<DocumentKind>('invoice')
 
   const categories = useMemo(() => {
     const set = new Set(transactions.map((t) => t.category).filter(Boolean))
@@ -342,6 +388,13 @@ export function TransactionList() {
         </button>
         {canEdit && (
           <>
+            <button
+              onClick={() => { setDocDialogKind('invoice'); setDocDialogOpen(true) }}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
+            >
+              <FileText size={15} strokeWidth={1.5} />
+              Subir documento
+            </button>
             <button
               onClick={() => { setEditingId(null); setFormOpen(true) }}
               className="flex items-center gap-1.5 px-4 py-2 rounded-lg btn-primary text-body font-medium transition-all duration-200"
@@ -495,6 +548,13 @@ export function TransactionList() {
         transactionId={editingId}
         onClose={() => setFormOpen(false)}
         onSaved={() => { setFormOpen(false); refetch() }}
+      />
+
+      <DocumentUploadDialog
+        open={docDialogOpen}
+        onClose={() => setDocDialogOpen(false)}
+        onSaved={() => refetch()}
+        defaultKind={docDialogKind}
       />
 
       <InlineAgentSheet

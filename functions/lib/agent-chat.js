@@ -32,9 +32,12 @@ const ALLOWED_IMAGE_MIMETYPES = [
     'image/heic',
     'image/heif',
 ];
+const ALLOWED_DOC_MIMETYPES = ['application/pdf'];
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB
+const MAX_PDF_BYTES = 10 * 1024 * 1024; // 10 MB
 // base64 ≈ 4/3 del binario; agregamos margen por el prefijo `data:...;base64,`.
 const MAX_IMAGE_DATA_URL_LENGTH = Math.ceil(MAX_IMAGE_BYTES * 4 / 3) + 256;
+const MAX_PDF_DATA_URL_LENGTH = Math.ceil(MAX_PDF_BYTES * 4 / 3) + 256;
 function validateAttachments(messages) {
     if (!Array.isArray(messages))
         return { ok: true };
@@ -50,23 +53,36 @@ function validateAttachments(messages) {
                     continue;
                 const contentType = att.contentType;
                 const url = att.url;
-                if (typeof contentType !== 'string' || !contentType.startsWith('image/')) {
+                if (typeof contentType !== 'string')
                     continue;
-                }
                 const mimetype = contentType.toLowerCase();
-                if (!ALLOWED_IMAGE_MIMETYPES.includes(mimetype)) {
-                    return {
-                        ok: false,
-                        status: 400,
-                        body: { error: 'unsupported_image_type', mimetype },
-                    };
+                if (mimetype.startsWith('image/')) {
+                    if (!ALLOWED_IMAGE_MIMETYPES.includes(mimetype)) {
+                        return {
+                            ok: false,
+                            status: 400,
+                            body: { error: 'unsupported_image_type', mimetype },
+                        };
+                    }
+                    if (typeof url === 'string' && url.length > MAX_IMAGE_DATA_URL_LENGTH) {
+                        return {
+                            ok: false,
+                            status: 400,
+                            body: { error: 'image_too_large' },
+                        };
+                    }
                 }
-                if (typeof url === 'string' && url.length > MAX_IMAGE_DATA_URL_LENGTH) {
-                    return {
-                        ok: false,
-                        status: 400,
-                        body: { error: 'image_too_large' },
-                    };
+                else if (ALLOWED_DOC_MIMETYPES.includes(mimetype)) {
+                    if (typeof url === 'string' && url.length > MAX_PDF_DATA_URL_LENGTH) {
+                        return {
+                            ok: false,
+                            status: 400,
+                            body: { error: 'pdf_too_large' },
+                        };
+                    }
+                }
+                else {
+                    continue;
                 }
             }
         }

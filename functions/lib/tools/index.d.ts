@@ -1,4 +1,93 @@
 export declare function createAgentTools(companyId: string, threadId?: string): {
+    createPayableDocument: import("ai").Tool<import("zod").ZodObject<{
+        documentKind: import("zod").ZodEnum<["invoice", "purchase"]>;
+        supplierName: import("zod").ZodString;
+        docNumber: import("zod").ZodString;
+        date: import("zod").ZodString;
+        amount: import("zod").ZodNumber;
+        category: import("zod").ZodString;
+        notes: import("zod").ZodOptional<import("zod").ZodString>;
+    }, "strip", import("zod").ZodTypeAny, {
+        date: string;
+        category: string;
+        amount: number;
+        documentKind: "invoice" | "purchase";
+        supplierName: string;
+        docNumber: string;
+        notes?: string | undefined;
+    }, {
+        date: string;
+        category: string;
+        amount: number;
+        documentKind: "invoice" | "purchase";
+        supplierName: string;
+        docNumber: string;
+        notes?: string | undefined;
+    }>, unknown> & {
+        execute: undefined;
+    };
+    findMatchingPayables: import("ai").Tool<import("zod").ZodObject<{
+        supplierName: import("zod").ZodString;
+        amount: import("zod").ZodNumber;
+        amountTolerance: import("zod").ZodDefault<import("zod").ZodOptional<import("zod").ZodNumber>>;
+    }, "strip", import("zod").ZodTypeAny, {
+        amount: number;
+        supplierName: string;
+        amountTolerance: number;
+    }, {
+        amount: number;
+        supplierName: string;
+        amountTolerance?: number | undefined;
+    }>, {
+        count: number;
+        matches: {
+            id: unknown;
+            concept: unknown;
+            amount: unknown;
+            docNumber: unknown;
+            date: string | null;
+            supplierName: string | null;
+            sourceDocumentLink: string | null;
+        }[];
+    }> & {
+        execute: (args: {
+            amount: number;
+            supplierName: string;
+            amountTolerance: number;
+        }, options: import("ai").ToolExecutionOptions) => PromiseLike<{
+            count: number;
+            matches: {
+                id: unknown;
+                concept: unknown;
+                amount: unknown;
+                docNumber: unknown;
+                date: string | null;
+                supplierName: string | null;
+                sourceDocumentLink: string | null;
+            }[];
+        }>;
+    };
+    markInvoiceAsPaid: import("ai").Tool<import("zod").ZodObject<{
+        invoiceId: import("zod").ZodString;
+        supplierName: import("zod").ZodString;
+        docNumber: import("zod").ZodString;
+        paidDate: import("zod").ZodString;
+        amount: import("zod").ZodNumber;
+    }, "strip", import("zod").ZodTypeAny, {
+        amount: number;
+        supplierName: string;
+        docNumber: string;
+        invoiceId: string;
+        paidDate: string;
+    }, {
+        amount: number;
+        supplierName: string;
+        docNumber: string;
+        invoiceId: string;
+        paidDate: string;
+    }>, unknown> & {
+        execute: undefined;
+    };
     searchContracts: import("ai").Tool<import("zod").ZodObject<{
         query: import("zod").ZodString;
         contractId: import("zod").ZodOptional<import("zod").ZodString>;

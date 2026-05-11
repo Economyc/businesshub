@@ -1,0 +1,163 @@
+import { onCall, HttpsError } from 'firebase-functions/v2/https'
+import { db } from './firestore.js'
+import {
+  ensureFolderPath,
+  uploadFile,
+  validateRootFolderAccess,
+  getServiceAccountEmail,
+} from './services/drive.js'
+
+// Callable de upload de documentos (Facturas, Pagos, Compras) a Drive.
+// Estructura: {Company.driveRootFolderId} / {YYYY} / {MesEs} / {filename}
+// Nombre: "{Proveedor} - {docType} {docNumber} - {Mes DD YYYY}.{ext}"
+
+const MESES_ES = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+]
+
+type DocType = 'Factura' | 'Pago' | 'Compra'
+
+interface UploadInput {
+  companyId: string
+  docType: DocType
+  supplierName: string
+  docNumber: string
+  /** ISO date string (YYYY-MM-DD) o ms epoch */
+  date: string | number
+  fileBase64: string
+  fileName: string
+  mimeType: string
+}
+
+interface MemberDoc {
+  userId: string
+  role: string
+  status: 'active' | 'invited' | 'suspended'
+}
+
+async function assertCompanyMember(uid: string, companyId: string): Promise<void> {
+  const snap = await db
+    .collection('companies')
+    .doc(companyId)
+    .collection('members')
+    .doc(uid)
+    .get()
+  if (!snap.exists) {
+    throw new HttpsError('permission-denied', 'No eres miembro de esta empresa')
+  }
+  const m = snap.data() as MemberDoc
+  if (m.status !== 'active') {
+    throw new HttpsError('permission-denied', 'Tu cuenta no está activa en esta empresa')
+  }
+}
+
+function sanitizeForFileName(s: string): string {
+  // Drive tolera casi cualquier cosa, pero quitamos slashes y caracteres
+  // problemáticos para mantener nombres limpios.
+  return s.replace(/[\\/:*?"<>|]/g, '').trim()
+}
+
+function parseDate(input: string | number): Date {
+  if (typeof input === 'number') return new Date(input)
+  // Acepta YYYY-MM-DD interpretándolo como local (sin UTC shift).
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(input)
+  if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+  return new Date(input)
+}
+
+function extFromMime(mime: string, fallbackName: string): string {
+  if (mime.includes('pdf')) return 'pdf'
+  if (mime.includes('jpeg') || mime.includes('jpg')) return 'jpg'
+  if (mime.includes('png')) return 'png'
+  if (mime.includes('webp')) return 'webp'
+  if (mime.includes('heic')) return 'heic'
+  if (mime.includes('heif')) return 'heif'
+  // Fallback: extraer extensión del nombre original.
+  const idx = fallbackName.lastIndexOf('.')
+  return idx >= 0 ? fallbackName.slice(idx + 1).toLowerCase() : 'bin'
+}
+
+export const uploadDocumentToDrive = onCall(
+  { region: 'us-central1', memory: '512MiB', timeoutSeconds: 60 },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Login requerido')
+    }
+    const data = request.data as UploadInput
+    if (!data?.companyId) throw new HttpsError('invalid-argument', 'companyId requerido')
+    if (!data.docType || !['Factura', 'Pago', 'Compra'].includes(data.docType)) {
+      throw new HttpsError('invalid-argument', 'docType debe ser Factura, Pago o Compra')
+    }
+    if (!data.supplierName?.trim()) throw new HttpsError('invalid-argument', 'supplierName requerido')
+    if (!data.docNumber?.trim()) throw new HttpsError('invalid-argument', 'docNumber requerido')
+    if (!data.fileBase64) throw new HttpsError('invalid-argument', 'fileBase64 requerido')
+    if (!data.mimeType) throw new HttpsError('invalid-argument', 'mimeType requerido')
+
+    await assertCompanyMember(request.auth.uid, data.companyId)
+
+    const companySnap = await db.collection('companies').doc(data.companyId).get()
+    if (!companySnap.exists) throw new HttpsError('not-found', 'Empresa no encontrada')
+    const company = companySnap.data() as { name?: string; driveRootFolderId?: string }
+    if (!company.driveRootFolderId) {
+      throw new HttpsError(
+        'failed-precondition',
+        'La empresa no tiene Drive configurado. Pide al administrador que configure la carpeta raíz en Ajustes.',
+      )
+    }
+
+    const date = parseDate(data.date ?? Date.now())
+    const year = String(date.getFullYear())
+    const month = MESES_ES[date.getMonth()]
+    const dd = String(date.getDate()).padStart(2, '0')
+    const ext = extFromMime(data.mimeType, data.fileName)
+
+    const supplier = sanitizeForFileName(data.supplierName)
+    const docNumber = sanitizeForFileName(data.docNumber)
+    const fileName = `${supplier} - ${data.docType} ${docNumber} - ${month} ${dd} ${year}.${ext}`
+
+    const targetFolderId = await ensureFolderPath(data.companyId, company.driveRootFolderId, [
+      year,
+      month,
+    ])
+    const uploaded = await uploadFile(targetFolderId, fileName, data.mimeType, data.fileBase64)
+
+    return {
+      driveFileId: uploaded.driveFileId,
+      webViewLink: uploaded.webViewLink,
+      fileName: uploaded.fileName,
+    }
+  },
+)
+
+// Callable auxiliar para validar el folder raíz desde Settings.
+interface ValidateInput {
+  companyId: string
+  rootFolderId: string
+}
+
+export const validateDriveFolder = onCall(
+  { region: 'us-central1', memory: '256MiB', timeoutSeconds: 30 },
+  async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Login requerido')
+    const data = request.data as ValidateInput
+    if (!data?.companyId || !data?.rootFolderId) {
+      throw new HttpsError('invalid-argument', 'companyId y rootFolderId requeridos')
+    }
+    await assertCompanyMember(request.auth.uid, data.companyId)
+    const result = await validateRootFolderAccess(data.rootFolderId)
+    const saEmail = await getServiceAccountEmail()
+    return { ...result, serviceAccountEmail: saEmail }
+  },
+)
+
+// Callable simple para que la UI muestre el email de la SA sin necesidad de
+// hacer una validación de carpeta.
+export const getDriveServiceAccount = onCall(
+  { region: 'us-central1', memory: '256MiB', timeoutSeconds: 15 },
+  async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Login requerido')
+    const email = await getServiceAccountEmail()
+    return { email }
+  },
+)
