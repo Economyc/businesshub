@@ -241,10 +241,10 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
               initial="initial"
               animate="animate"
               exit="exit"
-              className="relative bg-surface-elevated rounded-xl shadow-xl border border-border w-full max-w-lg max-h-[min(90vh,fit-content)] overflow-y-auto z-10"
+              className="relative bg-surface-elevated rounded-xl shadow-xl border border-border w-full max-w-lg max-h-[90vh] flex flex-col z-10"
             >
               {/* Header */}
-              <div className="flex items-center justify-between px-6 pt-5 pb-3">
+              <div className="flex items-center justify-between px-6 pt-5 pb-3 shrink-0 border-b border-border">
                 <h2 className="text-subheading font-semibold text-dark-graphite">
                   {loading ? 'Cargando...' : isLinked ? 'Transacción Vinculada' : transactionId ? 'Editar Transacción' : 'Nueva Transacción'}
                 </h2>
@@ -269,7 +269,7 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
               </div>
 
               {loading ? (
-                <div className="space-y-4 px-6 py-6">
+                <div className="space-y-4 px-6 py-6 overflow-y-auto flex-1">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {Array.from({ length: 6 }).map((_, i) => (
                       <div key={i} className="space-y-1.5">
@@ -280,7 +280,7 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
                   </div>
                 </div>
               ) : isLinked ? (
-                <div className="px-6 pb-6 text-center">
+                <div className="px-6 py-6 text-center overflow-y-auto flex-1">
                   <p className="text-body text-graphite mb-4">
                     Esta transacción fue generada automáticamente desde un cierre o compra y no se puede editar directamente.
                   </p>
@@ -289,7 +289,8 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
                   </button>
                 </div>
               ) : (
-                <form onSubmit={handleSubmit} className="px-6 pb-5">
+                <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+                  <div className="overflow-y-auto px-6 py-5 flex-1">
                   {isRecurring && (
                     <div className="mb-4 px-3 py-2 rounded-lg bg-purple-50 border border-purple-200 text-caption text-purple-700">
                       Generada automáticamente desde una transacción recurrente.
@@ -438,7 +439,8 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
                     </div>
                   </div>
 
-                  <div className="flex gap-3 mt-5 pt-4 border-t border-border">
+                  </div>
+                  <div className="flex gap-3 px-6 py-4 border-t border-border shrink-0">
                     <button
                       type="submit"
                       disabled={saveMutation.isPending}
