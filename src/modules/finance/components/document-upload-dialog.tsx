@@ -241,7 +241,7 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
     const hasSupplier = isCustom ? !!customSupplier.trim() : !!supplierId
     const isVirtual = kind === 'invoice' && mode === 'virtual'
     const hasFile = isVirtual ? true : !!file
-    return !submitting && hasFile && hasSupplier && !!docNumber.trim() && !!date && Number(amount) > 0 && !!category
+    return !submitting && !analyzing && hasFile && hasSupplier && !!docNumber.trim() && !!date && Number(amount) > 0 && !!category
   }
 
   async function handleSubmit() {
@@ -335,6 +335,8 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
       })
 
       queryClient.invalidateQueries({ queryKey: ['firestore', companyId, 'transactions'] })
+      queryClient.invalidateQueries({ queryKey: ['firestore-paginated', companyId, 'transactions'] })
+      queryClient.invalidateQueries({ queryKey: ['firestore-count', companyId, 'transactions'] })
       setStep('done')
       setTimeout(() => {
         onSaved()

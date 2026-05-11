@@ -306,6 +306,8 @@ export function PaymentUploadDialog({ open, onClose, onSaved, pendingInvoices }:
       } as Partial<TransactionFormData>)
 
       queryClient.invalidateQueries({ queryKey: ['firestore', companyId, 'transactions'] })
+      queryClient.invalidateQueries({ queryKey: ['firestore-paginated', companyId, 'transactions'] })
+      queryClient.invalidateQueries({ queryKey: ['firestore-count', companyId, 'transactions'] })
       setStep('done')
       setTimeout(() => {
         onSaved()
