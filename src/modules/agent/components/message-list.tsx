@@ -21,6 +21,8 @@ const MUTATION_TOOLS = new Set([
   'createSplitExpense',
   'updateTransaction',
   'deleteTransaction',
+  'createPayableDocument',
+  'markInvoiceAsPaid',
   'quickMarkInvoiceAsPaid',
   'bulkMarkAsPaid',
   'bulkSetPriority',

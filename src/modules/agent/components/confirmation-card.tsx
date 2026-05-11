@@ -27,6 +27,8 @@ const TOOL_CONFIG: Record<string, { label: string; type: ActionType; icon: typeo
   createSplitExpense: { label: 'Crear Gasto Compartido', type: 'create', icon: Split },
   updateTransaction: { label: 'Actualizar Transacción', type: 'update', icon: Pencil },
   deleteTransaction: { label: 'Eliminar Transacción', type: 'delete', icon: Trash2 },
+  createPayableDocument: { label: 'Subir Documento (Factura/Compra)', type: 'create', icon: PlusCircle },
+  markInvoiceAsPaid: { label: 'Cruzar Pago con Factura', type: 'update', icon: CheckCircle2 },
   quickMarkInvoiceAsPaid: { label: 'Marcar Factura como Pagada', type: 'update', icon: CheckCircle2 },
   bulkMarkAsPaid: { label: 'Marcar Facturas como Pagadas', type: 'update', icon: ListChecks },
   bulkSetPriority: { label: 'Cambiar Prioridad', type: 'update', icon: Flag },
