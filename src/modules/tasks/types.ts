@@ -23,6 +23,7 @@ export interface Task {
   subtasks: Subtask[]
   note?: string
   companyTag?: TaskCompanyTag
+  order?: number
   createdAt: Timestamp
   updatedAt: Timestamp
 }

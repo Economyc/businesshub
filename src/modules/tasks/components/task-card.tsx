@@ -50,6 +50,7 @@ export function TaskCard({ task, onToggleStatus, onClick }: TaskCardProps) {
         <button
           type="button"
           aria-label={done ? 'Marcar como pendiente' : 'Marcar como completada'}
+          onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => {
             e.stopPropagation()
             onToggleStatus(task)

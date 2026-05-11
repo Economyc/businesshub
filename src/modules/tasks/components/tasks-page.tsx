@@ -1,23 +1,42 @@
 import { useMemo, useState } from 'react'
 import { Plus, ListTodo } from 'lucide-react'
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  arrayMove,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
 import { Skeleton } from '@/core/ui/skeleton'
 import { PageHeader } from '@/core/ui/page-header'
 import { useTasks, useTaskMutations } from '../hooks/use-tasks'
 import type { Task } from '../types'
-import { TaskCard } from './task-card'
 import { TaskForm } from './task-form'
+import { SortableTaskCard } from './sortable-task-card'
+
+const byOrder = (a: Task, b: Task) => (a.order ?? Infinity) - (b.order ?? Infinity)
 
 export function TasksPage() {
   const { data: tasks, isLoading } = useTasks()
-  const { update } = useTaskMutations()
+  const { update, reorder } = useTaskMutations()
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<Task | null>(null)
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+  )
 
   const { todo, done } = useMemo(() => {
     const list = tasks ?? []
     return {
-      todo: list.filter((t) => t.status === 'todo'),
-      done: list.filter((t) => t.status === 'done'),
+      todo: list.filter((t) => t.status === 'todo').sort(byOrder),
+      done: list.filter((t) => t.status === 'done').sort(byOrder),
     }
   }, [tasks])
 
@@ -36,6 +55,70 @@ export function TasksPage() {
       id: task.id,
       data: { status: task.status === 'todo' ? 'done' : 'todo' },
     })
+  }
+
+  function handleDragEnd(column: Task[]) {
+    return (e: DragEndEvent) => {
+      const { active, over } = e
+      if (!over || active.id === over.id) return
+      const oldIndex = column.findIndex((t) => t.id === active.id)
+      const newIndex = column.findIndex((t) => t.id === over.id)
+      if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return
+      const reordered = arrayMove(column, oldIndex, newIndex)
+      const changes = reordered
+        .map((t, i) => ({ id: t.id, order: i, prevOrder: t.order }))
+        .filter((c) => c.prevOrder !== c.order)
+        .map(({ id, order }) => ({ id, order }))
+      if (changes.length) reorder.mutate(changes)
+    }
+  }
+
+  function renderColumn(column: Task[], emptyText: string, showCreateButton: boolean) {
+    if (isLoading) {
+      return (
+        <div className="flex flex-col gap-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-32 rounded-xl" />
+          ))}
+        </div>
+      )
+    }
+    if (column.length === 0) {
+      return (
+        <div className="card-elevated rounded-xl p-10 flex flex-col items-center justify-center text-center gap-3">
+          <div className="h-10 w-10 rounded-full bg-bone flex items-center justify-center text-mid-gray">
+            <ListTodo size={20} strokeWidth={1.5} />
+          </div>
+          <p className="text-body text-mid-gray">{emptyText}</p>
+          {showCreateButton && (
+            <button
+              type="button"
+              onClick={openCreate}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-input-border text-body text-graphite hover:bg-bone transition-colors"
+            >
+              <Plus size={14} strokeWidth={1.5} />
+              Nueva tarea
+            </button>
+          )}
+        </div>
+      )
+    }
+    return (
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd(column)}>
+        <SortableContext items={column.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+          <div className="flex flex-col gap-3">
+            {column.map((task) => (
+              <SortableTaskCard
+                key={task.id}
+                task={task}
+                onToggleStatus={toggleStatus}
+                onClick={openEdit}
+              />
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
+    )
   }
 
   return (
@@ -60,40 +143,7 @@ export function TasksPage() {
               {todo.length}
             </span>
           </header>
-
-          {isLoading ? (
-            <div className="flex flex-col gap-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <Skeleton key={i} className="h-32 rounded-xl" />
-              ))}
-            </div>
-          ) : todo.length === 0 ? (
-            <div className="card-elevated rounded-xl p-10 flex flex-col items-center justify-center text-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-bone flex items-center justify-center text-mid-gray">
-                <ListTodo size={20} strokeWidth={1.5} />
-              </div>
-              <p className="text-body text-mid-gray">Sin tareas pendientes. Crea tu primera tarea.</p>
-              <button
-                type="button"
-                onClick={openCreate}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-input-border text-body text-graphite hover:bg-bone transition-colors"
-              >
-                <Plus size={14} strokeWidth={1.5} />
-                Nueva tarea
-              </button>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-3">
-              {todo.map((task) => (
-                <TaskCard
-                  key={task.id}
-                  task={task}
-                  onToggleStatus={toggleStatus}
-                  onClick={openEdit}
-                />
-              ))}
-            </div>
-          )}
+          {renderColumn(todo, 'Sin tareas pendientes. Crea tu primera tarea.', true)}
         </section>
 
         {/* Columna Done */}
@@ -104,32 +154,7 @@ export function TasksPage() {
               {done.length}
             </span>
           </header>
-
-          {isLoading ? (
-            <div className="flex flex-col gap-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <Skeleton key={i} className="h-32 rounded-xl" />
-              ))}
-            </div>
-          ) : done.length === 0 ? (
-            <div className="card-elevated rounded-xl p-10 flex flex-col items-center justify-center text-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-bone flex items-center justify-center text-mid-gray">
-                <ListTodo size={20} strokeWidth={1.5} />
-              </div>
-              <p className="text-body text-mid-gray">Aún no has completado ninguna tarea.</p>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-3">
-              {done.map((task) => (
-                <TaskCard
-                  key={task.id}
-                  task={task}
-                  onToggleStatus={toggleStatus}
-                  onClick={openEdit}
-                />
-              ))}
-            </div>
-          )}
+          {renderColumn(done, 'Aún no has completado ninguna tarea.', false)}
         </section>
       </div>
 

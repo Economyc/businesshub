@@ -38,5 +38,23 @@ export function useTaskMutations() {
     onSettled: invalidate,
   })
 
-  return { create, update, remove }
+  const reorder = useMutation({
+    mutationFn: (changes: { id: string; order: number }[]) =>
+      Promise.all(changes.map((c) => tasksService.update(uid, c.id, { order: c.order }))),
+    onMutate: async (changes) => {
+      await qc.cancelQueries({ queryKey: KEY(uid) })
+      const prev = qc.getQueryData<Task[]>(KEY(uid))
+      const orderById = new Map(changes.map((c) => [c.id, c.order]))
+      qc.setQueryData<Task[]>(KEY(uid), (old) =>
+        old?.map((t) => (orderById.has(t.id) ? { ...t, order: orderById.get(t.id)! } : t)),
+      )
+      return { prev }
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(KEY(uid), ctx.prev)
+    },
+    onSettled: invalidate,
+  })
+
+  return { create, update, remove, reorder }
 }
