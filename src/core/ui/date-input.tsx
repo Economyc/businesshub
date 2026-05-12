@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect, useMemo } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -11,6 +12,11 @@ interface DateInputProps {
 
 const MONTHS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
 const DAYS = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa', 'Do']
+
+const PANEL_WIDTH = 280
+const PANEL_HEIGHT = 330
+const GAP = 4
+const MARGIN = 8
 
 function formatDisplayDate(iso: string): string {
   if (!iso) return ''
@@ -29,6 +35,9 @@ function toISO(year: number, month: number, day: number) {
 export function DateInput({ value, onChange, required, className }: DateInputProps) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+  const [panelPos, setPanelPos] = useState<{ top: number; left: number; width: number } | null>(null)
 
   // Parse value or default to today for calendar view
   const parsed = value ? new Date(value + 'T00:00:00') : new Date()
@@ -44,22 +53,46 @@ export function DateInput({ value, onChange, required, className }: DateInputPro
     }
   }, [value])
 
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false)
-      }
+  // Position the portal panel relative to the trigger, flipping up if needed.
+  useLayoutEffect(() => {
+    if (!open) return
+    function reposition() {
+      const rect = buttonRef.current?.getBoundingClientRect()
+      if (!rect) return
+      const width = Math.min(PANEL_WIDTH, window.innerWidth - MARGIN * 2)
+      const spaceBelow = window.innerHeight - rect.bottom
+      const spaceAbove = rect.top
+      const openUp = spaceBelow < PANEL_HEIGHT + GAP && spaceAbove > spaceBelow
+      const top = openUp ? rect.top - PANEL_HEIGHT - GAP : rect.bottom + GAP
+      let left = rect.right - width
+      left = Math.max(MARGIN, Math.min(left, window.innerWidth - width - MARGIN))
+      setPanelPos({ top, left, width })
     }
-    if (open) {
-      function handleKey(e: KeyboardEvent) {
-        if (e.key === 'Escape') { e.stopPropagation(); setOpen(false) }
-      }
-      document.addEventListener('mousedown', handleClickOutside)
-      document.addEventListener('keydown', handleKey)
-      return () => {
-        document.removeEventListener('mousedown', handleClickOutside)
-        document.removeEventListener('keydown', handleKey)
-      }
+    reposition()
+    window.addEventListener('scroll', reposition, true)
+    window.addEventListener('resize', reposition)
+    return () => {
+      window.removeEventListener('scroll', reposition, true)
+      window.removeEventListener('resize', reposition)
+    }
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return
+    function handleClickOutside(e: MouseEvent) {
+      const target = e.target as Node
+      if (ref.current?.contains(target)) return
+      if (panelRef.current?.contains(target)) return
+      setOpen(false)
+    }
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') { e.stopPropagation(); setOpen(false) }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('keydown', handleKey)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleKey)
     }
   }, [open])
 
@@ -138,6 +171,7 @@ export function DateInput({ value, onChange, required, className }: DateInputPro
       )}
 
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => setOpen(!open)}
         className={cn(
@@ -153,8 +187,12 @@ export function DateInput({ value, onChange, required, className }: DateInputPro
         </span>
       </button>
 
-      {open && (
-        <div className="absolute right-0 top-full mt-1 bg-surface-elevated border border-border rounded-xl shadow-lg z-50 p-3 w-[calc(100vw-3rem)] sm:w-[280px]">
+      {open && panelPos && createPortal(
+        <div
+          ref={panelRef}
+          className="fixed bg-surface-elevated border border-border rounded-xl shadow-lg p-3"
+          style={{ top: panelPos.top, left: panelPos.left, width: panelPos.width, zIndex: 60 }}
+        >
           {/* Month/Year header */}
           <div className="flex items-center justify-between mb-2">
             <button
@@ -220,7 +258,8 @@ export function DateInput({ value, onChange, required, className }: DateInputPro
               Hoy
             </button>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   )
