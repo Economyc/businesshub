@@ -222,19 +222,37 @@ async function main() {
     }
   }
 
-  // 2. Drive auth del usuario
-  let driveUid
-  try {
-    driveUid = (await auth.getUserByEmail(DRIVE_USER_EMAIL)).uid
-  } catch {
-    console.error(`No encontré el usuario ${DRIVE_USER_EMAIL} en Firebase Auth.`); process.exit(1)
+  // 2. Drive auth del usuario. El token vive en users/{uid}.driveAuth.refreshToken
+  // (es por-usuario, no por-company). Buscamos el usuario que tenga Drive
+  // conectado; si hay varios, exigir BSB_DRIVE_UID. BSB_DRIVE_USER_EMAIL es un
+  // override opcional adicional.
+  let driveUid, refreshToken
+  if (process.env.BSB_DRIVE_UID) {
+    driveUid = process.env.BSB_DRIVE_UID
+    const us = await db.collection('users').doc(driveUid).get()
+    refreshToken = us.exists ? us.data()?.driveAuth?.refreshToken : null
+  } else if (DRIVE_USER_EMAIL) {
+    try {
+      driveUid = (await auth.getUserByEmail(DRIVE_USER_EMAIL)).uid
+      const us = await db.collection('users').doc(driveUid).get()
+      refreshToken = us.exists ? us.data()?.driveAuth?.refreshToken : null
+    } catch { /* no existe ese email — caemos al escaneo de abajo */ }
   }
-  const userSnap = await db.collection('users').doc(driveUid).get()
-  const refreshToken = userSnap.exists ? userSnap.data()?.driveAuth?.refreshToken : null
   if (!refreshToken) {
-    console.error(`El usuario ${DRIVE_USER_EMAIL} no tiene Drive conectado (users/${driveUid}.driveAuth.refreshToken vacío). Conéctalo en la app y vuelve a correr.`)
-    process.exit(1)
+    const usersSnap = await db.collection('users').get()
+    const withDrive = usersSnap.docs.filter((d) => d.data()?.driveAuth?.refreshToken)
+    if (withDrive.length === 1) {
+      driveUid = withDrive[0].id
+      refreshToken = withDrive[0].data().driveAuth.refreshToken
+    } else if (withDrive.length === 0) {
+      console.error('Ningún usuario tiene Drive conectado (users/{uid}.driveAuth.refreshToken). Conéctalo en la app (Ajustes → Compañías → Drive) y vuelve a correr.')
+      process.exit(1)
+    } else {
+      console.error(`Varios usuarios tienen Drive conectado: ${withDrive.map((d) => `${d.id} (${d.data().driveAuth.email ?? '?'})`).join(', ')}. Define BSB_DRIVE_UID=<uid> y vuelve a correr.`)
+      process.exit(1)
+    }
   }
+  log(`Drive: usuario ${driveUid}`)
   if (!DRY_RUN) {
     const clientId = getSecret('DRIVE_OAUTH_CLIENT_ID')
     const clientSecret = getSecret('DRIVE_OAUTH_CLIENT_SECRET')
