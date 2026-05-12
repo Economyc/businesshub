@@ -142,9 +142,10 @@ export const analyzeInvoiceDocument = onCall(
     await assertCompanyMember(request.auth.uid, data.companyId)
 
     // Cargar categorías y proveedores para que el modelo escoja del catálogo.
+    // `suppliers` es colección raíz compartida entre companies (ver firestore.ts).
     const [settingsSnap, suppliersSnap] = await Promise.all([
       db.collection('companies').doc(data.companyId).collection('settings').doc('categories').get(),
-      db.collection('companies').doc(data.companyId).collection('suppliers').get(),
+      db.collection('suppliers').get(),
     ])
 
     const categoryItems = (() => {

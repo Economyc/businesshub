@@ -133,9 +133,9 @@ export function PartnerForm({ open, onClose, partner }: PartnerFormProps) {
             initial="initial"
             animate="animate"
             exit="exit"
-            className="relative bg-surface-elevated rounded-xl shadow-lg w-full max-w-2xl mx-4 border border-border"
+            className="relative bg-surface-elevated rounded-xl shadow-lg w-full max-w-2xl mx-4 border border-border max-h-[90vh] flex flex-col"
           >
-            <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-border">
+            <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-border shrink-0">
               <h2 className="text-subheading font-semibold text-dark-graphite">
                 {isEditing ? 'Editar Socio' : 'Nuevo Socio'}
               </h2>
@@ -147,7 +147,8 @@ export function PartnerForm({ open, onClose, partner }: PartnerFormProps) {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6">
+            <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+              <div className="p-6 overflow-y-auto flex-1">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div>
                   <label className={labelClass}>Nombre</label>
@@ -234,8 +235,9 @@ export function PartnerForm({ open, onClose, partner }: PartnerFormProps) {
                   />
                 </div>
               </div>
+              </div>
 
-              <div className="flex items-center gap-3 mt-6 pt-5 border-t border-border">
+              <div className="flex items-center gap-3 px-6 py-4 border-t border-border shrink-0">
                 {isEditing && (
                   <HoverHint label="Eliminar socio">
                     <button

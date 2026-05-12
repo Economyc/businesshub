@@ -19,6 +19,14 @@ service cloud.firestore {
       allow read, write: if request.auth != null;
     }
 
+    // Catálogo de proveedores compartido entre todas las companies.
+    // Vive en la raíz (no bajo companies/) porque los mismos proveedores se
+    // repiten entre locales. Acceso para cualquier usuario autenticado, igual
+    // que las subcolecciones de negocio.
+    match /suppliers/{supplierId} {
+      allow read, write: if request.auth != null;
+    }
+
     // LLM rate-limits: solo Admin SDK desde Cloud Functions
     match /system/llm-rate-limits/{document=**} {
       allow read, write: if false;

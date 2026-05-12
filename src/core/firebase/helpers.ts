@@ -13,11 +13,28 @@ import {
 } from 'firebase/firestore'
 import { db } from './config'
 
+// Colecciones que viven en la raíz de Firestore, NO bajo `companies/{companyId}/`.
+// Se comparten entre todas las companies (no existe una capa de "organización"
+// sobre company). `companyCollection` / `companyDoc` aceptan igual el `companyId`
+// para no cambiar la firma de todos los servicios, pero lo ignoran para estas.
+//
+// `suppliers`: catálogo de proveedores compartido — los mismos proveedores se
+// repiten entre locales, así que se mantienen en una sola lista. Todos los
+// consumidores (UI, helpers paginados, prefetch, Cloud Functions vía
+// `functions/src/firestore.ts`) pasan por estos chokepoints.
+const ROOT_COLLECTIONS = new Set(['suppliers'])
+
 export function companyCollection(companyId: string, collectionName: string) {
+  if (ROOT_COLLECTIONS.has(collectionName)) {
+    return collection(db, collectionName)
+  }
   return collection(db, 'companies', companyId, collectionName)
 }
 
 export function companyDoc(companyId: string, collectionName: string, docId: string) {
+  if (ROOT_COLLECTIONS.has(collectionName)) {
+    return doc(db, collectionName, docId)
+  }
   return doc(db, 'companies', companyId, collectionName, docId)
 }
 

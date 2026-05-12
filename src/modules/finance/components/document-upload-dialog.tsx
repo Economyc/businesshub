@@ -393,9 +393,9 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
           initial="initial"
           animate="animate"
           exit="exit"
-          className="bg-surface rounded-2xl card-elevated w-full max-w-xl max-h-[90vh] overflow-y-auto"
+          className="bg-surface rounded-2xl card-elevated w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden"
         >
-          <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
             <h2 className="text-subheading font-medium text-graphite">
               {kind === 'invoice' && mode === 'virtual' ? 'Crear factura virtual' : 'Subir documento'}
             </h2>
@@ -408,7 +408,7 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
             </button>
           </div>
 
-          <div className="px-6 py-5 space-y-5">
+          <div className="px-6 py-5 space-y-5 overflow-y-auto flex-1">
             {/* Toggle Factura | Compra */}
             <div className="grid grid-cols-2 gap-2 p-1 rounded-lg bg-bone/60 border border-border/60">
               <button
@@ -650,7 +650,7 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
             )}
           </div>
 
-          <div className="flex justify-end items-center gap-3 px-6 py-4 border-t border-border">
+          <div className="flex justify-end items-center gap-3 px-6 py-4 border-t border-border shrink-0">
             <button
               type="button"
               onClick={() => { if (!submitting) onClose() }}

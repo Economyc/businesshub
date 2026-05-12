@@ -261,10 +261,9 @@ export async function executeMutation(
 
       const payeeType = args.payeeType as PayeeType
       const payeeName = String(args.payeeName)
-      // Resolvemos el payee contra la company activa (el id es el mismo en
-      // todas las companies para suppliers/partners/employees compartidos? No,
-      // las colecciones son por company. Asumimos que cada company tiene su
-      // copia y resolvemos por company. Para 'external' es trivial.)
+      // Resolvemos el payee: `suppliers` es colección raíz compartida entre
+      // todas las companies (mismo id en cualquier company); `partners` y
+      // `employees` siguen siendo por company. Para 'external' es trivial.
       const dateTs = toTimestamp(String(args.date))
       const splitGroupId = `split-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
       const notes = args.notes ? String(args.notes) : undefined

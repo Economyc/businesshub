@@ -346,9 +346,9 @@ export function PaymentUploadDialog({ open, onClose, onSaved, pendingInvoices }:
           initial="initial"
           animate="animate"
           exit="exit"
-          className="bg-surface rounded-2xl card-elevated w-full max-w-xl max-h-[90vh] overflow-y-auto"
+          className="bg-surface rounded-2xl card-elevated w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden"
         >
-          <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
             <h2 className="text-subheading font-medium text-graphite">Subir comprobante de pago</h2>
             <button
               type="button"
@@ -359,7 +359,7 @@ export function PaymentUploadDialog({ open, onClose, onSaved, pendingInvoices }:
             </button>
           </div>
 
-          <div className="px-6 py-5 space-y-5">
+          <div className="px-6 py-5 space-y-5 overflow-y-auto flex-1">
             {/* Drop zone */}
             <div
               onDragEnter={handleDragEnter}
@@ -548,7 +548,7 @@ export function PaymentUploadDialog({ open, onClose, onSaved, pendingInvoices }:
             )}
           </div>
 
-          <div className="flex justify-end items-center gap-3 px-6 py-4 border-t border-border">
+          <div className="flex justify-end items-center gap-3 px-6 py-4 border-t border-border shrink-0">
             <button
               type="button"
               onClick={() => { if (!submitting && !analyzing) onClose() }}

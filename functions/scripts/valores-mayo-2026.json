@@ -1,0 +1,43 @@
+{
+  "_comment": "Montos y fechas de pago de las facturas de Mayo 2026, extraídos del Excel '05 - Pagos Blue Smash Burger - Seguimiento Mayo 2026.xlsx'. Clave: '<Sede>|<Proveedor>|<Num>'. amount en COP. paidDate en YYYY-MM-DD (null si la factura está pendiente). Lo consume scripts/import-bsb-mayo-2026.mjs.",
+  "Manila": {
+    "Juan D Hoyos|1280651": { "amount": 822717, "paidDate": "2026-05-05" },
+    "La Rioja|4760": { "amount": 507223, "paidDate": "2026-05-04" },
+    "Agcinco|8821": { "amount": 352240, "paidDate": "2026-05-06" },
+    "Comapan|130425": { "amount": 722925, "paidDate": "2026-05-05" },
+    "Jm Seritampo|1233": { "amount": 779450, "paidDate": "2026-05-05" },
+    "Lemon|S02896": { "amount": 184500.21, "paidDate": "2026-05-06" },
+    "Torrealta|7010": { "amount": 654500, "paidDate": "2026-05-08" },
+    "Campo de Oro|3538": { "amount": 138000, "paidDate": "2026-05-08" },
+    "Carnes Walter|36439": { "amount": 851960, "paidDate": "2026-05-07" },
+    "MrBread|05062026": { "amount": 762700, "paidDate": "2026-05-07" },
+    "Atlantic|1110740342": { "amount": 739902, "paidDate": "2026-05-07" },
+    "Juan D Hoyos|1283533": { "amount": 849900, "paidDate": "2026-05-07" },
+    "Juan D Hoyos|1283534": { "amount": 118786, "paidDate": "2026-05-07" },
+    "Carnes Walter|12215": { "amount": 1045520, "paidDate": null }
+  },
+  "Escondite": {
+    "Campo de Oro|3498": { "amount": 64845, "paidDate": "2026-05-06" },
+    "Carnes Walter|35352": { "amount": 452560, "paidDate": "2026-05-05" },
+    "Colgas|73809": { "amount": 234000, "paidDate": "2026-05-04" },
+    "La Rioja|4759": { "amount": 337123, "paidDate": "2026-05-06" },
+    "Lucia|0105042026": { "amount": 112000, "paidDate": "2026-05-06" },
+    "Lucia|0205042026": { "amount": 37800, "paidDate": "2026-05-06" },
+    "Lucia|0305042026": { "amount": 120000, "paidDate": "2026-05-06" },
+    "Lucia|0405042026": { "amount": 93300, "paidDate": "2026-05-06" },
+    "MrBread|05042026": { "amount": 369300, "paidDate": "2026-05-06" },
+    "Sticker Domi|04052026": { "amount": 17000, "paidDate": "2026-05-04" },
+    "Agcinco|8822": { "amount": 292859, "paidDate": "2026-05-08" },
+    "Agcinco|8830": { "amount": 176120, "paidDate": "2026-05-07" },
+    "Juan D Hoyos|1281518": { "amount": 639618, "paidDate": "2026-05-06" },
+    "Juan D Hoyos|1281519": { "amount": 148726, "paidDate": "2026-05-06" },
+    "Arriendo Cocina|06052026": { "amount": 3808000, "paidDate": "2026-05-06" },
+    "Carnes Walter|36867": { "amount": 315640, "paidDate": "2026-05-06" },
+    "Eleva AI|0106052026": { "amount": 250000, "paidDate": "2026-05-06" },
+    "Eleva AI|0206052026": { "amount": 650000, "paidDate": "2026-05-08" },
+    "Campo de Oro|3534": { "amount": 101910, "paidDate": "2026-05-08" },
+    "Carnes Walter|36440": { "amount": 303040, "paidDate": "2026-05-08" },
+    "Colgas|73811": { "amount": 104000, "paidDate": "2026-05-08" },
+    "Sebastian Barrios|07052026": { "amount": 153250, "paidDate": null }
+  }
+}
