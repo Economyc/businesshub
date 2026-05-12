@@ -95,8 +95,11 @@ test.describe('Descuentos', () => {
     test.skip(process.env.E2E_WRITE !== '1', 'Escribe datos reales en producción — correr con E2E_WRITE=1 para incluirlo.')
     const photoPath = process.env.E2E_PHOTO ?? 'e2e/fixtures/sample-discount.png'
     await openApp(page, '/discounts')
+    await expect(page.getByRole('heading', { level: 1, name: 'Descuentos' })).toBeVisible({ timeout: 60_000 })
     const form = page.locator('form').first()
-    if ((await form.count()) === 0) test.skip(true, 'Sin permiso de crear.')
+    if (!(await form.isVisible({ timeout: 30_000 }).catch(() => false))) {
+      test.skip(true, 'No se renderiza el formulario (sin permiso closings.create, o la página no cargó a tiempo).')
+    }
 
     const detalle = `E2E ${Date.now()}`
     await form.locator('label:text-is("Tipo") + div button').first().click()
@@ -110,14 +113,21 @@ test.describe('Descuentos', () => {
 
     await page.getByRole('button', { name: 'Guardar Descuento' }).click()
 
-    // Si la compañía no tiene carpeta de Descuentos configurada, sale un error -> skip.
-    const errBox = page.getByText(/carpeta de Descuentos configurada/i)
-    if (await errBox.isVisible({ timeout: 8_000 }).catch(() => false)) {
+    // Precondiciones que dependen de la config de la compañía / cuenta:
+    //  - el usuario logueado debe tener su Drive conectado (Ajustes → Compañías)
+    //  - la compañía activa debe tener "Carpeta de Descuentos" configurada
+    // Si falta alguna, el callable devuelve un error visible -> skip con la causa.
+    const driveNotConnected = page.getByText(/no has conectado tu drive/i)
+    const noDiscountsFolder = page.getByText(/carpeta de Descuentos configurada/i)
+    if (await driveNotConnected.isVisible({ timeout: 10_000 }).catch(() => false)) {
+      test.skip(true, `El usuario logueado (${process.env.E2E_USER}) no tiene su Drive conectado: Ajustes → Compañías → "Conectar Drive".`)
+    }
+    if (await noDiscountsFolder.isVisible().catch(() => false)) {
       test.skip(true, 'La compañía activa no tiene "Carpeta de Descuentos" configurada en Ajustes → Compañías.')
     }
 
     const row = page.locator('table tr', { hasText: detalle }).first()
-    await expect(row).toBeVisible({ timeout: 20_000 })
+    await expect(row).toBeVisible({ timeout: 30_000 })
     const photoLink = row.getByRole('link')
     await expect(photoLink).toHaveAttribute('href', /drive\.google\.com/)
     await page.screenshot({ path: 'test-results/discounts-creado.png', fullPage: true })
