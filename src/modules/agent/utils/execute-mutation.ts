@@ -26,6 +26,7 @@ import type { ContractFormData, ContractTemplate, ContractTemplateFormData } fro
 import type { ContractStatus, ContractType, Company } from '@/core/types'
 import { resolvePayeeOnCompany, resolveCompany } from './resolve-payee'
 import { reportProgressClient } from './tool-progress-client'
+import { computeSplits, makeSplitGroupId } from '@/modules/finance/split-service'
 
 function toTimestamp(dateStr: string): Timestamp {
   return Timestamp.fromDate(new Date(dateStr))
@@ -217,46 +218,19 @@ export async function executeMutation(
         resolvedSplits.push({ company: r.company, amount: 0 })
       }
 
-      if (splitMode === 'equal') {
-        const each = Math.round(totalAmount / resolvedSplits.length)
-        let assigned = 0
-        resolvedSplits.forEach((rs, i) => {
-          rs.amount = i === resolvedSplits.length - 1 ? totalAmount - assigned : each
-          assigned += rs.amount
-        })
-      } else if (splitMode === 'amounts') {
-        let sum = 0
-        resolvedSplits.forEach((rs, i) => {
-          const a = Number(splits[i].amount)
-          if (!Number.isFinite(a) || a <= 0) {
-            throw new Error(`Monto inválido para "${rs.company.name}".`)
-          }
-          rs.amount = a
-          sum += a
-        })
-        if (Math.abs(sum - totalAmount) > 1) {
-          return {
-            success: false,
-            message: `Los montos suman $${sum.toLocaleString('es-CL')} pero el total declarado es $${totalAmount.toLocaleString('es-CL')}. Ajusta los splits.`,
-          }
-        }
-      } else {
-        let sumPct = 0
-        let assigned = 0
-        resolvedSplits.forEach((rs, i) => {
-          const p = Number(splits[i].percentage)
-          if (!Number.isFinite(p) || p <= 0) {
-            throw new Error(`Porcentaje inválido para "${rs.company.name}".`)
-          }
-          sumPct += p
-          rs.amount = i === resolvedSplits.length - 1
-            ? totalAmount - assigned
-            : Math.round((totalAmount * p) / 100)
-          assigned += rs.amount
-        })
-        if (Math.abs(sumPct - 100) > 0.5) {
-          return { success: false, message: `Los porcentajes suman ${sumPct}% — deben sumar 100%.` }
-        }
+      try {
+        const computed = computeSplits(
+          totalAmount,
+          splitMode,
+          resolvedSplits.map((rs, i) => ({
+            companyId: rs.company.id,
+            amount: splits[i].amount,
+            percentage: splits[i].percentage,
+          })),
+        )
+        computed.forEach((c, i) => { resolvedSplits[i].amount = c.amount })
+      } catch (err) {
+        return { success: false, message: (err as Error).message }
       }
 
       const payeeType = args.payeeType as PayeeType
@@ -265,7 +239,7 @@ export async function executeMutation(
       // todas las companies (mismo id en cualquier company); `partners` y
       // `employees` siguen siendo por company. Para 'external' es trivial.
       const dateTs = toTimestamp(String(args.date))
-      const splitGroupId = `split-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+      const splitGroupId = makeSplitGroupId()
       const notes = args.notes ? String(args.notes) : undefined
       const concept = String(args.concept)
       const category = String(args.category)

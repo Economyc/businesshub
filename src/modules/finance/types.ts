@@ -73,6 +73,14 @@ export interface RecurringTransaction extends BaseEntity {
   nextDueDate: Timestamp
   lastGeneratedDate?: Timestamp
   isActive: boolean
+  // Campos opcionales que se propagan a cada transacción generada. Los usa
+  // el reparto recurrente entre locales (gasto compartido mensual): la regla
+  // guarda payeeRef/documentKind/priority y un splitGroupId "de grupo"; el
+  // generador deriva un splitGroupId por ocurrencia (mes) a partir de él.
+  payeeRef?: PayeeRef
+  documentKind?: DocumentKind
+  priority?: TransactionPriority
+  splitGroupId?: string
 }
 
 export type RecurringTransactionFormData = Omit<RecurringTransaction, 'id' | 'createdAt' | 'updatedAt'>

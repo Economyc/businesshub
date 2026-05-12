@@ -31,6 +31,10 @@ function formatDateLabel(date: Date): string {
   return date.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
+function isoDate(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+
 export async function generatePendingTransactions(companyId: string): Promise<number> {
   const allRecurring = await recurringService.getAll(companyId)
   const active = allRecurring.filter((r) => r.isActive)
@@ -61,6 +65,10 @@ export async function generatePendingTransactions(companyId: string): Promise<nu
         sourceType: 'recurring',
         sourceId: recurring.id,
         sourceLabel: `Recurrente — ${formatDateLabel(nextDue)}`,
+        ...(recurring.payeeRef ? { payeeRef: recurring.payeeRef } : {}),
+        ...(recurring.documentKind ? { documentKind: recurring.documentKind } : {}),
+        ...(recurring.priority ? { priority: recurring.priority } : {}),
+        ...(recurring.splitGroupId ? { splitGroupId: `${recurring.splitGroupId}::${isoDate(nextDue)}` } : {}),
       } as any)
 
       lastGenerated = nextDue

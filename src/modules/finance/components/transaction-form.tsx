@@ -48,6 +48,7 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
   const [showDelete, setShowDelete] = useState(false)
   const [isLinked, setIsLinked] = useState(false)
   const [isRecurring, setIsRecurring] = useState(false)
+  const [isSplit, setIsSplit] = useState(false)
 
   const [form, setForm] = useState({
     concept: '',
@@ -109,6 +110,7 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
       setForm({ concept: '', category: '', amount: '', type: 'income', date: '', status: 'pending', notes: '' })
       setIsLinked(false)
       setIsRecurring(false)
+      setIsSplit(false)
       setShowDelete(false)
       setPayeeType('')
       setPayeeId('')
@@ -126,6 +128,7 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
       if (!tx) { onClose(); return }
       if (tx.sourceType === 'closing') setIsLinked(true)
       if (tx.sourceType === 'recurring') setIsRecurring(true)
+      if (tx.splitGroupId) setIsSplit(true)
       setAttachments({
         source: tx.sourceDocument,
         proof: tx.paymentProof,
@@ -296,6 +299,11 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
                   {isRecurring && (
                     <div className="mb-4 px-3 py-2 rounded-lg bg-purple-50 border border-purple-200 text-caption text-purple-700">
                       Generada automáticamente desde una transacción recurrente.
+                    </div>
+                  )}
+                  {isSplit && (
+                    <div className="mb-4 px-3 py-2 rounded-lg bg-bone border border-border/60 text-caption text-mid-gray">
+                      Parte de un gasto compartido entre locales — cada local registra su parte por separado.
                     </div>
                   )}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

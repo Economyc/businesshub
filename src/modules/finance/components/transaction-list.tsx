@@ -1,9 +1,10 @@
 import { useState, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Upload, Sparkles, FileText, Receipt, StickyNote } from 'lucide-react'
+import { Upload, Sparkles, FileText, Receipt, StickyNote, Split } from 'lucide-react'
 import { TransactionForm } from './transaction-form'
 import { DocumentUploadDialog } from './document-upload-dialog'
 import { PaymentUploadDialog } from './payment-upload-dialog'
+import { SplitExpenseDialog } from './split-expense-dialog'
 import type { DocumentKind, Transaction } from '../types'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
@@ -125,6 +126,7 @@ export function TransactionList() {
   const [docDialogOpen, setDocDialogOpen] = useState(false)
   const [docDialogKind, setDocDialogKind] = useState<DocumentKind>('invoice')
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false)
+  const [splitDialogOpen, setSplitDialogOpen] = useState(false)
 
   // Solo facturas/compras: la vista "Facturación" trabaja con documentos
   // (invoice = cuenta por pagar a crédito, purchase = compra al contado).
@@ -258,12 +260,19 @@ export function TransactionList() {
     {
       key: 'docKind',
       header: 'Tipo',
-      width: '0.7fr',
+      width: '0.9fr',
       hideOnMobile: true,
       render: (t) => (
-        <span className="text-mid-gray">
-          {t.documentKind === 'invoice' ? 'Factura' : 'Compra'}
-        </span>
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="text-mid-gray">
+            {t.documentKind === 'invoice' ? 'Factura' : 'Compra'}
+          </span>
+          {t.splitGroupId && (
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[11px] font-medium bg-bone border border-border/60 text-mid-gray shrink-0">
+              Compartido
+            </span>
+          )}
+        </div>
       ),
     },
     {
@@ -327,6 +336,13 @@ export function TransactionList() {
             >
               <Receipt size={15} strokeWidth={1.5} />
               Subir pago
+            </button>
+            <button
+              onClick={() => setSplitDialogOpen(true)}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
+            >
+              <Split size={15} strokeWidth={1.5} />
+              Gasto compartido
             </button>
             <button
               onClick={() => navigate('/finance/import')}
@@ -468,6 +484,12 @@ export function TransactionList() {
         onClose={() => setPaymentDialogOpen(false)}
         onSaved={() => refetch()}
         pendingInvoices={pendingInvoicesAll}
+      />
+
+      <SplitExpenseDialog
+        open={splitDialogOpen}
+        onClose={() => setSplitDialogOpen(false)}
+        onSaved={() => refetch()}
       />
 
       <InlineAgentSheet
