@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, memo } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
-import { Users, Briefcase, DollarSign, Home, ChevronsLeft, Building2, Tags, BadgeCheck, Network, Handshake, ClipboardList, FileSignature, Wallet, ChevronRight, ChevronsUpDown, Check, MapPin, LogOut, Settings, List, Target, FileText, Shield, RefreshCw, Megaphone, Lock, LockOpen, LayoutGrid } from 'lucide-react'
+import { Users, Briefcase, DollarSign, Home, ChevronsLeft, Building2, Tags, BadgeCheck, Network, Handshake, ClipboardList, FileSignature, Wallet, ChevronRight, ChevronsUpDown, Check, MapPin, LogOut, Settings, List, Target, FileText, Shield, RefreshCw, Megaphone, Lock, LockOpen, LayoutGrid, Percent } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { HoverHint } from '@/components/ui/tooltip'
 import { CommandPalette } from '@/core/ui/command-palette'
@@ -43,6 +43,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { to: '/finance', label: 'Contabilidad', icon: DollarSign, moduleKey: 'finance' },
       { to: '/closings', label: 'Cierres de Caja', icon: ClipboardList, moduleKey: 'closings' },
+      { to: '/discounts', label: 'Descuentos', icon: Percent, moduleKey: 'closings' },
     ],
   },
   {

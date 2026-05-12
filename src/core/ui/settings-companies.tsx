@@ -23,6 +23,7 @@ interface CompanyForm {
   logo: string
   logoThumb: string
   driveRootFolderId: string
+  driveDiscountsFolderId: string
 }
 
 type DriveValidationState =
@@ -45,6 +46,7 @@ export function SettingsCompanies() {
   const [savedId, setSavedId] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [driveValidation, setDriveValidation] = useState<DriveValidationState>({ kind: 'idle' })
+  const [discountsValidation, setDiscountsValidation] = useState<DriveValidationState>({ kind: 'idle' })
   const [driveAuth, setDriveAuth] = useState<DriveAuthState>({ kind: 'loading' })
   const [connecting, setConnecting] = useState(false)
 
@@ -92,6 +94,7 @@ export function SettingsCompanies() {
       setForm(null)
       setConfirmDelete(false)
       setDriveValidation({ kind: 'idle' })
+      setDiscountsValidation({ kind: 'idle' })
     } else {
       setExpandedId(company.id)
       setForm({
@@ -102,10 +105,12 @@ export function SettingsCompanies() {
         logo: company.logo ?? '',
         logoThumb: company.logoThumb ?? '',
         driveRootFolderId: company.driveRootFolderId ?? '',
+        driveDiscountsFolderId: company.driveDiscountsFolderId ?? '',
       })
       setSavedId(null)
       setConfirmDelete(false)
       setDriveValidation({ kind: 'idle' })
+      setDiscountsValidation({ kind: 'idle' })
     }
   }
 
@@ -157,35 +162,36 @@ export function SettingsCompanies() {
       await fn({})
       setDriveAuth({ kind: 'disconnected' })
       setDriveValidation({ kind: 'idle' })
+      setDiscountsValidation({ kind: 'idle' })
     } catch (err) {
       setDriveAuth({ kind: 'error', error: (err as Error).message ?? 'Error de red' })
     }
   }
 
-  async function handleValidateDrive() {
-    if (!form?.driveRootFolderId.trim()) {
-      setDriveValidation({ kind: 'invalid', error: 'Ingresa un Folder ID' })
+  async function validateFolder(folderId: string, setState: (s: DriveValidationState) => void) {
+    if (!folderId.trim()) {
+      setState({ kind: 'invalid', error: 'Ingresa un Folder ID' })
       return
     }
-    if (driveAuth.kind !== 'connected') {
-      setDriveValidation({ kind: 'invalid', error: 'Conecta Drive primero' })
+    if (!form || driveAuth.kind !== 'connected') {
+      setState({ kind: 'invalid', error: 'Conecta Drive primero' })
       return
     }
-    setDriveValidation({ kind: 'validating' })
+    setState({ kind: 'validating' })
     try {
       const fns = await getAppFunctions()
       const fn = httpsCallable<
         { companyId: string; rootFolderId: string },
         { ok: boolean; folderName?: string; error?: string }
       >(fns, 'validateDriveFolder')
-      const res = await fn({ companyId: form.id, rootFolderId: form.driveRootFolderId.trim() })
+      const res = await fn({ companyId: form.id, rootFolderId: folderId.trim() })
       if (res.data.ok && res.data.folderName) {
-        setDriveValidation({ kind: 'valid', folderName: res.data.folderName })
+        setState({ kind: 'valid', folderName: res.data.folderName })
       } else {
-        setDriveValidation({ kind: 'invalid', error: res.data.error ?? 'No se pudo validar' })
+        setState({ kind: 'invalid', error: res.data.error ?? 'No se pudo validar' })
       }
     } catch (err) {
-      setDriveValidation({ kind: 'invalid', error: (err as Error).message ?? 'Error de red' })
+      setState({ kind: 'invalid', error: (err as Error).message ?? 'Error de red' })
     }
   }
 
@@ -205,6 +211,7 @@ export function SettingsCompanies() {
         logo: form.logo,
         logoThumb: form.logoThumb,
         driveRootFolderId: form.driveRootFolderId.trim() || undefined,
+        driveDiscountsFolderId: form.driveDiscountsFolderId.trim() || undefined,
       })
       setSavedId(form.id)
       setTimeout(() => {
@@ -420,41 +427,78 @@ export function SettingsCompanies() {
                           </div>
                         </div>
 
-                        {/* Carpeta de Drive — la conexión vive arriba, una sola por usuario */}
+                        {/* Carpetas de Drive — la conexión vive arriba, una sola por usuario */}
                         {driveAuth.kind === 'connected' && (
-                          <div className="mt-5 pt-4 border-t border-border">
-                            <label className="block text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1">Carpeta de Drive</label>
-                            <p className="text-caption text-mid-gray mb-2">
-                              Pega el ID de la carpeta donde guardar los documentos de esta empresa (de la URL: <code>drive.google.com/drive/folders/<b>ID</b></code>).
-                            </p>
-                            <div className="flex items-center gap-2">
-                              <input
-                                value={form.driveRootFolderId}
-                                onChange={(e) => { setForm({ ...form, driveRootFolderId: e.target.value }); setDriveValidation({ kind: 'idle' }); setSavedId(null) }}
-                                placeholder="Folder ID de Drive (ej: 1A2bCdEf...)"
-                                className={inputClass}
-                              />
-                              <button
-                                type="button"
-                                onClick={handleValidateDrive}
-                                disabled={driveValidation.kind === 'validating' || !form.driveRootFolderId.trim()}
-                                className="px-3 py-2 rounded-lg text-body font-medium text-graphite bg-bone border border-border/60 hover:bg-bone/70 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-                              >
-                                {driveValidation.kind === 'validating' ? 'Validando…' : 'Validar'}
-                              </button>
+                          <div className="mt-5 pt-4 border-t border-border space-y-4">
+                            <div>
+                              <label className="block text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1">Carpeta de Drive (Facturación)</label>
+                              <p className="text-caption text-mid-gray mb-2">
+                                Pega el ID de la carpeta donde guardar los documentos de esta empresa (de la URL: <code>drive.google.com/drive/folders/<b>ID</b></code>).
+                              </p>
+                              <div className="flex items-center gap-2">
+                                <input
+                                  value={form.driveRootFolderId}
+                                  onChange={(e) => { setForm({ ...form, driveRootFolderId: e.target.value }); setDriveValidation({ kind: 'idle' }); setSavedId(null) }}
+                                  placeholder="Folder ID de Drive (ej: 1A2bCdEf...)"
+                                  className={inputClass}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => validateFolder(form.driveRootFolderId, setDriveValidation)}
+                                  disabled={driveValidation.kind === 'validating' || !form.driveRootFolderId.trim()}
+                                  className="px-3 py-2 rounded-lg text-body font-medium text-graphite bg-bone border border-border/60 hover:bg-bone/70 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                                >
+                                  {driveValidation.kind === 'validating' ? 'Validando…' : 'Validar'}
+                                </button>
+                              </div>
+                              {driveValidation.kind === 'valid' && (
+                                <div className="flex items-center gap-1.5 mt-2 text-caption text-positive">
+                                  <Check size={12} strokeWidth={2} />
+                                  Carpeta "{driveValidation.folderName}" accesible
+                                </div>
+                              )}
+                              {driveValidation.kind === 'invalid' && (
+                                <div className="flex items-center gap-1.5 mt-2 text-caption text-destructive">
+                                  <AlertCircle size={12} strokeWidth={2} />
+                                  {driveValidation.error}
+                                </div>
+                              )}
                             </div>
-                            {driveValidation.kind === 'valid' && (
-                              <div className="flex items-center gap-1.5 mt-2 text-caption text-positive">
-                                <Check size={12} strokeWidth={2} />
-                                Carpeta "{driveValidation.folderName}" accesible
+
+                            <div>
+                              <label className="block text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1">Carpeta de Descuentos</label>
+                              <p className="text-caption text-mid-gray mb-2">
+                                Carpeta donde se guardan las fotos de los descuentos de esta empresa (ej: "Descuentos - Sede X"). Se organizan en subcarpetas Año/Mes.
+                              </p>
+                              <div className="flex items-center gap-2">
+                                <input
+                                  value={form.driveDiscountsFolderId}
+                                  onChange={(e) => { setForm({ ...form, driveDiscountsFolderId: e.target.value }); setDiscountsValidation({ kind: 'idle' }); setSavedId(null) }}
+                                  placeholder="Folder ID de Drive (ej: 1A2bCdEf...)"
+                                  className={inputClass}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => validateFolder(form.driveDiscountsFolderId, setDiscountsValidation)}
+                                  disabled={discountsValidation.kind === 'validating' || !form.driveDiscountsFolderId.trim()}
+                                  className="px-3 py-2 rounded-lg text-body font-medium text-graphite bg-bone border border-border/60 hover:bg-bone/70 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                                >
+                                  {discountsValidation.kind === 'validating' ? 'Validando…' : 'Validar'}
+                                </button>
                               </div>
-                            )}
-                            {driveValidation.kind === 'invalid' && (
-                              <div className="flex items-center gap-1.5 mt-2 text-caption text-destructive">
-                                <AlertCircle size={12} strokeWidth={2} />
-                                {driveValidation.error}
-                              </div>
-                            )}
+                              {discountsValidation.kind === 'valid' && (
+                                <div className="flex items-center gap-1.5 mt-2 text-caption text-positive">
+                                  <Check size={12} strokeWidth={2} />
+                                  Carpeta "{discountsValidation.folderName}" accesible
+                                </div>
+                              )}
+                              {discountsValidation.kind === 'invalid' && (
+                                <div className="flex items-center gap-1.5 mt-2 text-caption text-destructive">
+                                  <AlertCircle size={12} strokeWidth={2} />
+                                  {discountsValidation.error}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         )}
 
@@ -523,7 +567,7 @@ export function SettingsCompanies() {
             toggleExpand(newCompany)
           } else {
             setExpandedId(newId)
-            setForm({ id: newId, name: '', location: '', color: '', logo: '', logoThumb: '', driveRootFolderId: '' })
+            setForm({ id: newId, name: '', location: '', color: '', logo: '', logoThumb: '', driveRootFolderId: '', driveDiscountsFolderId: '' })
           }
           setConfirmDelete(false)
           setSavedId(null)

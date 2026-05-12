@@ -14,6 +14,7 @@ const CHUNK_BY_PATH: Record<string, () => Promise<unknown>> = {
   '/finance/income-statement': () => import('@/modules/finance/components/income-statement-view'),
   '/finance/budget': () => import('@/modules/finance/components/budget-view'),
   '/closings': () => import('@/modules/closings/components/closing-list'),
+  '/discounts': () => import('@/modules/discounts/components/discounts-page'),
   '/contracts': () => import('@/modules/contracts/components/contract-list'),
   '/partners': () => import('@/modules/partners/components/partner-list'),
   '/talent': () => import('@/modules/talent/components/employee-list'),
@@ -40,6 +41,7 @@ const CHUNK_BY_PATH: Record<string, () => Promise<unknown>> = {
 const COLLECTIONS_BY_PATH: Record<string, readonly string[]> = {
   '/home': ['closings', 'suppliers', 'contracts'],
   '/closings': ['closings'],
+  '/discounts': ['discounts'],
   '/contracts': ['contracts', 'contract_templates'],
   '/partners': ['partners'],
   '/talent': ['employees'],

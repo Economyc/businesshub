@@ -52,6 +52,7 @@ export const ROUTE_MODULE_MAP: Record<string, ModuleKey> = {
   '/tasks': 'tasks',
   '/finance': 'finance',
   '/closings': 'closings',
+  '/discounts': 'closings',
   '/contracts': 'contracts',
   '/partners': 'partners',
   '/talent': 'talent',

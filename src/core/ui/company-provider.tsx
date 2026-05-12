@@ -33,7 +33,7 @@ interface CompanyContextValue {
   selectedCompany: Company | null
   loading: boolean
   selectCompany: (company: Company) => void
-  updateCompany: (id: string, updates: Partial<Pick<Company, 'name' | 'location' | 'color' | 'logo' | 'logoThumb' | 'driveRootFolderId'>>) => void
+  updateCompany: (id: string, updates: Partial<Pick<Company, 'name' | 'location' | 'color' | 'logo' | 'logoThumb' | 'driveRootFolderId' | 'driveDiscountsFolderId'>>) => void
   deleteCompany: (id: string) => void
   addCompany: () => Promise<string>
 }
@@ -253,7 +253,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
     cacheSet('selectedCompanyId', company.id)
   }, [])
 
-  const updateCompany = useCallback(async (id: string, updates: Partial<Pick<Company, 'name' | 'location' | 'color' | 'logo' | 'logoThumb' | 'driveRootFolderId'>>) => {
+  const updateCompany = useCallback(async (id: string, updates: Partial<Pick<Company, 'name' | 'location' | 'color' | 'logo' | 'logoThumb' | 'driveRootFolderId' | 'driveDiscountsFolderId'>>) => {
     const companyRef = doc(db, 'companies', id)
     const data: Record<string, unknown> = { updatedAt: Timestamp.now() }
     for (const [key, val] of Object.entries(updates)) {

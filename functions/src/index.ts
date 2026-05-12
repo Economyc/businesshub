@@ -15,5 +15,6 @@ export {
   driveAuthStatus,
   driveOAuthCallback,
 } from './upload-document-to-drive.js'
+export { uploadDiscountPhotoToDrive } from './upload-discount-photo.js'
 export { analyzePaymentReceipt } from './analyze-payment-receipt.js'
 export { analyzeInvoiceDocument } from './analyze-invoice-document.js'

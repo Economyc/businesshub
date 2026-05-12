@@ -152,7 +152,10 @@ export async function ensureFolderPath(uid, companyId, rootFolderId, segments) {
     const acc = [];
     for (const seg of segments) {
         acc.push(seg);
-        const cacheKey = acc.join('/');
+        // El cache key incluye el rootFolderId porque una misma empresa puede tener
+        // varias carpetas raíz (facturación, descuentos, ...) y cada una su propio
+        // árbol Año/Mes — sin el prefijo se cruzarían.
+        const cacheKey = [rootFolderId, ...acc].join('/');
         const cached = await getCachedFolder(companyId, cacheKey);
         if (cached) {
             parent = cached;
