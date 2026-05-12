@@ -99,7 +99,7 @@ type Tab = 'form' | 'history' | 'discounts'
 
 const CLOSING_TABS = [
   { value: 'form', label: 'Nuevo Cierre', icon: FilePlus },
-  { value: 'history', label: 'Historial', icon: List },
+  { value: 'history', label: 'Cierres', icon: List },
   { value: 'discounts', label: 'Descuentos', icon: Percent },
 ]
 
