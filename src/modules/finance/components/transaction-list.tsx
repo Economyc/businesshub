@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Upload, Sparkles, FileText, Receipt } from 'lucide-react'
+import { Upload, Sparkles, FileText, Receipt, StickyNote } from 'lucide-react'
 import { TransactionForm } from './transaction-form'
 import { DocumentUploadDialog } from './document-upload-dialog'
 import { PaymentUploadDialog } from './payment-upload-dialog'
@@ -26,6 +26,7 @@ import { DateRangePicker } from './date-range-picker'
 import type { CategoryItem } from '@/core/types/categories'
 import { useInlineAgent } from '@/modules/agent/hooks/use-inline-agent'
 import { InlineAgentSheet } from '@/modules/agent/components/inline-agent-sheet'
+import { HoverHint } from '@/components/ui/tooltip'
 
 type TabKey = 'pending' | 'paid'
 
@@ -94,10 +95,12 @@ function NotesCell({ t }: { t: Transaction }) {
           <Receipt size={12} strokeWidth={1.5} />
         </a>
       )}
-      {hasNote ? (
-        <span className="truncate text-graphite">{t.notes}</span>
-      ) : (
-        <span className="text-mid-gray/60 truncate">—</span>
+      {hasNote && (
+        <HoverHint label={t.notes} side="top">
+          <span className="inline-flex items-center justify-center w-5 h-5 rounded text-mid-gray hover:text-graphite hover:bg-bone transition-colors shrink-0 cursor-default">
+            <StickyNote size={12} strokeWidth={1.5} />
+          </span>
+        </HoverHint>
       )}
     </div>
   )
@@ -292,7 +295,7 @@ export function TransactionList() {
     {
       key: 'notes',
       header: 'Notas',
-      width: '1.4fr',
+      width: '0.7fr',
       hideOnMobile: true,
       render: (t) => <NotesCell t={t} />,
     },
