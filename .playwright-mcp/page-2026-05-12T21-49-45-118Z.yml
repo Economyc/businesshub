@@ -1,0 +1,72 @@
+- generic [ref=e8]:
+  - banner [ref=e277]:
+    - button [ref=e278] [cursor=pointer]:
+      - img [ref=e279]
+    - link "BusinessHub" [ref=e280] [cursor=pointer]:
+      - /url: /home
+    - button "3" [ref=e282] [cursor=pointer]:
+      - img [ref=e283]
+      - generic [ref=e286]: "3"
+  - main [ref=e183]:
+    - generic [ref=e184]:
+      - heading "Descuentos" [level=1] [ref=e188]
+      - generic [ref=e189]:
+        - heading "Registrar Descuento" [level=2] [ref=e190]:
+          - img [ref=e191]
+          - text: Registrar Descuento
+        - generic [ref=e194]:
+          - generic [ref=e195]:
+            - generic [ref=e196]:
+              - generic [ref=e197]: Tipo
+              - button "Cortesia (100%)" [ref=e259] [cursor=pointer]:
+                - generic [ref=e200]: Cortesia (100%)
+                - img [ref=e201]
+            - generic [ref=e203]:
+              - generic [ref=e204]: Monto
+              - generic [ref=e205]:
+                - generic: $
+                - textbox "0" [ref=e206]: "1.000"
+          - generic [ref=e207]:
+            - generic [ref=e208]:
+              - generic [ref=e209]: Fecha
+              - generic [ref=e210]:
+                - textbox: 2026-05-12
+                - button "12 may 2026" [ref=e211] [cursor=pointer]:
+                  - img [ref=e212]
+                  - generic [ref=e214]: 12 may 2026
+            - generic [ref=e215]:
+              - generic [ref=e216]: Motivo
+              - button "Prueba" [ref=e266] [cursor=pointer]:
+                - generic [ref=e219]: Prueba
+                - img [ref=e220]
+          - generic [ref=e222]:
+            - generic [ref=e223]: Detalle
+            - textbox "Nombre, producto, contexto..." [ref=e224]: Prueba Drive owner playwright 2026-05-12
+          - generic [ref=e225]:
+            - generic [ref=e226]: Autorizado por
+            - textbox "Nombre del manager" [ref=e227]: Claude Tester
+          - generic [ref=e228]:
+            - generic [ref=e229]: Foto
+            - generic [ref=e230]:
+              - img "Vista previa" [ref=e267]
+              - generic [ref=e268]:
+                - paragraph [ref=e269]: sample-discount.png
+                - paragraph [ref=e270]: 70 B
+              - button [ref=e271] [cursor=pointer]:
+                - img [ref=e272]
+        - generic [ref=e287]:
+          - img [ref=e288]
+          - generic [ref=e290]: internal
+        - generic [ref=e236]:
+          - button "Guardar Descuento" [ref=e291] [cursor=pointer]
+          - button "Limpiar" [ref=e238] [cursor=pointer]
+      - generic [ref=e240]:
+        - generic [ref=e241]: Total Descuentos
+        - text: $0
+      - generic [ref=e244]:
+        - img [ref=e245]
+        - textbox "Buscar motivo, detalle o responsable..." [ref=e248]
+      - generic [ref=e249]:
+        - img [ref=e250]
+        - heading "No hay descuentos" [level=3] [ref=e254]
+        - paragraph [ref=e255]: Registra descuentos y cortesias para llevar seguimiento

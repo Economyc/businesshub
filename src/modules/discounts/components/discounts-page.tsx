@@ -10,7 +10,8 @@ import { SelectInput } from '@/core/ui/select-input'
 import { SearchInput } from '@/core/ui/search-input'
 import { DataTable } from '@/core/ui/data-table'
 import { EmptyState } from '@/core/ui/empty-state'
-import { TableSkeleton } from '@/core/ui/skeleton'
+import { TableSkeleton, KPICardSkeleton } from '@/core/ui/skeleton'
+import { KPICard } from '@/core/ui/kpi-card'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 import { HoverHint } from '@/components/ui/tooltip'
 import { formatCurrency } from '@/core/utils/format'
@@ -18,7 +19,10 @@ import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { useCompany } from '@/core/hooks/use-company'
 import { usePermissions } from '@/core/hooks/use-permissions'
 import { getAppFunctions } from '@/core/firebase/config'
-import { useDiscounts } from '../hooks'
+import { useDateRange } from '@/modules/finance/context/date-range-context'
+import { DateRangePicker } from '@/modules/finance/components/date-range-picker'
+import { toDateStrLocal } from '@/modules/pos-sync/utils/sales-calculations'
+import { useDiscounts, usePosDiscountsTotal } from '../hooks'
 import { discountService } from '../services'
 import type { Discount, DiscountType, DiscountReason, DiscountPhoto } from '../types'
 
@@ -97,6 +101,10 @@ export function DiscountsPage() {
   const { can } = usePermissions()
   const canEdit = can('closings', 'create')
   const { data: discounts, loading } = useDiscounts()
+  const { startDate, endDate, presetLabel } = useDateRange()
+  const startStr = toDateStrLocal(startDate)
+  const endStr = toDateStrLocal(endDate)
+  const { total: totalPos, loading: posLoading, hasLocales } = usePosDiscountsTotal()
 
   const [form, setForm] = useState(emptyForm)
   const [editing, setEditing] = useState<Discount | null>(null)
@@ -131,8 +139,15 @@ export function DiscountsPage() {
     return [...discounts].sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''))
   }, [discounts])
 
-  const filtered = useMemo(() => {
+  const dateFiltered = useMemo(() => {
     return sorted.filter((d) => {
+      const dd = d.date ?? ''
+      return dd >= startStr && dd <= endStr
+    })
+  }, [sorted, startStr, endStr])
+
+  const filtered = useMemo(() => {
+    return dateFiltered.filter((d) => {
       if (search === '') return true
       const q = search.toLowerCase()
       return (
@@ -142,11 +157,13 @@ export function DiscountsPage() {
         (d.authorizedBy ?? '').toLowerCase().includes(q)
       )
     })
-  }, [sorted, search])
+  }, [dateFiltered, search])
 
-  const totalDescuentos = useMemo(() => {
-    return filtered.reduce((sum, d) => sum + (d.amount ?? 0), 0)
-  }, [filtered])
+  const totalSubido = useMemo(() => {
+    return dateFiltered.reduce((sum, d) => sum + (d.amount ?? 0), 0)
+  }, [dateFiltered])
+
+  const diff = totalPos - totalSubido
 
   function clearPhoto() {
     setPhotoFile(null)
@@ -370,6 +387,37 @@ export function DiscountsPage() {
     <PageTransition>
       <PageHeader title="Descuentos" />
 
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <span className="text-caption text-mid-gray">{presetLabel}</span>
+        <DateRangePicker />
+      </div>
+
+      {posLoading ? (
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          <KPICardSkeleton />
+          <KPICardSkeleton />
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          <KPICard
+            label="Descuentos subidos"
+            value={totalSubido}
+            format="currency"
+            comparison={`${dateFiltered.length} ${dateFiltered.length === 1 ? 'registro' : 'registros'}`}
+            icon={Tag}
+          />
+          <KPICard
+            label="Descuentos del POS"
+            value={totalPos}
+            format="currency"
+            icon={Percent}
+            change={!hasLocales ? undefined : diff === 0 ? 'Cuadra' : `Δ ${formatCurrency(Math.abs(diff))}`}
+            trend={!hasLocales ? undefined : diff === 0 ? 'up' : 'neutral'}
+            comparison={!hasLocales ? 'POS no conectado' : diff === 0 ? undefined : diff > 0 ? 'POS sobre lo registrado' : 'Registrado sobre el POS'}
+          />
+        </div>
+      )}
+
       {canEdit && (
         <form onSubmit={handleSubmit} className="bg-surface rounded-2xl card-elevated p-4 sm:p-6 mb-6">
           <h2 className="text-caption font-extrabold uppercase tracking-widest text-mid-gray mb-4 flex items-center gap-2">
@@ -524,14 +572,6 @@ export function DiscountsPage() {
           </div>
         </form>
       )}
-
-      {/* Accumulated total + search */}
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <span className="block text-[11px] font-bold text-mid-gray uppercase tracking-wide">Total Descuentos</span>
-          <span className="text-xl font-extrabold text-dark-graphite">{formatCurrency(totalDescuentos)}</span>
-        </div>
-      </div>
 
       <div className="flex gap-3 mb-5">
         <div className="flex-1">

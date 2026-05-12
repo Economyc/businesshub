@@ -111,7 +111,9 @@ export default function App() {
               <Route element={<DateRangeProvider><Outlet /></DateRangeProvider>}>
                 <Route path="/closings" element={<Suspense fallback={<Loading />}><ClosingList /></Suspense>} />
               </Route>
-              <Route path="/discounts" element={<Suspense fallback={<Loading />}><DiscountsPage /></Suspense>} />
+              <Route element={<DateRangeProvider><Outlet /></DateRangeProvider>}>
+                <Route path="/discounts" element={<Suspense fallback={<Loading />}><DiscountsPage /></Suspense>} />
+              </Route>
               <Route path="/contracts" element={<Suspense fallback={<Loading />}><ContractList /></Suspense>} />
               <Route path="/contracts/templates" element={<Suspense fallback={<Loading />}><TemplateList /></Suspense>} />
               <Route path="/contracts/new" element={<Suspense fallback={<Loading />}><ContractGenerate /></Suspense>} />
