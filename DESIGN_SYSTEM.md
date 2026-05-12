@@ -30,7 +30,7 @@ La implementación de tokens vive en `src/index.css` (Tailwind v4 `@theme`). Est
 | `text-heading` | 20px | Títulos de página / sección |
 | `text-kpi` | 26px | Valor numérico principal de KPI |
 
-**Pesos:** `font-normal` (400) para body, `font-medium` (500) para títulos, `font-semibold` (600) para KPI values. Nada de `font-bold`/`font-black`.
+**Pesos:** `font-normal` (400) para body, `font-medium` (500) para títulos, `font-semibold` (600) para labels de campo (`text-caption uppercase tracking-wider`) y KPI values. Nada de `font-bold`/`font-black`.
 
 **Prohibido:**
 - `text-2xl`, `text-3xl`, `text-4xl`+ (cualquier tamaño > 26px)
