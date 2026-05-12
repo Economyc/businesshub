@@ -93,6 +93,7 @@ test.describe('Descuentos', () => {
 
   test('crear un descuento con foto lo sube a Drive y se puede borrar', async ({ page }) => {
     test.skip(process.env.E2E_WRITE !== '1', 'Escribe datos reales en producción — correr con E2E_WRITE=1 para incluirlo.')
+    const photoPath = process.env.E2E_PHOTO ?? 'e2e/fixtures/sample-discount.png'
     await openApp(page, '/discounts')
     const form = page.locator('form').first()
     if ((await form.count()) === 0) test.skip(true, 'Sin permiso de crear.')
@@ -105,7 +106,7 @@ test.describe('Descuentos', () => {
     await form.locator('label:text-is("Motivo") + div').getByRole('button', { name: 'Socio', exact: true }).click()
     await page.getByPlaceholder('Nombre, producto, contexto...').fill(detalle)
     await page.getByPlaceholder('Nombre del manager').fill('Tester E2E')
-    await page.locator('input[type="file"]').setInputFiles('e2e/fixtures/sample-discount.png')
+    await page.locator('input[type="file"]').setInputFiles(photoPath)
 
     await page.getByRole('button', { name: 'Guardar Descuento' }).click()
 

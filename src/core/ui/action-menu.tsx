@@ -1,7 +1,6 @@
-import { useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
+import { Popover, PopoverTrigger, PopoverContent, PopoverClose } from '@/components/ui/popover'
 
 export type ActionMenuItem =
   | { label: string; icon?: LucideIcon; onClick: () => void; disabled?: boolean }
@@ -23,9 +22,8 @@ const TRIGGER_VARIANT: Record<'primary' | 'secondary', string> = {
 }
 
 export function ActionMenu({ label, icon: Icon, items, variant = 'primary' }: ActionMenuProps) {
-  const [open, setOpen] = useState(false)
   return (
-    <Popover open={open} onOpenChange={(v: boolean) => setOpen(v)}>
+    <Popover>
       <PopoverTrigger className={`${TRIGGER_BASE} ${TRIGGER_VARIANT[variant]}`}>
         {Icon && <Icon size={15} strokeWidth={1.5} />}
         <span>{label}</span>
@@ -37,19 +35,15 @@ export function ActionMenu({ label, icon: Icon, items, variant = 'primary' }: Ac
             'separator' in item ? (
               <div key={`sep-${i}`} className="my-1 h-px bg-border/60" />
             ) : (
-              <button
+              <PopoverClose
                 key={item.label}
-                type="button"
                 disabled={item.disabled}
-                onClick={() => {
-                  item.onClick()
-                  setOpen(false)
-                }}
+                onClick={item.onClick}
                 className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-body text-graphite text-left transition-colors hover:bg-bone disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               >
                 {item.icon && <item.icon size={15} strokeWidth={1.5} className="text-mid-gray shrink-0" />}
                 <span className="truncate">{item.label}</span>
-              </button>
+              </PopoverClose>
             ),
           )}
         </div>
