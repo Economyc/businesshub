@@ -309,11 +309,11 @@ export function BudgetView() {
           <div className="bg-surface rounded-xl card-elevated overflow-hidden overflow-x-auto">
             {/* Header */}
             <div className="min-w-[600px] grid grid-cols-[2fr_1fr_1fr_1fr_140px] items-center px-4 py-3 border-b border-border">
-              <span className="text-caption uppercase tracking-wider text-mid-gray font-medium">Categoría</span>
-              <span className="text-caption uppercase tracking-wider text-mid-gray font-medium text-right">Presupuesto</span>
-              <span className="text-caption uppercase tracking-wider text-mid-gray font-medium text-right">Real</span>
-              <span className="text-caption uppercase tracking-wider text-mid-gray font-medium text-right">Diferencia</span>
-              <span className="text-caption uppercase tracking-wider text-mid-gray font-medium text-right">Ejecución</span>
+              <span className="text-caption uppercase tracking-wider font-semibold text-mid-gray">Categoría</span>
+              <span className="text-caption uppercase tracking-wider font-semibold text-mid-gray text-right">Presupuesto</span>
+              <span className="text-caption uppercase tracking-wider font-semibold text-mid-gray text-right">Real</span>
+              <span className="text-caption uppercase tracking-wider font-semibold text-mid-gray text-right">Diferencia</span>
+              <span className="text-caption uppercase tracking-wider font-semibold text-mid-gray text-right">Ejecución</span>
             </div>
 
             <div className="p-2">
@@ -342,7 +342,7 @@ export function BudgetView() {
               {expenseRows.length > 0 && (
                 <>
                   <div className="px-4 pt-3 pb-1">
-                    <span className="text-caption uppercase tracking-wider text-mid-gray font-semibold text-[11px]">
+                    <span className="text-caption uppercase tracking-wider font-semibold text-mid-gray text-[11px]">
                       Gastos
                     </span>
                   </div>

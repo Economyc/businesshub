@@ -80,7 +80,7 @@ export function CatalogoTab({ localId, localLabel }: CatalogoTabProps) {
         <div className="flex items-center justify-between gap-3 mb-3">
           <div className="flex items-center gap-2 min-w-0">
             <MapPin size={14} className="text-mid-gray shrink-0" />
-            <span className="text-caption uppercase tracking-wider text-mid-gray">Local</span>
+            <span className="text-caption uppercase tracking-wider font-semibold text-mid-gray">Local</span>
             <span className="text-caption font-semibold text-dark-graphite truncate">
               {localLabel ?? '—'}
             </span>
@@ -108,7 +108,7 @@ export function CatalogoTab({ localId, localLabel }: CatalogoTabProps) {
         </div>
         <div className="flex items-end gap-6 flex-wrap">
           <div>
-            <div className="text-caption uppercase tracking-wider text-mid-gray mb-1">Productos</div>
+            <div className="text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1">Productos</div>
             <div className="text-[36px] md:text-[44px] leading-none font-bold text-dark-graphite tabular-nums">
               {productos.length}
             </div>

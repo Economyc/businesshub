@@ -55,7 +55,7 @@ export function DataTable<T extends { id: string }>({ columns, data, onRowClick 
       {/* Desktop table */}
       <div className="hidden md:block bg-surface rounded-xl card-elevated overflow-hidden">
         <div
-          className="grid px-[18px] py-3 text-caption uppercase tracking-wider text-mid-gray bg-bone"
+          className="grid px-[18px] py-3 text-caption uppercase tracking-wider font-semibold text-mid-gray bg-bone"
           style={{ gridTemplateColumns: gridCols, borderBottom: '1px solid #d4d3cf' }}
         >
           {columns.map((col) => (

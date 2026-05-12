@@ -156,32 +156,32 @@ export function ContractDetail() {
         <div className="bg-surface rounded-xl card-elevated p-5 mb-5">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
-              <div className="text-caption uppercase tracking-wider text-mid-gray mb-0.5">Empleado</div>
+              <div className="text-caption uppercase tracking-wider font-semibold text-mid-gray mb-0.5">Empleado</div>
               <div className="text-body font-medium text-dark-graphite">{contract.employeeName}</div>
               <div className="text-caption text-mid-gray">{contract.employeeIdentification}</div>
             </div>
             <div>
-              <div className="text-caption uppercase tracking-wider text-mid-gray mb-0.5">Cargo</div>
+              <div className="text-caption uppercase tracking-wider font-semibold text-mid-gray mb-0.5">Cargo</div>
               <div className="text-body text-graphite">{contract.position}</div>
             </div>
             <div>
-              <div className="text-caption uppercase tracking-wider text-mid-gray mb-0.5">Salario</div>
+              <div className="text-caption uppercase tracking-wider font-semibold text-mid-gray mb-0.5">Salario</div>
               <div className="text-body font-medium text-dark-graphite">{formatCurrency(contract.salary)}</div>
             </div>
             <div>
-              <div className="text-caption uppercase tracking-wider text-mid-gray mb-0.5">Estado</div>
+              <div className="text-caption uppercase tracking-wider font-semibold text-mid-gray mb-0.5">Estado</div>
               <StatusBadge variant={STATUS_VARIANT[contract.status] ?? 'pending'} label={STATUS_LABELS[contract.status] ?? contract.status} />
             </div>
             <div>
-              <div className="text-caption uppercase tracking-wider text-mid-gray mb-0.5">Inicio</div>
+              <div className="text-caption uppercase tracking-wider font-semibold text-mid-gray mb-0.5">Inicio</div>
               <div className="text-body text-graphite">{formatDate(contract.startDate)}</div>
             </div>
             <div>
-              <div className="text-caption uppercase tracking-wider text-mid-gray mb-0.5">Terminación</div>
+              <div className="text-caption uppercase tracking-wider font-semibold text-mid-gray mb-0.5">Terminación</div>
               <div className="text-body text-graphite">{formatDate(contract.endDate)}</div>
             </div>
             <div>
-              <div className="text-caption uppercase tracking-wider text-mid-gray mb-0.5">Plantilla</div>
+              <div className="text-caption uppercase tracking-wider font-semibold text-mid-gray mb-0.5">Plantilla</div>
               <div className="text-body text-graphite">{contract.templateName}</div>
             </div>
           </div>

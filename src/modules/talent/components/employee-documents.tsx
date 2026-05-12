@@ -194,7 +194,7 @@ export function EmployeeDocuments({ employeeId }: Props) {
             <span className="text-mid-gray ml-2">({formatBytes(pendingFile.size)})</span>
           </p>
           <div className="max-w-xs">
-            <label className="block text-caption uppercase tracking-wider text-mid-gray mb-1">
+            <label className="block text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1">
               Categoría
             </label>
             <SelectInput

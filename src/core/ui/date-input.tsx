@@ -179,7 +179,7 @@ export function DateInput({ value, onChange, required, className }: DateInputPro
           {/* Day headers */}
           <div className="grid grid-cols-7 mb-1">
             {DAYS.map((d) => (
-              <div key={d} className="text-center text-[11px] uppercase tracking-wider text-mid-gray py-1">
+              <div key={d} className="text-center text-[11px] uppercase tracking-wider font-semibold text-mid-gray py-1">
                 {d}
               </div>
             ))}

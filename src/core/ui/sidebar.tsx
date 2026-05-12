@@ -635,7 +635,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
         )}
       >
         <div className="px-4 mb-4">
-          <h3 className="text-caption uppercase tracking-wider text-mid-gray font-medium">Contabilidad</h3>
+          <h3 className="text-caption uppercase tracking-wider font-semibold text-mid-gray">Contabilidad</h3>
         </div>
         <div className="flex flex-col gap-0.5 flex-1">
           {FINANCE_ITEMS.map(({ to, label, icon: Icon, end }) => (
@@ -678,7 +678,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
         )}
       >
         <div className="px-4 mb-4">
-          <h3 className="text-caption uppercase tracking-wider text-mid-gray font-medium">Configuración</h3>
+          <h3 className="text-caption uppercase tracking-wider font-semibold text-mid-gray">Configuración</h3>
         </div>
         <div className="flex flex-col gap-0.5 flex-1">
           {SETTINGS_ITEMS.map(({ to, label, icon: Icon }) => (

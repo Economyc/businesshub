@@ -551,7 +551,7 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className={isCustom ? 'sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3' : ''}>
                 <div>
-                  <label className="block text-caption uppercase tracking-wider text-mid-gray mb-1">Proveedor</label>
+                  <label className="block text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1">Proveedor</label>
                   <SelectInput
                     value={supplierId}
                     onChange={(v) => { setSupplierId(v); if (v !== CUSTOM) setCustomSupplier('') }}
@@ -560,7 +560,7 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
                 </div>
                 {isCustom && (
                   <div>
-                    <label className="block text-caption uppercase tracking-wider text-mid-gray mb-1">Nombre del proveedor</label>
+                    <label className="block text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1">Nombre del proveedor</label>
                     <input
                       autoFocus
                       value={customSupplier}
@@ -572,7 +572,7 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
                 )}
               </div>
               <div>
-                <label className="block text-caption uppercase tracking-wider text-mid-gray mb-1">
+                <label className="block text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1">
                   {kind === 'invoice' ? '# Factura' : '# Compra'}
                 </label>
                 <input
@@ -583,20 +583,20 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
                 />
               </div>
               <div>
-                <label className="block text-caption uppercase tracking-wider text-mid-gray mb-1">Fecha</label>
+                <label className="block text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1">Fecha</label>
                 <DateInput value={date} onChange={setDate} />
               </div>
               <div>
-                <label className="block text-caption uppercase tracking-wider text-mid-gray mb-1">Valor</label>
+                <label className="block text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1">Valor</label>
                 <CurrencyInput value={amount} onChange={setAmount} />
               </div>
               <div className="sm:col-span-2">
-                <label className="block text-caption uppercase tracking-wider text-mid-gray mb-1">Categoría</label>
+                <label className="block text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1">Categoría</label>
                 <CategorySelect value={category} onChange={setCategory} placeholder="Selecciona categoría" allowCustom />
               </div>
               {kind === 'invoice' && (
                 <div className="sm:col-span-2">
-                  <label className="block text-caption uppercase tracking-wider text-mid-gray mb-1">Prioridad</label>
+                  <label className="block text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1">Prioridad</label>
                   <SelectInput
                     value={priority}
                     onChange={(v) => setPriority(v as TransactionPriority)}
@@ -608,7 +608,7 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
                 </div>
               )}
               <div className="sm:col-span-2">
-                <label className="block text-caption uppercase tracking-wider text-mid-gray mb-1">Notas (opcional)</label>
+                <label className="block text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1">Notas (opcional)</label>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}

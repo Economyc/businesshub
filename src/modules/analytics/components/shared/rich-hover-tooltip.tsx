@@ -53,7 +53,7 @@ export function RichHoverTooltip({
         <div className="grid grid-cols-2 gap-x-4 gap-y-2 mt-3">
           {metrics.map((m) => (
             <div key={m.label} className="min-w-0">
-              <p className="text-caption uppercase tracking-wider text-mid-gray font-medium">
+              <p className="text-caption uppercase tracking-wider font-semibold text-mid-gray">
                 {m.label}
               </p>
               <p

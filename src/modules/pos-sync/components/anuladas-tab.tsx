@@ -122,7 +122,7 @@ export function AnuladasTab({ localIds, allLocalIds, localLabel, localDisplayNam
         <div className="flex items-center justify-between gap-3 mb-4">
           <div className="flex items-center gap-2 min-w-0">
             <MapPin size={14} className="text-mid-gray shrink-0" />
-            <span className="text-caption uppercase tracking-wider text-mid-gray">Local</span>
+            <span className="text-caption uppercase tracking-wider font-semibold text-mid-gray">Local</span>
             <span className="text-caption font-semibold text-dark-graphite truncate">
               {localLabel ?? '—'}
             </span>
@@ -149,7 +149,7 @@ export function AnuladasTab({ localIds, allLocalIds, localLabel, localDisplayNam
 
         <div className="flex items-end justify-between gap-4 flex-wrap">
           <div>
-            <div className="text-caption uppercase tracking-wider text-mid-gray mb-1">
+            <div className="text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1">
               Documentos anulados
             </div>
             <div className="text-[44px] md:text-[52px] leading-none font-bold text-dark-graphite tabular-nums">

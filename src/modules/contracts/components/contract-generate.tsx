@@ -22,7 +22,7 @@ import type { ContractStatus } from '@/core/types'
 
 const inputClass =
   'w-full px-3 py-2.5 rounded-lg border border-input-border bg-input-bg text-body text-graphite placeholder:text-mid-gray/60 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200'
-const labelClass = 'block text-caption uppercase tracking-wider text-mid-gray mb-1'
+const labelClass = 'block text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1'
 
 const STEPS = ['Plantilla', 'Datos', 'Vista previa']
 
@@ -236,7 +236,7 @@ export function ContractGenerate() {
             </div>
 
             <div className="col-span-2 border-t border-border pt-5 mt-2">
-              <h4 className="text-caption uppercase tracking-wider text-mid-gray font-medium mb-3">Datos del empleado</h4>
+              <h4 className="text-caption uppercase tracking-wider font-semibold text-mid-gray mb-3">Datos del empleado</h4>
             </div>
 
             {employees.length > 0 && (
@@ -271,7 +271,7 @@ export function ContractGenerate() {
             </div>
 
             <div className="col-span-2 border-t border-border pt-5 mt-2">
-              <h4 className="text-caption uppercase tracking-wider text-mid-gray font-medium mb-3">Condiciones</h4>
+              <h4 className="text-caption uppercase tracking-wider font-semibold text-mid-gray mb-3">Condiciones</h4>
             </div>
 
             <div>

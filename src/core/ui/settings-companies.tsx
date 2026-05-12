@@ -13,7 +13,7 @@ import { getAppFunctions } from '@/core/firebase/config'
 
 const inputClass =
   'w-full px-3 py-2.5 rounded-lg border border-input-border bg-input-bg text-body text-graphite placeholder:text-mid-gray/60 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200'
-const labelClass = 'block text-caption uppercase tracking-wider text-mid-gray mb-1'
+const labelClass = 'block text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1'
 
 interface CompanyForm {
   id: string
@@ -234,7 +234,7 @@ export function SettingsCompanies() {
       <div className="mb-4 p-4 rounded-xl bg-surface card-elevated">
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div className="min-w-0">
-            <div className="text-caption uppercase tracking-wider text-mid-gray mb-1">Google Drive</div>
+            <div className="text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1">Google Drive</div>
             <p className="text-body text-mid-gray">
               Conecta tu Drive una sola vez. Después asigna una carpeta a cada empresa abajo.
             </p>
@@ -294,11 +294,11 @@ export function SettingsCompanies() {
         <table className="w-full table-fixed min-w-[600px]">
           <thead>
             <tr className="border-b border-border">
-              <th className="text-left text-caption uppercase tracking-wider text-mid-gray font-medium px-4 py-3 w-10 border-r border-border"></th>
-              <th className="text-left text-caption uppercase tracking-wider text-mid-gray font-medium px-4 py-3 w-1/3 border-r border-border">Nombre</th>
-              <th className="text-left text-caption uppercase tracking-wider text-mid-gray font-medium px-4 py-3 w-1/3 border-r border-border">Ubicación</th>
-              <th className="text-left text-caption uppercase tracking-wider text-mid-gray font-medium px-4 py-3 w-1/3 border-r border-border">Color</th>
-              <th className="text-right text-caption uppercase tracking-wider text-mid-gray font-medium px-4 py-3 w-20"></th>
+              <th className="text-left text-caption uppercase tracking-wider font-semibold text-mid-gray px-4 py-3 w-10 border-r border-border"></th>
+              <th className="text-left text-caption uppercase tracking-wider font-semibold text-mid-gray px-4 py-3 w-1/3 border-r border-border">Nombre</th>
+              <th className="text-left text-caption uppercase tracking-wider font-semibold text-mid-gray px-4 py-3 w-1/3 border-r border-border">Ubicación</th>
+              <th className="text-left text-caption uppercase tracking-wider font-semibold text-mid-gray px-4 py-3 w-1/3 border-r border-border">Color</th>
+              <th className="text-right text-caption uppercase tracking-wider font-semibold text-mid-gray px-4 py-3 w-20"></th>
             </tr>
           </thead>
           <tbody>
@@ -423,7 +423,7 @@ export function SettingsCompanies() {
                         {/* Carpeta de Drive — la conexión vive arriba, una sola por usuario */}
                         {driveAuth.kind === 'connected' && (
                           <div className="mt-5 pt-4 border-t border-border">
-                            <label className="block text-caption uppercase tracking-wider text-mid-gray mb-1">Carpeta de Drive</label>
+                            <label className="block text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1">Carpeta de Drive</label>
                             <p className="text-caption text-mid-gray mb-2">
                               Pega el ID de la carpeta donde guardar los documentos de esta empresa (de la URL: <code>drive.google.com/drive/folders/<b>ID</b></code>).
                             </p>

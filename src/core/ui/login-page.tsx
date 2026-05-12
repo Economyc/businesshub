@@ -59,7 +59,7 @@ export function LoginPage() {
         <div className="bg-surface rounded-xl card-elevated p-5 md:p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-caption uppercase tracking-wider text-mid-gray mb-1">
+              <label className="block text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1">
                 Correo electrónico
               </label>
               <input
@@ -73,7 +73,7 @@ export function LoginPage() {
               />
             </div>
             <div>
-              <label className="block text-caption uppercase tracking-wider text-mid-gray mb-1">
+              <label className="block text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1">
                 Contraseña
               </label>
               <div className="relative">

@@ -411,7 +411,7 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
                         <>
                           <div className="mx-3 my-1 border-t border-border/60" />
                           <div className="px-3 pt-1 pb-1">
-                            <span className="text-[10px] font-semibold uppercase tracking-wider text-mid-gray/60">Configuración</span>
+                            <span className="text-[10px] font-semibold uppercase tracking-wider font-semibold text-mid-gray/60">Configuración</span>
                           </div>
                           {SETTINGS_ITEMS.map(({ to, label, icon: Icon }) => (
                             <NavLink

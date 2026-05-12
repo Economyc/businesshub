@@ -88,8 +88,8 @@ export function SettingsList({ title, items, onAdd, onRemove, onUpdate, placehol
         <table className="w-full">
           <thead>
             <tr className="border-b border-border">
-              <th className="text-left text-caption uppercase tracking-wider text-mid-gray font-medium px-4 py-3 border-r border-border">Nombre</th>
-              <th className="text-right text-caption uppercase tracking-wider text-mid-gray font-medium px-4 py-3 w-20"></th>
+              <th className="text-left text-caption uppercase tracking-wider font-semibold text-mid-gray px-4 py-3 border-r border-border">Nombre</th>
+              <th className="text-right text-caption uppercase tracking-wider font-semibold text-mid-gray px-4 py-3 w-20"></th>
             </tr>
           </thead>
           <tbody>

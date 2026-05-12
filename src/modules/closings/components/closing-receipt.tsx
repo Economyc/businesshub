@@ -100,7 +100,7 @@ export function ClosingReceipt({ closing, companyName, onClose }: ClosingReceipt
               <div className="my-3"><Separator /></div>
 
               {/* Sales Detail */}
-              <div className="text-center text-[11px] uppercase tracking-wider text-mid-gray mb-2">
+              <div className="text-center text-[11px] uppercase tracking-wider font-semibold text-mid-gray mb-2">
                 Detalle de Ventas
               </div>
 
@@ -121,7 +121,7 @@ export function ClosingReceipt({ closing, companyName, onClose }: ClosingReceipt
               <div className="my-3"><Separator /></div>
 
               {/* Other Concepts */}
-              <div className="text-center text-[11px] uppercase tracking-wider text-mid-gray mb-2">
+              <div className="text-center text-[11px] uppercase tracking-wider font-semibold text-mid-gray mb-2">
                 Otros Conceptos
               </div>
 

@@ -220,7 +220,7 @@ export function ImportView() {
           <h2 className="text-subheading font-medium text-dark-graphite mb-3">Vista previa</h2>
           <div className="bg-surface rounded-xl card-elevated overflow-hidden">
             <div
-              className="grid px-[18px] py-3 text-caption uppercase tracking-wider text-mid-gray border-b border-border bg-card-bg"
+              className="grid px-[18px] py-3 text-caption uppercase tracking-wider font-semibold text-mid-gray border-b border-border bg-card-bg"
               style={{ gridTemplateColumns: '2fr 1fr 1fr 1fr 0.8fr' }}
             >
               <div>Concepto</div>

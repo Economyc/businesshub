@@ -29,7 +29,7 @@ export function ChartCard({
       <header className="flex items-start justify-between gap-3 mb-4">
         <div className="min-w-0">
           {eyebrow && (
-            <p className="text-caption uppercase tracking-wider text-mid-gray font-medium mb-1">
+            <p className="text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1">
               {eyebrow}
             </p>
           )}

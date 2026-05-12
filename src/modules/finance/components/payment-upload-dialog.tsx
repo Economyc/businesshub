@@ -441,7 +441,7 @@ export function PaymentUploadDialog({ open, onClose, onSaved, pendingInvoices }:
               }`}>
                 <div className="flex items-center gap-2 mb-2">
                   <Sparkles size={14} strokeWidth={1.5} className="text-mid-gray" />
-                  <span className="text-caption uppercase tracking-wider text-mid-gray font-medium">Sugerencia IA</span>
+                  <span className="text-caption uppercase tracking-wider font-semibold text-mid-gray">Sugerencia IA</span>
                   <ConfidenceBadge level={analysis.suggestion.confidence} />
                 </div>
                 <div className="text-body text-graphite mb-1">
@@ -516,7 +516,7 @@ export function PaymentUploadDialog({ open, onClose, onSaved, pendingInvoices }:
             {/* Fecha de pago */}
             {file && !analyzing && dropdownOptions.length > 0 && (
               <div>
-                <label className="block text-caption uppercase tracking-wider text-mid-gray mb-1">Fecha del pago</label>
+                <label className="block text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1">Fecha del pago</label>
                 <DateInput value={paidDate} onChange={setPaidDate} />
               </div>
             )}

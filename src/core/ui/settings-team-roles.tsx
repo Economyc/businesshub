@@ -201,7 +201,7 @@ function RolePermissionSheet({
         {/* Color picker */}
         {!isOwnerRole && (
           <div>
-            <h4 className="text-caption uppercase tracking-wider text-mid-gray font-medium mb-2">Color</h4>
+            <h4 className="text-caption uppercase tracking-wider font-semibold text-mid-gray mb-2">Color</h4>
             <div className="flex gap-2 flex-wrap">
               {ROLE_COLORS.map((c) => (
                 <button
@@ -221,7 +221,7 @@ function RolePermissionSheet({
         {/* Module access toggles */}
         {MODULE_GROUPS.map((group) => (
           <div key={group.title}>
-            <h4 className="text-caption uppercase tracking-wider text-mid-gray font-medium mb-3">
+            <h4 className="text-caption uppercase tracking-wider font-semibold text-mid-gray mb-3">
               {group.title}
             </h4>
             <div className="rounded-xl bg-bone/50 overflow-hidden divide-y divide-border/30">

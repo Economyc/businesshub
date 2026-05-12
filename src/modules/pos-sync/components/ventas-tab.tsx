@@ -477,7 +477,7 @@ const HeroPanel = memo(function HeroPanel({
       <div className="flex items-stretch justify-between gap-4 flex-wrap">
         {/* Columna izquierda — KPI principal */}
         <div className="min-w-0 flex flex-col justify-between gap-3">
-          <div className="text-caption uppercase tracking-wider text-mid-gray">
+          <div className="text-caption uppercase tracking-wider font-semibold text-mid-gray">
             Total ventas
           </div>
           <div>
@@ -514,7 +514,7 @@ const HeroPanel = memo(function HeroPanel({
             </button>
           </div>
           <div className="text-right min-w-0">
-            <div className="text-caption uppercase tracking-wider text-mid-gray mb-1">Local</div>
+            <div className="text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1">Local</div>
             <div className="inline-flex items-center gap-1.5 text-body font-semibold text-dark-graphite truncate">
               <MapPin size={14} strokeWidth={1.5} className="text-mid-gray shrink-0" />
               <span className="truncate">{localLabel ?? '—'}</span>

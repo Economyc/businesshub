@@ -117,10 +117,10 @@ export function SettingsCategories() {
         <table className="w-full min-w-[500px]">
           <thead>
             <tr className="border-b border-border">
-              <th className="text-left text-caption uppercase tracking-wider text-mid-gray font-medium px-4 py-3 w-10 border-r border-border"></th>
-              <th className="text-left text-caption uppercase tracking-wider text-mid-gray font-medium px-4 py-3 border-r border-border">Categoría</th>
-              <th className="text-left text-caption uppercase tracking-wider text-mid-gray font-medium px-4 py-3 w-32 border-r border-border">Subcategorías</th>
-              <th className="text-right text-caption uppercase tracking-wider text-mid-gray font-medium px-4 py-3 w-20"></th>
+              <th className="text-left text-caption uppercase tracking-wider font-semibold text-mid-gray px-4 py-3 w-10 border-r border-border"></th>
+              <th className="text-left text-caption uppercase tracking-wider font-semibold text-mid-gray px-4 py-3 border-r border-border">Categoría</th>
+              <th className="text-left text-caption uppercase tracking-wider font-semibold text-mid-gray px-4 py-3 w-32 border-r border-border">Subcategorías</th>
+              <th className="text-right text-caption uppercase tracking-wider font-semibold text-mid-gray px-4 py-3 w-20"></th>
             </tr>
           </thead>
           <tbody>

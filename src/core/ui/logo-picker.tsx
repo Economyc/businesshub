@@ -176,7 +176,7 @@ export function LogoPicker({ value, onChange, companyId }: LogoPickerProps) {
               <p className="text-center text-caption text-mid-gray py-3">No hay logos guardados</p>
             ) : (
               <>
-                <p className="text-caption uppercase tracking-wider text-mid-gray mb-2">Logos existentes</p>
+                <p className="text-caption uppercase tracking-wider font-semibold text-mid-gray mb-2">Logos existentes</p>
                 <div className="grid grid-cols-5 gap-2 max-h-40 overflow-y-auto">
                   {logos.map((url) => {
                     const isSelected = url === value

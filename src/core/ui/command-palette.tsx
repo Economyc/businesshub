@@ -409,7 +409,7 @@ export function CommandPalette() {
                 ) : (
                   sections.map((section) => (
                     <div key={section.title} className="mb-0.5 last:mb-0">
-                      <div className="px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-mid-gray/70">
+                      <div className="px-2 py-1 text-[10px] font-medium uppercase tracking-wider font-semibold text-mid-gray/70">
                         {section.title}
                       </div>
                       {section.items.map((item) => {
