@@ -49,7 +49,9 @@ Reglas duras (resumen; detalle completo en el doc):
 - `npm run typecheck` — TypeScript check
 - `npm run lint` — ESLint
 - `npm run build` — build producción
-- `npm run test` — Vitest single run
+- `npm run test` — Vitest single run (unit)
+- `npm run e2e` — Playwright E2E. Por defecto corre contra producción (`https://businesshub.myvnc.com`); override con `E2E_BASE_URL`. Credenciales del tester en `.env.e2e` (gitignoreado; ver `.env.e2e.example`). `npm run e2e:report` abre el reporte HTML. Specs en `e2e/`.
+- MCP `playwright` está configurado en `.mcp.json` para testing interactivo de UI (navegar/clickear/screenshot) — requiere reiniciar Claude Code para que cargue.
 
 ### Deploy frontend (producción)
 Usar el skill `/deploy-oracle`. Hace push a GitHub + build + deploy a Oracle Cloud (`http://134.65.233.213`). Es el único método de deploy de frontend. No usar Firebase Hosting.
