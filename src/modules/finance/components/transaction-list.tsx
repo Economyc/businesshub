@@ -236,7 +236,7 @@ export function TransactionList() {
     {
       key: 'category',
       header: 'Categoría',
-      width: '1.4fr',
+      width: '1fr',
       hideOnMobile: true,
       render: (t) => (
         <div className="flex items-center gap-1.5 min-w-0">
@@ -244,7 +244,7 @@ export function TransactionList() {
             className="w-2 h-2 rounded-full shrink-0"
             style={{ backgroundColor: getCategoryColor(t.category, categoryItems) }}
           />
-          <span className="truncate">{t.category || '—'}</span>
+          <span className="truncate">{parseCategory(t.category).category || '—'}</span>
         </div>
       ),
     },
