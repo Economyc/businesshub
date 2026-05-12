@@ -115,7 +115,7 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
 
   const supplierOptions = useMemo(
     () => [
-      { value: '', label: '— Selecciona proveedor —' },
+      { value: '', label: 'Selecciona proveedor' },
       ...suppliers.map((s) => ({ value: s.id, label: s.name })),
       { value: CUSTOM, label: '+ Otro Proveedor' },
     ],
