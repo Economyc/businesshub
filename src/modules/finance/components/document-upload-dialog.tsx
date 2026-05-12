@@ -588,7 +588,12 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
               </div>
               <div>
                 <label className="block text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1">Valor</label>
-                <CurrencyInput value={amount} onChange={setAmount} />
+                <CurrencyInput
+                  value={amount}
+                  onChange={setAmount}
+                  placeholder="Ej: 250.000"
+                  className="w-full px-3 py-2.5 rounded-lg border border-input-border bg-input-bg text-body text-graphite placeholder:text-mid-gray/60 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all"
+                />
               </div>
               <div className="sm:col-span-2">
                 <label className="block text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1">Categoría</label>
