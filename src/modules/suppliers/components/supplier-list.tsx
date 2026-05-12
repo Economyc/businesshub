@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Plus, Briefcase, FileUp } from 'lucide-react'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
+import { ActionMenu } from '@/core/ui/action-menu'
 import { SearchInput } from '@/core/ui/search-input'
 import { FilterPopover } from '@/core/ui/filter-popover'
 import { DataTable } from '@/core/ui/data-table'
@@ -109,22 +110,14 @@ export function SupplierList() {
       <PageHeader title="Central de Proveedores">
         <ExportButton data={filtered} fields={supplierFields} filenameBase="proveedores" />
         {canEdit && (
-          <>
-            <button
-              onClick={() => setShowImport(true)}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
-            >
-              <FileUp size={15} strokeWidth={2} />
-              Importar
-            </button>
-            <button
-              onClick={() => setShowForm(true)}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg btn-primary text-body font-medium transition-all duration-200"
-            >
-              <Plus size={15} strokeWidth={2} />
-              Nuevo
-            </button>
-          </>
+          <ActionMenu
+            label="Nuevo"
+            icon={Plus}
+            items={[
+              { label: 'Nuevo proveedor', icon: Plus, onClick: () => setShowForm(true) },
+              { label: 'Importar proveedores', icon: FileUp, onClick: () => setShowImport(true) },
+            ]}
+          />
         )}
       </PageHeader>
 

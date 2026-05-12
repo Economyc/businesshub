@@ -1,10 +1,11 @@
 import { useState, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Upload, Sparkles, FileText, Receipt, StickyNote, Split } from 'lucide-react'
+import { Upload, Sparkles, FileText, Receipt, StickyNote, Split, Plus, ShoppingBag } from 'lucide-react'
 import { TransactionForm } from './transaction-form'
 import { DocumentUploadDialog } from './document-upload-dialog'
 import { PaymentUploadDialog } from './payment-upload-dialog'
 import { SplitExpenseDialog } from './split-expense-dialog'
+import { ActionMenu } from '@/core/ui/action-menu'
 import type { DocumentKind, Transaction } from '../types'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
@@ -322,36 +323,18 @@ export function TransactionList() {
           Asistente
         </button>
         {canEdit && (
-          <>
-            <button
-              onClick={() => { setDocDialogKind('invoice'); setDocDialogOpen(true) }}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg btn-primary text-body font-medium transition-all duration-200"
-            >
-              <FileText size={15} strokeWidth={1.5} />
-              Subir documento
-            </button>
-            <button
-              onClick={() => setPaymentDialogOpen(true)}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
-            >
-              <Receipt size={15} strokeWidth={1.5} />
-              Subir pago
-            </button>
-            <button
-              onClick={() => setSplitDialogOpen(true)}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
-            >
-              <Split size={15} strokeWidth={1.5} />
-              Gasto compartido
-            </button>
-            <button
-              onClick={() => navigate('/finance/import')}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
-            >
-              <Upload size={15} strokeWidth={1.5} />
-              Importar
-            </button>
-          </>
+          <ActionMenu
+            label="Nuevo"
+            icon={Plus}
+            items={[
+              { label: 'Factura / cuenta de cobro', icon: FileText, onClick: () => { setDocDialogKind('invoice'); setDocDialogOpen(true) } },
+              { label: 'Compra (al contado)', icon: ShoppingBag, onClick: () => { setDocDialogKind('purchase'); setDocDialogOpen(true) } },
+              { label: 'Comprobante de pago', icon: Receipt, onClick: () => setPaymentDialogOpen(true) },
+              { label: 'Gasto compartido entre locales', icon: Split, onClick: () => setSplitDialogOpen(true) },
+              { separator: true },
+              { label: 'Importar desde archivo', icon: Upload, onClick: () => navigate('/finance/import') },
+            ]}
+          />
         )}
       </PageHeader>
 
