@@ -1,6 +1,6 @@
 import { onCall, onRequest, HttpsError } from 'firebase-functions/v2/https';
 import { db } from './firestore.js';
-import { ensureFolderPath, uploadFile, validateRootFolderAccess, buildAuthUrl, exchangeCodeForTokens, saveDriveAuth, clearDriveAuth, getUserDriveAuth, driveClientId, driveClientSecret, } from './services/drive-oauth.js';
+import { ensureFolderPath, uploadFile, validateRootFolderAccess, buildAuthUrl, exchangeCodeForTokens, saveDriveAuth, clearDriveAuth, getUserDriveAuth, resolveDriveUid, driveClientId, driveClientSecret, } from './services/drive-oauth.js';
 // Callable de upload de documentos (Facturas, Pagos, Compras) a Drive.
 // Estructura: {Company.driveRootFolderId} / {YYYY} / {MesEs} / {filename}
 // Nombre: "{Proveedor} - {docType} {docNumber} - {Mes DD YYYY}.{ext}"
@@ -77,9 +77,10 @@ export const uploadDocumentToDrive = onCall({ region: 'us-central1', memory: '51
     if (!company.driveRootFolderId) {
         throw new HttpsError('failed-precondition', 'La empresa no tiene Drive configurado. Ve a Ajustes y conecta Drive.');
     }
-    const userAuth = await getUserDriveAuth(request.auth.uid);
+    const driveUid = await resolveDriveUid(data.companyId, request.auth.uid);
+    const userAuth = await getUserDriveAuth(driveUid);
     if (!userAuth?.refreshToken) {
-        throw new HttpsError('failed-precondition', 'No has conectado tu Drive. Ve a Ajustes → Compañías y conecta tu Drive.');
+        throw new HttpsError('failed-precondition', 'El Drive de la empresa no está conectado. El propietario debe conectarlo en Ajustes → Compañías.');
     }
     const date = parseDate(data.date ?? Date.now());
     const year = String(date.getFullYear());
@@ -89,8 +90,8 @@ export const uploadDocumentToDrive = onCall({ region: 'us-central1', memory: '51
     const supplier = sanitizeForFileName(data.supplierName);
     const docNumber = sanitizeForFileName(data.docNumber);
     const fileName = `${supplier} - ${data.docType} ${docNumber} - ${month} ${dd} ${year}.${ext}`;
-    const targetFolderId = await ensureFolderPath(request.auth.uid, data.companyId, company.driveRootFolderId, [year, month]);
-    const uploaded = await uploadFile(request.auth.uid, targetFolderId, fileName, data.mimeType, data.fileBase64);
+    const targetFolderId = await ensureFolderPath(driveUid, data.companyId, company.driveRootFolderId, [year, month]);
+    const uploaded = await uploadFile(driveUid, targetFolderId, fileName, data.mimeType, data.fileBase64);
     return {
         driveFileId: uploaded.driveFileId,
         webViewLink: uploaded.webViewLink,
@@ -105,7 +106,10 @@ export const validateDriveFolder = onCall({ region: 'us-central1', memory: '256M
         throw new HttpsError('invalid-argument', 'companyId y rootFolderId requeridos');
     }
     await assertCompanyMember(request.auth.uid, data.companyId);
-    const result = await validateRootFolderAccess(request.auth.uid, data.rootFolderId);
+    // Validamos contra el Drive que efectivamente se usará para subir (el del
+    // dueño de Drive de la empresa), no el del usuario que está en Ajustes.
+    const driveUid = await resolveDriveUid(data.companyId, request.auth.uid);
+    const result = await validateRootFolderAccess(driveUid, data.rootFolderId);
     return result;
 });
 // ─── OAuth flow ──────────────────────────────────────────────────────────

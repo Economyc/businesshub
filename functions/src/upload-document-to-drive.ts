@@ -9,6 +9,7 @@ import {
   saveDriveAuth,
   clearDriveAuth,
   getUserDriveAuth,
+  resolveDriveUid,
   driveClientId,
   driveClientSecret,
 } from './services/drive-oauth.js'
@@ -109,11 +110,12 @@ export const uploadDocumentToDrive = onCall(
       )
     }
 
-    const userAuth = await getUserDriveAuth(request.auth.uid)
+    const driveUid = await resolveDriveUid(data.companyId, request.auth.uid)
+    const userAuth = await getUserDriveAuth(driveUid)
     if (!userAuth?.refreshToken) {
       throw new HttpsError(
         'failed-precondition',
-        'No has conectado tu Drive. Ve a Ajustes → Compañías y conecta tu Drive.',
+        'El Drive de la empresa no está conectado. El propietario debe conectarlo en Ajustes → Compañías.',
       )
     }
 
@@ -127,8 +129,8 @@ export const uploadDocumentToDrive = onCall(
     const docNumber = sanitizeForFileName(data.docNumber)
     const fileName = `${supplier} - ${data.docType} ${docNumber} - ${month} ${dd} ${year}.${ext}`
 
-    const targetFolderId = await ensureFolderPath(request.auth.uid, data.companyId, company.driveRootFolderId, [year, month])
-    const uploaded = await uploadFile(request.auth.uid, targetFolderId, fileName, data.mimeType, data.fileBase64)
+    const targetFolderId = await ensureFolderPath(driveUid, data.companyId, company.driveRootFolderId, [year, month])
+    const uploaded = await uploadFile(driveUid, targetFolderId, fileName, data.mimeType, data.fileBase64)
 
     return {
       driveFileId: uploaded.driveFileId,
@@ -152,7 +154,10 @@ export const validateDriveFolder = onCall(
       throw new HttpsError('invalid-argument', 'companyId y rootFolderId requeridos')
     }
     await assertCompanyMember(request.auth.uid, data.companyId)
-    const result = await validateRootFolderAccess(request.auth.uid, data.rootFolderId)
+    // Validamos contra el Drive que efectivamente se usará para subir (el del
+    // dueño de Drive de la empresa), no el del usuario que está en Ajustes.
+    const driveUid = await resolveDriveUid(data.companyId, request.auth.uid)
+    const result = await validateRootFolderAccess(driveUid, data.rootFolderId)
     return result
   },
 )

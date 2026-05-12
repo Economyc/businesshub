@@ -12,6 +12,9 @@ export interface Company {
   posTenantId?: string
   driveRootFolderId?: string
   driveDiscountsFolderId?: string
+  // Override manual del "dueño de Drive": uid cuyo token se usa para todas las
+  // subidas de esta empresa. Si no está, se usa el primer miembro con rol owner.
+  driveOwnerUid?: string
   createdAt: Timestamp
 }
 

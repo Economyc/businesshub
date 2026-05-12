@@ -4,11 +4,17 @@ import { Readable } from 'stream'
 import { defineSecret } from 'firebase-functions/params'
 import { db } from '../firestore.js'
 
-// OAuth helper para Drive por empresa.
+// OAuth helper para Drive.
 // El usuario autoriza una vez desde Settings → "Conectar Drive". El refresh
-// token resultante queda en companies/{id}.driveAuth.refreshToken. A partir
-// de ahí cada upload usa ese token para llamar a la Drive API en nombre del
-// usuario, así los archivos quedan en SU Drive (con su quota, no la de la SA).
+// token resultante queda en users/{uid}.driveAuth.refreshToken. A partir de ahí
+// cada upload usa ese token para llamar a la Drive API en nombre del usuario,
+// así los archivos quedan en SU Drive (con su quota, no la de la SA).
+//
+// Para las subidas de una empresa NO se usa el uid del usuario que sube, sino
+// el del "dueño de Drive" de esa empresa (resolveDriveUid). Esto permite que
+// usuarios limitados (p. ej. administradores de punto de venta que sólo ven
+// Cierres y Descuentos, sin acceso a Ajustes) suban archivos que aterrizan en
+// el Drive del propietario sin tener que conectar nada ellos mismos.
 
 export const driveClientId = defineSecret('DRIVE_OAUTH_CLIENT_ID')
 export const driveClientSecret = defineSecret('DRIVE_OAUTH_CLIENT_SECRET')
@@ -116,6 +122,24 @@ export async function getUserDriveAuth(uid: string): Promise<UserDriveAuth | nul
   if (!snap.exists) return null
   const data = snap.data() as { driveAuth?: UserDriveAuth | null }
   return data.driveAuth ?? null
+}
+
+/**
+ * Resuelve qué uid de Drive usar para las operaciones de una empresa.
+ *
+ * 1. Si la empresa tiene `driveOwnerUid` explícito → ese (override manual).
+ * 2. Si no, el primer miembro con rol `owner` y status `active`.
+ * 3. Si no hay owner activo, cae al `fallbackUid` (el del request) — comportamiento legacy.
+ */
+export async function resolveDriveUid(companyId: string, fallbackUid: string): Promise<string> {
+  const companyRef = db.collection('companies').doc(companyId)
+  const companySnap = await companyRef.get()
+  const explicit = (companySnap.data() as { driveOwnerUid?: string } | undefined)?.driveOwnerUid
+  if (explicit) return explicit
+  const owners = await companyRef.collection('members').where('role', '==', 'owner').limit(10).get()
+  const active = owners.docs.find((d) => (d.data() as { status?: string }).status === 'active')
+  if (active) return active.id
+  return fallbackUid
 }
 
 /**

@@ -4,6 +4,7 @@ import {
   ensureFolderPath,
   uploadFile,
   getUserDriveAuth,
+  resolveDriveUid,
   driveClientId,
   driveClientSecret,
 } from './services/drive-oauth.js'
@@ -99,11 +100,12 @@ export const uploadDiscountPhotoToDrive = onCall(
       )
     }
 
-    const userAuth = await getUserDriveAuth(request.auth.uid)
+    const driveUid = await resolveDriveUid(data.companyId, request.auth.uid)
+    const userAuth = await getUserDriveAuth(driveUid)
     if (!userAuth?.refreshToken) {
       throw new HttpsError(
         'failed-precondition',
-        'No has conectado tu Drive. Ve a Ajustes → Compañías y conecta tu Drive.',
+        'El Drive de la empresa no está conectado. El propietario debe conectarlo en Ajustes → Compañías.',
       )
     }
 
@@ -118,12 +120,12 @@ export const uploadDiscountPhotoToDrive = onCall(
     const fileName = `Descuento - ${reason}${detail ? ` - ${detail}` : ''} - ${month} ${dd} ${year}.${ext}`
 
     const targetFolderId = await ensureFolderPath(
-      request.auth.uid,
+      driveUid,
       data.companyId,
       company.driveDiscountsFolderId,
       [year, month],
     )
-    const uploaded = await uploadFile(request.auth.uid, targetFolderId, fileName, data.mimeType, data.fileBase64)
+    const uploaded = await uploadFile(driveUid, targetFolderId, fileName, data.mimeType, data.fileBase64)
 
     return {
       driveFileId: uploaded.driveFileId,

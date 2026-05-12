@@ -32,6 +32,14 @@ export declare function saveDriveAuth(uid: string, data: ExchangeResult): Promis
 export declare function clearDriveAuth(uid: string): Promise<void>;
 export declare function getUserDriveAuth(uid: string): Promise<UserDriveAuth | null>;
 /**
+ * Resuelve qué uid de Drive usar para las operaciones de una empresa.
+ *
+ * 1. Si la empresa tiene `driveOwnerUid` explícito → ese (override manual).
+ * 2. Si no, el primer miembro con rol `owner` y status `active`.
+ * 3. Si no hay owner activo, cae al `fallbackUid` (el del request) — comportamiento legacy.
+ */
+export declare function resolveDriveUid(companyId: string, fallbackUid: string): Promise<string>;
+/**
  * Devuelve un cliente de Drive autenticado con el refresh token del usuario.
  * Lanza error si no hay token configurado.
  */
