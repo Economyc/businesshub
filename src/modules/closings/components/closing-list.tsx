@@ -218,8 +218,8 @@ function AccumulatedTab({ canEdit, onEdit, onDelete, onRowClick }: AccumulatedTa
         <>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <KPICard label="Venta Total" value={totals.ventaTotal} format="currency" icon={TrendingUp} />
-            <KPICard label="Efectivo" value={totals.efectivo} format="currency" icon={Wallet} />
-            <KPICard label="Datáfono" value={totals.datafono} format="currency" icon={CreditCard} />
+            <KPICard label="Venta Efectivo" value={totals.efectivo - totals.ap} format="currency" icon={Wallet} />
+            <KPICard label="Venta Datáfono" value={totals.datafono} format="currency" icon={CreditCard} />
             <KPICard label="Días con cierre" value={monthClosings.length} format="number" icon={CalendarCheck} />
             <KPICard label="QR" value={totals.qr} format="currency" icon={QrCode} />
             <KPICard label="Rappi" value={totals.rappiVentas} format="currency" icon={Bike} />
