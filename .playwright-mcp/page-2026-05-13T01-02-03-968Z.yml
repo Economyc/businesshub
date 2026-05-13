@@ -1,0 +1,152 @@
+- generic [ref=e1]:
+  - generic [ref=e8]:
+    - banner [ref=e10]:
+      - button [active] [ref=e11] [cursor=pointer]:
+        - img [ref=e12]
+      - link "BusinessHub" [ref=e13] [cursor=pointer]:
+        - /url: /home
+      - button "3" [ref=e96] [cursor=pointer]:
+        - img [ref=e16]
+        - generic [ref=e97]: "3"
+    - generic [ref=e19]:
+      - navigation [ref=e100]:
+        - generic [ref=e101]:
+          - generic [ref=e102]: BusinessHub
+          - button [ref=e103] [cursor=pointer]:
+            - img [ref=e104]
+        - button "Blue Smash Brgr Blue Smash Brgr Manila" [ref=e108] [cursor=pointer]:
+          - img "Blue Smash Brgr" [ref=e109]
+          - generic [ref=e110]:
+            - generic [ref=e111]: Blue Smash Brgr
+            - generic [ref=e112]:
+              - img [ref=e113]
+              - text: Manila
+          - img [ref=e116]
+        - generic [ref=e119]:
+          - generic [ref=e121]:
+            - link "Home" [ref=e122] [cursor=pointer]:
+              - /url: /home
+            - link "Tasks" [ref=e123] [cursor=pointer]:
+              - /url: /tasks
+            - link "Asistente AI" [ref=e124] [cursor=pointer]:
+              - /url: /agent
+            - link "Análisis" [ref=e125] [cursor=pointer]:
+              - /url: /analytics
+          - button "Finanzas" [ref=e127] [cursor=pointer]:
+            - generic [ref=e128]: Finanzas
+            - img [ref=e129]
+          - button "Operaciones" [ref=e132] [cursor=pointer]:
+            - generic [ref=e133]: Operaciones
+            - img [ref=e134]
+          - button "Mercadeo" [ref=e137] [cursor=pointer]:
+            - generic [ref=e138]: Mercadeo
+            - img [ref=e139]
+          - button "Integraciones" [ref=e142] [cursor=pointer]:
+            - generic [ref=e143]: Integraciones
+            - img [ref=e144]
+        - button "CT Claude Tester claude@tester.com" [ref=e147] [cursor=pointer]:
+          - generic [ref=e149]: CT
+          - generic [ref=e150]:
+            - generic [ref=e151]: Claude Tester
+            - generic [ref=e152]: claude@tester.com
+          - img [ref=e153]
+      - main [ref=e20]:
+        - generic [ref=e21]:
+          - generic [ref=e22]:
+            - generic [ref=e23]:
+              - generic [ref=e24]:
+                - heading "Hola, Claude" [level=1] [ref=e25]
+                - paragraph [ref=e26]: mar, 12 de mayo
+              - generic "Actualizando" [ref=e155]
+            - button "Este mes" [ref=e31] [cursor=pointer]:
+              - img [ref=e32]
+              - generic [ref=e34]: Este mes
+              - img [ref=e35]
+          - generic [ref=e37]:
+            - generic [ref=e38]:
+              - generic [ref=e156]:
+                - generic [ref=e157]:
+                  - generic [ref=e158]: Ventas — Este mes
+                  - img [ref=e159]
+                - generic [ref=e161]: $66.174.040
+                - generic [ref=e162]:
+                  - generic [ref=e163]:
+                    - img [ref=e164]
+                    - text: +100%
+                  - generic [ref=e166]: vs Abril
+              - generic [ref=e167]:
+                - generic [ref=e168]:
+                  - generic [ref=e169]: Gastos — Este mes
+                  - img [ref=e170]
+                - generic [ref=e172]: $23.939.120
+                - generic [ref=e173]:
+                  - generic [ref=e174]:
+                    - img [ref=e175]
+                    - text: +718.0%
+                  - generic [ref=e177]: vs Abril
+              - generic [ref=e178]:
+                - generic [ref=e179]:
+                  - generic [ref=e180]: Costo — Este mes
+                  - img [ref=e181]
+                - generic [ref=e185]: $15.532.032
+                - generic [ref=e186]:
+                  - generic [ref=e187]:
+                    - img [ref=e188]
+                    - text: +1607.5%
+                  - generic [ref=e190]: vs Abril
+            - generic [ref=e191]:
+              - generic [ref=e192]:
+                - generic [ref=e193]:
+                  - generic [ref=e194]:
+                    - img [ref=e195]
+                    - generic [ref=e198]: Proyección fin de mes
+                  - generic [ref=e199]:
+                    - generic [ref=e200]: $170.949.603
+                    - generic [ref=e201]:
+                      - img [ref=e202]
+                      - text: +36.9%
+                    - generic [ref=e204]: vs mes anterior
+                - generic [ref=e205]:
+                  - generic [ref=e206]: Real acumulado
+                  - generic [ref=e207]: $66.174.040
+                  - generic [ref=e211]: Día 12 de 31 · faltan 19
+              - generic [ref=e212]: Proyección basada en el promedio diario del mes en curso.
+            - generic [ref=e213]:
+              - heading "Ventas — Mayo 2026" [level=2] [ref=e214]
+              - application [ref=e218]:
+                - generic [ref=e231]:
+                  - generic [ref=e232]:
+                    - generic [ref=e234]: May 1
+                    - generic [ref=e236]: May 6
+                    - generic [ref=e238]: May 11
+                    - generic [ref=e240]: May 16
+                    - generic [ref=e242]: May 21
+                    - generic [ref=e244]: May 31
+                  - generic [ref=e245]:
+                    - generic [ref=e247]: $0
+                    - generic [ref=e249]: $2,5 M
+                    - generic [ref=e251]: $5 M
+                    - generic [ref=e253]: $7,5 M
+                    - generic [ref=e255]: $10 M
+            - generic [ref=e60]:
+              - generic [ref=e256]:
+                - heading "Alertas" [level=2] [ref=e257]
+                - generic [ref=e258]:
+                  - img [ref=e259]
+                  - generic [ref=e262]: Sin alertas activas
+              - generic [ref=e72]:
+                - heading "Acciones rápidas" [level=2] [ref=e73]
+                - generic [ref=e74]:
+                  - button "Nueva transacción" [ref=e75] [cursor=pointer]:
+                    - img [ref=e77]
+                    - generic [ref=e78]: Nueva transacción
+                  - button "Nuevo cierre" [ref=e79] [cursor=pointer]:
+                    - img [ref=e81]
+                    - generic [ref=e84]: Nuevo cierre
+                  - button "Análisis" [ref=e85] [cursor=pointer]:
+                    - img [ref=e87]
+                    - generic [ref=e89]: Análisis
+                  - button "Presupuesto" [ref=e90] [cursor=pointer]:
+                    - img [ref=e92]
+                    - generic [ref=e95]: Presupuesto
+  - generic [ref=e263]: $0

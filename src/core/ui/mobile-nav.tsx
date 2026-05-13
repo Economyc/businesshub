@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Users, Briefcase, DollarSign, Home, Handshake, ClipboardList, FileSignature, X, ChevronRight, Building2, Tags, BadgeCheck, Network, ChevronsUpDown, Check, MapPin, Wallet, LogOut, List, Target, FileText, Megaphone, RefreshCw, Shield, LayoutGrid } from 'lucide-react'
+import { X, ChevronRight, ChevronsUpDown, Check, MapPin, LogOut, LayoutGrid } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useCompany } from '@/core/hooks/use-company'
 import { useAuth } from '@/core/hooks/use-auth'
@@ -11,86 +11,11 @@ import { ThemeToggle } from '@/core/ui/theme-toggle'
 import { AvatarPicker } from '@/core/ui/avatar-picker'
 import { UserAvatar } from '@/core/ui/user-avatar'
 import { useAvatarConfig } from '@/core/hooks/use-avatar-config'
-import type { ModuleKey } from '@/core/types/permissions'
-
-interface NavItem {
-  to: string
-  label: string
-  icon?: typeof Home
-  moduleKey?: ModuleKey
-}
-
-interface NavSection {
-  title?: string
-  items: NavItem[]
-}
-
-const NAV_SECTIONS: NavSection[] = [
-  {
-    items: [
-      { to: '/home', label: 'Home', moduleKey: 'home' },
-      { to: '/agent', label: 'Asistente AI', moduleKey: 'agent' },
-      { to: '/analytics', label: 'Análisis', moduleKey: 'analytics' },
-    ],
-  },
-  {
-    title: 'Finanzas',
-    items: [
-      { to: '/finance', label: 'Contabilidad', icon: DollarSign, moduleKey: 'finance' },
-      { to: '/closings', label: 'Cierres de Caja', icon: ClipboardList, moduleKey: 'closings' },
-    ],
-  },
-  {
-    title: 'Operaciones',
-    items: [
-      { to: '/contracts', label: 'Contratos', icon: FileSignature, moduleKey: 'contracts' },
-      { to: '/partners', label: 'Socios', icon: Handshake, moduleKey: 'partners' },
-      { to: '/talent', label: 'Equipo', icon: Users, moduleKey: 'talent' },
-      { to: '/suppliers', label: 'Proveedores', icon: Briefcase, moduleKey: 'suppliers' },
-    ],
-  },
-  {
-    title: 'Mercadeo',
-    items: [
-      { to: '/marketing/influencers', label: 'Influencers', icon: Megaphone, moduleKey: 'marketing' },
-    ],
-  },
-  {
-    title: 'Integraciones',
-    items: [
-      { to: '/pos-sync', label: 'POS Sync', icon: RefreshCw },
-    ],
-  },
-]
-
-const SETTINGS_ITEMS = [
-  { to: '/settings/team', label: 'Equipo', icon: Shield },
-  { to: '/settings/companies', label: 'Compañías', icon: Building2 },
-  { to: '/settings/categories', label: 'Categorías', icon: Tags },
-  { to: '/settings/roles', label: 'Cargos', icon: BadgeCheck },
-  { to: '/settings/departments', label: 'Departamentos', icon: Network },
-]
-
-const FINANCE_ITEMS: (Omit<NavItem, 'icon'> & { icon: typeof Home; end?: boolean })[] = [
-  { to: '/finance', label: 'Facturación', icon: List, end: true },
-  { to: '/finance/cash-flow', label: 'Flujo de Caja', icon: Wallet },
-  { to: '/finance/income-statement', label: 'Estado de Resultados', icon: FileText },
-  { to: '/finance/budget', label: 'Presupuesto', icon: Target },
-]
+import { NAV_SECTIONS, SETTINGS_ITEMS, FINANCE_ITEMS, getActiveSections } from '@/core/config/navigation'
 
 interface MobileNavProps {
   open: boolean
   onClose: () => void
-}
-
-function getActiveSections(pathname: string): Set<string> {
-  const active = new Set<string>()
-  for (const section of NAV_SECTIONS) {
-    if (section.title && section.items.some(item => pathname.startsWith(item.to))) {
-      active.add(section.title)
-    }
-  }
-  return active
 }
 
 export function MobileNav({ open, onClose }: MobileNavProps) {

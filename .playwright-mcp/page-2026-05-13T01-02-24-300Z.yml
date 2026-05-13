@@ -1,0 +1,83 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e8]:
+    - banner [ref=e10]:
+      - button [ref=e11] [cursor=pointer]:
+        - img [ref=e12]
+      - link "BusinessHub" [ref=e13] [cursor=pointer]:
+        - /url: /home
+      - button "3" [ref=e96] [cursor=pointer]:
+        - img [ref=e16]
+        - generic [ref=e97]: "3"
+    - main [ref=e20]:
+      - generic [ref=e297]:
+        - heading "Descuentos" [level=1] [ref=e301]
+        - generic [ref=e302]:
+          - generic [ref=e303]: Este mes
+          - button "Este mes" [ref=e305] [cursor=pointer]:
+            - img [ref=e306]
+            - generic [ref=e308]: Este mes
+            - img [ref=e309]
+        - generic [ref=e311]:
+          - generic [ref=e312]:
+            - generic [ref=e313]:
+              - generic [ref=e314]: Descuentos subidos
+              - img [ref=e315]
+            - generic [ref=e318]: $0
+            - generic [ref=e320]: 0 registros
+          - generic [ref=e321]:
+            - generic [ref=e322]:
+              - generic [ref=e323]: Descuentos del POS
+              - img [ref=e324]
+            - generic [ref=e328]: $1.250.460
+            - generic [ref=e329]:
+              - generic [ref=e330]: Δ $1.250.460
+              - generic [ref=e331]: POS sobre lo registrado
+        - generic [ref=e332]:
+          - heading "Registrar Descuento" [level=2] [ref=e333]:
+            - img [ref=e334]
+            - text: Registrar Descuento
+          - generic [ref=e337]:
+            - generic [ref=e338]:
+              - generic [ref=e339]:
+                - generic [ref=e340]: Tipo
+                - button "Seleccionar..." [ref=e342] [cursor=pointer]:
+                  - generic [ref=e343]: Seleccionar...
+                  - img [ref=e344]
+              - generic [ref=e346]:
+                - generic [ref=e347]: Monto
+                - textbox "0" [ref=e349]
+            - generic [ref=e350]:
+              - generic [ref=e351]:
+                - generic [ref=e352]: Fecha
+                - generic [ref=e353]:
+                  - textbox: 2026-05-12
+                  - button "12 may 2026" [ref=e354] [cursor=pointer]:
+                    - img [ref=e355]
+                    - generic [ref=e357]: 12 may 2026
+              - generic [ref=e358]:
+                - generic [ref=e359]: Motivo
+                - button "Seleccionar..." [ref=e361] [cursor=pointer]:
+                  - generic [ref=e362]: Seleccionar...
+                  - img [ref=e363]
+            - generic [ref=e365]:
+              - generic [ref=e366]: Detalle
+              - textbox "Nombre, producto, contexto..." [ref=e367]
+            - generic [ref=e368]:
+              - generic [ref=e369]: Autorizado por
+              - textbox "Nombre del manager" [ref=e370]
+            - generic [ref=e371]:
+              - generic [ref=e372]: Foto
+              - button "Tomar / subir foto" [ref=e374] [cursor=pointer]:
+                - img [ref=e375]
+                - text: Tomar / subir foto
+          - generic [ref=e379]:
+            - button "Guardar Descuento" [disabled] [ref=e380]
+            - button "Limpiar" [ref=e381] [cursor=pointer]
+        - generic [ref=e384]:
+          - img [ref=e385]
+          - textbox "Buscar motivo, detalle o responsable..." [ref=e388]
+        - generic [ref=e389]:
+          - img [ref=e390]
+          - heading "No hay descuentos" [level=3] [ref=e394]
+          - paragraph [ref=e395]: Registra descuentos y cortesias para llevar seguimiento
+  - generic [ref=e263]: $0

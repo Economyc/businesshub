@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, memo } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
-import { Users, Briefcase, DollarSign, Home, ChevronsLeft, Building2, Tags, BadgeCheck, Network, Handshake, ClipboardList, FileSignature, Wallet, ChevronRight, ChevronsUpDown, Check, MapPin, LogOut, Settings, List, Target, FileText, Shield, RefreshCw, Megaphone, Lock, LockOpen, LayoutGrid, Percent } from 'lucide-react'
+import { Home, ChevronsLeft, ChevronRight, ChevronsUpDown, Check, MapPin, LogOut, Settings, Lock, LockOpen, LayoutGrid } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { HoverHint } from '@/components/ui/tooltip'
 import { CommandPalette } from '@/core/ui/command-palette'
@@ -15,74 +15,7 @@ import { useCompany } from '@/core/hooks/use-company'
 import { usePermissions } from '@/core/hooks/use-permissions'
 import { prefetchRoute, resetPrefetchCache } from '@/core/utils/prefetch'
 import { prefetchSelectorSales } from '@/modules/home/selector-sales'
-import type { ModuleKey } from '@/core/types/permissions'
-
-interface NavItem {
-  to: string
-  label: string
-  icon?: typeof Home
-  moduleKey?: ModuleKey
-}
-
-interface NavSection {
-  title?: string
-  items: NavItem[]
-}
-
-const NAV_SECTIONS: NavSection[] = [
-  {
-    items: [
-      { to: '/home', label: 'Home', moduleKey: 'home' },
-      { to: '/tasks', label: 'Tasks', moduleKey: 'tasks' },
-      { to: '/agent', label: 'Asistente AI', moduleKey: 'agent' },
-      { to: '/analytics', label: 'Análisis', moduleKey: 'analytics' },
-    ],
-  },
-  {
-    title: 'Finanzas',
-    items: [
-      { to: '/finance', label: 'Contabilidad', icon: DollarSign, moduleKey: 'finance' },
-      { to: '/closings', label: 'Cierres de Caja', icon: ClipboardList, moduleKey: 'closings' },
-      { to: '/discounts', label: 'Descuentos', icon: Percent, moduleKey: 'closings' },
-    ],
-  },
-  {
-    title: 'Operaciones',
-    items: [
-      { to: '/contracts', label: 'Contratos', icon: FileSignature, moduleKey: 'contracts' },
-      { to: '/partners', label: 'Socios', icon: Handshake, moduleKey: 'partners' },
-      { to: '/talent', label: 'Equipo', icon: Users, moduleKey: 'talent' },
-      { to: '/suppliers', label: 'Proveedores', icon: Briefcase, moduleKey: 'suppliers' },
-    ],
-  },
-  {
-    title: 'Mercadeo',
-    items: [
-      { to: '/marketing/influencers', label: 'Influencers', icon: Megaphone, moduleKey: 'marketing' },
-    ],
-  },
-  {
-    title: 'Integraciones',
-    items: [
-      { to: '/pos-sync', label: 'POS Sync', icon: RefreshCw },
-    ],
-  },
-]
-
-const SETTINGS_ITEMS = [
-  { to: '/settings/team', label: 'Equipo', icon: Shield },
-  { to: '/settings/companies', label: 'Compañías', icon: Building2 },
-  { to: '/settings/categories', label: 'Categorías', icon: Tags },
-  { to: '/settings/roles', label: 'Cargos', icon: BadgeCheck },
-  { to: '/settings/departments', label: 'Departamentos', icon: Network },
-]
-
-const FINANCE_ITEMS: (Omit<NavItem, 'icon'> & { icon: typeof Home; end?: boolean })[] = [
-  { to: '/finance', label: 'Facturación', icon: List, end: true },
-  { to: '/finance/cash-flow', label: 'Flujo de Caja', icon: Wallet },
-  { to: '/finance/income-statement', label: 'Estado de Resultados', icon: FileText },
-  { to: '/finance/budget', label: 'Presupuesto', icon: Target },
-]
+import { NAV_SECTIONS, SETTINGS_ITEMS, FINANCE_ITEMS, getActiveSections } from '@/core/config/navigation'
 
 interface SidebarProps {
   onNavClick?: () => void
@@ -136,16 +69,6 @@ const RegularNavItem = memo(function RegularNavItem({
     </NavLink>
   )
 })
-
-function getActiveSections(pathname: string): Set<string> {
-  const active = new Set<string>()
-  for (const section of NAV_SECTIONS) {
-    if (section.title && section.items.some(item => pathname.startsWith(item.to))) {
-      active.add(section.title)
-    }
-  }
-  return active
-}
 
 export function Sidebar({ onNavClick }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false)
