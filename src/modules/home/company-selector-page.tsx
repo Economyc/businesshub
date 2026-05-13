@@ -1,73 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
 import { MapPin, Plus, LogOut, ArrowUpRight } from 'lucide-react'
 import { useCompany } from '@/core/hooks/use-company'
 import { useAuth } from '@/core/hooks/use-auth'
 import { CompanyLogo } from '@/core/ui/company-logo'
 import { Skeleton } from '@/core/ui/skeleton'
-import { formatCurrency } from '@/core/utils/format'
-import {
-  fetchAllCompaniesSales,
-  refreshLiveSales,
-  selectorSalesKey,
-  SELECTOR_SALES_STALE_MS,
-  ymd,
-} from './selector-sales'
-import { cn } from '@/lib/utils'
 import { HoverHint } from '@/components/ui/tooltip'
 import type { Company } from '@/core/types'
-
-
-// Precarga logos en paralelo y resuelve cuando todos terminan (o fallan).
-// Timeout de seguridad para no bloquear el render si una URL está rota.
-function useLogosReady(companies: Company[]): boolean {
-  const urls = useMemo(() => {
-    const list: string[] = []
-    for (const c of companies) {
-      const url = c.logo ?? c.logoThumb
-      if (url) list.push(url)
-    }
-    return list
-  }, [companies])
-
-  const [ready, setReady] = useState(urls.length === 0)
-
-  useEffect(() => {
-    if (urls.length === 0) {
-      setReady(true)
-      return
-    }
-    setReady(false)
-    let settled = 0
-    let done = false
-    const finish = () => {
-      if (done) return
-      done = true
-      setReady(true)
-    }
-    const timeout = setTimeout(finish, 2500)
-    for (const url of urls) {
-      const img = new Image()
-      const onSettle = () => {
-        settled++
-        if (settled === urls.length) {
-          clearTimeout(timeout)
-          finish()
-        }
-      }
-      img.onload = onSettle
-      img.onerror = onSettle
-      img.src = url
-    }
-    return () => {
-      clearTimeout(timeout)
-      done = true
-    }
-  }, [urls])
-
-  return ready
-}
 
 export function CompanySelectorPage() {
   const { companies, loading, selectCompany, addCompany } = useCompany()
@@ -81,38 +20,6 @@ export function CompanySelectorPage() {
       navigate('/home', { replace: true })
     }
   }, [loading, companies, selectCompany, navigate])
-
-  const today = ymd(0)
-  const yesterday = ymd(-1)
-  const companyIds = useMemo(() => companies.map((c) => c.id), [companies])
-
-  const salesQuery = useQuery({
-    queryKey: selectorSalesKey(companyIds, today),
-    queryFn: () => fetchAllCompaniesSales(companies, today, yesterday),
-    staleTime: SELECTOR_SALES_STALE_MS,
-    enabled: companies.length > 0,
-  })
-
-  // Refresh en background desde POS live (solo hoy). Dispara después del
-  // primer render con cache para mantener UX fluida. Rate-limited internamente.
-  useEffect(() => {
-    if (companies.length === 0) return
-    refreshLiveSales(companies, today, yesterday).catch(() => {})
-  }, [companies, today, yesterday])
-
-  const logosReady = useLogosReady(companies)
-  const salesReady = !salesQuery.isLoading
-
-  // Safety net: si por algún motivo salesReady o logosReady no se resuelven,
-  // revelamos después de 1.5s para que el user nunca vea una pantalla vacía.
-  const [timeoutElapsed, setTimeoutElapsed] = useState(false)
-  useEffect(() => {
-    const t = setTimeout(() => setTimeoutElapsed(true), 1500)
-    return () => clearTimeout(t)
-  }, [])
-
-  const allReady =
-    companies.length > 0 && ((salesReady && logosReady) || timeoutElapsed)
 
   const firstName =
     user?.displayName?.split(' ')[0] ??
@@ -128,6 +35,8 @@ export function CompanySelectorPage() {
     await addCompany()
     navigate('/settings/companies')
   }
+
+  const hasCompanies = companies.length > 0
 
   return (
     <div className="relative min-h-screen bg-surface text-graphite">
@@ -159,38 +68,24 @@ export function CompanySelectorPage() {
       </div>
 
       <div className="max-w-[1320px] mx-auto px-4 pt-20 pb-12 md:px-12 md:pt-40 md:pb-28">
-        {!allReady ? (
+        {!hasCompanies ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
-            {Array.from({ length: Math.max(companies.length, 2) }).map((_, i) => (
+            {Array.from({ length: 2 }).map((_, i) => (
               <div
                 key={`sk-${i}`}
                 className="flex items-center gap-5 md:gap-7 min-h-[140px] md:min-h-[168px] p-5 md:p-7 rounded-2xl bg-card-bg border border-border/60"
               >
                 <Skeleton className="w-20 h-20 rounded-full shrink-0" />
-                <div className="flex-1 flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-5 min-w-0">
-                  <div className="min-w-0 space-y-2">
-                    <Skeleton className="h-5 w-44 rounded" />
-                    <Skeleton className="h-3 w-28 rounded" />
-                  </div>
-                  <div className="flex flex-col items-start md:items-end gap-2 shrink-0">
-                    <Skeleton className="h-3 w-20 rounded" />
-                    <Skeleton className="h-7 w-32 rounded" />
-                    <Skeleton className="h-4 w-24 rounded-full" />
-                  </div>
+                <div className="min-w-0 space-y-2">
+                  <Skeleton className="h-5 w-44 rounded" />
+                  <Skeleton className="h-3 w-28 rounded" />
                 </div>
               </div>
             ))}
           </div>
         ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
-          {companies.map((c) => {
-            const data = salesQuery.data?.[c.id]
-            const todayVal = data?.today ?? 0
-            const yVal = data?.yesterday ?? 0
-            const delta = yVal > 0 ? ((todayVal - yVal) / yVal) * 100 : null
-            const up = (delta ?? 0) >= 0
-
-            return (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
+            {companies.map((c) => (
               <button
                 key={c.id}
                 type="button"
@@ -231,47 +126,24 @@ export function CompanySelectorPage() {
                     }}
                   />
                 </div>
-                <div className="flex-1 flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-5 min-w-0">
-                  <div className="min-w-0">
-                    <h3 className="text-subheading font-medium text-dark-graphite tracking-[-0.01em] truncate mb-1 md:mb-1.5">
-                      {c.name}
-                    </h3>
-                    {c.location && (
-                      <p className="text-body text-mid-gray m-0 inline-flex items-center gap-1.5">
-                        <MapPin className="w-[15px] h-[15px] shrink-0" strokeWidth={1.5} />
-                        {c.location}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex flex-col items-start md:items-end gap-1.5 shrink-0">
-                    <span className="text-caption text-mid-gray uppercase tracking-[0.06em]">
-                      Ventas hoy
-                    </span>
-                    <span className="text-kpi font-semibold text-dark-graphite tabular-nums tracking-[-0.02em] leading-tight">
-                      {formatCurrency(todayVal)}
-                    </span>
-                    {delta !== null && (
-                      <span
-                        className={cn(
-                          'inline-flex items-center gap-1 text-caption font-medium px-2 py-0.5 rounded-full',
-                          up
-                            ? 'bg-positive-bg text-positive-text'
-                            : 'bg-negative-bg text-negative-text',
-                        )}
-                      >
-                        {up ? '↑' : '↓'} {Math.abs(delta).toFixed(1)}% vs ayer
-                      </span>
-                    )}
-                  </div>
+                <div className="min-w-0">
+                  <h3 className="text-subheading font-medium text-dark-graphite tracking-[-0.01em] truncate mb-1 md:mb-1.5">
+                    {c.name}
+                  </h3>
+                  {c.location && (
+                    <p className="text-body text-mid-gray m-0 inline-flex items-center gap-1.5">
+                      <MapPin className="w-[15px] h-[15px] shrink-0" strokeWidth={1.5} />
+                      {c.location}
+                    </p>
+                  )}
                 </div>
                 <ArrowUpRight
                   className="absolute top-4 right-4 md:top-5 md:right-5 w-4 h-4 text-mid-gray opacity-0 -translate-x-1 translate-y-1 group-hover:opacity-100 group-hover:translate-x-0 group-hover:translate-y-0 transition-all duration-200"
                   strokeWidth={1.5}
                 />
               </button>
-            )
-          })}
-        </div>
+            ))}
+          </div>
         )}
       </div>
     </div>

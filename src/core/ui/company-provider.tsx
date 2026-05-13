@@ -18,7 +18,6 @@ import { slugify, DEFAULT_CATEGORIES, migrateOldCategories } from '@/core/utils/
 import { fileToBase64Thumb } from '@/core/utils/image'
 import { cacheGet, cacheSet } from '@/core/utils/cache'
 import { prefetchHomeData, resetPrefetchCache } from '@/core/utils/prefetch'
-import { prefetchSelectorSales } from '@/modules/home/selector-sales'
 import { queryClient } from '@/core/query/query-client'
 import { useAuth } from '@/core/hooks/use-auth'
 
@@ -249,13 +248,6 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (selectedCompany?.id) prefetchHomeData(selectedCompany.id)
   }, [selectedCompany?.id])
-
-  // Prefetch de ventas hoy/ayer para el selector post-login. Dispara las
-  // llamadas POS en cuanto cargan las companies (≤1s post-login) para que
-  // al aterrizar en `/` las tarjetas ya tengan data y el skeleton sea breve.
-  useEffect(() => {
-    if (companies.length > 1) prefetchSelectorSales(companies)
-  }, [companies])
 
   const selectCompany = useCallback((company: Company) => {
     setSelectedCompany(company)
