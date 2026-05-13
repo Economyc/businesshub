@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { ClipboardList, List, FilePlus, Trash2, SquarePen, UserCircle, CalendarRange, TrendingUp, Wallet, CreditCard, QrCode, Smartphone, Bike, Coins, Receipt, CalendarCheck } from 'lucide-react'
+import { ClipboardList, List, FilePlus, Trash2, SquarePen, UserCircle, CalendarRange, TrendingUp, Wallet, CreditCard, QrCode, Bike, Coins, Receipt, CalendarCheck } from 'lucide-react'
 import { PageTransition } from '@/core/ui/page-transition'
 import { UnderlineButtonTabs } from '@/core/ui/underline-tabs'
 import { PageHeader } from '@/core/ui/page-header'
@@ -157,7 +157,6 @@ function AccumulatedTab({ canEdit, onEdit, onDelete, onRowClick }: AccumulatedTa
   }, [monthClosings])
 
   const isCurrentMonth = month === monthValue(new Date())
-  const monthLabel = monthOptions.find((o) => o.value === month)?.label ?? month
 
   const columns = [
     {
@@ -205,12 +204,9 @@ function AccumulatedTab({ canEdit, onEdit, onDelete, onRowClick }: AccumulatedTa
     <>
       {/* Month filter */}
       <div className="flex items-center justify-between gap-3 mb-5">
-        <div>
-          <span className="block text-[11px] font-bold text-mid-gray uppercase tracking-wide">
-            {isCurrentMonth ? 'Acumulado del mes en curso' : 'Acumulado del mes'}
-          </span>
-          <span className="text-body text-graphite">{monthLabel}</span>
-        </div>
+        <span className="text-[11px] font-bold text-mid-gray uppercase tracking-wide">
+          {isCurrentMonth ? 'Acumulado del mes en curso' : 'Acumulado del mes'}
+        </span>
         <SelectInput value={month} onChange={setMonth} options={monthOptions} className="w-44 shrink-0" />
       </div>
 
@@ -225,7 +221,6 @@ function AccumulatedTab({ canEdit, onEdit, onDelete, onRowClick }: AccumulatedTa
             <KPICard label="Efectivo" value={totals.efectivo} format="currency" icon={Wallet} />
             <KPICard label="Datáfono" value={totals.datafono} format="currency" icon={CreditCard} />
             <KPICard label="Días con cierre" value={monthClosings.length} format="number" icon={CalendarCheck} />
-            <KPICard label="AP" value={totals.ap} format="currency" icon={Smartphone} />
             <KPICard label="QR" value={totals.qr} format="currency" icon={QrCode} />
             <KPICard label="Rappi" value={totals.rappiVentas} format="currency" icon={Bike} />
             <KPICard label="Propinas" value={totals.propinas} format="currency" icon={Coins} />
