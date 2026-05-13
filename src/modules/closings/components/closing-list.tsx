@@ -1,14 +1,16 @@
 import { useState, useMemo } from 'react'
-import { ClipboardList, List, FilePlus, Trash2, SquarePen, UserCircle } from 'lucide-react'
+import { ClipboardList, List, FilePlus, Trash2, SquarePen, UserCircle, CalendarRange, TrendingUp, Wallet, CreditCard, QrCode, Smartphone, Bike, Coins, Receipt, CalendarCheck } from 'lucide-react'
 import { PageTransition } from '@/core/ui/page-transition'
 import { UnderlineButtonTabs } from '@/core/ui/underline-tabs'
 import { PageHeader } from '@/core/ui/page-header'
 import { SearchInput } from '@/core/ui/search-input'
 import { DataTable } from '@/core/ui/data-table'
 import { EmptyState } from '@/core/ui/empty-state'
-import { TableSkeleton } from '@/core/ui/skeleton'
+import { TableSkeleton, KPICardSkeleton } from '@/core/ui/skeleton'
 import { LoadMoreButton } from '@/core/ui/load-more-button'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
+import { KPICard } from '@/core/ui/kpi-card'
+import { SelectInput, type SelectOption } from '@/core/ui/select-input'
 import { HoverHint } from '@/components/ui/tooltip'
 import { formatCurrency } from '@/core/utils/format'
 import { useDateRange } from '@/modules/finance/context/date-range-context'
@@ -16,7 +18,7 @@ import { DateRangePicker } from '@/modules/finance/components/date-range-picker'
 import { useCompany } from '@/core/hooks/use-company'
 import { usePermissions } from '@/core/hooks/use-permissions'
 import { useFirestoreMutation } from '@/core/query/use-mutation'
-import { usePaginatedClosings } from '../hooks'
+import { usePaginatedClosings, useClosings } from '../hooks'
 import { closingService } from '../services'
 import { ClosingForm } from './closing-form'
 import { ClosingReceipt } from './closing-receipt'
@@ -94,12 +96,172 @@ function ClosingCard({ closing, onEdit, onDelete, onClick, canEdit }: { closing:
   )
 }
 
-type Tab = 'form' | 'history'
+type Tab = 'form' | 'history' | 'accumulated'
 
 const CLOSING_TABS = [
   { value: 'form', label: 'Nuevo Cierre', icon: FilePlus },
   { value: 'history', label: 'Cierres', icon: List },
+  { value: 'accumulated', label: 'Acumulado', icon: TrendingUp },
 ]
+
+const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+
+function monthValue(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
+function buildMonthOptions(count = 18): SelectOption[] {
+  const now = new Date()
+  const opts: SelectOption[] = []
+  for (let i = 0; i < count; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    opts.push({ value: monthValue(d), label: `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}` })
+  }
+  return opts
+}
+
+interface AccumulatedTabProps {
+  canEdit: boolean
+  onEdit: (c: Closing) => void
+  onDelete: (c: Closing) => void
+  onRowClick: (c: Closing) => void
+}
+
+function AccumulatedTab({ canEdit, onEdit, onDelete, onRowClick }: AccumulatedTabProps) {
+  const { data: closings, loading } = useClosings()
+  const monthOptions = useMemo(() => buildMonthOptions(), [])
+  const [month, setMonth] = useState(() => monthValue(new Date()))
+
+  const monthClosings = useMemo(
+    () =>
+      closings
+        .filter((c) => (c.date ?? '').startsWith(month))
+        .sort((a, b) => (b.date ?? '').localeCompare(a.date ?? '')),
+    [closings, month],
+  )
+
+  const totals = useMemo(() => {
+    return monthClosings.reduce(
+      (acc, c) => ({
+        ventaTotal: acc.ventaTotal + (c.ventaTotal ?? 0),
+        efectivo: acc.efectivo + (c.efectivo ?? 0),
+        datafono: acc.datafono + (c.datafono ?? 0),
+        ap: acc.ap + (c.ap ?? 0),
+        qr: acc.qr + (c.qr ?? 0),
+        rappiVentas: acc.rappiVentas + (c.rappiVentas ?? 0),
+        propinas: acc.propinas + (c.propinas ?? 0),
+        gastos: acc.gastos + (c.gastos ?? 0),
+      }),
+      { ventaTotal: 0, efectivo: 0, datafono: 0, ap: 0, qr: 0, rappiVentas: 0, propinas: 0, gastos: 0 },
+    )
+  }, [monthClosings])
+
+  const isCurrentMonth = month === monthValue(new Date())
+  const monthLabel = monthOptions.find((o) => o.value === month)?.label ?? month
+
+  const columns = [
+    {
+      key: 'date',
+      header: 'Fecha',
+      width: '1fr',
+      render: (c: Closing) => <span className="font-medium text-dark-graphite">{formatDate(c.date)}</span>,
+    },
+    {
+      key: 'ventaTotal',
+      header: 'Venta Total',
+      width: '1fr',
+      primary: true,
+      render: (c: Closing) => <span className="font-semibold text-dark-graphite">{formatCurrency(c.ventaTotal ?? 0)}</span>,
+    },
+    {
+      key: 'efectivo',
+      header: 'Efectivo',
+      width: '1fr',
+      render: (c: Closing) => formatCurrency(c.efectivo ?? 0),
+    },
+    {
+      key: 'datafono',
+      header: 'Datáfono',
+      width: '1fr',
+      hideOnMobile: true,
+      render: (c: Closing) => formatCurrency(c.datafono ?? 0),
+    },
+    {
+      key: 'propinas',
+      header: 'Propinas',
+      width: '0.8fr',
+      hideOnMobile: true,
+      render: (c: Closing) => formatCurrency(c.propinas ?? 0),
+    },
+    {
+      key: 'responsable',
+      header: 'Responsable',
+      width: '1.2fr',
+      render: (c: Closing) => c.responsable || '—',
+    },
+  ]
+
+  return (
+    <>
+      {/* Month filter */}
+      <div className="flex items-center justify-between gap-3 mb-5">
+        <div>
+          <span className="block text-[11px] font-bold text-mid-gray uppercase tracking-wide">
+            {isCurrentMonth ? 'Acumulado del mes en curso' : 'Acumulado del mes'}
+          </span>
+          <span className="text-body text-graphite">{monthLabel}</span>
+        </div>
+        <SelectInput value={month} onChange={setMonth} options={monthOptions} className="w-44 shrink-0" />
+      </div>
+
+      {loading ? (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          {Array.from({ length: 8 }).map((_, i) => <KPICardSkeleton key={i} />)}
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <KPICard label="Venta Total" value={totals.ventaTotal} format="currency" icon={TrendingUp} />
+            <KPICard label="Efectivo" value={totals.efectivo} format="currency" icon={Wallet} />
+            <KPICard label="Datáfono" value={totals.datafono} format="currency" icon={CreditCard} />
+            <KPICard label="Días con cierre" value={monthClosings.length} format="number" icon={CalendarCheck} />
+            <KPICard label="AP" value={totals.ap} format="currency" icon={Smartphone} />
+            <KPICard label="QR" value={totals.qr} format="currency" icon={QrCode} />
+            <KPICard label="Rappi" value={totals.rappiVentas} format="currency" icon={Bike} />
+            <KPICard label="Propinas" value={totals.propinas} format="currency" icon={Coins} />
+            <KPICard label="Gastos" value={totals.gastos} format="currency" icon={Receipt} />
+          </div>
+
+          {monthClosings.length === 0 ? (
+            <EmptyState
+              icon={CalendarRange}
+              title="Sin cierres este mes"
+              description="No hay cierres registrados en el mes seleccionado"
+            />
+          ) : (
+            <>
+              <div className="flex flex-col gap-3 md:hidden">
+                {monthClosings.map((c) => (
+                  <ClosingCard
+                    key={c.id}
+                    closing={c}
+                    canEdit={canEdit}
+                    onEdit={() => onEdit(c)}
+                    onDelete={() => onDelete(c)}
+                    onClick={() => onRowClick(c)}
+                  />
+                ))}
+              </div>
+              <div className="hidden md:block">
+                <DataTable columns={columns} data={monthClosings} onRowClick={onRowClick} />
+              </div>
+            </>
+          )}
+        </>
+      )}
+    </>
+  )
+}
 
 export function ClosingList() {
   const { selectedCompany } = useCompany()
@@ -298,6 +460,15 @@ export function ClosingList() {
             </>
           )}
         </>
+      )}
+
+      {tab === 'accumulated' && (
+        <AccumulatedTab
+          canEdit={canEdit}
+          onEdit={(c) => { setEditingClosing(c); setTab('form') }}
+          onDelete={(c) => setDeleteTarget(c)}
+          onRowClick={(c) => setReceiptClosing(c)}
+        />
       )}
 
       <ConfirmDialog
