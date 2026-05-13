@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { ClipboardList, List, FilePlus, Trash2, SquarePen, UserCircle, CalendarRange, TrendingUp, Wallet, CreditCard, QrCode, Bike, Coins, Receipt, CalendarCheck, HandCoins } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { PageTransition } from '@/core/ui/page-transition'
 import { UnderlineButtonTabs } from '@/core/ui/underline-tabs'
 import { PageHeader } from '@/core/ui/page-header'
@@ -93,6 +94,18 @@ function ClosingCard({ closing, onEdit, onDelete, onClick, canEdit }: { closing:
         </div>
       </div>
     </article>
+  )
+}
+
+function BreakdownStat({ label, value, icon: Icon }: { label: string; value: number; icon: LucideIcon }) {
+  return (
+    <div className="bg-surface p-4">
+      <div className="flex items-center gap-2 mb-2">
+        <Icon size={14} strokeWidth={1.5} className="text-mid-gray" />
+        <span className="text-caption font-semibold text-mid-gray uppercase tracking-wider truncate">{label}</span>
+      </div>
+      <div className="text-subheading font-semibold text-dark-graphite">{formatCurrency(value)}</div>
+    </div>
   )
 }
 
@@ -219,21 +232,34 @@ function AccumulatedTab({ canEdit, onEdit, onDelete, onRowClick }: AccumulatedTa
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          {Array.from({ length: 8 }).map((_, i) => <KPICardSkeleton key={i} />)}
+        <div className="space-y-4 mb-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {Array.from({ length: 4 }).map((_, i) => <KPICardSkeleton key={i} />)}
+          </div>
+          <div className="rounded-xl bg-smoke animate-pulse h-28" />
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          {/* KPIs hero */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
             <KPICard label="Venta Total" value={totals.ventaTotal} format="currency" icon={TrendingUp} />
             <KPICard label="Venta Efectivo" value={totals.efectivo - totals.ap} format="currency" icon={Wallet} />
             <KPICard label="Venta Datáfono" value={totals.datafono} format="currency" icon={CreditCard} />
             <KPICard label="Días con cierre" value={monthClosings.length} format="number" icon={CalendarCheck} />
-            <KPICard label="QR" value={totals.qr} format="currency" icon={QrCode} />
-            <KPICard label="Rappi" value={totals.rappiVentas} format="currency" icon={Bike} />
-            <KPICard label="Propinas" value={totals.propinas} format="currency" icon={Coins} />
-            <KPICard label="Gastos" value={totals.gastos} format="currency" icon={Receipt} />
-            <KPICard label="Efectivo Entregado" value={totals.entregaEfectivo} format="currency" icon={HandCoins} />
+          </div>
+
+          {/* Desglose de otros medios y movimientos */}
+          <div className="bg-surface rounded-xl card-elevated overflow-hidden mb-6">
+            <div className="px-6 py-4 border-b border-border">
+              <span className="text-caption font-semibold text-mid-gray uppercase tracking-wider">Otros medios y movimientos del mes</span>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-px bg-border/60">
+              <BreakdownStat label="QR" value={totals.qr} icon={QrCode} />
+              <BreakdownStat label="Rappi" value={totals.rappiVentas} icon={Bike} />
+              <BreakdownStat label="Propinas" value={totals.propinas} icon={Coins} />
+              <BreakdownStat label="Gastos" value={totals.gastos} icon={Receipt} />
+              <BreakdownStat label="Efectivo Entregado" value={totals.entregaEfectivo} icon={HandCoins} />
+            </div>
           </div>
 
           {monthClosings.length === 0 ? (

@@ -35,6 +35,9 @@ pnpm-debug.log*
 /e2e/.auth/
 .env.e2e
 
+# Playwright MCP (snapshots/screenshots de sesiones interactivas)
+/.playwright-mcp/
+
 # Archives
 *.tar.gz
 
