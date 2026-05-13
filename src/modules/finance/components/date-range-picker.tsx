@@ -22,7 +22,10 @@ export function DateRangePicker() {
   useEffect(() => {
     if (!open) return
     function handleClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      const target = e.target as Element | null
+      if (ref.current && target && ref.current.contains(target)) return
+      if (target?.closest('[data-dateinput-panel]')) return
+      setOpen(false)
     }
     function handleKey(e: KeyboardEvent) {
       if (e.key === 'Escape') { e.stopPropagation(); setOpen(false) }

@@ -190,6 +190,7 @@ export function DateInput({ value, onChange, required, className }: DateInputPro
       {open && panelPos && createPortal(
         <div
           ref={panelRef}
+          data-dateinput-panel=""
           className="fixed bg-surface-elevated border border-border rounded-xl shadow-lg p-3"
           style={{ top: panelPos.top, left: panelPos.left, width: panelPos.width, zIndex: 60 }}
         >
