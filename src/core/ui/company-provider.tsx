@@ -20,6 +20,7 @@ import { cacheGet, cacheSet } from '@/core/utils/cache'
 import { prefetchHomeData, resetPrefetchCache } from '@/core/utils/prefetch'
 import { prefetchSelectorSales } from '@/modules/home/selector-sales'
 import { queryClient } from '@/core/query/query-client'
+import { useAuth } from '@/core/hooks/use-auth'
 
 // Split en dos contextos para evitar re-renders globales:
 //  - CompanyContext: companies + selectedCompany. Lo consumen 49 archivos.
@@ -96,13 +97,21 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   const [roles, setRoles] = useState<string[]>(cachedRoles ?? [])
   const [departments, setDepartments] = useState<string[]>(cachedDepartments ?? [])
   const [loading, setLoading] = useState(!cachedCompanies)
+  const { user } = useAuth()
 
   // --- Fetch fresh data from Firestore in background ---
   // Las 4 lecturas (companies, categories, roles, departments) van en paralelo
   // — antes iban en serie, sumaban 4 RTTs antes de poder mostrar nada. Los
   // thumbnails de logos se generan fire-and-forget al final, ya no bloquean
   // la carga del selector de empresas.
+  // Gate por `user`: sin sesión autenticada las reglas de Firestore rechazan
+  // los reads y vemos "Missing or insufficient permissions" en incógnito.
+  // El redirect a /login lo maneja ProtectedShellless/ProtectedRoute.
   useEffect(() => {
+    if (!user) {
+      setLoading(false)
+      return
+    }
     async function load() {
       try {
         const [companiesSnap, catSnap, rolesSnap, depsSnap] = await Promise.all([
@@ -207,7 +216,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
       }
     }
     load()
-  }, [])
+  }, [user])
 
   // Al cambiar de company, limpiar todo el cache React Query scopeado al
   // tenant anterior. `removeQueries` (no `invalidate`) evita refetch de data
