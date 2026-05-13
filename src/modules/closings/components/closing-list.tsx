@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { ClipboardList, List, FilePlus, Trash2, SquarePen, UserCircle, CalendarRange, TrendingUp, Wallet, CreditCard, QrCode, Bike, Coins, Receipt, CalendarCheck } from 'lucide-react'
+import { ClipboardList, List, FilePlus, Trash2, SquarePen, UserCircle, CalendarRange, TrendingUp, Wallet, CreditCard, QrCode, Bike, Coins, Receipt, CalendarCheck, HandCoins } from 'lucide-react'
 import { PageTransition } from '@/core/ui/page-transition'
 import { UnderlineButtonTabs } from '@/core/ui/underline-tabs'
 import { PageHeader } from '@/core/ui/page-header'
@@ -151,8 +151,9 @@ function AccumulatedTab({ canEdit, onEdit, onDelete, onRowClick }: AccumulatedTa
         rappiVentas: acc.rappiVentas + (c.rappiVentas ?? 0),
         propinas: acc.propinas + (c.propinas ?? 0),
         gastos: acc.gastos + (c.gastos ?? 0),
+        entregaEfectivo: acc.entregaEfectivo + (c.entregaEfectivo ?? 0),
       }),
-      { ventaTotal: 0, efectivo: 0, datafono: 0, ap: 0, qr: 0, rappiVentas: 0, propinas: 0, gastos: 0 },
+      { ventaTotal: 0, efectivo: 0, datafono: 0, ap: 0, qr: 0, rappiVentas: 0, propinas: 0, gastos: 0, entregaEfectivo: 0 },
     )
   }, [monthClosings])
 
@@ -193,6 +194,13 @@ function AccumulatedTab({ canEdit, onEdit, onDelete, onRowClick }: AccumulatedTa
       render: (c: Closing) => formatCurrency(c.propinas ?? 0),
     },
     {
+      key: 'entregaEfectivo',
+      header: 'Efectivo Entregado',
+      width: '1fr',
+      hideOnMobile: true,
+      render: (c: Closing) => formatCurrency(c.entregaEfectivo ?? 0),
+    },
+    {
       key: 'responsable',
       header: 'Responsable',
       width: '1.2fr',
@@ -225,6 +233,7 @@ function AccumulatedTab({ canEdit, onEdit, onDelete, onRowClick }: AccumulatedTa
             <KPICard label="Rappi" value={totals.rappiVentas} format="currency" icon={Bike} />
             <KPICard label="Propinas" value={totals.propinas} format="currency" icon={Coins} />
             <KPICard label="Gastos" value={totals.gastos} format="currency" icon={Receipt} />
+            <KPICard label="Efectivo Entregado" value={totals.entregaEfectivo} format="currency" icon={HandCoins} />
           </div>
 
           {monthClosings.length === 0 ? (
