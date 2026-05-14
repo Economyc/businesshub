@@ -128,6 +128,7 @@ export function PaymentUploadDialog({ open, onClose, onSaved, pendingInvoices }:
   const [paidDate, setPaidDate] = useState(todayLocalISO())
   const [selectedInvoiceId, setSelectedInvoiceId] = useState('')
   const [showAllCandidates, setShowAllCandidates] = useState(false)
+  const [docNumberInput, setDocNumberInput] = useState('')
 
   const [analyzing, setAnalyzing] = useState(false)
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null)
@@ -143,6 +144,7 @@ export function PaymentUploadDialog({ open, onClose, onSaved, pendingInvoices }:
       setPaidDate(todayLocalISO())
       setSelectedInvoiceId('')
       setShowAllCandidates(false)
+      setDocNumberInput('')
       setAnalyzing(false)
       setAnalysis(null)
       setAnalyzeError(null)
@@ -254,8 +256,21 @@ export function PaymentUploadDialog({ open, onClose, onSaved, pendingInvoices }:
     return pendingInvoices.find((t) => t.id === selectedInvoiceId) ?? null
   }, [selectedInvoiceId, pendingInvoices])
 
+  // Si la factura seleccionada no tiene # propio (caso típico: facturas hijas
+  // de un gasto compartido creadas sin documento), pedimos que el usuario lo
+  // tipee aquí. Al guardar, ese # se propaga a la factura.
+  const needsDocNumber = !!selectedInvoice && !selectedInvoice.docNumber?.trim()
+
+  // Si el usuario cambia de factura, limpiamos el input — no queremos arrastrar
+  // un # de una factura previa a otra.
+  useEffect(() => {
+    setDocNumberInput('')
+  }, [selectedInvoiceId])
+
   function canSubmit(): boolean {
-    return !submitting && !!file && !!selectedInvoiceId && !!paidDate
+    if (submitting || !file || !selectedInvoiceId || !paidDate) return false
+    if (needsDocNumber && !docNumberInput.trim()) return false
+    return true
   }
 
   async function handleSubmit() {
@@ -282,7 +297,7 @@ export function PaymentUploadDialog({ open, onClose, onSaved, pendingInvoices }:
       >(fns, 'uploadDocumentToDrive')
 
       const supplierName = selectedInvoice.payeeRef?.name ?? 'Proveedor'
-      const docNumber = selectedInvoice.docNumber ?? ''
+      const docNumber = (selectedInvoice.docNumber?.trim() || docNumberInput.trim())
 
       const uploadRes = await upload({
         companyId,
@@ -295,7 +310,9 @@ export function PaymentUploadDialog({ open, onClose, onSaved, pendingInvoices }:
         mimeType: file.type,
       })
 
-      // 2) Cruzar con la factura: status='paid', paidDate, paymentProof.
+      // 2) Cruzar con la factura: status='paid', paidDate, paymentProof. Si la
+      // factura no tenía # propio (split sin documento), aprovechamos y lo
+      // guardamos en el mismo update para que quede registrado.
       setStep('saving')
       const paidTs = Timestamp.fromDate(parseLocalDate(paidDate))
       const paymentProof: PayableFile = {
@@ -310,6 +327,7 @@ export function PaymentUploadDialog({ open, onClose, onSaved, pendingInvoices }:
         status: 'paid',
         paidDate: paidTs,
         paymentProof,
+        ...(needsDocNumber ? { docNumber: docNumberInput.trim() } : {}),
       } as Partial<TransactionFormData>)
 
       queryClient.invalidateQueries({ queryKey: ['firestore', companyId, 'transactions'] })
@@ -510,6 +528,22 @@ export function PaymentUploadDialog({ open, onClose, onSaved, pendingInvoices }:
                     )}
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* # Factura — solo si la factura seleccionada no lo tiene */}
+            {file && !analyzing && needsDocNumber && (
+              <div>
+                <label className="block text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1"># Factura</label>
+                <input
+                  value={docNumberInput}
+                  onChange={(e) => setDocNumberInput(e.target.value)}
+                  placeholder="Ej: 8821"
+                  className="w-full px-3 py-2.5 rounded-lg border border-input-border bg-input-bg text-body text-graphite placeholder:text-mid-gray/60 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all"
+                />
+                <p className="mt-1 text-caption text-mid-gray">
+                  Esta factura no tiene número aún. Lo guardamos junto con el comprobante.
+                </p>
               </div>
             )}
 
