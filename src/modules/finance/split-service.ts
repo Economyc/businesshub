@@ -1,7 +1,7 @@
 import { Timestamp, writeBatch, doc } from 'firebase/firestore'
 import { db } from '@/core/firebase/config'
 import { companyCollection } from '@/core/firebase/helpers'
-import type { PayeeRef, RecurrenceFrequency, TransactionPriority } from './types'
+import type { PayableFile, PayeeRef, RecurrenceFrequency, TransactionPriority } from './types'
 
 export type SplitMode = 'equal' | 'amounts' | 'percentages'
 
@@ -93,6 +93,10 @@ export interface CreateSplitInvoicesArgs {
   notes?: string
   payeeRef?: PayeeRef
   splitGroupId: string
+  docNumber?: string
+  // Mapa companyId -> archivo subido al Drive de ese local. Si está presente
+  // para un companyId, se persiste como sourceDocument en su factura hija.
+  sourceDocuments?: Record<string, PayableFile>
 }
 
 // Crea, de forma atómica (writeBatch), una factura pendiente
@@ -105,6 +109,7 @@ export async function createSplitInvoices(args: CreateSplitInvoicesArgs): Promis
   const now = Timestamp.now()
   for (const entry of args.entries) {
     const ref = doc(companyCollection(entry.companyId, 'transactions'))
+    const sourceDocument = args.sourceDocuments?.[entry.companyId]
     batch.set(ref, {
       concept: args.concept,
       category: args.category,
@@ -117,6 +122,8 @@ export async function createSplitInvoices(args: CreateSplitInvoicesArgs): Promis
       splitGroupId: args.splitGroupId,
       ...(args.notes ? { notes: args.notes } : {}),
       ...(args.payeeRef ? { payeeRef: args.payeeRef } : {}),
+      ...(args.docNumber ? { docNumber: args.docNumber } : {}),
+      ...(sourceDocument ? { sourceDocument } : {}),
       createdAt: now,
       updatedAt: now,
     })

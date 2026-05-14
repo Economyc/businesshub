@@ -1,12 +1,14 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, AlertCircle, Check, Loader2, Split } from 'lucide-react'
+import { X, AlertCircle, Check, Loader2, Split, Upload, FileText, ImageIcon, FileIcon } from 'lucide-react'
 import { Timestamp } from 'firebase/firestore'
+import { httpsCallable } from 'firebase/functions'
 import { CategorySelect } from '@/core/ui/category-select'
 import { CurrencyInput } from '@/core/ui/currency-input'
 import { SelectInput } from '@/core/ui/select-input'
 import { DateInput } from '@/core/ui/date-input'
 import { modalVariants } from '@/core/animations/variants'
+import { getAppFunctions } from '@/core/firebase/config'
 import { useCompany } from '@/core/hooks/use-company'
 import { useCollection } from '@/core/hooks/use-firestore'
 import { queryClient } from '@/core/query/query-client'
@@ -20,7 +22,43 @@ import {
   makeRecurringSplitGroupId,
   type SplitMode,
 } from '../split-service'
-import type { PayeeRef, RecurrenceFrequency, TransactionPriority } from '../types'
+import type { PayableFile, PayeeRef, RecurrenceFrequency, TransactionPriority } from '../types'
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB
+const ACCEPTED_MIMES = [
+  'application/pdf',
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/heic',
+  'image/heif',
+]
+const ACCEPT_ATTR = '.pdf,.jpg,.jpeg,.png,.webp,.heic,.heif'
+
+function fileIcon(mime: string) {
+  if (mime.startsWith('image/')) return ImageIcon
+  if (mime === 'application/pdf') return FileText
+  return FileIcon
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const result = reader.result as string
+      const base64 = result.split(',')[1] ?? ''
+      resolve(base64)
+    }
+    reader.onerror = () => reject(reader.error)
+    reader.readAsDataURL(file)
+  })
+}
 
 interface NamedEntity { id: string; name: string }
 
@@ -75,7 +113,15 @@ export function SplitExpenseDialog({ open, onClose, onSaved }: SplitExpenseDialo
   const [startDate, setStartDate] = useState(todayLocalISO())
   const [endDate, setEndDate] = useState('')
 
+  const [docNumber, setDocNumber] = useState('')
+  const [file, setFile] = useState<File | null>(null)
+  const [fileError, setFileError] = useState<string | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const dragCounter = useRef(0)
+
   const [submitting, setSubmitting] = useState(false)
+  const [uploadStep, setUploadStep] = useState<'idle' | 'uploading' | 'saving'>('idle')
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState(false)
 
@@ -97,7 +143,13 @@ export function SplitExpenseDialog({ open, onClose, onSaved }: SplitExpenseDialo
     setFrequency('monthly')
     setStartDate(todayLocalISO())
     setEndDate('')
+    setDocNumber('')
+    setFile(null)
+    setFileError(null)
+    setIsDragging(false)
+    dragCounter.current = 0
     setSubmitting(false)
+    setUploadStep('idle')
     setError(null)
     setDone(false)
   }, [open, selectedCompany?.id])
@@ -158,6 +210,46 @@ export function SplitExpenseDialog({ open, onClose, onSaved }: SplitExpenseDialo
     setShares((prev) => ({ ...prev, [id]: v }))
   }, [])
 
+  const processFile = useCallback((f: File) => {
+    setFileError(null)
+    if (f.size > MAX_FILE_SIZE) {
+      setFileError('El archivo excede el límite de 10 MB.')
+      return
+    }
+    if (!ACCEPTED_MIMES.includes(f.type)) {
+      setFileError('Formato no soportado. Usa PDF, JPG, PNG, WebP, HEIC o HEIF.')
+      return
+    }
+    setFile(f)
+  }, [])
+
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0]
+    if (f) processFile(f)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }, [processFile])
+
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault(); e.stopPropagation()
+    dragCounter.current++
+    setIsDragging(true)
+  }, [])
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault(); e.stopPropagation()
+    dragCounter.current--
+    if (dragCounter.current === 0) setIsDragging(false)
+  }, [])
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault(); e.stopPropagation()
+  }, [])
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault(); e.stopPropagation()
+    setIsDragging(false)
+    dragCounter.current = 0
+    const f = e.dataTransfer.files?.[0]
+    if (f) processFile(f)
+  }, [processFile])
+
   const conceptOk = concept.trim().length > 0
   const dateOk = isRecurring ? !!startDate : !!date
   const payeeOk =
@@ -207,10 +299,12 @@ export function SplitExpenseDialog({ open, onClose, onSaved }: SplitExpenseDialo
       )
       const payeeRef = buildPayeeRef()
       const trimmedNotes = notes.trim() || undefined
+      const trimmedDocNumber = docNumber.trim() || undefined
 
       if (isRecurring) {
         const startTs = Timestamp.fromDate(parseLocalDate(startDate))
         const endTs = endDate ? Timestamp.fromDate(parseLocalDate(endDate)) : undefined
+        setUploadStep('saving')
         const affected = await createRecurringSplitRules({
           entries,
           concept: concept.trim(),
@@ -233,6 +327,58 @@ export function SplitExpenseDialog({ open, onClose, onSaved }: SplitExpenseDialo
       } else {
         const dateTs = Timestamp.fromDate(parseLocalDate(date))
         const splitGroupId = makeSplitGroupId()
+
+        // Si hay archivo, subir una copia al Drive de cada local en paralelo
+        // antes de escribir las facturas. Si cualquier upload falla, abortamos
+        // sin tocar Firestore (los archivos ya subidos quedan huérfanos en
+        // Drive, asumido como costo aceptable).
+        let sourceDocuments: Record<string, PayableFile> | undefined
+        if (file) {
+          setUploadStep('uploading')
+          const fileBase64 = await fileToBase64(file)
+          const fileName = file.name
+          const mimeType = file.type
+          const supplierName = payeeRef?.name?.trim() || 'Sin proveedor'
+          const fns = await getAppFunctions()
+          const upload = httpsCallable<
+            {
+              companyId: string
+              docType: 'Factura' | 'Pago' | 'Compra'
+              supplierName: string
+              docNumber: string
+              date: string
+              fileBase64: string
+              fileName: string
+              mimeType: string
+            },
+            { driveFileId: string; webViewLink: string; fileName: string }
+          >(fns, 'uploadDocumentToDrive')
+          const uploaded = await Promise.all(
+            entries.map(async (entry) => {
+              const res = await upload({
+                companyId: entry.companyId,
+                docType: 'Factura',
+                supplierName,
+                docNumber: trimmedDocNumber ?? '',
+                date,
+                fileBase64,
+                fileName,
+                mimeType,
+              })
+              const pf: PayableFile = {
+                driveFileId: res.data.driveFileId,
+                driveWebViewLink: res.data.webViewLink,
+                fileName: res.data.fileName,
+                mimeType,
+                uploadedAt: Timestamp.now(),
+              }
+              return [entry.companyId, pf] as const
+            }),
+          )
+          sourceDocuments = Object.fromEntries(uploaded)
+        }
+
+        setUploadStep('saving')
         const affected = await createSplitInvoices({
           entries,
           concept: concept.trim(),
@@ -242,6 +388,8 @@ export function SplitExpenseDialog({ open, onClose, onSaved }: SplitExpenseDialo
           splitGroupId,
           notes: trimmedNotes,
           payeeRef,
+          docNumber: trimmedDocNumber,
+          sourceDocuments,
         })
         for (const cid of affected) invalidateTransactions(cid)
       }
@@ -251,6 +399,7 @@ export function SplitExpenseDialog({ open, onClose, onSaved }: SplitExpenseDialo
     } catch (err) {
       setError((err as Error).message ?? 'Error al crear el gasto compartido')
       setSubmitting(false)
+      setUploadStep('idle')
     }
   }
 
@@ -454,6 +603,84 @@ export function SplitExpenseDialog({ open, onClose, onSaved }: SplitExpenseDialo
               />
             </div>
 
+            {/* Documento — solo en splits puntuales (no recurrentes) */}
+            {!isRecurring && (
+              <div className="space-y-3 pt-1">
+                <div>
+                  <label className={labelClass}># Factura (opcional)</label>
+                  <input
+                    value={docNumber}
+                    onChange={(e) => setDocNumber(e.target.value)}
+                    placeholder="Ej: 8821"
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>Adjuntar factura (opcional)</label>
+                  <div
+                    onDragEnter={handleDragEnter}
+                    onDragLeave={handleDragLeave}
+                    onDragOver={handleDragOver}
+                    onDrop={handleDrop}
+                    onClick={() => !file && fileInputRef.current?.click()}
+                    className={`relative flex flex-col items-center justify-center gap-2 px-6 py-6 rounded-xl border-2 border-dashed transition-all duration-200 ${
+                      file ? 'border-border bg-bone/30 cursor-default' : 'cursor-pointer'
+                    } ${
+                      isDragging
+                        ? 'border-graphite bg-graphite/5 scale-[1.01]'
+                        : !file ? 'border-mid-gray/30 bg-bone/30 hover:border-mid-gray/50 hover:bg-bone/50' : ''
+                    }`}
+                  >
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept={ACCEPT_ATTR}
+                      onChange={handleFileSelect}
+                      className="hidden"
+                    />
+                    {!file ? (
+                      <>
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isDragging ? 'bg-graphite/10' : 'bg-bone'}`}>
+                          <Upload size={18} strokeWidth={1.5} className={isDragging ? 'text-graphite' : 'text-mid-gray'} />
+                        </div>
+                        <p className="text-body text-graphite">
+                          {isDragging ? 'Suelta el archivo aquí' : 'Arrastra un archivo o haz clic para subir'}
+                        </p>
+                        <p className="text-caption text-mid-gray">PDF, JPG, PNG, WebP, HEIC — máx. 10 MB</p>
+                      </>
+                    ) : (() => {
+                      const FileIconComp = fileIcon(file.type)
+                      return (
+                        <div className="flex items-center gap-3 w-full">
+                          <div className="w-10 h-10 rounded-lg bg-bone flex items-center justify-center shrink-0">
+                            <FileIconComp size={18} strokeWidth={1.5} className="text-graphite" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-body text-graphite truncate">{file.name}</p>
+                            <p className="text-caption text-mid-gray">{formatBytes(file.size)}</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setFile(null); setFileError(null) }}
+                            disabled={submitting}
+                            className="p-1.5 rounded-lg text-mid-gray hover:text-graphite hover:bg-bone transition-colors disabled:opacity-50"
+                          >
+                            <X size={14} strokeWidth={1.5} />
+                          </button>
+                        </div>
+                      )
+                    })()}
+                  </div>
+                  {fileError && (
+                    <p className="mt-1 text-caption text-negative-text">{fileError}</p>
+                  )}
+                  <p className="mt-1 text-caption text-mid-gray">
+                    Se sube una copia al Drive de cada local participante.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Recurrente */}
             <div className="rounded-lg border border-border/60 p-3">
               <label className="flex items-center gap-2 cursor-pointer">
@@ -501,7 +728,9 @@ export function SplitExpenseDialog({ open, onClose, onSaved }: SplitExpenseDialo
             {submitting && !done && (
               <div className="flex items-center gap-2 text-caption text-mid-gray">
                 <Loader2 size={14} className="animate-spin" />
-                Creando facturas en cada local...
+                {uploadStep === 'uploading'
+                  ? 'Subiendo documento a cada local...'
+                  : 'Creando facturas en cada local...'}
               </div>
             )}
             {done && (
