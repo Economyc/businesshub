@@ -14,13 +14,12 @@ import { FilterPopover } from '@/core/ui/filter-popover'
 import { SelectInput } from '@/core/ui/select-input'
 import { EmptyState } from '@/core/ui/empty-state'
 import { TableSkeleton } from '@/core/ui/skeleton'
-import { LoadMoreButton } from '@/core/ui/load-more-button'
 import { DataTable, type Column } from '@/core/ui/data-table'
 import { formatCurrency } from '@/core/utils/format'
 import { parseCategory } from '@/core/utils/categories'
 import { useSettings } from '@/core/hooks/use-settings'
 import { usePermissions } from '@/core/hooks/use-permissions'
-import { usePaginatedTransactions, useRecurringGenerator } from '../hooks'
+import { useInvoicesPending, useInvoicesAndPurchasesPaid, useRecurringGenerator } from '../hooks'
 import { useDateRange } from '../context/date-range-context'
 import { InvoicesSummary } from './invoices-summary'
 
@@ -110,7 +109,10 @@ function NotesCell({ t }: { t: Transaction }) {
 
 export function TransactionList() {
   const navigate = useNavigate()
-  const { data: transactions, loading, loadingMore, hasMore, totalCount, loadMore, refetch } = usePaginatedTransactions()
+  const { data: pendingInvoicesAll, loading: loadingPending, refetch: refetchPending } = useInvoicesPending()
+  const { data: paidAll, loading: loadingPaid, refetch: refetchPaid } = useInvoicesAndPurchasesPaid()
+  const loading = loadingPending || loadingPaid
+  const refetch = useCallback(() => { refetchPending(); refetchPaid() }, [refetchPending, refetchPaid])
   useRecurringGenerator()
   const { startDate, endDate } = useDateRange()
   const { categories: categoryItems } = useSettings()
@@ -129,44 +131,25 @@ export function TransactionList() {
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false)
   const [splitDialogOpen, setSplitDialogOpen] = useState(false)
 
-  // Solo facturas/compras: la vista "Facturación" trabaja con documentos
-  // (invoice = cuenta por pagar a crédito, purchase = compra al contado).
-  // Cualquier transacción sin documentKind (recurrentes, cierres) vive en
-  // otras vistas (Flujo de Caja, Estado de Resultados).
-  const invoiceTransactions = useMemo(() => {
-    return transactions.filter(
-      (t) => t.documentKind === 'invoice' || t.documentKind === 'purchase',
-    )
-  }, [transactions])
-
-  // Pendientes: SIN filtro de rango. Las facturas pendientes son arrastres
-  // de deuda real — si quedó algo sin pagar en marzo, debe seguir visible
-  // aunque estés viendo mayo. Sirve tanto para el tab como para el dropdown
-  // de PaymentUploadDialog (cruzar pago contra factura vieja).
-  const pendingInvoicesAll = useMemo(() => {
-    return invoiceTransactions.filter(
-      (t) => (t.status === 'pending' || t.status === 'overdue') && t.documentKind === 'invoice',
-    )
-  }, [invoiceTransactions])
-
   // Pagadas dentro del rango — por fecha de pago (paidDate), fallback a la
   // de emisión si no existe paidDate (data legacy). "Pagadas en mayo" =
   // se pagaron en mayo, no que se emitieron en mayo.
   const paidInRange = useMemo(() => {
-    return invoiceTransactions.filter((t) => {
-      if (t.status !== 'paid') return false
+    return paidAll.filter((t) => {
       const ref = (t.paidDate ?? t.date)?.toDate?.()
       return ref ? ref >= startDate && ref <= endDate : true
     })
-  }, [invoiceTransactions, startDate.getTime(), endDate.getTime()])
+  }, [paidAll, startDate.getTime(), endDate.getTime()])
 
   const pendingCount = pendingInvoicesAll.length
   const paidCount = paidInRange.length
 
   const categories = useMemo(() => {
-    const set = new Set(invoiceTransactions.map((t) => t.category).filter(Boolean))
+    const set = new Set<string>()
+    for (const t of pendingInvoicesAll) if (t.category) set.add(t.category)
+    for (const t of paidAll) if (t.category) set.add(t.category)
     return Array.from(set).sort()
-  }, [invoiceTransactions])
+  }, [pendingInvoicesAll, paidAll])
 
   const filtered = useMemo(() => {
     const source = activeTab === 'pending' ? pendingInvoicesAll : paidInRange
@@ -432,20 +415,11 @@ export function TransactionList() {
           }
         />
       ) : (
-        <>
-          <DataTable
-            columns={columns}
-            data={filtered}
-            onRowClick={handleRowClick}
-          />
-          <LoadMoreButton
-            onClick={loadMore}
-            loading={loadingMore}
-            hasMore={hasMore}
-            loadedCount={transactions.length}
-            totalCount={totalCount}
-          />
-        </>
+        <DataTable
+          columns={columns}
+          data={filtered}
+          onRowClick={handleRowClick}
+        />
       )}
 
       <TransactionForm

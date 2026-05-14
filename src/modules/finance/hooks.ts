@@ -18,6 +18,63 @@ export function usePaginatedTransactions() {
   return usePaginatedCollection<Transaction>('transactions', 50, orderBy('date', 'desc'))
 }
 
+// Todas las facturas pendientes/overdue. Sin paginación, sin filtro de fecha —
+// las pendientes son arrastres de deuda y deben verse aunque tengan meses.
+// Reemplaza el patrón "paginar transactions y filtrar in-memory" que dejaba
+// fuera facturas viejas cuando había muchos cierres/recurrentes recientes.
+export function useInvoicesPending() {
+  const { selectedCompany } = useCompany()
+  const companyId = selectedCompany?.id
+
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ['firestore', companyId, 'transactions', 'invoices-pending'],
+    queryFn: () =>
+      fetchCollection<Transaction>(
+        companyId!,
+        'transactions',
+        where('documentKind', '==', 'invoice'),
+        where('status', 'in', ['pending', 'overdue']),
+        orderBy('date', 'desc'),
+      ),
+    enabled: !!companyId,
+  })
+
+  return {
+    data: data ?? [],
+    loading: isLoading,
+    error: error as Error | null,
+    refetch,
+  }
+}
+
+// Todas las facturas/compras pagadas. Sin paginación. El rango se aplica
+// in-memory por (paidDate ?? date) en el componente — necesario porque hay
+// data legacy sin paidDate y porque "pagadas en X" lee paidDate, no date.
+export function useInvoicesAndPurchasesPaid() {
+  const { selectedCompany } = useCompany()
+  const companyId = selectedCompany?.id
+
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ['firestore', companyId, 'transactions', 'invoices-paid'],
+    queryFn: () =>
+      fetchCollection<Transaction>(
+        companyId!,
+        'transactions',
+        where('status', '==', 'paid'),
+        where('documentKind', 'in', ['invoice', 'purchase']),
+        orderBy('date', 'desc'),
+      ),
+    enabled: !!companyId,
+  })
+
+  return {
+    data: data ?? [],
+    loading: isLoading,
+    error: error as Error | null,
+    refetch,
+  }
+}
+
 // Hook que solo trae las transacciones del rango [start, end].
 // Sustituye el patrón "leer toda la colección y filtrar in-memory" en las
 // vistas que ya tienen un DateRangePicker (Cash Flow, Income Statement,
@@ -89,8 +146,15 @@ export function useRecurringGenerator() {
   useEffect(() => {
     if (!selectedCompany || ran.current) return
     ran.current = true
-    generatePendingTransactions(selectedCompany.id).then((count) => {
-      if (count > 0) refetch()
+    const companyId = selectedCompany.id
+    generatePendingTransactions(companyId).then((count) => {
+      if (count > 0) {
+        refetch()
+        // Tirar abajo todas las queries cacheadas de transactions —
+        // los hooks de Facturación (useInvoicesPending/Paid) y los de
+        // rango (useTransactionsInRange/Until) viven aparte de useTransactions.
+        queryClient.invalidateQueries({ queryKey: ['firestore', companyId, 'transactions'] })
+      }
     })
   }, [selectedCompany?.id])
 }
