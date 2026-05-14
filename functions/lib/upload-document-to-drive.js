@@ -3,7 +3,8 @@ import { db } from './firestore.js';
 import { ensureFolderPath, uploadFile, validateRootFolderAccess, buildAuthUrl, exchangeCodeForTokens, saveDriveAuth, clearDriveAuth, getUserDriveAuth, resolveDriveUid, driveClientId, driveClientSecret, } from './services/drive-oauth.js';
 // Callable de upload de documentos (Facturas, Pagos, Compras) a Drive.
 // Estructura: {Company.driveRootFolderId} / {YYYY} / {MesEs} / {filename}
-// Nombre: "{Proveedor} - {docType} {docNumber} - {Mes DD YYYY}.{ext}"
+// Nombre: "{Proveedor} - {docType} [{docNumber}] - {Mes DD YYYY}.{ext}"
+// docNumber es opcional — si viene vacío, se omite del filename.
 const MESES_ES = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
     'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
@@ -63,8 +64,6 @@ export const uploadDocumentToDrive = onCall({ region: 'us-central1', memory: '51
     }
     if (!data.supplierName?.trim())
         throw new HttpsError('invalid-argument', 'supplierName requerido');
-    if (!data.docNumber?.trim())
-        throw new HttpsError('invalid-argument', 'docNumber requerido');
     if (!data.fileBase64)
         throw new HttpsError('invalid-argument', 'fileBase64 requerido');
     if (!data.mimeType)
@@ -88,8 +87,10 @@ export const uploadDocumentToDrive = onCall({ region: 'us-central1', memory: '51
     const dd = String(date.getDate()).padStart(2, '0');
     const ext = extFromMime(data.mimeType, data.fileName);
     const supplier = sanitizeForFileName(data.supplierName);
-    const docNumber = sanitizeForFileName(data.docNumber);
-    const fileName = `${supplier} - ${data.docType} ${docNumber} - ${month} ${dd} ${year}.${ext}`;
+    const docNumber = data.docNumber?.trim() ? sanitizeForFileName(data.docNumber) : '';
+    const fileName = docNumber
+        ? `${supplier} - ${data.docType} ${docNumber} - ${month} ${dd} ${year}.${ext}`
+        : `${supplier} - ${data.docType} - ${month} ${dd} ${year}.${ext}`;
     const targetFolderId = await ensureFolderPath(driveUid, data.companyId, company.driveRootFolderId, [year, month]);
     const uploaded = await uploadFile(driveUid, targetFolderId, fileName, data.mimeType, data.fileBase64);
     return {

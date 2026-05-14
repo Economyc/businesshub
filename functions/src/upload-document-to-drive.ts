@@ -16,7 +16,8 @@ import {
 
 // Callable de upload de documentos (Facturas, Pagos, Compras) a Drive.
 // Estructura: {Company.driveRootFolderId} / {YYYY} / {MesEs} / {filename}
-// Nombre: "{Proveedor} - {docType} {docNumber} - {Mes DD YYYY}.{ext}"
+// Nombre: "{Proveedor} - {docType} [{docNumber}] - {Mes DD YYYY}.{ext}"
+// docNumber es opcional — si viene vacío, se omite del filename.
 
 const MESES_ES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -29,7 +30,7 @@ interface UploadInput {
   companyId: string
   docType: DocType
   supplierName: string
-  docNumber: string
+  docNumber?: string
   date: string | number
   fileBase64: string
   fileName: string
@@ -94,7 +95,6 @@ export const uploadDocumentToDrive = onCall(
       throw new HttpsError('invalid-argument', 'docType debe ser Factura, Pago o Compra')
     }
     if (!data.supplierName?.trim()) throw new HttpsError('invalid-argument', 'supplierName requerido')
-    if (!data.docNumber?.trim()) throw new HttpsError('invalid-argument', 'docNumber requerido')
     if (!data.fileBase64) throw new HttpsError('invalid-argument', 'fileBase64 requerido')
     if (!data.mimeType) throw new HttpsError('invalid-argument', 'mimeType requerido')
 
@@ -126,8 +126,10 @@ export const uploadDocumentToDrive = onCall(
     const ext = extFromMime(data.mimeType, data.fileName)
 
     const supplier = sanitizeForFileName(data.supplierName)
-    const docNumber = sanitizeForFileName(data.docNumber)
-    const fileName = `${supplier} - ${data.docType} ${docNumber} - ${month} ${dd} ${year}.${ext}`
+    const docNumber = data.docNumber?.trim() ? sanitizeForFileName(data.docNumber) : ''
+    const fileName = docNumber
+      ? `${supplier} - ${data.docType} ${docNumber} - ${month} ${dd} ${year}.${ext}`
+      : `${supplier} - ${data.docType} - ${month} ${dd} ${year}.${ext}`
 
     const targetFolderId = await ensureFolderPath(driveUid, data.companyId, company.driveRootFolderId, [year, month])
     const uploaded = await uploadFile(driveUid, targetFolderId, fileName, data.mimeType, data.fileBase64)
