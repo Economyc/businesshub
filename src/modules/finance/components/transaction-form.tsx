@@ -14,6 +14,7 @@ import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { useCollection } from '@/core/hooks/use-firestore'
 import { financeService } from '../services'
 import type { Transaction, PayeeRef, PayeeType, PayableFile, TransactionPriority } from '../types'
+import type { Supplier } from '@/modules/suppliers/types'
 
 interface NamedEntity { id: string; name: string }
 
@@ -68,7 +69,7 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
 
   const { data: partners } = useCollection<NamedEntity>('partners')
   const { data: employees } = useCollection<NamedEntity>('employees')
-  const { data: suppliers } = useCollection<NamedEntity>('suppliers')
+  const { data: suppliers } = useCollection<Supplier>('suppliers')
 
   const payeeOptions = useMemo(() => {
     if (payeeType === 'partner') return partners
@@ -101,7 +102,7 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
   ], [])
   const payeeIdOptions = useMemo(() => [
     { value: '', label: '— Selecciona —' },
-    ...payeeOptions.map((o) => ({ value: o.id, label: o.name })),
+    ...[...payeeOptions].sort((a, b) => a.name.localeCompare(b.name, 'es')).map((o) => ({ value: o.id, label: o.name })),
   ], [payeeOptions])
 
   useEffect(() => {
@@ -185,7 +186,13 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
     setPayeeExternalName('')
   }, [])
   const handleExternalNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => setPayeeExternalName(e.target.value), [])
-  const handlePayeeIdChange = useCallback((v: string) => setPayeeId(v), [])
+  const handlePayeeIdChange = useCallback((v: string) => {
+    setPayeeId(v)
+    if (payeeType === 'supplier' && v) {
+      const found = suppliers.find((s) => s.id === v)
+      if (found?.category) setCategory(found.category)
+    }
+  }, [payeeType, suppliers, setCategory])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()

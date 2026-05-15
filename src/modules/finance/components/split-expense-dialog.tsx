@@ -23,6 +23,7 @@ import {
   type SplitMode,
 } from '../split-service'
 import type { PayableFile, PayeeRef, RecurrenceFrequency, TransactionPriority } from '../types'
+import type { Supplier } from '@/modules/suppliers/types'
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB
 const ACCEPTED_MIMES = [
@@ -60,8 +61,6 @@ function fileToBase64(file: File): Promise<string> {
   })
 }
 
-interface NamedEntity { id: string; name: string }
-
 interface SplitExpenseDialogProps {
   open: boolean
   onClose: () => void
@@ -94,7 +93,7 @@ function invalidateTransactions(companyId: string) {
 
 export function SplitExpenseDialog({ open, onClose, onSaved }: SplitExpenseDialogProps) {
   const { companies, selectedCompany } = useCompany()
-  const { data: suppliers } = useCollection<NamedEntity>('suppliers')
+  const { data: suppliers } = useCollection<Supplier>('suppliers')
 
   const [concept, setConcept] = useState('')
   const [category, setCategory] = useState('')
@@ -197,7 +196,7 @@ export function SplitExpenseDialog({ open, onClose, onSaved }: SplitExpenseDialo
   const supplierOptions = useMemo(
     () => [
       { value: '', label: 'Selecciona proveedor' },
-      ...suppliers.map((s) => ({ value: s.id, label: s.name })),
+      ...[...suppliers].sort((a, b) => a.name.localeCompare(b.name, 'es')).map((s) => ({ value: s.id, label: s.name })),
       { value: CUSTOM_SUPPLIER, label: '+ Otro proveedor' },
     ],
     [suppliers],
@@ -499,7 +498,14 @@ export function SplitExpenseDialog({ open, onClose, onSaved }: SplitExpenseDialo
                 {showSupplierField && (
                   <SelectInput
                     value={supplierId}
-                    onChange={(v) => { setSupplierId(v); if (v !== CUSTOM_SUPPLIER) setCustomSupplier('') }}
+                    onChange={(v) => {
+                      setSupplierId(v)
+                      if (v !== CUSTOM_SUPPLIER) {
+                        setCustomSupplier('')
+                        const found = suppliers.find((s) => s.id === v)
+                        if (found?.category) setCategory(found.category)
+                      }
+                    }}
                     options={supplierOptions}
                   />
                 )}

@@ -16,6 +16,7 @@ import { financeService } from '../services'
 import { generateVirtualInvoicePDF } from '../utils/generate-virtual-invoice-pdf'
 import { AiUsageBanner, type AiUsageSnapshot } from './ai-usage-banner'
 import type { DocumentKind, PayableFile, TransactionPriority } from '../types'
+import type { Supplier } from '@/modules/suppliers/types'
 
 type UploadMode = 'file' | 'virtual'
 
@@ -29,8 +30,6 @@ const ACCEPTED_MIMES = [
   'image/heif',
 ]
 const ACCEPT_ATTR = '.pdf,.jpg,.jpeg,.png,.webp,.heic,.heif'
-
-interface NamedEntity { id: string; name: string }
 
 interface DocumentUploadDialogProps {
   open: boolean
@@ -79,7 +78,7 @@ function parseLocalDate(iso: string): Date {
 export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'invoice' }: DocumentUploadDialogProps) {
   const { selectedCompany } = useCompany()
   const companyId = selectedCompany?.id ?? ''
-  const { data: suppliers } = useCollection<NamedEntity>('suppliers')
+  const { data: suppliers } = useCollection<Supplier>('suppliers')
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dragCounter = useRef(0)
@@ -116,7 +115,7 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
   const supplierOptions = useMemo(
     () => [
       { value: '', label: 'Selecciona proveedor' },
-      ...suppliers.map((s) => ({ value: s.id, label: s.name })),
+      ...[...suppliers].sort((a, b) => a.name.localeCompare(b.name, 'es')).map((s) => ({ value: s.id, label: s.name })),
       { value: CUSTOM, label: '+ Otro Proveedor' },
     ],
     [suppliers],
@@ -554,7 +553,14 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
                   <label className="block text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1">Proveedor</label>
                   <SelectInput
                     value={supplierId}
-                    onChange={(v) => { setSupplierId(v); if (v !== CUSTOM) setCustomSupplier('') }}
+                    onChange={(v) => {
+                      setSupplierId(v)
+                      if (v !== CUSTOM) {
+                        setCustomSupplier('')
+                        const found = suppliers.find((s) => s.id === v)
+                        if (found?.category) setCategory(found.category)
+                      }
+                    }}
                     options={supplierOptions}
                   />
                 </div>
