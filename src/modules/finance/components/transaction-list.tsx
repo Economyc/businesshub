@@ -6,7 +6,10 @@ import { DocumentUploadDialog } from './document-upload-dialog'
 import { PaymentUploadDialog } from './payment-upload-dialog'
 import { SplitExpenseDialog } from './split-expense-dialog'
 import { ActionMenu } from '@/core/ui/action-menu'
+import { ExportButton } from '@/core/ui/export-button'
 import type { DocumentKind, Transaction } from '../types'
+import type { PayeeRef } from '../types'
+import type { FieldDef } from '@/core/utils/data-transfer'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
 import { SearchInput } from '@/core/ui/search-input'
@@ -30,6 +33,19 @@ import { InlineAgentSheet } from '@/modules/agent/components/inline-agent-sheet'
 import { HoverHint } from '@/components/ui/tooltip'
 
 type TabKey = 'pending' | 'paid'
+
+const EXPORT_FIELDS: FieldDef[] = [
+  { key: 'payeeRef',     header: 'Proveedor',  type: 'string', format: (v) => (v as PayeeRef | undefined)?.name ?? '—' },
+  { key: 'concept',      header: 'Concepto',   type: 'string' },
+  { key: 'category',     header: 'Categoría',  type: 'string', format: (v) => parseCategory(String(v ?? '')).category || '—' },
+  { key: 'priority',     header: 'Prioridad',  type: 'string', format: (v) => v === 'immediate' ? 'Inmediato' : 'Espera' },
+  { key: 'documentKind', header: 'Tipo',       type: 'string', format: (v) => v === 'invoice' ? 'Factura' : 'Compra' },
+  { key: 'docNumber',    header: 'Número',     type: 'string', format: (v) => String(v ?? '') },
+  { key: 'date',         header: 'Fecha',      type: 'date',   format: (v) => formatDate(v as Transaction['date']) },
+  { key: 'amount',       header: 'Valor',      type: 'number' },
+  { key: 'status',       header: 'Estado',     type: 'string', format: (v) => v === 'overdue' ? 'Vencida' : 'Pendiente' },
+  { key: 'notes',        header: 'Notas',      type: 'string', format: (v) => String(v ?? '') },
+]
 
 function formatDate(ts: Transaction['date']): string {
   const d = ts?.toDate?.()
@@ -298,6 +314,11 @@ export function TransactionList() {
     <PageTransition>
       <PageHeader title="Facturación">
         <DateRangePicker />
+        <ExportButton
+          data={filtered}
+          fields={EXPORT_FIELDS}
+          filenameBase={activeTab === 'pending' ? 'facturas_pendientes' : 'facturas_pagadas'}
+        />
         <button
           onClick={handleOpenAgent}
           className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
