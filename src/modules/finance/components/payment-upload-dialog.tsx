@@ -235,20 +235,30 @@ export function PaymentUploadDialog({ open, onClose, onSaved, pendingInvoices }:
     if (f) processFile(f)
   }, [processFile])
 
-  // Lista de facturas pendientes para el dropdown. Si tenemos análisis,
-  // priorizamos los candidatos devueltos por la callable (ya ranqueados);
-  // si no, caemos al prop pendingInvoices.
+  // Lista de facturas pendientes para el dropdown. El prop pendingInvoices es
+  // la fuente de verdad completa (pending + overdue, sin filtro de mes), así
+  // que SIEMPRE mostramos todas — incluidas las viejas/vencidas. Los
+  // candidatos de la IA solo se usan para ordenar: primero los que la IA
+  // ranqueó, luego el resto de pendientes.
   const dropdownOptions = useMemo(() => {
-    if (analysis?.candidates && analysis.candidates.length > 0) {
-      return analysis.candidates.map((c) => ({
-        value: c.invoiceId,
-        label: `${c.supplierName || '—'} · ${c.docNumber || 's/n'} · ${formatCurrency(c.amount, 0)} · ${formatShortDate(c.date)}`,
-      }))
+    const byId = new Map(pendingInvoices.map((t) => [t.id, t]))
+    const label = (t: Transaction) =>
+      `${t.payeeRef?.name || '—'} · ${t.docNumber || 's/n'} · ${formatCurrency(t.amount, 0)} · ${formatShortDate(t.date?.toDate?.()?.toISOString().slice(0, 10) ?? null)}`
+    const orderedIds: string[] = []
+    const seen = new Set<string>()
+    for (const c of analysis?.candidates ?? []) {
+      if (byId.has(c.invoiceId) && !seen.has(c.invoiceId)) {
+        orderedIds.push(c.invoiceId)
+        seen.add(c.invoiceId)
+      }
     }
-    return pendingInvoices.map((t) => ({
-      value: t.id,
-      label: `${t.payeeRef?.name || '—'} · ${t.docNumber || 's/n'} · ${formatCurrency(t.amount, 0)} · ${formatShortDate(t.date?.toDate?.()?.toISOString().slice(0, 10) ?? null)}`,
-    }))
+    for (const t of pendingInvoices) {
+      if (!seen.has(t.id)) {
+        orderedIds.push(t.id)
+        seen.add(t.id)
+      }
+    }
+    return orderedIds.map((id) => ({ value: id, label: label(byId.get(id)!) }))
   }, [analysis?.candidates, pendingInvoices])
 
   const selectedInvoice = useMemo(() => {

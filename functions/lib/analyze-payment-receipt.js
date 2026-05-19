@@ -151,13 +151,16 @@ export const analyzePaymentReceipt = onCall({
             console.error('[analyzePaymentReceipt] unexpected error:', err);
         }
     }
-    // 2) Traer pending invoices de la empresa.
+    // 2) Traer facturas pendientes de la empresa. Incluye 'overdue': las
+    //    facturas viejas sin pagar suelen estar vencidas y deben poder
+    //    cruzarse con un comprobante igual que las del mes (espeja a
+    //    useInvoicesPending en el frontend).
     const txSnap = await db
         .collection('companies')
         .doc(data.companyId)
         .collection('transactions')
         .where('documentKind', '==', 'invoice')
-        .where('status', '==', 'pending')
+        .where('status', 'in', ['pending', 'overdue'])
         .get();
     const pendings = txSnap.docs.map((d) => {
         const t = d.data();

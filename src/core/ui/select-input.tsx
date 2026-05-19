@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { ChevronDown, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -16,39 +17,69 @@ interface SelectInputProps {
 }
 
 const DROPDOWN_MAX_HEIGHT = 220
+const GAP = 4
+
+interface MenuCoords {
+  left: number
+  width: number
+  top: number | null
+  bottom: number | null
+}
 
 export function SelectInput({ value, onChange, options, placeholder = 'Seleccionar...', className }: SelectInputProps) {
   const [open, setOpen] = useState(false)
-  const [dropUp, setDropUp] = useState(false)
+  // El menú se renderiza vía portal en <body> con position:fixed para que no
+  // lo recorten contenedores con overflow-hidden / overflow-y-auto (modales,
+  // tarjetas). La posición se calcula desde el rect del botón.
+  const [coords, setCoords] = useState<MenuCoords | null>(null)
   const ref = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
 
   const selected = options.find((o) => o.value === value)
 
+  const updatePosition = useCallback(() => {
+    const rect = buttonRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const spaceBelow = window.innerHeight - rect.bottom
+    const spaceAbove = rect.top
+    const dropUp = spaceBelow < DROPDOWN_MAX_HEIGHT && spaceAbove > spaceBelow
+    setCoords({
+      left: rect.left,
+      width: rect.width,
+      top: dropUp ? null : rect.bottom + GAP,
+      bottom: dropUp ? window.innerHeight - rect.top + GAP : null,
+    })
+  }, [])
+
+  useLayoutEffect(() => {
+    if (open) updatePosition()
+  }, [open, updatePosition])
+
   useEffect(() => {
+    if (!open) return
     function handleClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false)
-      }
+      const target = e.target as Node
+      const inButton = ref.current?.contains(target)
+      const inMenu = menuRef.current?.contains(target)
+      if (!inButton && !inMenu) setOpen(false)
     }
-    if (open) {
-      const rect = buttonRef.current?.getBoundingClientRect()
-      if (rect) {
-        const spaceBelow = window.innerHeight - rect.bottom
-        const spaceAbove = rect.top
-        setDropUp(spaceBelow < DROPDOWN_MAX_HEIGHT && spaceAbove > spaceBelow)
-      }
-      function handleKey(e: KeyboardEvent) {
-        if (e.key === 'Escape') { e.stopPropagation(); setOpen(false) }
-      }
-      document.addEventListener('mousedown', handleClickOutside)
-      document.addEventListener('keydown', handleKey)
-      return () => {
-        document.removeEventListener('mousedown', handleClickOutside)
-        document.removeEventListener('keydown', handleKey)
-      }
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') { e.stopPropagation(); setOpen(false) }
     }
-  }, [open])
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('keydown', handleKey)
+    // Capture en scroll para reposicionar aunque el scroll sea de un
+    // contenedor interno (modal con overflow-y-auto).
+    window.addEventListener('scroll', updatePosition, true)
+    window.addEventListener('resize', updatePosition)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleKey)
+      window.removeEventListener('scroll', updatePosition, true)
+      window.removeEventListener('resize', updatePosition)
+    }
+  }, [open, updatePosition])
 
   function handleSelect(optionValue: string) {
     onChange(optionValue)
@@ -78,12 +109,17 @@ export function SelectInput({ value, onChange, options, placeholder = 'Seleccion
         />
       </button>
 
-      {open && (
+      {open && coords && createPortal(
         <div
-          className={cn(
-            'absolute left-0 right-0 bg-surface-elevated border border-border rounded-xl shadow-lg z-50 py-1 overflow-hidden max-h-[220px] overflow-y-auto',
-            dropUp ? 'bottom-full mb-1' : 'top-full mt-1',
-          )}
+          ref={menuRef}
+          style={{
+            position: 'fixed',
+            left: coords.left,
+            width: coords.width,
+            ...(coords.top != null ? { top: coords.top } : {}),
+            ...(coords.bottom != null ? { bottom: coords.bottom } : {}),
+          }}
+          className="bg-surface-elevated border border-border rounded-xl shadow-lg z-[100] py-1 overflow-hidden max-h-[220px] overflow-y-auto"
         >
           {options.map((option) => (
             <button
@@ -101,7 +137,8 @@ export function SelectInput({ value, onChange, options, placeholder = 'Seleccion
               {value === option.value && <Check size={14} className="text-graphite shrink-0" />}
             </button>
           ))}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   )
