@@ -92,6 +92,48 @@ export async function getUserDriveAuth(uid) {
     return data.driveAuth ?? null;
 }
 /**
+ * Error tipado: el refresh token del dueño de Drive caducó o fue revocado
+ * (Google responde `invalid_grant` al renovarlo). Apps OAuth en estado
+ * "Testing" expiran el refresh token a los 7 días — de ahí que esto reaparezca
+ * periódicamente hasta publicar la pantalla de consentimiento.
+ */
+export class DriveTokenExpiredError extends Error {
+    constructor() {
+        super('DRIVE_TOKEN_EXPIRED');
+        this.name = 'DriveTokenExpiredError';
+    }
+}
+/** Detecta el `invalid_grant` venga como venga (GaxiosError, message, code). */
+export function isInvalidGrant(err) {
+    const e = err;
+    if (e?.response?.data?.error === 'invalid_grant')
+        return true;
+    if (e?.code === 'invalid_grant')
+        return true;
+    const msg = typeof e?.message === 'string' ? e.message : '';
+    return msg.includes('invalid_grant');
+}
+/**
+ * Ejecuta una operación de Drive y, si falla por token caducado/revocado,
+ * limpia el `driveAuth` muerto (para que Ajustes muestre "desconectado" en vez
+ * de mentir) y propaga un `DriveTokenExpiredError` que el callable traduce a un
+ * mensaje accionable.
+ */
+async function runDrive(uid, fn) {
+    try {
+        return await fn();
+    }
+    catch (err) {
+        if (isInvalidGrant(err)) {
+            await clearDriveAuth(uid).catch(() => {
+                /* no bloquear el error real por un fallo al limpiar */
+            });
+            throw new DriveTokenExpiredError();
+        }
+        throw err;
+    }
+}
+/**
  * Resuelve qué uid de Drive usar para las operaciones de una empresa.
  *
  * 1. Si la empresa tiene `driveOwnerUid` explícito → ese (override manual).
@@ -186,7 +228,7 @@ export async function ensureFolderPath(uid, companyId, rootFolderId, segments) {
             parent = cached;
             continue;
         }
-        const folderId = await findOrCreateFolder(drive, parent, seg);
+        const folderId = await runDrive(uid, () => findOrCreateFolder(drive, parent, seg));
         await setCachedFolder(companyId, cacheKey, folderId);
         parent = folderId;
     }
@@ -196,12 +238,12 @@ export async function uploadFile(uid, parentFolderId, fileName, mimeType, fileBa
     const drive = await getDriveForUser(uid);
     const buffer = Buffer.from(fileBase64, 'base64');
     const body = Readable.from(buffer);
-    const created = await drive.files.create({
+    const created = await runDrive(uid, () => drive.files.create({
         requestBody: { name: fileName, parents: [parentFolderId] },
         media: { mimeType, body },
         fields: 'id, webViewLink, name',
         supportsAllDrives: true,
-    });
+    }));
     if (!created.data.id || !created.data.webViewLink) {
         throw new Error('Drive no retornó id/webViewLink al subir el archivo');
     }
@@ -228,6 +270,13 @@ export async function validateRootFolderAccess(uid, rootFolderId) {
         return { ok: true, folderName: meta.data.name ?? 'sin nombre' };
     }
     catch (err) {
+        if (isInvalidGrant(err)) {
+            await clearDriveAuth(uid).catch(() => { });
+            return {
+                ok: false,
+                error: 'El Drive se desconectó (token caducado). El propietario debe reconectarlo en Ajustes → Compañías.',
+            };
+        }
         const msg = err.message ?? 'Error desconocido al validar la carpeta';
         if (msg === 'DRIVE_NOT_CONNECTED') {
             return { ok: false, error: 'Conecta Drive primero antes de validar la carpeta.' };

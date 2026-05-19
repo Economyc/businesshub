@@ -282,7 +282,7 @@ export async function ensureFolderPath(
       parent = cached
       continue
     }
-    const folderId = await findOrCreateFolder(drive, parent, seg)
+    const folderId = await runDrive(uid, () => findOrCreateFolder(drive, parent, seg))
     await setCachedFolder(companyId, cacheKey, folderId)
     parent = folderId
   }
@@ -305,12 +305,14 @@ export async function uploadFile(
   const drive = await getDriveForUser(uid)
   const buffer = Buffer.from(fileBase64, 'base64')
   const body = Readable.from(buffer)
-  const created = await drive.files.create({
-    requestBody: { name: fileName, parents: [parentFolderId] },
-    media: { mimeType, body },
-    fields: 'id, webViewLink, name',
-    supportsAllDrives: true,
-  })
+  const created = await runDrive(uid, () =>
+    drive.files.create({
+      requestBody: { name: fileName, parents: [parentFolderId] },
+      media: { mimeType, body },
+      fields: 'id, webViewLink, name',
+      supportsAllDrives: true,
+    }),
+  )
   if (!created.data.id || !created.data.webViewLink) {
     throw new Error('Drive no retornó id/webViewLink al subir el archivo')
   }
@@ -340,6 +342,13 @@ export async function validateRootFolderAccess(
     }
     return { ok: true, folderName: meta.data.name ?? 'sin nombre' }
   } catch (err) {
+    if (isInvalidGrant(err)) {
+      await clearDriveAuth(uid).catch(() => {})
+      return {
+        ok: false,
+        error: 'El Drive se desconectó (token caducado). El propietario debe reconectarlo en Ajustes → Compañías.',
+      }
+    }
     const msg = (err as Error).message ?? 'Error desconocido al validar la carpeta'
     if (msg === 'DRIVE_NOT_CONNECTED') {
       return { ok: false, error: 'Conecta Drive primero antes de validar la carpeta.' }

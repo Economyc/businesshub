@@ -32,6 +32,17 @@ export declare function saveDriveAuth(uid: string, data: ExchangeResult): Promis
 export declare function clearDriveAuth(uid: string): Promise<void>;
 export declare function getUserDriveAuth(uid: string): Promise<UserDriveAuth | null>;
 /**
+ * Error tipado: el refresh token del dueño de Drive caducó o fue revocado
+ * (Google responde `invalid_grant` al renovarlo). Apps OAuth en estado
+ * "Testing" expiran el refresh token a los 7 días — de ahí que esto reaparezca
+ * periódicamente hasta publicar la pantalla de consentimiento.
+ */
+export declare class DriveTokenExpiredError extends Error {
+    constructor();
+}
+/** Detecta el `invalid_grant` venga como venga (GaxiosError, message, code). */
+export declare function isInvalidGrant(err: unknown): boolean;
+/**
  * Resuelve qué uid de Drive usar para las operaciones de una empresa.
  *
  * 1. Si la empresa tiene `driveOwnerUid` explícito → ese (override manual).

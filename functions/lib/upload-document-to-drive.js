@@ -1,6 +1,6 @@
 import { onCall, onRequest, HttpsError } from 'firebase-functions/v2/https';
 import { db } from './firestore.js';
-import { ensureFolderPath, uploadFile, validateRootFolderAccess, buildAuthUrl, exchangeCodeForTokens, saveDriveAuth, clearDriveAuth, getUserDriveAuth, resolveDriveUid, driveClientId, driveClientSecret, } from './services/drive-oauth.js';
+import { ensureFolderPath, uploadFile, validateRootFolderAccess, buildAuthUrl, exchangeCodeForTokens, saveDriveAuth, clearDriveAuth, getUserDriveAuth, resolveDriveUid, driveClientId, driveClientSecret, DriveTokenExpiredError, } from './services/drive-oauth.js';
 // Callable de upload de documentos (Facturas, Pagos, Compras) a Drive.
 // Estructura: {Company.driveRootFolderId} / {YYYY} / {MesEs} / {filename}
 // Nombre: "{Proveedor} - {docType} {docNumber} - {Mes DD YYYY}.{ext}"
@@ -90,13 +90,21 @@ export const uploadDocumentToDrive = onCall({ region: 'us-central1', memory: '51
     const supplier = sanitizeForFileName(data.supplierName);
     const docNumber = sanitizeForFileName(data.docNumber);
     const fileName = `${supplier} - ${data.docType} ${docNumber} - ${month} ${dd} ${year}.${ext}`;
-    const targetFolderId = await ensureFolderPath(driveUid, data.companyId, company.driveRootFolderId, [year, month]);
-    const uploaded = await uploadFile(driveUid, targetFolderId, fileName, data.mimeType, data.fileBase64);
-    return {
-        driveFileId: uploaded.driveFileId,
-        webViewLink: uploaded.webViewLink,
-        fileName: uploaded.fileName,
-    };
+    try {
+        const targetFolderId = await ensureFolderPath(driveUid, data.companyId, company.driveRootFolderId, [year, month]);
+        const uploaded = await uploadFile(driveUid, targetFolderId, fileName, data.mimeType, data.fileBase64);
+        return {
+            driveFileId: uploaded.driveFileId,
+            webViewLink: uploaded.webViewLink,
+            fileName: uploaded.fileName,
+        };
+    }
+    catch (err) {
+        if (err instanceof DriveTokenExpiredError) {
+            throw new HttpsError('failed-precondition', 'El Drive de la empresa se desconectó (la sesión de Google caducó). El propietario debe reconectarlo en Ajustes → Compañías.');
+        }
+        throw err;
+    }
 });
 export const validateDriveFolder = onCall({ region: 'us-central1', memory: '256MiB', timeoutSeconds: 30, secrets: SECRETS }, async (request) => {
     if (!request.auth)
