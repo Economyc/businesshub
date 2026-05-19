@@ -13,6 +13,7 @@ import {
   driveClientId,
   driveClientSecret,
   DriveTokenExpiredError,
+  DriveScopeError,
 } from './services/drive-oauth.js'
 
 // Callable de upload de documentos (Facturas, Pagos, Compras) a Drive.
@@ -144,6 +145,12 @@ export const uploadDocumentToDrive = onCall(
         throw new HttpsError(
           'failed-precondition',
           'El Drive de la empresa se desconectó (la sesión de Google caducó). El propietario debe reconectarlo en Ajustes → Compañías.',
+        )
+      }
+      if (err instanceof DriveScopeError) {
+        throw new HttpsError(
+          'failed-precondition',
+          'Al reconectar Drive no se concedió el permiso completo. El propietario debe volver a Ajustes → Compañías, Desconectar y Conectar Drive, y marcar TODAS las casillas de permiso de Google Drive en la pantalla de Google.',
         )
       }
       throw err

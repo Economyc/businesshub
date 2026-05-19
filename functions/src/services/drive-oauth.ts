@@ -137,6 +137,19 @@ export class DriveTokenExpiredError extends Error {
   }
 }
 
+/**
+ * Error tipado: el token es válido pero NO trae el scope de Drive. Pasa cuando
+ * el usuario reconecta y no marca la casilla de permiso de Drive en la pantalla
+ * de consentimiento de Google (consent granular). La subida llega autenticada
+ * pero sin permiso → "Request had insufficient authentication scopes".
+ */
+export class DriveScopeError extends Error {
+  constructor() {
+    super('DRIVE_SCOPE_MISSING')
+    this.name = 'DriveScopeError'
+  }
+}
+
 /** Detecta el `invalid_grant` venga como venga (GaxiosError, message, code). */
 export function isInvalidGrant(err: unknown): boolean {
   const e = err as {
@@ -148,6 +161,21 @@ export function isInvalidGrant(err: unknown): boolean {
   if (e?.code === 'invalid_grant') return true
   const msg = typeof e?.message === 'string' ? e.message : ''
   return msg.includes('invalid_grant')
+}
+
+/** Detecta el caso "token sin scope de Drive" (403 / insufficient scopes). */
+export function isInsufficientScope(err: unknown): boolean {
+  const e = err as {
+    response?: { data?: { error?: { errors?: { reason?: string }[] } } }
+    message?: unknown
+    code?: unknown
+  }
+  // Sólo el caso de SCOPE faltante, no un 403 genérico de carpeta sin permiso
+  // (ese llega como `insufficientFilePermissions`, que NO se reconecta arreglando).
+  const reasons = e?.response?.data?.error?.errors?.map((x) => x.reason) ?? []
+  if (reasons.includes('insufficientPermissions')) return true
+  const msg = typeof e?.message === 'string' ? e.message.toLowerCase() : ''
+  return msg.includes('insufficient authentication scopes')
 }
 
 /**
@@ -165,6 +193,11 @@ async function runDrive<T>(uid: string, fn: () => Promise<T>): Promise<T> {
         /* no bloquear el error real por un fallo al limpiar */
       })
       throw new DriveTokenExpiredError()
+    }
+    if (isInsufficientScope(err)) {
+      // El token no sirve para subir: forzamos reconexión limpia.
+      await clearDriveAuth(uid).catch(() => {})
+      throw new DriveScopeError()
     }
     throw err
   }
@@ -347,6 +380,13 @@ export async function validateRootFolderAccess(
       return {
         ok: false,
         error: 'El Drive se desconectó (token caducado). El propietario debe reconectarlo en Ajustes → Compañías.',
+      }
+    }
+    if (isInsufficientScope(err)) {
+      await clearDriveAuth(uid).catch(() => {})
+      return {
+        ok: false,
+        error: 'La conexión de Drive no concedió el permiso completo. Reconecta y marca TODAS las casillas de permiso de Google Drive.',
       }
     }
     const msg = (err as Error).message ?? 'Error desconocido al validar la carpeta'

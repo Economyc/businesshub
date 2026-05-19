@@ -40,8 +40,19 @@ export declare function getUserDriveAuth(uid: string): Promise<UserDriveAuth | n
 export declare class DriveTokenExpiredError extends Error {
     constructor();
 }
+/**
+ * Error tipado: el token es válido pero NO trae el scope de Drive. Pasa cuando
+ * el usuario reconecta y no marca la casilla de permiso de Drive en la pantalla
+ * de consentimiento de Google (consent granular). La subida llega autenticada
+ * pero sin permiso → "Request had insufficient authentication scopes".
+ */
+export declare class DriveScopeError extends Error {
+    constructor();
+}
 /** Detecta el `invalid_grant` venga como venga (GaxiosError, message, code). */
 export declare function isInvalidGrant(err: unknown): boolean;
+/** Detecta el caso "token sin scope de Drive" (403 / insufficient scopes). */
+export declare function isInsufficientScope(err: unknown): boolean;
 /**
  * Resuelve qué uid de Drive usar para las operaciones de una empresa.
  *
