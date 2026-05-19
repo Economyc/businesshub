@@ -83,7 +83,10 @@ function groupByCategory(txs: Record<string, unknown>[]): CategoryBreakdown[] {
 
 const COST_OF_SALES_CATS = ['suministros', 'insumos', 'costo de ventas']
 const OTHER_INCOME_CATS = ['otros', 'propinas']
-const OTHER_EXPENSE_CATS = ['impuestos', 'seguros', 'otros']
+// 'propinas' simétrico con OTHER_INCOME_CATS: la distribución de propinas se
+// cancela con el ingreso de propinas de los cierres sin inflar el margen
+// operativo (ver src/modules/finance/hooks.ts).
+const OTHER_EXPENSE_CATS = ['impuestos', 'seguros', 'otros', 'propinas']
 
 function normalizeCat(category: string): string {
   return category

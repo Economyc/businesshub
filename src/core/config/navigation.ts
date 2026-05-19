@@ -63,6 +63,7 @@ export const SETTINGS_ITEMS = [
 
 export const FINANCE_ITEMS: (Omit<NavItem, 'icon'> & { icon: typeof Home; end?: boolean })[] = [
   { to: '/finance', label: 'Facturación', icon: List, end: true },
+  { to: '/finance/nomina', label: 'Nómina', icon: Users },
   { to: '/finance/cash-flow', label: 'Flujo de Caja', icon: Wallet },
   { to: '/finance/income-statement', label: 'Estado de Resultados', icon: FileText },
   { to: '/finance/budget', label: 'Presupuesto', icon: Target },

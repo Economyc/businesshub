@@ -278,7 +278,11 @@ export interface IncomeStatementData {
 
 const COST_OF_SALES_CATS = ['suministros', 'insumos', 'costo de ventas']
 const OTHER_INCOME_CATS = ['otros', 'propinas']
-const OTHER_EXPENSE_CATS = ['impuestos', 'seguros', 'otros']
+// 'propinas' va aquí también: las propinas no son gasto operativo del negocio
+// (son de los empleados). Así el gasto de distribución de propinas se cancela
+// simétricamente con el ingreso de propinas de los cierres en la sección
+// "Otros" del P&L, sin inflar el margen operativo.
+const OTHER_EXPENSE_CATS = ['impuestos', 'seguros', 'otros', 'propinas']
 
 function normalizeCat(category: string): string {
   return category

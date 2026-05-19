@@ -18,3 +18,4 @@ export {
 export { uploadDiscountPhotoToDrive } from './upload-discount-photo.js'
 export { analyzePaymentReceipt } from './analyze-payment-receipt.js'
 export { analyzeInvoiceDocument } from './analyze-invoice-document.js'
+export { analyzePayrollDocument } from './analyze-payroll-document.js'

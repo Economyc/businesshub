@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Upload, Sparkles, FileText, Receipt, StickyNote, Split, Plus, ShoppingBag } from 'lucide-react'
+import { Upload, Sparkles, FileText, Receipt, StickyNote, Split, Plus, ShoppingBag, Users } from 'lucide-react'
 import { TransactionForm } from './transaction-form'
 import { DocumentUploadDialog } from './document-upload-dialog'
 import { PaymentUploadDialog } from './payment-upload-dialog'
@@ -335,6 +335,8 @@ export function TransactionList() {
               { label: 'Compra (al contado)', icon: ShoppingBag, onClick: () => { setDocDialogKind('purchase'); setDocDialogOpen(true) } },
               { label: 'Comprobante de pago', icon: Receipt, onClick: () => setPaymentDialogOpen(true) },
               { label: 'Gasto compartido entre locales', icon: Split, onClick: () => setSplitDialogOpen(true) },
+              { separator: true },
+              { label: 'Nómina y Propinas', icon: Users, onClick: () => navigate('/finance/nomina') },
               { separator: true },
               { label: 'Importar desde archivo', icon: Upload, onClick: () => navigate('/finance/import') },
             ]}
