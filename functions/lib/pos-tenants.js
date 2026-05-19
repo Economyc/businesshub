@@ -21,7 +21,7 @@ const POS_TOKEN_BLUE = defineSecret('POS_TOKEN');
 const POS_TOKEN_FILIPO = defineSecret('POS_TOKEN_FILIPO');
 const TENANT_CONFIG = {
     blue: { domainId: '8267', secretName: 'POS_TOKEN', secret: POS_TOKEN_BLUE },
-    filipo: { domainId: '7052', secretName: 'POS_TOKEN_FILIPO', secret: POS_TOKEN_FILIPO },
+    filipo: { domainId: '9405', secretName: 'POS_TOKEN_FILIPO', secret: POS_TOKEN_FILIPO },
 };
 // Lista de nombres de secrets para pasar a `secrets: [...]` en los options de
 // las functions. `secrets` acepta strings además de SecretParam, así evitamos
