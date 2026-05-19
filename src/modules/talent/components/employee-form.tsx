@@ -69,8 +69,8 @@ export function EmployeeForm({ open, onClose, employee }: EmployeeFormProps) {
         name: employee.name,
         identification: employee.identification ?? '',
         role: employee.role,
-        department: employee.department,
-        email: employee.email,
+        department: employee.department ?? '',
+        email: employee.email ?? '',
         phone: employee.phone,
         salary: String(employee.salary ?? ''),
         startDate: toDateInputValue(employee.startDate),
@@ -110,7 +110,7 @@ export function EmployeeForm({ open, onClose, employee }: EmployeeFormProps) {
       department: form.department,
       email: form.email,
       phone: form.phone,
-      salary: Number(form.salary),
+      salary: form.salary ? Number(form.salary) : undefined,
       startDate: Timestamp.fromDate(new Date(form.startDate)),
       status: form.status,
     }
@@ -231,7 +231,6 @@ export function EmployeeForm({ open, onClose, employee }: EmployeeFormProps) {
                       name="department"
                       value={form.department}
                       onChange={handleChange}
-                      required
                       placeholder="Departamento"
                       className={inputClass}
                     />
@@ -244,7 +243,6 @@ export function EmployeeForm({ open, onClose, employee }: EmployeeFormProps) {
                     type="email"
                     value={form.email}
                     onChange={handleChange}
-                    required
                     placeholder="correo@empresa.com"
                     className={inputClass}
                   />
@@ -265,7 +263,6 @@ export function EmployeeForm({ open, onClose, employee }: EmployeeFormProps) {
                     name="salary"
                     value={form.salary}
                     onChange={(raw) => setForm((prev) => ({ ...prev, salary: raw }))}
-                    required
                     placeholder="0"
                     className={inputClass}
                   />

@@ -5,10 +5,10 @@ export interface Employee extends BaseEntity {
   name: string
   identification: string
   role: string
-  department: string
-  email: string
+  department?: string
+  email?: string
   phone: string
-  salary: number
+  salary?: number
   startDate: Timestamp
   status: 'active' | 'inactive'
 }

@@ -194,7 +194,7 @@ export function CommandPalette() {
           id: `emp-${emp.id}`,
           type: 'employee',
           label: emp.name,
-          description: `${emp.role} · ${emp.department}`,
+          description: emp.department ? `${emp.role} · ${emp.department}` : emp.role,
           icon: <Users size={ICON_SIZE} strokeWidth={STROKE} className="text-blue-500" />,
           to: `/talent/${emp.id}`,
         })

@@ -61,7 +61,7 @@ export function EmployeeList() {
         e.name.toLowerCase().includes(search.toLowerCase()) ||
         (e.identification ?? '').toLowerCase().includes(search.toLowerCase()) ||
         e.role.toLowerCase().includes(search.toLowerCase()) ||
-        e.email.toLowerCase().includes(search.toLowerCase())
+        (e.email ?? '').toLowerCase().includes(search.toLowerCase())
       const matchesDept = departmentFilter === '' || e.department === departmentFilter
       const matchesStatus = statusFilter === '' || e.status === statusFilter
       return matchesSearch && matchesDept && matchesStatus
@@ -95,7 +95,7 @@ export function EmployeeList() {
       key: 'department',
       header: 'Departamento',
       width: '1fr',
-      render: (e: Employee) => e.department,
+      render: (e: Employee) => e.department || '—',
     },
     {
       key: 'salary',

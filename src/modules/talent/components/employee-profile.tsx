@@ -92,8 +92,8 @@ export function EmployeeProfile() {
       name: displayed.name,
       identification: displayed.identification ?? '',
       role: displayed.role,
-      department: displayed.department,
-      email: displayed.email,
+      department: displayed.department ?? '',
+      email: displayed.email ?? '',
       phone: displayed.phone,
       salary: String(displayed.salary ?? ''),
       startDate: toDateInputValue(displayed.startDate),
@@ -116,7 +116,7 @@ export function EmployeeProfile() {
       department: editForm.department,
       email: editForm.email,
       phone: editForm.phone,
-      salary: Number(editForm.salary),
+      salary: editForm.salary ? Number(editForm.salary) : undefined,
       startDate: Timestamp.fromDate(new Date(editForm.startDate)),
       status: editForm.status,
     }
@@ -261,11 +261,11 @@ export function EmployeeProfile() {
                 </div>
                 <div>
                   <p className={labelClass}>Departamento</p>
-                  <p className="text-body text-graphite">{displayed.department}</p>
+                  <p className="text-body text-graphite">{displayed.department || '—'}</p>
                 </div>
                 <div>
                   <p className={labelClass}>Email</p>
-                  <p className="text-body text-graphite">{displayed.email}</p>
+                  <p className="text-body text-graphite">{displayed.email || '—'}</p>
                 </div>
                 <div>
                   <p className={labelClass}>Teléfono</p>

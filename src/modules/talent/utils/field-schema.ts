@@ -19,13 +19,12 @@ export const employeeFields: FieldDef[] = [
   { key: 'name', header: 'Nombre', required: true, type: 'string' },
   { key: 'identification', header: 'Identificacion', required: true, type: 'string' },
   { key: 'role', header: 'Cargo', required: true, type: 'string' },
-  { key: 'department', header: 'Departamento', required: true, type: 'string' },
-  { key: 'email', header: 'Email', required: true, type: 'string' },
+  { key: 'department', header: 'Departamento', type: 'string' },
+  { key: 'email', header: 'Email', type: 'string' },
   { key: 'phone', header: 'Telefono', type: 'string' },
   {
     key: 'salary',
     header: 'Salario',
-    required: true,
     type: 'number',
   },
   {

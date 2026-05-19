@@ -125,6 +125,52 @@ export async function getUserDriveAuth(uid: string): Promise<UserDriveAuth | nul
 }
 
 /**
+ * Error tipado: el refresh token del dueño de Drive caducó o fue revocado
+ * (Google responde `invalid_grant` al renovarlo). Apps OAuth en estado
+ * "Testing" expiran el refresh token a los 7 días — de ahí que esto reaparezca
+ * periódicamente hasta publicar la pantalla de consentimiento.
+ */
+export class DriveTokenExpiredError extends Error {
+  constructor() {
+    super('DRIVE_TOKEN_EXPIRED')
+    this.name = 'DriveTokenExpiredError'
+  }
+}
+
+/** Detecta el `invalid_grant` venga como venga (GaxiosError, message, code). */
+export function isInvalidGrant(err: unknown): boolean {
+  const e = err as {
+    response?: { data?: { error?: string } }
+    message?: unknown
+    code?: unknown
+  }
+  if (e?.response?.data?.error === 'invalid_grant') return true
+  if (e?.code === 'invalid_grant') return true
+  const msg = typeof e?.message === 'string' ? e.message : ''
+  return msg.includes('invalid_grant')
+}
+
+/**
+ * Ejecuta una operación de Drive y, si falla por token caducado/revocado,
+ * limpia el `driveAuth` muerto (para que Ajustes muestre "desconectado" en vez
+ * de mentir) y propaga un `DriveTokenExpiredError` que el callable traduce a un
+ * mensaje accionable.
+ */
+async function runDrive<T>(uid: string, fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn()
+  } catch (err) {
+    if (isInvalidGrant(err)) {
+      await clearDriveAuth(uid).catch(() => {
+        /* no bloquear el error real por un fallo al limpiar */
+      })
+      throw new DriveTokenExpiredError()
+    }
+    throw err
+  }
+}
+
+/**
  * Resuelve qué uid de Drive usar para las operaciones de una empresa.
  *
  * 1. Si la empresa tiene `driveOwnerUid` explícito → ese (override manual).
