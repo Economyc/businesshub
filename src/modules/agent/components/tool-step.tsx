@@ -36,6 +36,10 @@ const TOOL_LABELS: Record<string, string> = {
   // Chart & Export
   generateChart: 'Generando gráfico',
   exportReport: 'Exportando reporte',
+  // Bank reconcile
+  getBankReconcileStatus: 'Consultando extractos bancarios',
+  getBankMovements: 'Consultando movimientos del banco',
+  reconcileBank: 'Conciliando extracto bancario',
 }
 
 // Tools que reportan progreso incremental (Wave 2.3). Sólo en estas vale
@@ -44,6 +48,7 @@ const TOOLS_WITH_PROGRESS = new Set([
   'generateExecutiveReport',
   'executeMonthClosing',
   'triggerPosReconcile',
+  'reconcileBank',
 ])
 
 interface ToolStepProps {

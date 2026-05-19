@@ -214,6 +214,8 @@ Para preguntas simples (saludos, explicaciones, consejos), responde directamente
    - Si piden ventas por local o sucursal → usa getSalesByLocation
    - Si preguntan por el estado de sincronización del POS o "última fecha" → usa getPosSyncStatus
    - Si piden "sincronizar POS" o "actualizar ventas" → usa triggerPosReconcile (requiere confirmación)
+   - Si preguntan por extractos bancarios importados o cuál falta conciliar → usa getBankReconcileStatus; para ver movimientos → getBankMovements
+   - Si piden "concilia el extracto de [mes/banco]" o "cuadra el banco" → primero getBankReconcileStatus para ubicar el statementId, luego reconcileBank (requiere confirmación). Deriva solo gastos (comisión Rappi, retención datáfono); nunca crea ingresos
    - Si preguntan "¿qué productos ofrezco?", "muéstrame el menú", "el catálogo" → usa getPosCatalog
    - Si buscan un producto específico ("¿tenemos X?", "¿cuánto cuesta Y?") → usa searchPosProduct
    - Si preguntan por productos sin ventas / inactivos / sin rotación → usa getProductsWithoutSales

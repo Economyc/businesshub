@@ -30,6 +30,7 @@ const MUTATION_TOOLS = new Set([
   'addBudgetItem',
   'deleteBudgetItem',
   'executeMonthClosing',
+  'reconcileBank',
 ])
 
 const CLIENT_RENDERED_TOOLS = new Set(['generateChart', 'exportReport'])

@@ -25,6 +25,9 @@ export function parseCategory(value: string): ParsedCategory {
 export const DEFAULT_CATEGORIES: CategoryItem[] = [
   { id: 'ventas', name: 'Ventas', color: '#27AE60', subcategories: ['Productos', 'Servicios', 'Devoluciones'] },
   { id: 'nomina', name: 'Nómina', color: '#E67E22', subcategories: ['Salarios', 'Prestaciones', 'Bonos'] },
+  // Derivada por la conciliación bancaria (Fase 3). Cae en 'operating' en
+  // classifyExpense (no está en COST_OF_SALES_CATS ni OTHER_EXPENSE_CATS).
+  { id: 'comision-plataformas', name: 'Comisión plataformas', color: '#FF6B6B', subcategories: ['Rappi', 'Datáfono'] },
   { id: 'servicios', name: 'Servicios', color: '#3498DB', subcategories: ['Agua', 'Luz', 'Internet', 'Gas', 'Teléfono'] },
   { id: 'alquiler', name: 'Alquiler', color: '#9B59B6', subcategories: ['Local', 'Bodega', 'Oficina'] },
   { id: 'suministros', name: 'Suministros', color: '#1ABC9C', subcategories: ['Insumos', 'Papelería', 'Limpieza'] },
@@ -43,6 +46,7 @@ const DEFAULT_COLORS = [
 const DEFAULT_SUBCATEGORIES: Record<string, string[]> = {
   'Ventas': ['Productos', 'Servicios', 'Devoluciones'],
   'Nómina': ['Salarios', 'Prestaciones', 'Bonos'],
+  'Comisión plataformas': ['Rappi', 'Datáfono'],
   'Servicios': ['Agua', 'Luz', 'Internet', 'Gas', 'Teléfono'],
   'Alquiler': ['Local', 'Bodega', 'Oficina'],
   'Suministros': ['Insumos', 'Papelería', 'Limpieza'],

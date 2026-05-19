@@ -77,8 +77,8 @@ describe('migrateOldCategories', () => {
 })
 
 describe('DEFAULT_CATEGORIES', () => {
-  it('has 10 default categories', () => {
-    expect(DEFAULT_CATEGORIES).toHaveLength(10)
+  it('has 11 default categories', () => {
+    expect(DEFAULT_CATEGORIES).toHaveLength(11)
   })
 
   it('each category has id, name, color, and subcategories', () => {

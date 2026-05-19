@@ -10,7 +10,7 @@ import { LoginPage } from '@/core/ui/login-page'
 import { PosDashboard } from '@/modules/analytics/routes'
 import { EmployeeList, EmployeeProfile } from '@/modules/talent/routes'
 import { SupplierList, SupplierDetail } from '@/modules/suppliers/routes'
-import { TransactionList, ImportView, CashFlowView, IncomeStatementView, BudgetView, PayrollView } from '@/modules/finance/routes'
+import { TransactionList, ImportView, CashFlowView, IncomeStatementView, BudgetView, PayrollView, BankImportView } from '@/modules/finance/routes'
 import { PartnerList } from '@/modules/partners/routes'
 import { ClosingList } from '@/modules/closings/routes'
 import { DiscountsPage } from '@/modules/discounts/routes'
@@ -104,6 +104,7 @@ export default function App() {
                 <Route path="/finance/recurring" element={<Navigate to="/finance" replace />} />
                 <Route path="/finance/import" element={<Suspense fallback={<Loading />}><ImportView /></Suspense>} />
                 <Route path="/finance/nomina" element={<Suspense fallback={<Loading />}><PayrollView /></Suspense>} />
+                <Route path="/finance/bank" element={<Suspense fallback={<Loading />}><BankImportView /></Suspense>} />
                 <Route path="/finance/cash-flow" element={<Suspense fallback={<Loading />}><CashFlowView /></Suspense>} />
                 <Route path="/finance/income-statement" element={<Suspense fallback={<Loading />}><IncomeStatementView /></Suspense>} />
                 <Route path="/finance/budget" element={<Suspense fallback={<Loading />}><BudgetView /></Suspense>} />

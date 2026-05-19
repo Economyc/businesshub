@@ -23,6 +23,7 @@ import { createObsidianTools } from './obsidian-tools.js'
 import { createScheduledReportsTools } from './scheduled-reports-tools.js'
 import { createContractRagTools } from './contract-rag-tools.js'
 import { createPayableTools } from './payable-tools.js'
+import { createBankTools } from './bank-tools.js'
 
 export function createAgentTools(companyId: string, threadId?: string) {
   return {
@@ -64,5 +65,8 @@ export function createAgentTools(companyId: string, threadId?: string) {
     ...createContractRagTools(companyId),
     // Cuentas por pagar: Facturas (CxP) y Compras al contado con archivos en Drive.
     ...createPayableTools(companyId),
+    // Conciliación bancaria (Fase 3): lectura de extractos + reconcileBank
+    // client-rendered (deriva comisión Rappi y retención datáfono).
+    ...createBankTools(companyId),
   }
 }

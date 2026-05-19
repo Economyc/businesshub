@@ -37,6 +37,7 @@ const TOOL_COLLECTIONS: Record<string, string> = {
   deleteBudgetItem: 'settings',
   createPayableDocument: 'transactions',
   markInvoiceAsPaid: 'transactions',
+  reconcileBank: 'transactions',
 }
 
 const ENTITY_LABELS: Record<string, string> = {
@@ -55,6 +56,7 @@ const ENTITY_LABELS: Record<string, string> = {
   deleteBudgetItem: 'item de presupuesto eliminado',
   createPayableDocument: 'documento creado',
   markInvoiceAsPaid: 'factura marcada como pagada',
+  reconcileBank: 'extracto conciliado',
 }
 
 interface AgentChatProps {

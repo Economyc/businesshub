@@ -1,4 +1,4 @@
-import { Home, Users, Briefcase, DollarSign, Tags, BadgeCheck, Network, Handshake, ClipboardList, FileSignature, Wallet, FileText, Shield, RefreshCw, Megaphone, List, Target, Building2, Percent } from 'lucide-react'
+import { Home, Users, Briefcase, DollarSign, Tags, BadgeCheck, Network, Handshake, ClipboardList, FileSignature, Wallet, FileText, Shield, RefreshCw, Megaphone, List, Target, Building2, Percent, Landmark } from 'lucide-react'
 import type { ModuleKey } from '@/core/types/permissions'
 
 export interface NavItem {
@@ -64,6 +64,7 @@ export const SETTINGS_ITEMS = [
 export const FINANCE_ITEMS: (Omit<NavItem, 'icon'> & { icon: typeof Home; end?: boolean })[] = [
   { to: '/finance', label: 'Facturación', icon: List, end: true },
   { to: '/finance/nomina', label: 'Nómina', icon: Users },
+  { to: '/finance/bank', label: 'Extracto Bancario', icon: Landmark },
   { to: '/finance/cash-flow', label: 'Flujo de Caja', icon: Wallet },
   { to: '/finance/income-statement', label: 'Estado de Resultados', icon: FileText },
   { to: '/finance/budget', label: 'Presupuesto', icon: Target },

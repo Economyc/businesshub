@@ -36,6 +36,7 @@ const TOOL_CONFIG: Record<string, { label: string; type: ActionType; icon: typeo
   addBudgetItem: { label: 'Agregar Item de Presupuesto', type: 'create', icon: PlusCircle },
   deleteBudgetItem: { label: 'Eliminar Item de Presupuesto', type: 'delete', icon: Trash2 },
   executeMonthClosing: { label: 'Ejecutar Cierre de Mes', type: 'create', icon: CheckCircle2 },
+  reconcileBank: { label: 'Conciliar Extracto Bancario', type: 'create', icon: Wallet },
 }
 
 const PAYEE_TYPE_LABELS: Record<string, string> = {

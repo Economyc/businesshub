@@ -1,4 +1,111 @@
 export declare function createAgentTools(companyId: string, threadId?: string): {
+    getBankReconcileStatus: import("ai").Tool<import("zod").ZodObject<{}, "strip", import("zod").ZodTypeAny, {}, {}>, {
+        count: number;
+        pendingReconcile: number;
+        statements: {
+            statementId: string;
+            fileName: any;
+            bank: any;
+            periodStart: string | null;
+            periodEnd: string | null;
+            rowCount: any;
+            status: any;
+        }[];
+    }> & {
+        execute: (args: {}, options: import("ai").ToolExecutionOptions) => PromiseLike<{
+            count: number;
+            pendingReconcile: number;
+            statements: {
+                statementId: string;
+                fileName: any;
+                bank: any;
+                periodStart: string | null;
+                periodEnd: string | null;
+                rowCount: any;
+                status: any;
+            }[];
+        }>;
+    };
+    getBankMovements: import("ai").Tool<import("zod").ZodObject<{
+        statementId: import("zod").ZodOptional<import("zod").ZodString>;
+        onlyUnreconciled: import("zod").ZodOptional<import("zod").ZodBoolean>;
+        limit: import("zod").ZodDefault<import("zod").ZodOptional<import("zod").ZodNumber>>;
+    }, "strip", import("zod").ZodTypeAny, {
+        limit: number;
+        statementId?: string | undefined;
+        onlyUnreconciled?: boolean | undefined;
+    }, {
+        limit?: number | undefined;
+        statementId?: string | undefined;
+        onlyUnreconciled?: boolean | undefined;
+    }>, {
+        found: boolean;
+        message: string;
+        statementId?: undefined;
+        totalMovements?: undefined;
+        totalIn?: undefined;
+        totalOut?: undefined;
+        byStatus?: undefined;
+        movements?: undefined;
+    } | {
+        found: boolean;
+        statementId: string;
+        totalMovements: number;
+        totalIn: number;
+        totalOut: number;
+        byStatus: Record<string, number>;
+        movements: {
+            id: string;
+            date: string | null;
+            description: any;
+            amount: number;
+            direction: any;
+            classification: any;
+            reconcileStatus: any;
+        }[];
+        message?: undefined;
+    }> & {
+        execute: (args: {
+            limit: number;
+            statementId?: string | undefined;
+            onlyUnreconciled?: boolean | undefined;
+        }, options: import("ai").ToolExecutionOptions) => PromiseLike<{
+            found: boolean;
+            message: string;
+            statementId?: undefined;
+            totalMovements?: undefined;
+            totalIn?: undefined;
+            totalOut?: undefined;
+            byStatus?: undefined;
+            movements?: undefined;
+        } | {
+            found: boolean;
+            statementId: string;
+            totalMovements: number;
+            totalIn: number;
+            totalOut: number;
+            byStatus: Record<string, number>;
+            movements: {
+                id: string;
+                date: string | null;
+                description: any;
+                amount: number;
+                direction: any;
+                classification: any;
+                reconcileStatus: any;
+            }[];
+            message?: undefined;
+        }>;
+    };
+    reconcileBank: import("ai").Tool<import("zod").ZodObject<{
+        statementId: import("zod").ZodOptional<import("zod").ZodString>;
+    }, "strip", import("zod").ZodTypeAny, {
+        statementId?: string | undefined;
+    }, {
+        statementId?: string | undefined;
+    }>, unknown> & {
+        execute: undefined;
+    };
     createPayableDocument: import("ai").Tool<import("zod").ZodObject<{
         documentKind: import("zod").ZodEnum<["invoice", "purchase"]>;
         supplierName: import("zod").ZodString;

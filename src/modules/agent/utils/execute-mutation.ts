@@ -835,6 +835,50 @@ export async function executeMutation(
       }
     }
 
+    case 'reconcileBank': {
+      const functions = await getAppFunctions()
+      void reportProgressClient(toolCallId, { label: 'Iniciando conciliación', status: 'running' })
+
+      const fn = httpsCallable<
+        { companyId: string; statementId?: string; toolCallId?: string },
+        {
+          statementId: string
+          periodStart: string
+          periodEnd: string
+          rappiCommission: number
+          rappiStatus: string
+          tcRetencion: number
+          tcStatus: string
+          partialCount: number
+          posRappiGross: number
+          inflows: number
+        }
+      >(functions, 'reconcileBankStatement')
+      const res = await fn({
+        companyId,
+        statementId: args.statementId ? String(args.statementId) : undefined,
+        toolCallId,
+      })
+      const r = res.data
+
+      void reportProgressClient(toolCallId, { label: 'Conciliación finalizada', status: 'done' })
+
+      const parts: string[] = [`Extracto ${r.periodStart}..${r.periodEnd} conciliado.`]
+      if (r.rappiStatus === 'derived') {
+        parts.push(`Comisión Rappi derivada: $${r.rappiCommission.toLocaleString('es-CO')}`)
+      } else if (r.rappiStatus === 'partial') {
+        parts.push('Rappi quedó parcial (falta POS o depósito) — revisar.')
+      }
+      if (r.tcStatus === 'derived') {
+        parts.push(`Retención datáfono derivada: $${r.tcRetencion.toLocaleString('es-CO')}`)
+      } else if (r.tcStatus === 'partial') {
+        parts.push('Datáfono quedó parcial — revisar.')
+      }
+      if (r.partialCount > 0) parts.push(`${r.partialCount} movimientos requieren revisión.`)
+
+      return { success: true, message: parts.join(' ') }
+    }
+
     default:
       return { success: false, message: `Herramienta desconocida: ${toolName}` }
   }
