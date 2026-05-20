@@ -10,7 +10,11 @@ import {
   AlertCircle,
   Sparkles,
   Users,
+  ChevronRight,
+  ExternalLink,
+  Wallet,
 } from 'lucide-react'
+import type { Timestamp } from 'firebase/firestore'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
 import { CurrencyInput } from '@/core/ui/currency-input'
@@ -20,6 +24,7 @@ import { useCompany } from '@/core/hooks/use-company'
 import { useCollection } from '@/core/hooks/use-firestore'
 import { usePermissions } from '@/core/hooks/use-permissions'
 import { formatCurrency } from '@/core/utils/format'
+import { EmptyState } from '@/core/ui/empty-state'
 import type { Employee } from '@/modules/talent/types'
 import {
   analyzeColilla,
@@ -29,14 +34,19 @@ import {
   registerPayrollBatch,
   registerTipDistribution,
 } from '../payroll-service'
-import type { PayrollRowState, TipRowState } from '../types-payroll'
+import type {
+  PayrollRowState,
+  TipRowState,
+  PayrollBatchDoc,
+  TipDistributionDoc,
+} from '../types-payroll'
 
 const MAX_SIZE = 10 * 1024 * 1024
 const COLILLA_ACCEPT = '.pdf,.jpg,.jpeg,.png,.webp,.heic,.heif'
 const PROPINAS_ACCEPT = '.pdf,.jpg,.jpeg,.png,.webp,.heic,.heif,.csv,.xlsx,.xls'
 const ANALYZE_CONCURRENCY = 3
 
-type Tab = 'nomina' | 'propinas'
+type Tab = 'nomina' | 'propinas' | 'historial'
 
 let _uid = 0
 function uid(): string {
@@ -63,6 +73,26 @@ function slugPeriod(label: string, fallbackISO: string): string {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '')
   return s || fallbackISO
+}
+
+function monthKeyOf(ts: Timestamp): string {
+  const d = ts.toDate()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
+function currentMonthKey(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
+function fmtMonthLabel(key: string): string {
+  const [y, m] = key.split('-').map(Number)
+  const s = new Date(y, m - 1, 1).toLocaleDateString('es-CO', { month: 'long', year: 'numeric' })
+  return s.charAt(0).toUpperCase() + s.slice(1)
+}
+
+function fmtDay(ts: Timestamp): string {
+  return ts.toDate().toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
 export function PayrollView() {
@@ -112,7 +142,8 @@ export function PayrollView() {
         </div>
       )}
 
-      {/* Periodo */}
+      {/* Periodo (solo al registrar) */}
+      {tab !== 'historial' && (
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         <div>
           <label className="block text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1">
@@ -132,9 +163,10 @@ export function PayrollView() {
           <DateInput value={paidDate} onChange={setPaidDate} />
         </div>
       </div>
+      )}
 
       {/* Tabs */}
-      <div className="grid grid-cols-2 gap-2 p-1 rounded-lg bg-bone/60 border border-border/60 mb-6 max-w-md">
+      <div className="grid grid-cols-3 gap-2 p-1 rounded-lg bg-bone/60 border border-border/60 mb-6 max-w-xl">
         <button
           type="button"
           onClick={() => setTab('nomina')}
@@ -153,6 +185,15 @@ export function PayrollView() {
         >
           Propinas
         </button>
+        <button
+          type="button"
+          onClick={() => setTab('historial')}
+          className={`px-4 py-2 rounded-lg text-body font-medium transition-colors ${
+            tab === 'historial' ? 'bg-surface text-graphite card-elevated' : 'text-mid-gray hover:text-graphite'
+          }`}
+        >
+          Historial
+        </button>
       </div>
 
       {tab === 'nomina' ? (
@@ -165,7 +206,7 @@ export function PayrollView() {
           periodLabel={effectiveLabel}
           paidDate={parseISO(paidDate)}
         />
-      ) : (
+      ) : tab === 'propinas' ? (
         <PropinasTab
           companyId={companyId}
           employees={employees}
@@ -175,6 +216,8 @@ export function PayrollView() {
           periodLabel={effectiveLabel}
           paidDate={parseISO(paidDate)}
         />
+      ) : (
+        <HistorialTab />
       )}
     </PageTransition>
   )
@@ -782,6 +825,234 @@ function PropinasTab({
         <div className="bg-surface rounded-xl card-elevated p-5 flex items-center gap-2 text-body text-positive-text font-medium">
           <Check size={16} strokeWidth={2.5} />
           Propinas registradas para {periodLabel}.
+        </div>
+      )}
+    </div>
+  )
+}
+
+interface EmpAgg {
+  employeeId: string
+  employeeName: string
+  count: number
+  salary: number
+  tips: number
+  details: {
+    kind: 'salario' | 'propina'
+    periodLabel: string
+    paidDate: Timestamp
+    amount: number
+    link?: string
+  }[]
+}
+
+const HIST_GRID = '1.7fr 0.5fr 1fr 1fr 1fr 0.3fr'
+
+function HistorialTab() {
+  const { data: batches, loading: lb } = useCollection<PayrollBatchDoc>('payroll-batches')
+  const { data: tips, loading: lt } = useCollection<TipDistributionDoc>('tip-distributions')
+  const loading = lb || lt
+
+  const months = useMemo(() => {
+    const set = new Set<string>()
+    for (const b of batches) if (b.paidDate) set.add(monthKeyOf(b.paidDate))
+    for (const t of tips) if (t.paidDate) set.add(monthKeyOf(t.paidDate))
+    set.add(currentMonthKey())
+    return Array.from(set).sort().reverse()
+  }, [batches, tips])
+
+  const [month, setMonth] = useState(currentMonthKey)
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+
+  function toggle(id: string) {
+    setExpanded((prev) => {
+      const n = new Set(prev)
+      if (n.has(id)) n.delete(id)
+      else n.add(id)
+      return n
+    })
+  }
+
+  const rows = useMemo(() => {
+    const map = new Map<string, EmpAgg>()
+    const ensure = (id: string, name: string): EmpAgg => {
+      let e = map.get(id)
+      if (!e) {
+        e = { employeeId: id, employeeName: name, count: 0, salary: 0, tips: 0, details: [] }
+        map.set(id, e)
+      }
+      return e
+    }
+    for (const b of batches) {
+      if (!b.paidDate || monthKeyOf(b.paidDate) !== month) continue
+      for (const ln of b.lines ?? []) {
+        const e = ensure(ln.employeeId || ln.employeeName, ln.employeeName)
+        e.salary += ln.amountPosted || 0
+        e.count += 1
+        e.details.push({
+          kind: 'salario',
+          periodLabel: b.periodLabel,
+          paidDate: b.paidDate,
+          amount: ln.amountPosted || 0,
+          link: ln.driveWebViewLink,
+        })
+      }
+    }
+    for (const t of tips) {
+      if (!t.paidDate || monthKeyOf(t.paidDate) !== month) continue
+      for (const ln of t.lines ?? []) {
+        const e = ensure(ln.employeeId || ln.employeeName, ln.employeeName)
+        e.tips += ln.amount || 0
+        e.details.push({
+          kind: 'propina',
+          periodLabel: t.periodLabel,
+          paidDate: t.paidDate,
+          amount: ln.amount || 0,
+        })
+      }
+    }
+    const arr = Array.from(map.values())
+    arr.forEach((e) =>
+      e.details.sort((a, b) => a.paidDate.toDate().getTime() - b.paidDate.toDate().getTime()),
+    )
+    return arr.sort((a, b) => a.employeeName.localeCompare(b.employeeName, 'es'))
+  }, [batches, tips, month])
+
+  const totals = useMemo(
+    () => ({
+      count: rows.reduce((s, e) => s + e.count, 0),
+      salary: rows.reduce((s, e) => s + e.salary, 0),
+      tips: rows.reduce((s, e) => s + e.tips, 0),
+    }),
+    [rows],
+  )
+
+  return (
+    <div className="space-y-6">
+      <div className="max-w-xs">
+        <label className="block text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1">
+          Mes
+        </label>
+        <select
+          value={month}
+          onChange={(e) => setMonth(e.target.value)}
+          className="w-full px-3 py-2.5 rounded-lg border border-input-border bg-input-bg text-body text-graphite focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200"
+        >
+          {months.map((m) => (
+            <option key={m} value={m}>
+              {fmtMonthLabel(m)}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {loading ? (
+        <div className="text-body text-mid-gray py-8 text-center">Cargando…</div>
+      ) : rows.length === 0 ? (
+        <EmptyState
+          icon={Wallet}
+          title="Sin pagos este mes"
+          description="No hay nómina ni propinas registradas para el mes seleccionado."
+        />
+      ) : (
+        <div className="bg-surface rounded-xl card-elevated overflow-x-auto">
+          <div
+            className="grid min-w-[760px] px-4 py-3 text-caption uppercase tracking-wider font-semibold text-mid-gray border-b border-border bg-card-bg"
+            style={{ gridTemplateColumns: HIST_GRID }}
+          >
+            <div>Empleado</div>
+            <div className="text-right">Pagos</div>
+            <div className="text-right">Salario</div>
+            <div className="text-right">Propinas</div>
+            <div className="text-right">Total</div>
+            <div></div>
+          </div>
+
+          {rows.map((e) => {
+            const isOpen = expanded.has(e.employeeId)
+            const total = e.salary + e.tips
+            return (
+              <div key={e.employeeId}>
+                <div
+                  onClick={() => toggle(e.employeeId)}
+                  className="grid min-w-[760px] px-4 py-3 text-body border-b border-bone last:border-b-0 items-center cursor-pointer hover:bg-bone/50 transition-colors"
+                  style={{ gridTemplateColumns: HIST_GRID }}
+                >
+                  <div className="font-medium text-dark-graphite truncate pr-2">{e.employeeName}</div>
+                  <div className="text-right tabular-nums text-mid-gray">{e.count}</div>
+                  <div className="text-right tabular-nums">
+                    {e.salary > 0 ? formatCurrency(e.salary, 0) : '—'}
+                  </div>
+                  <div className="text-right tabular-nums">
+                    {e.tips > 0 ? formatCurrency(e.tips, 0) : '—'}
+                  </div>
+                  <div className="text-right tabular-nums font-medium text-dark-graphite">
+                    {formatCurrency(total, 0)}
+                  </div>
+                  <div className="flex justify-end">
+                    <ChevronRight
+                      size={14}
+                      strokeWidth={1.5}
+                      className={`text-mid-gray transition-transform ${isOpen ? 'rotate-90' : ''}`}
+                    />
+                  </div>
+                </div>
+
+                {isOpen && (
+                  <div className="bg-bone/40 border-b border-bone px-4 py-3 space-y-2">
+                    {e.details.map((d, i) => (
+                      <div
+                        key={i}
+                        className="grid min-w-[720px] text-caption items-center gap-2"
+                        style={{ gridTemplateColumns: '1.5fr 1fr 0.8fr 1fr 1fr' }}
+                      >
+                        <div className="text-graphite truncate">{d.periodLabel}</div>
+                        <div className="text-mid-gray">{fmtDay(d.paidDate)}</div>
+                        <div className="text-mid-gray">
+                          {d.kind === 'salario' ? 'Salario' : 'Propina'}
+                        </div>
+                        <div className="text-right tabular-nums text-graphite">
+                          {formatCurrency(d.amount, 0)}
+                        </div>
+                        <div className="text-right">
+                          {d.kind === 'salario' && d.link ? (
+                            <a
+                              href={d.link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(ev) => ev.stopPropagation()}
+                              className="inline-flex items-center gap-1 text-mid-gray hover:text-graphite transition-colors"
+                            >
+                              <ExternalLink size={12} strokeWidth={1.5} />
+                              Colilla
+                            </a>
+                          ) : (
+                            <span className="text-mid-gray">—</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+
+          <div
+            className="grid min-w-[760px] px-4 py-3 text-body bg-card-bg items-center font-medium text-dark-graphite"
+            style={{ gridTemplateColumns: HIST_GRID }}
+          >
+            <div>Total</div>
+            <div className="text-right tabular-nums">{totals.count}</div>
+            <div className="text-right tabular-nums">{formatCurrency(totals.salary, 0)}</div>
+            <div className="text-right tabular-nums">
+              {totals.tips > 0 ? formatCurrency(totals.tips, 0) : '—'}
+            </div>
+            <div className="text-right tabular-nums">
+              {formatCurrency(totals.salary + totals.tips, 0)}
+            </div>
+            <div></div>
+          </div>
         </div>
       )}
     </div>
