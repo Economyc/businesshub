@@ -35,12 +35,6 @@ import { HoverHint } from '@/components/ui/tooltip'
 
 type TabKey = 'pending' | 'paid'
 
-// Mismo orden que MESES_ES del backend (functions/utils/doc-naming) para que el
-// mes del nombre del archivo coincida con la carpeta del mes en Drive.
-const MESES_ES = [
-  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
-]
 
 function getCategoryColor(category: string, categoryItems: CategoryItem[]): string {
   const parsed = parseCategory(category || '')
@@ -143,14 +137,6 @@ export function TransactionList() {
     for (const s of suppliers) if (s.id) m.set(s.id, s.identification ?? '')
     return m
   }, [suppliers])
-  const exportPeriod = useMemo(
-    () => ({
-      year: startDate.getFullYear(),
-      monthIndex: startDate.getMonth(),
-      monthLabel: MESES_ES[startDate.getMonth()],
-    }),
-    [startDate],
-  )
   const inlineAgent = useInlineAgent()
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
@@ -336,7 +322,6 @@ export function TransactionList() {
           paid={paidInRange}
           suppliersById={suppliersById}
           companyId={companyId}
-          period={exportPeriod}
         />
         <button
           onClick={handleOpenAgent}

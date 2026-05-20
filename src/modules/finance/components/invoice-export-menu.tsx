@@ -22,11 +22,12 @@ import type { Transaction } from '../types'
 type Conjunto = 'pending' | 'paid' | 'both'
 type DriveState = 'idle' | 'saving' | 'done' | 'error'
 
-interface Period {
-  year: number
-  monthIndex: number
-  monthLabel: string
-}
+// Mismo orden que MESES_ES del backend (functions/utils/doc-naming) para que el
+// mes del nombre del archivo coincida con la carpeta del mes en Drive.
+const MESES_ES = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+]
 
 interface Props {
   pending: Transaction[]
@@ -34,16 +35,25 @@ interface Props {
   /** Map de id de proveedor → NIT (identification). */
   suppliersById: Map<string, string>
   companyId: string
-  period: Period
 }
 
-export function InvoiceExportMenu({ pending, paid, suppliersById, companyId, period }: Props) {
+export function InvoiceExportMenu({ pending, paid, suppliersById, companyId }: Props) {
   const [open, setOpen] = useState(false)
   const [conjunto, setConjunto] = useState<Conjunto>('pending')
   const [driveState, setDriveState] = useState<DriveState>('idle')
   const [driveLink, setDriveLink] = useState<string | null>(null)
   const [driveError, setDriveError] = useState<string | null>(null)
   const ref = useRef<HTMLDivElement>(null)
+
+  // El botón Drive siempre actúa sobre el MES EN CURSO, no sobre el filtro de
+  // pantalla. La hoja ya se auto-actualiza; este botón es solo "actualízala ya",
+  // y la pestaña "Pagadas" del servidor es el mes natural completo. Usar el
+  // startDate del DateRangePicker hacía que con "Últimos 30 días" el texto y el
+  // payload apuntaran a un mes distinto del que se ve.
+  const now = new Date()
+  const currentYear = now.getFullYear()
+  const currentMonthIndex = now.getMonth()
+  const currentMonthLabel = MESES_ES[currentMonthIndex]
 
   useEffect(() => {
     if (!open) return
@@ -121,8 +131,8 @@ export function InvoiceExportMenu({ pending, paid, suppliersById, companyId, per
       >(fns, 'saveInvoiceSheetToDrive')
       const res = await save({
         companyId,
-        year: period.year,
-        monthIndex: period.monthIndex,
+        year: currentYear,
+        monthIndex: currentMonthIndex,
       })
       setDriveLink(res.data.webViewLink)
       setDriveState('done')
@@ -206,7 +216,7 @@ export function InvoiceExportMenu({ pending, paid, suppliersById, companyId, per
                 <UploadCloud size={15} strokeWidth={1.5} className="text-mid-gray shrink-0" />
               )}
               <span className="truncate">
-                Guardar en Drive · {period.monthLabel} {period.year}
+                Actualizar hoja de {currentMonthLabel} {currentYear} en Drive
               </span>
             </button>
           </div>
