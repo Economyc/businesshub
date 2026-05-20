@@ -14,7 +14,6 @@ import { getAppFunctions } from '@/core/firebase/config'
 import {
   exportSheetsToExcel,
   exportToCSV,
-  buildExcelArrayBuffer,
   type SheetSpec,
 } from '@/core/utils/data-transfer'
 import { ACCOUNTING_FIELDS, buildAccountingRows } from '../utils/accounting-export'
@@ -36,16 +35,6 @@ interface Props {
   suppliersById: Map<string, string>
   companyId: string
   period: Period
-}
-
-function arrayBufferToBase64(buf: ArrayBuffer): string {
-  let binary = ''
-  const bytes = new Uint8Array(buf)
-  const chunk = 0x8000
-  for (let i = 0; i < bytes.length; i += chunk) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunk))
-  }
-  return btoa(binary)
 }
 
 export function InvoiceExportMenu({ pending, paid, suppliersById, companyId, period }: Props) {
@@ -122,19 +111,18 @@ export function InvoiceExportMenu({ pending, paid, suppliersById, companyId, per
     setDriveError(null)
     setDriveLink(null)
     try {
-      const buffer = await buildExcelArrayBuffer(sheetsFor(conjunto))
-      const fileBase64 = arrayBufferToBase64(buffer)
+      // El servidor arma la hoja (regenerateInvoiceSheet): decide qué pestañas
+      // van según la regla del mes (Pendientes solo en el mes actual). Por eso
+      // aquí ya no se manda el .xlsx ni el `conjunto`.
       const fns = await getAppFunctions()
       const save = httpsCallable<
-        { companyId: string; year: number; monthIndex: number; fileBase64: string; fileName: string },
+        { companyId: string; year: number; monthIndex: number },
         { driveFileId: string; webViewLink: string; fileName: string }
       >(fns, 'saveInvoiceSheetToDrive')
       const res = await save({
         companyId,
         year: period.year,
         monthIndex: period.monthIndex,
-        fileBase64,
-        fileName: `Seguimiento facturas - ${period.monthLabel} ${period.year}`,
       })
       setDriveLink(res.data.webViewLink)
       setDriveState('done')

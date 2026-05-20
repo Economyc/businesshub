@@ -11,6 +11,8 @@ export { uploadDocumentToDrive, validateDriveFolder, driveAuthStart, driveAuthDi
 export { uploadDiscountPhotoToDrive } from './upload-discount-photo.js';
 export { combineInvoicePaymentToDrive } from './combine-invoice-payment.js';
 export { saveInvoiceSheetToDrive } from './save-invoice-sheet.js';
+export { markSheetJobDirty } from './sheet-jobs-trigger.js';
+export { dispatchSheetJobs } from './sheet-jobs-dispatch.js';
 export { analyzePaymentReceipt } from './analyze-payment-receipt.js';
 export { analyzeInvoiceDocument } from './analyze-invoice-document.js';
 export { analyzePayrollDocument } from './analyze-payroll-document.js';
