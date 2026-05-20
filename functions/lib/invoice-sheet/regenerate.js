@@ -73,7 +73,7 @@ export async function regenerateInvoiceSheet(companyId, year, monthIndex) {
         fields: ACCOUNTING_FIELDS,
     });
     // 7) Workbook + subida (reemplaza por nombre, convierte a Google Sheet nativo)
-    const fileBase64 = buildWorkbookBase64(sheets);
+    const fileBase64 = await buildWorkbookBase64(sheets);
     const month = MESES_ES[monthIndex];
     const fileName = `Seguimiento facturas - ${month} ${year}`;
     const targetFolderId = await ensureFolderPath(driveUid, companyId, driveRootFolderId, [
