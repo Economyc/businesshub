@@ -73,6 +73,14 @@ export interface UploadResult {
     fileName: string;
 }
 export declare function uploadFile(uid: string, parentFolderId: string, fileName: string, mimeType: string, fileBase64: string): Promise<UploadResult>;
+/**
+ * Descarga un archivo de Drive y devuelve sus bytes + mimeType. Usado para
+ * recuperar la factura y el comprobante ya subidos y fusionarlos en un PDF.
+ */
+export declare function downloadFile(uid: string, fileId: string): Promise<{
+    buffer: Buffer;
+    mimeType: string;
+}>;
 export declare function validateRootFolderAccess(uid: string, rootFolderId: string): Promise<{
     ok: true;
     folderName: string;

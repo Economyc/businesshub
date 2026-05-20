@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { Timestamp } from 'firebase/firestore'
+import { httpsCallable } from 'firebase/functions'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Trash2, X, FileText, Receipt } from 'lucide-react'
+import { Trash2, X, FileText, Receipt, Files, Loader2, AlertCircle } from 'lucide-react'
 import { DateInput } from '@/core/ui/date-input'
 import { CategorySelect } from '@/core/ui/category-select'
 import { SelectInput } from '@/core/ui/select-input'
@@ -9,9 +10,11 @@ import { CurrencyInput } from '@/core/ui/currency-input'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 import { HoverHint } from '@/components/ui/tooltip'
 import { modalVariants } from '@/core/animations/variants'
+import { getAppFunctions } from '@/core/firebase/config'
 import { useCompany } from '@/core/hooks/use-company'
 import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { useCollection } from '@/core/hooks/use-firestore'
+import { queryClient } from '@/core/query/query-client'
 import { financeService } from '../services'
 import type { Transaction, PayeeRef, PayeeType, PayableFile, TransactionPriority } from '../types'
 import type { Supplier } from '@/modules/suppliers/types'
@@ -65,7 +68,17 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
   const [payeeId, setPayeeId] = useState('')
   const [payeeExternalName, setPayeeExternalName] = useState('')
   const [priority, setPriority] = useState<TransactionPriority | ''>('')
-  const [attachments, setAttachments] = useState<{ source?: PayableFile; proof?: PayableFile; docNumber?: string; documentKind?: 'invoice' | 'purchase' }>({})
+  const [attachments, setAttachments] = useState<{
+    source?: PayableFile
+    proof?: PayableFile
+    combined?: PayableFile
+    docNumber?: string
+    documentKind?: 'invoice' | 'purchase'
+    payeeName?: string
+    paidDate?: Timestamp
+  }>({})
+  const [combining, setCombining] = useState(false)
+  const [combineError, setCombineError] = useState<string | null>(null)
 
   const { data: partners } = useCollection<NamedEntity>('partners')
   const { data: employees } = useCollection<NamedEntity>('employees')
@@ -118,6 +131,8 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
       setPayeeExternalName('')
       setPriority('')
       setAttachments({})
+      setCombining(false)
+      setCombineError(null)
       return
     }
     if (!transactionId || !selectedCompany) {
@@ -133,8 +148,11 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
       setAttachments({
         source: tx.sourceDocument,
         proof: tx.paymentProof,
+        combined: tx.combinedDocument,
         docNumber: tx.docNumber,
         documentKind: tx.documentKind,
+        payeeName: tx.payeeRef?.name,
+        paidDate: tx.paidDate,
       })
       setForm({
         concept: tx.concept,
@@ -193,6 +211,54 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
       if (found?.category) setCategory(found.category)
     }
   }, [payeeType, suppliers, setCategory])
+
+  // Botón retroactivo: combina factura + comprobante (ya en Drive) en un solo
+  // PDF y lo guarda como combinedDocument, sin tocar los originales.
+  const handleCombine = useCallback(async () => {
+    if (!selectedCompany || !transactionId) return
+    const sourceFileId = attachments.source?.driveFileId
+    const proofFileId = attachments.proof?.driveFileId
+    if (!sourceFileId || !proofFileId) return
+    setCombining(true)
+    setCombineError(null)
+    try {
+      const fns = await getAppFunctions()
+      const combine = httpsCallable<
+        {
+          companyId: string
+          sourceFileId: string
+          proofFileId: string
+          supplierName: string
+          docNumber: string
+          date: string
+        },
+        { driveFileId: string; webViewLink: string; fileName: string }
+      >(fns, 'combineInvoicePaymentToDrive')
+      const res = await combine({
+        companyId: selectedCompany.id,
+        sourceFileId,
+        proofFileId,
+        supplierName: attachments.payeeName || 'Proveedor',
+        docNumber: attachments.docNumber?.trim() || 's-n',
+        date: toDateString(attachments.paidDate) || form.date,
+      })
+      const combinedDocument: PayableFile = {
+        driveFileId: res.data.driveFileId,
+        driveWebViewLink: res.data.webViewLink,
+        fileName: res.data.fileName,
+        mimeType: 'application/pdf',
+        uploadedAt: Timestamp.now(),
+      }
+      await financeService.update(selectedCompany.id, transactionId, { combinedDocument } as Partial<Transaction>)
+      setAttachments((prev) => ({ ...prev, combined: combinedDocument }))
+      queryClient.invalidateQueries({ queryKey: ['firestore', selectedCompany.id, 'transactions'] })
+      queryClient.invalidateQueries({ queryKey: ['firestore-paginated', selectedCompany.id, 'transactions'] })
+    } catch (err) {
+      setCombineError((err as Error).message ?? 'No se pudo generar el PDF combinado')
+    } finally {
+      setCombining(false)
+    }
+  }, [selectedCompany, transactionId, attachments, form.date])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -422,7 +488,37 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
                               <span className="truncate max-w-[220px]">Comprobante de pago</span>
                             </a>
                           )}
+                          {attachments.combined && (
+                            <a
+                              href={attachments.combined.driveWebViewLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-graphite/60 bg-bone hover:bg-bone/70 text-body text-graphite transition-colors"
+                              title={attachments.combined.fileName}
+                            >
+                              <Files size={13} strokeWidth={1.5} />
+                              <span className="truncate max-w-[220px]">PDF combinado</span>
+                            </a>
+                          )}
+                          {/* Botón retroactivo: solo si hay factura + comprobante y aún no hay combinado. */}
+                          {attachments.source && attachments.proof && !attachments.combined && (
+                            <button
+                              type="button"
+                              onClick={handleCombine}
+                              disabled={combining}
+                              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-dashed border-mid-gray/40 text-body text-mid-gray hover:text-graphite hover:border-graphite/50 transition-colors disabled:opacity-60"
+                            >
+                              {combining ? <Loader2 size={13} className="animate-spin" /> : <Files size={13} strokeWidth={1.5} />}
+                              <span>{combining ? 'Combinando…' : 'Combinar en un PDF'}</span>
+                            </button>
+                          )}
                         </div>
+                        {combineError && (
+                          <div className="mt-2 flex items-start gap-2 text-caption text-negative-text">
+                            <AlertCircle size={13} strokeWidth={2} className="mt-0.5 shrink-0" />
+                            <span>{combineError}</span>
+                          </div>
+                        )}
                       </div>
                     )}
                     <div className="md:col-span-2 pt-2 border-t border-border/40">

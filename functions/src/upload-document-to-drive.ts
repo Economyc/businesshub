@@ -15,17 +15,12 @@ import {
   DriveTokenExpiredError,
   DriveScopeError,
 } from './services/drive-oauth.js'
+import { assertCompanyMember } from './utils/company-access.js'
+import { MESES_ES, sanitizeForFileName, parseDate, extFromMime, type DocType } from './utils/doc-naming.js'
 
 // Callable de upload de documentos (Facturas, Pagos, Compras) a Drive.
 // Estructura: {Company.driveRootFolderId} / {YYYY} / {MesEs} / {filename}
 // Nombre: "{Proveedor} - {docType} {docNumber} - {Mes DD YYYY}.{ext}"
-
-const MESES_ES = [
-  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
-]
-
-type DocType = 'Factura' | 'Pago' | 'Compra'
 
 interface UploadInput {
   companyId: string
@@ -36,50 +31,6 @@ interface UploadInput {
   fileBase64: string
   fileName: string
   mimeType: string
-}
-
-interface MemberDoc {
-  userId: string
-  role: string
-  status: 'active' | 'invited' | 'suspended'
-}
-
-async function assertCompanyMember(uid: string, companyId: string): Promise<void> {
-  const snap = await db
-    .collection('companies')
-    .doc(companyId)
-    .collection('members')
-    .doc(uid)
-    .get()
-  if (!snap.exists) {
-    throw new HttpsError('permission-denied', 'No eres miembro de esta empresa')
-  }
-  const m = snap.data() as MemberDoc
-  if (m.status !== 'active') {
-    throw new HttpsError('permission-denied', 'Tu cuenta no está activa en esta empresa')
-  }
-}
-
-function sanitizeForFileName(s: string): string {
-  return s.replace(/[\\/:*?"<>|]/g, '').trim()
-}
-
-function parseDate(input: string | number): Date {
-  if (typeof input === 'number') return new Date(input)
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(input)
-  if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
-  return new Date(input)
-}
-
-function extFromMime(mime: string, fallbackName: string): string {
-  if (mime.includes('pdf')) return 'pdf'
-  if (mime.includes('jpeg') || mime.includes('jpg')) return 'jpg'
-  if (mime.includes('png')) return 'png'
-  if (mime.includes('webp')) return 'webp'
-  if (mime.includes('heic')) return 'heic'
-  if (mime.includes('heif')) return 'heif'
-  const idx = fallbackName.lastIndexOf('.')
-  return idx >= 0 ? fallbackName.slice(idx + 1).toLowerCase() : 'bin'
 }
 
 const SECRETS = [driveClientId, driveClientSecret]

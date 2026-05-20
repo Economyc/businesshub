@@ -54,6 +54,10 @@ export interface Transaction extends BaseEntity {
   docNumber?: string
   sourceDocument?: PayableFile
   paymentProof?: PayableFile
+  // PDF generado fusionando factura + comprobante en un solo archivo (para la
+  // contadora). Se genera al cruzar el pago o con el botón retroactivo. Los
+  // originales (sourceDocument/paymentProof) se conservan.
+  combinedDocument?: PayableFile
   paidDate?: Timestamp
   priority?: TransactionPriority
 }

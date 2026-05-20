@@ -281,6 +281,25 @@ export async function uploadFile(uid, parentFolderId, fileName, mimeType, fileBa
         fileName: created.data.name ?? fileName,
     };
 }
+/**
+ * Descarga un archivo de Drive y devuelve sus bytes + mimeType. Usado para
+ * recuperar la factura y el comprobante ya subidos y fusionarlos en un PDF.
+ */
+export async function downloadFile(uid, fileId) {
+    const drive = await getDriveForUser(uid);
+    return runDrive(uid, async () => {
+        const meta = await drive.files.get({
+            fileId,
+            fields: 'mimeType',
+            supportsAllDrives: true,
+        });
+        const media = await drive.files.get({ fileId, alt: 'media', supportsAllDrives: true }, { responseType: 'arraybuffer' });
+        return {
+            buffer: Buffer.from(media.data),
+            mimeType: meta.data.mimeType ?? 'application/octet-stream',
+        };
+    });
+}
 export async function validateRootFolderAccess(uid, rootFolderId) {
     try {
         const drive = await getDriveForUser(uid);

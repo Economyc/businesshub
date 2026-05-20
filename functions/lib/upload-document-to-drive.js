@@ -1,55 +1,8 @@
 import { onCall, onRequest, HttpsError } from 'firebase-functions/v2/https';
 import { db } from './firestore.js';
 import { ensureFolderPath, uploadFile, validateRootFolderAccess, buildAuthUrl, exchangeCodeForTokens, saveDriveAuth, clearDriveAuth, getUserDriveAuth, resolveDriveUid, driveClientId, driveClientSecret, DriveTokenExpiredError, DriveScopeError, } from './services/drive-oauth.js';
-// Callable de upload de documentos (Facturas, Pagos, Compras) a Drive.
-// Estructura: {Company.driveRootFolderId} / {YYYY} / {MesEs} / {filename}
-// Nombre: "{Proveedor} - {docType} {docNumber} - {Mes DD YYYY}.{ext}"
-const MESES_ES = [
-    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
-];
-async function assertCompanyMember(uid, companyId) {
-    const snap = await db
-        .collection('companies')
-        .doc(companyId)
-        .collection('members')
-        .doc(uid)
-        .get();
-    if (!snap.exists) {
-        throw new HttpsError('permission-denied', 'No eres miembro de esta empresa');
-    }
-    const m = snap.data();
-    if (m.status !== 'active') {
-        throw new HttpsError('permission-denied', 'Tu cuenta no está activa en esta empresa');
-    }
-}
-function sanitizeForFileName(s) {
-    return s.replace(/[\\/:*?"<>|]/g, '').trim();
-}
-function parseDate(input) {
-    if (typeof input === 'number')
-        return new Date(input);
-    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(input);
-    if (m)
-        return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-    return new Date(input);
-}
-function extFromMime(mime, fallbackName) {
-    if (mime.includes('pdf'))
-        return 'pdf';
-    if (mime.includes('jpeg') || mime.includes('jpg'))
-        return 'jpg';
-    if (mime.includes('png'))
-        return 'png';
-    if (mime.includes('webp'))
-        return 'webp';
-    if (mime.includes('heic'))
-        return 'heic';
-    if (mime.includes('heif'))
-        return 'heif';
-    const idx = fallbackName.lastIndexOf('.');
-    return idx >= 0 ? fallbackName.slice(idx + 1).toLowerCase() : 'bin';
-}
+import { assertCompanyMember } from './utils/company-access.js';
+import { MESES_ES, sanitizeForFileName, parseDate, extFromMime } from './utils/doc-naming.js';
 const SECRETS = [driveClientId, driveClientSecret];
 export const uploadDocumentToDrive = onCall({ region: 'us-central1', memory: '512MiB', timeoutSeconds: 60, secrets: SECRETS }, async (request) => {
     if (!request.auth) {

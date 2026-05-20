@@ -136,7 +136,7 @@ export function PaymentUploadDialog({ open, onClose, onSaved, pendingInvoices }:
 
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [step, setStep] = useState<'idle' | 'uploading' | 'saving' | 'done'>('idle')
+  const [step, setStep] = useState<'idle' | 'uploading' | 'combining' | 'saving' | 'done'>('idle')
 
   useEffect(() => {
     if (open) {
@@ -320,10 +320,6 @@ export function PaymentUploadDialog({ open, onClose, onSaved, pendingInvoices }:
         mimeType: file.type,
       })
 
-      // 2) Cruzar con la factura: status='paid', paidDate, paymentProof. Si la
-      // factura no tenía # propio (split sin documento), aprovechamos y lo
-      // guardamos en el mismo update para que quede registrado.
-      setStep('saving')
       const paidTs = Timestamp.fromDate(parseLocalDate(paidDate))
       const paymentProof: PayableFile = {
         driveFileId: uploadRes.data.driveFileId,
@@ -333,10 +329,54 @@ export function PaymentUploadDialog({ open, onClose, onSaved, pendingInvoices }:
         uploadedAt: Timestamp.now(),
       }
 
+      // 2) Si la factura tiene archivo, generamos el PDF combinado (factura +
+      // comprobante) para la contadora. Best-effort: si falla, el pago igual se
+      // cruza y el combinado puede generarse luego con el botón retroactivo.
+      let combinedDocument: PayableFile | undefined
+      const sourceFileId = selectedInvoice.sourceDocument?.driveFileId
+      if (sourceFileId) {
+        setStep('combining')
+        try {
+          const combine = httpsCallable<
+            {
+              companyId: string
+              sourceFileId: string
+              proofFileId: string
+              supplierName: string
+              docNumber: string
+              date: string
+            },
+            { driveFileId: string; webViewLink: string; fileName: string }
+          >(fns, 'combineInvoicePaymentToDrive')
+          const combineRes = await combine({
+            companyId,
+            sourceFileId,
+            proofFileId: uploadRes.data.driveFileId,
+            supplierName,
+            docNumber,
+            date: paidDate,
+          })
+          combinedDocument = {
+            driveFileId: combineRes.data.driveFileId,
+            driveWebViewLink: combineRes.data.webViewLink,
+            fileName: combineRes.data.fileName,
+            mimeType: 'application/pdf',
+            uploadedAt: Timestamp.now(),
+          }
+        } catch {
+          /* combinado best-effort: continuamos sin él */
+        }
+      }
+
+      // 3) Cruzar con la factura: status='paid', paidDate, paymentProof. Si la
+      // factura no tenía # propio (split sin documento), aprovechamos y lo
+      // guardamos en el mismo update para que quede registrado.
+      setStep('saving')
       await financeService.update(companyId, selectedInvoice.id, {
         status: 'paid',
         paidDate: paidTs,
         paymentProof,
+        ...(combinedDocument ? { combinedDocument } : {}),
         ...(needsDocNumber ? { docNumber: docNumberInput.trim() } : {}),
       } as Partial<TransactionFormData>)
 
@@ -576,6 +616,12 @@ export function PaymentUploadDialog({ open, onClose, onSaved, pendingInvoices }:
               <div className="flex items-center gap-2 text-caption text-mid-gray">
                 <Loader2 size={14} className="animate-spin" />
                 Subiendo comprobante a Drive...
+              </div>
+            )}
+            {step === 'combining' && (
+              <div className="flex items-center gap-2 text-caption text-mid-gray">
+                <Loader2 size={14} className="animate-spin" />
+                Generando PDF combinado (factura + comprobante)...
               </div>
             )}
             {step === 'saving' && (

@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Upload, Sparkles, FileText, Receipt, StickyNote, Split, Plus, ShoppingBag, Users } from 'lucide-react'
+import { Upload, Sparkles, FileText, Receipt, Files, StickyNote, Split, Plus, ShoppingBag, Users } from 'lucide-react'
 import { TransactionForm } from './transaction-form'
 import { DocumentUploadDialog } from './document-upload-dialog'
 import { PaymentUploadDialog } from './payment-upload-dialog'
@@ -80,9 +80,10 @@ function PriorityPill({ priority }: { priority?: Transaction['priority'] }) {
 function NotesCell({ t }: { t: Transaction }) {
   const hasSource = !!t.sourceDocument?.driveWebViewLink
   const hasProof = !!t.paymentProof?.driveWebViewLink
+  const hasCombined = !!t.combinedDocument?.driveWebViewLink
   const hasNote = !!t.notes?.trim()
 
-  if (!hasNote && !hasSource && !hasProof) {
+  if (!hasNote && !hasSource && !hasProof && !hasCombined) {
     return <span className="text-mid-gray/60">+ nota</span>
   }
 
@@ -110,6 +111,18 @@ function NotesCell({ t }: { t: Transaction }) {
           title="Ver comprobante de pago"
         >
           <Receipt size={12} strokeWidth={1.5} />
+        </a>
+      )}
+      {hasCombined && (
+        <a
+          href={t.combinedDocument!.driveWebViewLink}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="inline-flex items-center justify-center w-5 h-5 rounded text-mid-gray hover:text-graphite hover:bg-bone transition-colors shrink-0"
+          title="Ver PDF combinado (factura + comprobante)"
+        >
+          <Files size={12} strokeWidth={1.5} />
         </a>
       )}
       {hasNote && (
