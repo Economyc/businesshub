@@ -10,6 +10,7 @@ export { adminCreateUser, adminSetUserStatus, adminDeleteUser } from './users-ad
 export { uploadDocumentToDrive, validateDriveFolder, driveAuthStart, driveAuthDisconnect, driveAuthStatus, driveOAuthCallback, } from './upload-document-to-drive.js';
 export { uploadDiscountPhotoToDrive } from './upload-discount-photo.js';
 export { combineInvoicePaymentToDrive } from './combine-invoice-payment.js';
+export { saveInvoiceSheetToDrive } from './save-invoice-sheet.js';
 export { analyzePaymentReceipt } from './analyze-payment-receipt.js';
 export { analyzeInvoiceDocument } from './analyze-invoice-document.js';
 export { analyzePayrollDocument } from './analyze-payroll-document.js';

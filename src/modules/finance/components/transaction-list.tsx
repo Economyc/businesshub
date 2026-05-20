@@ -6,10 +6,8 @@ import { DocumentUploadDialog } from './document-upload-dialog'
 import { PaymentUploadDialog } from './payment-upload-dialog'
 import { SplitExpenseDialog } from './split-expense-dialog'
 import { ActionMenu } from '@/core/ui/action-menu'
-import { ExportButton } from '@/core/ui/export-button'
+import { InvoiceExportMenu } from './invoice-export-menu'
 import type { DocumentKind, Transaction } from '../types'
-import type { PayeeRef } from '../types'
-import type { FieldDef } from '@/core/utils/data-transfer'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
 import { SearchInput } from '@/core/ui/search-input'
@@ -22,6 +20,9 @@ import { formatCurrency } from '@/core/utils/format'
 import { parseCategory } from '@/core/utils/categories'
 import { useSettings } from '@/core/hooks/use-settings'
 import { usePermissions } from '@/core/hooks/use-permissions'
+import { useCompany } from '@/core/hooks/use-company'
+import { useSuppliers } from '@/modules/suppliers/hooks'
+import { formatDate } from '../utils/accounting-export'
 import { useInvoicesPending, useInvoicesAndPurchasesPaid, useRecurringGenerator } from '../hooks'
 import { useDateRange } from '../context/date-range-context'
 import { InvoicesSummary } from './invoices-summary'
@@ -34,27 +35,12 @@ import { HoverHint } from '@/components/ui/tooltip'
 
 type TabKey = 'pending' | 'paid'
 
-const EXPORT_FIELDS: FieldDef[] = [
-  { key: 'payeeRef',     header: 'Proveedor',  type: 'string', format: (v) => (v as PayeeRef | undefined)?.name ?? '—' },
-  { key: 'concept',      header: 'Concepto',   type: 'string' },
-  { key: 'category',     header: 'Categoría',  type: 'string', format: (v) => parseCategory(String(v ?? '')).category || '—' },
-  { key: 'priority',     header: 'Prioridad',  type: 'string', format: (v) => v === 'immediate' ? 'Inmediato' : 'Espera' },
-  { key: 'documentKind', header: 'Tipo',       type: 'string', format: (v) => v === 'invoice' ? 'Factura' : 'Compra' },
-  { key: 'docNumber',    header: 'Número',     type: 'string', format: (v) => String(v ?? '') },
-  { key: 'date',         header: 'Fecha',      type: 'date',   format: (v) => formatDate(v as Transaction['date']) },
-  { key: 'amount',       header: 'Valor',      type: 'number' },
-  { key: 'status',       header: 'Estado',     type: 'string', format: (v) => v === 'overdue' ? 'Vencida' : 'Pendiente' },
-  { key: 'notes',        header: 'Notas',      type: 'string', format: (v) => String(v ?? '') },
+// Mismo orden que MESES_ES del backend (functions/utils/doc-naming) para que el
+// mes del nombre del archivo coincida con la carpeta del mes en Drive.
+const MESES_ES = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
 ]
-
-function formatDate(ts: Transaction['date']): string {
-  const d = ts?.toDate?.()
-  if (!d) return '—'
-  const dd = String(d.getDate()).padStart(2, '0')
-  const mm = String(d.getMonth() + 1).padStart(2, '0')
-  const yyyy = d.getFullYear()
-  return `${dd}/${mm}/${yyyy}`
-}
 
 function getCategoryColor(category: string, categoryItems: CategoryItem[]): string {
   const parsed = parseCategory(category || '')
@@ -147,6 +133,24 @@ export function TransactionList() {
   const { categories: categoryItems } = useSettings()
   const { can } = usePermissions()
   const canEdit = can('finance', 'create')
+  const { selectedCompany } = useCompany()
+  const companyId = selectedCompany?.id ?? ''
+  const { data: suppliers } = useSuppliers()
+  // Map proveedor → NIT para la columna NIT de la hoja contable. Vacío si el
+  // proveedor aún no tiene identification cargada.
+  const suppliersById = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const s of suppliers) if (s.id) m.set(s.id, s.identification ?? '')
+    return m
+  }, [suppliers])
+  const exportPeriod = useMemo(
+    () => ({
+      year: startDate.getFullYear(),
+      monthIndex: startDate.getMonth(),
+      monthLabel: MESES_ES[startDate.getMonth()],
+    }),
+    [startDate],
+  )
   const inlineAgent = useInlineAgent()
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
@@ -327,10 +331,12 @@ export function TransactionList() {
     <PageTransition>
       <PageHeader title="Facturación">
         <DateRangePicker />
-        <ExportButton
-          data={filtered}
-          fields={EXPORT_FIELDS}
-          filenameBase={activeTab === 'pending' ? 'facturas_pendientes' : 'facturas_pagadas'}
+        <InvoiceExportMenu
+          pending={pendingInvoicesAll}
+          paid={paidInRange}
+          suppliersById={suppliersById}
+          companyId={companyId}
+          period={exportPeriod}
         />
         <button
           onClick={handleOpenAgent}

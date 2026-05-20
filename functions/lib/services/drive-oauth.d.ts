@@ -74,6 +74,17 @@ export interface UploadResult {
 }
 export declare function uploadFile(uid: string, parentFolderId: string, fileName: string, mimeType: string, fileBase64: string): Promise<UploadResult>;
 /**
+ * Sube un archivo y, si ya existe uno con el mismo nombre en la carpeta, lo
+ * reemplaza en vez de duplicar. Pensado para la hoja de seguimiento mensual:
+ * cada mes hay un único archivo que se sobreescribe al regenerarlo.
+ *
+ * `convertToMimeType` hace que Drive convierta el contenido subido a un tipo
+ * nativo de Google (p. ej. .xlsx → Google Sheet) usando SOLO el scope de Drive,
+ * sin necesidad del scope de Sheets. Al actualizar un archivo que ya es nativo
+ * de Google, subir media .xlsx reemplaza su contenido y Drive lo re-convierte.
+ */
+export declare function uploadOrReplaceFile(uid: string, parentFolderId: string, fileName: string, mediaMimeType: string, fileBase64: string, convertToMimeType?: string): Promise<UploadResult>;
+/**
  * Descarga un archivo de Drive y devuelve sus bytes + mimeType. Usado para
  * recuperar la factura y el comprobante ya subidos y fusionarlos en un PDF.
  */

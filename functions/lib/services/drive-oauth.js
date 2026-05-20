@@ -282,6 +282,60 @@ export async function uploadFile(uid, parentFolderId, fileName, mimeType, fileBa
     };
 }
 /**
+ * Sube un archivo y, si ya existe uno con el mismo nombre en la carpeta, lo
+ * reemplaza en vez de duplicar. Pensado para la hoja de seguimiento mensual:
+ * cada mes hay un único archivo que se sobreescribe al regenerarlo.
+ *
+ * `convertToMimeType` hace que Drive convierta el contenido subido a un tipo
+ * nativo de Google (p. ej. .xlsx → Google Sheet) usando SOLO el scope de Drive,
+ * sin necesidad del scope de Sheets. Al actualizar un archivo que ya es nativo
+ * de Google, subir media .xlsx reemplaza su contenido y Drive lo re-convierte.
+ */
+export async function uploadOrReplaceFile(uid, parentFolderId, fileName, mediaMimeType, fileBase64, convertToMimeType) {
+    const drive = await getDriveForUser(uid);
+    const buffer = Buffer.from(fileBase64, 'base64');
+    return runDrive(uid, async () => {
+        const escapedName = fileName.replace(/'/g, "\\'");
+        const list = await drive.files.list({
+            q: `'${parentFolderId}' in parents and name = '${escapedName}' and trashed = false`,
+            fields: 'files(id, name)',
+            pageSize: 1,
+            supportsAllDrives: true,
+            includeItemsFromAllDrives: true,
+        });
+        const existing = list.data.files?.[0];
+        const result = existing?.id
+            ? await drive.files.update({
+                fileId: existing.id,
+                // Forzamos el tipo de conversión también al actualizar: si el archivo
+                // previo no fuese un Sheet nativo (p. ej. un .xlsx crudo legacy),
+                // esto garantiza que quede convertido igual y no se rompa la idempotencia.
+                requestBody: convertToMimeType ? { mimeType: convertToMimeType } : {},
+                media: { mimeType: mediaMimeType, body: Readable.from(buffer) },
+                fields: 'id, webViewLink, name',
+                supportsAllDrives: true,
+            })
+            : await drive.files.create({
+                requestBody: {
+                    name: fileName,
+                    parents: [parentFolderId],
+                    ...(convertToMimeType ? { mimeType: convertToMimeType } : {}),
+                },
+                media: { mimeType: mediaMimeType, body: Readable.from(buffer) },
+                fields: 'id, webViewLink, name',
+                supportsAllDrives: true,
+            });
+        if (!result.data.id || !result.data.webViewLink) {
+            throw new Error('Drive no retornó id/webViewLink al guardar el archivo');
+        }
+        return {
+            driveFileId: result.data.id,
+            webViewLink: result.data.webViewLink,
+            fileName: result.data.name ?? fileName,
+        };
+    });
+}
+/**
  * Descarga un archivo de Drive y devuelve sus bytes + mimeType. Usado para
  * recuperar la factura y el comprobante ya subidos y fusionarlos en un PDF.
  */

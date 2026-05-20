@@ -31,26 +31,57 @@ export interface ValidationResult<T> {
 
 // ─── Export ───
 
-export async function exportToExcel<T>(data: T[], fields: FieldDef[], filename: string) {
+export interface SheetSpec {
+  name: string
+  data: Record<string, unknown>[]
+  fields: FieldDef[]
+}
+
+// Valor de celda: número crudo cuando el campo es numérico y no tiene
+// formateador (para que Excel/Sheets lo sumen), si no string.
+function cellValue(item: Record<string, unknown>, f: FieldDef): string | number {
+  const val = item[f.key]
+  if (f.format) return f.format(val)
+  if (f.type === 'number') {
+    const n = typeof val === 'number' ? val : Number(val)
+    return Number.isFinite(n) ? n : ''
+  }
+  return String(val ?? '')
+}
+
+async function buildWorkbook(sheets: SheetSpec[]) {
   const XLSX = await loadXLSX()
-  const headers = fields.map((f) => f.header)
-  const rows = data.map((item) =>
-    fields.map((f) => {
-      const val = (item as Record<string, unknown>)[f.key]
-      return f.format ? f.format(val) : String(val ?? '')
-    }),
-  )
-
   const wb = XLSX.utils.book_new()
-  const ws = XLSX.utils.aoa_to_sheet([headers, ...rows])
+  for (const s of sheets) {
+    const headers = s.fields.map((f) => f.header)
+    const rows = s.data.map((item) => s.fields.map((f) => cellValue(item, f)))
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows])
+    ws['!cols'] = s.fields.map((f) => ({ wch: Math.max(f.header.length + 2, 14) }))
+    // Excel limita los nombres de pestaña a 31 chars y prohíbe : \ / ? * [ ]
+    const safeName = s.name.replace(/[:\\/?*[\]]/g, ' ').slice(0, 31) || 'Datos'
+    XLSX.utils.book_append_sheet(wb, ws, safeName)
+  }
+  return { XLSX, wb }
+}
 
-  // Auto-size columns
-  ws['!cols'] = fields.map((f) => ({ wch: Math.max(f.header.length + 2, 14) }))
+// ArrayBuffer del .xlsx — lo usa el guardado en Drive (donde se convierte a
+// Google Sheet) sin tener que regenerar el libro.
+export async function buildExcelArrayBuffer(sheets: SheetSpec[]): Promise<ArrayBuffer> {
+  const { XLSX, wb } = await buildWorkbook(sheets)
+  return XLSX.write(wb, { bookType: 'xlsx', type: 'array' }) as ArrayBuffer
+}
 
-  XLSX.utils.book_append_sheet(wb, ws, 'Datos')
-  const buffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
+export async function exportSheetsToExcel(sheets: SheetSpec[], filename: string) {
+  const buffer = await buildExcelArrayBuffer(sheets)
   const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
   saveAs(blob, `${filename}.xlsx`)
+}
+
+export async function exportToExcel<T>(data: T[], fields: FieldDef[], filename: string) {
+  await exportSheetsToExcel(
+    [{ name: 'Datos', data: data as Record<string, unknown>[], fields }],
+    filename,
+  )
 }
 
 export async function exportToCSV<T>(data: T[], fields: FieldDef[], filename: string) {
