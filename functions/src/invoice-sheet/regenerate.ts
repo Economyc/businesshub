@@ -19,7 +19,7 @@ import {
   resolveDriveUid,
   getUserDriveAuth,
 } from '../services/drive-oauth.js'
-import { MESES_ES } from '../utils/doc-naming.js'
+import { MESES_ES, SUBFOLDER_TRACKING } from '../utils/doc-naming.js'
 import {
   ACCOUNTING_FIELDS,
   buildAccountingRows,
@@ -106,6 +106,7 @@ export async function regenerateInvoiceSheet(
   const targetFolderId = await ensureFolderPath(driveUid, companyId, driveRootFolderId, [
     String(year),
     month,
+    SUBFOLDER_TRACKING,
   ])
   const uploaded = await uploadOrReplaceFile(
     driveUid,

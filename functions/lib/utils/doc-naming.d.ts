@@ -1,4 +1,7 @@
 export declare const MESES_ES: string[];
+export declare const SUBFOLDER_CONSOLIDATED = "PDFs consolidados";
+export declare const SUBFOLDER_TRACKING = "Seguimiento";
+export declare const SUBFOLDER_LOOSE = "Facturas y pagos sueltos";
 export type DocType = 'Factura' | 'Pago' | 'Compra' | 'Factura+Pago';
 export declare function sanitizeForFileName(s: string): string;
 export declare function parseDate(input: string | number): Date;

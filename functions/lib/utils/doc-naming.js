@@ -6,6 +6,12 @@ export const MESES_ES = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
     'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
 ];
+// Subcarpetas dentro de {root}/{Año}/{Mes}/ para separar tipos de archivo: la
+// carpeta del mes se saturaba con todo mezclado. Nombres user-facing en Drive,
+// compartidos por los uploaders y por el script de migración.
+export const SUBFOLDER_CONSOLIDATED = 'PDFs consolidados'; // PDF combinado factura+pago
+export const SUBFOLDER_TRACKING = 'Seguimiento'; // Excel/Google Sheet de seguimiento del mes
+export const SUBFOLDER_LOOSE = 'Facturas y pagos sueltos'; // facturas/comprobantes individuales
 export function sanitizeForFileName(s) {
     return s.replace(/[\\/:*?"<>|]/g, '').trim();
 }

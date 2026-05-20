@@ -12,7 +12,7 @@ import {
   DriveScopeError,
 } from './services/drive-oauth.js'
 import { assertCompanyMember } from './utils/company-access.js'
-import { buildDocLocation, parseDate } from './utils/doc-naming.js'
+import { buildDocLocation, parseDate, SUBFOLDER_CONSOLIDATED } from './utils/doc-naming.js'
 import { buildCombinedPdf } from './utils/build-combined-pdf.js'
 
 // Combina una factura y su comprobante de pago (ambos ya en Drive) en un solo
@@ -79,7 +79,7 @@ export const combineInvoicePaymentToDrive = onCall(
       const pdf = await buildCombinedPdf([source, proof])
       const pdfBase64 = pdf.toString('base64')
 
-      const targetFolderId = await ensureFolderPath(driveUid, data.companyId, company.driveRootFolderId, [year, month])
+      const targetFolderId = await ensureFolderPath(driveUid, data.companyId, company.driveRootFolderId, [year, month, SUBFOLDER_CONSOLIDATED])
       const uploaded = await uploadFile(driveUid, targetFolderId, fileName, 'application/pdf', pdfBase64)
 
       return {

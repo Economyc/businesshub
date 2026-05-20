@@ -2,7 +2,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { db } from './firestore.js';
 import { ensureFolderPath, uploadFile, downloadFile, resolveDriveUid, getUserDriveAuth, driveClientId, driveClientSecret, DriveTokenExpiredError, DriveScopeError, } from './services/drive-oauth.js';
 import { assertCompanyMember } from './utils/company-access.js';
-import { buildDocLocation, parseDate } from './utils/doc-naming.js';
+import { buildDocLocation, parseDate, SUBFOLDER_CONSOLIDATED } from './utils/doc-naming.js';
 import { buildCombinedPdf } from './utils/build-combined-pdf.js';
 const SECRETS = [driveClientId, driveClientSecret];
 export const combineInvoicePaymentToDrive = onCall({ region: 'us-central1', memory: '1GiB', timeoutSeconds: 120, secrets: SECRETS }, async (request) => {
@@ -44,7 +44,7 @@ export const combineInvoicePaymentToDrive = onCall({ region: 'us-central1', memo
         ]);
         const pdf = await buildCombinedPdf([source, proof]);
         const pdfBase64 = pdf.toString('base64');
-        const targetFolderId = await ensureFolderPath(driveUid, data.companyId, company.driveRootFolderId, [year, month]);
+        const targetFolderId = await ensureFolderPath(driveUid, data.companyId, company.driveRootFolderId, [year, month, SUBFOLDER_CONSOLIDATED]);
         const uploaded = await uploadFile(driveUid, targetFolderId, fileName, 'application/pdf', pdfBase64);
         return {
             driveFileId: uploaded.driveFileId,
