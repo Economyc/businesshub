@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Edit, Trash2, User, FileText } from 'lucide-react'
 import { usePermissions } from '@/core/hooks/use-permissions'
+import { TAB_IDS } from '@/core/config/access-registry'
 import { Timestamp } from 'firebase/firestore'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
@@ -40,10 +41,21 @@ export function EmployeeProfile() {
   const { id } = useParams<{ id: string }>()
   const { selectedCompany } = useCompany()
   const { data: employee, loading, error } = useEmployee(id)
-  const { can } = usePermissions()
+  const { can, canAccessTab } = usePermissions()
   const canEdit = can('talent', 'create')
 
+  const profileTabs = [
+    { value: 'info', label: 'Información', icon: User, tabId: TAB_IDS.talentInfo },
+    { value: 'documents', label: 'Documentos', icon: FileText, tabId: TAB_IDS.talentDocumentos },
+  ].filter((t) => canAccessTab(t.tabId))
+
   const [activeTab, setActiveTab] = useState('info')
+  // Si el tab activo no es visible para el rol, caer al primero disponible.
+  useEffect(() => {
+    if (profileTabs.length > 0 && !profileTabs.some((t) => t.value === activeTab)) {
+      setActiveTab(profileTabs[0].value)
+    }
+  }, [profileTabs, activeTab])
   const [editing, setEditing] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
 
@@ -189,10 +201,7 @@ export function EmployeeProfile() {
       </PageHeader>
 
       <UnderlineButtonTabs
-        tabs={[
-          { value: 'info', label: 'Información', icon: User },
-          { value: 'documents', label: 'Documentos', icon: FileText },
-        ]}
+        tabs={profileTabs}
         active={activeTab}
         onChange={setActiveTab}
       />

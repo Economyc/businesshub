@@ -3,14 +3,20 @@ import { useAuth } from './use-auth'
 import { useCompany } from './use-company'
 import { fetchMember, seedMembershipIfNeeded, fetchRoles } from '@/core/services/permissions-service'
 import { cacheGet, cacheSet } from '@/core/utils/cache'
-import type { CompanyMember, ModuleKey, PermissionAction, RoleDefinition } from '@/core/types/permissions'
+import { OWNER_EMAIL } from '@/core/config/access-registry'
+import type { CompanyMember, PermissionAction, RoleDefinition } from '@/core/types/permissions'
 
 export interface PermissionsContextValue {
   member: CompanyMember | null
   role: RoleDefinition | null
   roles: RoleDefinition[]
   loading: boolean
-  can: (module: ModuleKey, action?: PermissionAction) => boolean
+  /** ¿El rol puede ejecutar `action` sobre la página `pageId`? */
+  can: (pageId: string, action?: PermissionAction) => boolean
+  /** ¿El rol tiene cualquier acceso a la página `pageId`? */
+  canAccessPage: (pageId: string) => boolean
+  /** ¿El rol puede ver el tab `tabId`? */
+  canAccessTab: (tabId: string) => boolean
   isOwner: boolean
   isAdmin: boolean
   canManageUsers: boolean
@@ -25,8 +31,9 @@ interface CachedPermissions {
   roles: RoleDefinition[]
 }
 
+// v2: el modelo de `roles[].permissions` cambió de ModulePermission[] a RolePermissions.
 function permissionsCacheKey(companyId: string, userId: string): string {
-  return `permissions:${companyId}:${userId}`
+  return `permissions:v2:${companyId}:${userId}`
 }
 
 export function usePermissionsLoader(): PermissionsContextValue {
@@ -105,9 +112,35 @@ export function usePermissionsLoader(): PermissionsContextValue {
 
   const role = member ? roles.find((r) => r.id === member.role) ?? null : null
 
-  // Roles de permisos eliminados temporalmente: todos los usuarios tienen acceso
-  // total mientras se reconstruye el modulo de permisos desde cero.
-  const can = useCallback<PermissionsContextValue['can']>(() => true, [])
+  // Owner madre: acceso total por bypass (incluye páginas/tabs nuevas).
+  const isOwner = member?.role === 'owner' || (user?.email ?? '').toLowerCase() === OWNER_EMAIL
+  const isAdmin = isOwner || member?.role === 'admin'
+
+  const canAccessPage = useCallback(
+    (pageId: string) => {
+      if (isOwner) return true
+      const acts = role?.permissions?.pages?.[pageId]
+      return Array.isArray(acts) && acts.length > 0
+    },
+    [isOwner, role],
+  )
+
+  const can = useCallback<PermissionsContextValue['can']>(
+    (pageId, action = 'read') => {
+      if (isOwner) return true
+      const acts = role?.permissions?.pages?.[pageId]
+      return Array.isArray(acts) && acts.includes(action)
+    },
+    [isOwner, role],
+  )
+
+  const canAccessTab = useCallback(
+    (tabId: string) => {
+      if (isOwner) return true
+      return role?.permissions?.tabs?.[tabId] === true
+    },
+    [isOwner, role],
+  )
 
   return {
     member,
@@ -115,9 +148,11 @@ export function usePermissionsLoader(): PermissionsContextValue {
     roles,
     loading,
     can,
-    isOwner: true,
-    isAdmin: true,
-    canManageUsers: true,
+    canAccessPage,
+    canAccessTab,
+    isOwner,
+    isAdmin,
+    canManageUsers: isOwner || (role?.canManageUsers ?? false),
     refetch: loadMembership,
     refetchRoles: loadRoles,
   }

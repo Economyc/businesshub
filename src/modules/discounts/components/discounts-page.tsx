@@ -99,7 +99,7 @@ export function DiscountsPage() {
   const { selectedCompany } = useCompany()
   const companyId = selectedCompany?.id ?? ''
   const { can } = usePermissions()
-  const canEdit = can('closings', 'create')
+  const canEdit = can('discounts', 'create')
   const { data: discounts, loading } = useDiscounts()
   const { startDate, endDate, presetLabel } = useDateRange()
   const startStr = toDateStrLocal(startDate)

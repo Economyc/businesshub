@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { ClipboardList, List, FilePlus, Trash2, SquarePen, UserCircle, CalendarRange, TrendingUp, Wallet, CreditCard, QrCode, Bike, Coins, Receipt, CalendarCheck, HandCoins } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { PageTransition } from '@/core/ui/page-transition'
@@ -18,6 +18,7 @@ import { useDateRange } from '@/modules/finance/context/date-range-context'
 import { DateRangePicker } from '@/modules/finance/components/date-range-picker'
 import { useCompany } from '@/core/hooks/use-company'
 import { usePermissions } from '@/core/hooks/use-permissions'
+import { TAB_IDS } from '@/core/config/access-registry'
 import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { usePaginatedClosings, useClosings } from '../hooks'
 import { closingService } from '../services'
@@ -112,9 +113,9 @@ function BreakdownStat({ label, value, icon: Icon }: { label: string; value: num
 type Tab = 'form' | 'history' | 'accumulated'
 
 const CLOSING_TABS = [
-  { value: 'form', label: 'Nuevo Cierre', icon: FilePlus },
-  { value: 'history', label: 'Cierres', icon: List },
-  { value: 'accumulated', label: 'Acumulado', icon: TrendingUp },
+  { value: 'form', label: 'Nuevo Cierre', icon: FilePlus, tabId: TAB_IDS.closingsForm },
+  { value: 'history', label: 'Cierres', icon: List, tabId: TAB_IDS.closingsHistory },
+  { value: 'accumulated', label: 'Acumulado', icon: TrendingUp, tabId: TAB_IDS.closingsAccumulated },
 ]
 
 const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
@@ -295,8 +296,17 @@ function AccumulatedTab({ canEdit, onEdit, onDelete, onRowClick }: AccumulatedTa
 
 export function ClosingList() {
   const { selectedCompany } = useCompany()
-  const { can } = usePermissions()
+  const { can, canAccessTab } = usePermissions()
   const canEdit = can('closings', 'create')
+  const visibleTabs = useMemo(
+    () =>
+      CLOSING_TABS.filter((t) => {
+        if (!canAccessTab(t.tabId)) return false
+        if (t.value === 'form') return canEdit
+        return true
+      }),
+    [canAccessTab, canEdit],
+  )
   const { data: closings, loading, loadingMore, hasMore, totalCount, loadMore } = usePaginatedClosings()
 
   const deleteMutation = useFirestoreMutation(
@@ -305,6 +315,12 @@ export function ClosingList() {
     { optimisticDelete: true, invalidate: ['transactions'] },
   )
   const [tab, setTab] = useState<Tab>(canEdit ? 'form' : 'history')
+  // Si el tab activo no es visible para el rol, caer al primero disponible.
+  useEffect(() => {
+    if (!visibleTabs.some((t) => t.value === tab)) {
+      setTab((visibleTabs[0]?.value as Tab) ?? 'history')
+    }
+  }, [visibleTabs, tab])
   const [search, setSearch] = useState('')
   const [deleteTarget, setDeleteTarget] = useState<Closing | null>(null)
   const [editingClosing, setEditingClosing] = useState<Closing | null>(null)
@@ -418,7 +434,7 @@ export function ClosingList() {
 
       {/* Tabs */}
       <UnderlineButtonTabs
-        tabs={canEdit ? CLOSING_TABS : CLOSING_TABS.filter((t) => t.value !== 'form')}
+        tabs={visibleTabs}
         active={tab}
         onChange={(v) => setTab(v as Tab)}
       />

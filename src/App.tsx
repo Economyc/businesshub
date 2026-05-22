@@ -31,6 +31,7 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 const SettingsCompanies = lazy(() => import('@/core/ui/settings-companies').then(m => ({ default: m.SettingsCompanies })))
 const SettingsCategories = lazy(() => import('@/core/ui/settings-categories').then(m => ({ default: m.SettingsCategories })))
 const SettingsRoles = lazy(() => import('@/core/ui/settings-roles').then(m => ({ default: m.SettingsRoles })))
+const SettingsPuestos = lazy(() => import('@/core/ui/settings-puestos').then(m => ({ default: m.SettingsPuestos })))
 const SettingsDepartments = lazy(() => import('@/core/ui/settings-departments').then(m => ({ default: m.SettingsDepartments })))
 const SettingsTeam = lazy(() => import('@/core/ui/settings-team').then(m => ({ default: m.SettingsTeam })))
 
@@ -86,54 +87,102 @@ export default function App() {
             </Route>
             <Route element={<ProtectedRoute />}>
               <Route element={<DateRangeProvider><Outlet /></DateRangeProvider>}>
-                <Route path="/home" element={<Suspense fallback={<Loading />}><HomePage /></Suspense>} />
+                <Route element={<PermissionRoute pageId="home" />}>
+                  <Route path="/home" element={<Suspense fallback={<Loading />}><HomePage /></Suspense>} />
+                </Route>
               </Route>
               <Route element={<DateRangeProvider><Outlet /></DateRangeProvider>}>
-                <Route path="/analytics" element={<Suspense fallback={<Loading />}><PosDashboard /></Suspense>} />
+                <Route element={<PermissionRoute pageId="analytics" />}>
+                  <Route path="/analytics" element={<Suspense fallback={<Loading />}><PosDashboard /></Suspense>} />
+                </Route>
                 <Route path="/analytics/pos" element={<Navigate to="/analytics" replace />} />
                 <Route path="/analytics/costs" element={<Navigate to="/analytics" replace />} />
               </Route>
-              <Route path="/talent" element={<Suspense fallback={<Loading />}><EmployeeList /></Suspense>} />
-              <Route path="/talent/:id" element={<Suspense fallback={<Loading />}><EmployeeProfile /></Suspense>} />
-              <Route path="/suppliers" element={<Suspense fallback={<Loading />}><SupplierList /></Suspense>} />
-              <Route path="/suppliers/:id" element={<Suspense fallback={<Loading />}><SupplierDetail /></Suspense>} />
+              <Route element={<PermissionRoute pageId="talent" />}>
+                <Route path="/talent" element={<Suspense fallback={<Loading />}><EmployeeList /></Suspense>} />
+                <Route path="/talent/:id" element={<Suspense fallback={<Loading />}><EmployeeProfile /></Suspense>} />
+              </Route>
+              <Route element={<PermissionRoute pageId="suppliers" />}>
+                <Route path="/suppliers" element={<Suspense fallback={<Loading />}><SupplierList /></Suspense>} />
+                <Route path="/suppliers/:id" element={<Suspense fallback={<Loading />}><SupplierDetail /></Suspense>} />
+              </Route>
               <Route element={<DateRangeProvider><Outlet /></DateRangeProvider>}>
-                <Route path="/finance" element={<Suspense fallback={<Loading />}><TransactionList /></Suspense>} />
                 <Route path="/finance/new" element={<Navigate to="/finance" replace />} />
                 <Route path="/finance/edit/:id" element={<Navigate to="/finance" replace />} />
                 <Route path="/finance/recurring" element={<Navigate to="/finance" replace />} />
-                <Route path="/finance/import" element={<Suspense fallback={<Loading />}><ImportView /></Suspense>} />
-                <Route path="/finance/nomina" element={<Suspense fallback={<Loading />}><PayrollView /></Suspense>} />
-                <Route path="/finance/bank" element={<Suspense fallback={<Loading />}><BankImportView /></Suspense>} />
-                <Route path="/finance/cash-flow" element={<Suspense fallback={<Loading />}><CashFlowView /></Suspense>} />
-                <Route path="/finance/income-statement" element={<Suspense fallback={<Loading />}><IncomeStatementView /></Suspense>} />
-                <Route path="/finance/budget" element={<Suspense fallback={<Loading />}><BudgetView /></Suspense>} />
+                <Route element={<PermissionRoute pageId="finance.invoicing" />}>
+                  <Route path="/finance" element={<Suspense fallback={<Loading />}><TransactionList /></Suspense>} />
+                  <Route path="/finance/import" element={<Suspense fallback={<Loading />}><ImportView /></Suspense>} />
+                </Route>
+                <Route element={<PermissionRoute pageId="finance.payroll" />}>
+                  <Route path="/finance/nomina" element={<Suspense fallback={<Loading />}><PayrollView /></Suspense>} />
+                </Route>
+                <Route element={<PermissionRoute pageId="finance.bank" />}>
+                  <Route path="/finance/bank" element={<Suspense fallback={<Loading />}><BankImportView /></Suspense>} />
+                </Route>
+                <Route element={<PermissionRoute pageId="finance.cashflow" />}>
+                  <Route path="/finance/cash-flow" element={<Suspense fallback={<Loading />}><CashFlowView /></Suspense>} />
+                </Route>
+                <Route element={<PermissionRoute pageId="finance.income" />}>
+                  <Route path="/finance/income-statement" element={<Suspense fallback={<Loading />}><IncomeStatementView /></Suspense>} />
+                </Route>
+                <Route element={<PermissionRoute pageId="finance.budget" />}>
+                  <Route path="/finance/budget" element={<Suspense fallback={<Loading />}><BudgetView /></Suspense>} />
+                </Route>
               </Route>
-              <Route path="/partners" element={<Suspense fallback={<Loading />}><PartnerList /></Suspense>} />
-              <Route element={<DateRangeProvider><Outlet /></DateRangeProvider>}>
-                <Route path="/closings" element={<Suspense fallback={<Loading />}><ClosingList /></Suspense>} />
+              <Route element={<PermissionRoute pageId="partners" />}>
+                <Route path="/partners" element={<Suspense fallback={<Loading />}><PartnerList /></Suspense>} />
               </Route>
               <Route element={<DateRangeProvider><Outlet /></DateRangeProvider>}>
-                <Route path="/discounts" element={<Suspense fallback={<Loading />}><DiscountsPage /></Suspense>} />
-              </Route>
-              <Route path="/contracts" element={<Suspense fallback={<Loading />}><ContractList /></Suspense>} />
-              <Route path="/contracts/templates" element={<Suspense fallback={<Loading />}><TemplateList /></Suspense>} />
-              <Route path="/contracts/new" element={<Suspense fallback={<Loading />}><ContractGenerate /></Suspense>} />
-              <Route path="/contracts/:id" element={<Suspense fallback={<Loading />}><ContractDetail /></Suspense>} />
-              <Route path="/agent" element={<Suspense fallback={<Loading />}><AgentPage /></Suspense>} />
-              <Route path="/tasks" element={<Suspense fallback={<Loading />}><TasksPage /></Suspense>} />
-              <Route element={<DateRangeProvider><Outlet /></DateRangeProvider>}>
-                <Route path="/marketing/influencers" element={<Suspense fallback={<Loading />}><InfluencerList /></Suspense>} />
+                <Route element={<PermissionRoute pageId="closings" />}>
+                  <Route path="/closings" element={<Suspense fallback={<Loading />}><ClosingList /></Suspense>} />
+                </Route>
               </Route>
               <Route element={<DateRangeProvider><Outlet /></DateRangeProvider>}>
-                <Route path="/pos-sync" element={<Suspense fallback={<Loading />}><PosSyncPage /></Suspense>} />
+                <Route element={<PermissionRoute pageId="discounts" />}>
+                  <Route path="/discounts" element={<Suspense fallback={<Loading />}><DiscountsPage /></Suspense>} />
+                </Route>
+              </Route>
+              <Route element={<PermissionRoute pageId="contracts" />}>
+                <Route path="/contracts" element={<Suspense fallback={<Loading />}><ContractList /></Suspense>} />
+                <Route path="/contracts/templates" element={<Suspense fallback={<Loading />}><TemplateList /></Suspense>} />
+                <Route path="/contracts/new" element={<Suspense fallback={<Loading />}><ContractGenerate /></Suspense>} />
+                <Route path="/contracts/:id" element={<Suspense fallback={<Loading />}><ContractDetail /></Suspense>} />
+              </Route>
+              <Route element={<PermissionRoute pageId="agent" />}>
+                <Route path="/agent" element={<Suspense fallback={<Loading />}><AgentPage /></Suspense>} />
+              </Route>
+              <Route element={<PermissionRoute pageId="tasks" />}>
+                <Route path="/tasks" element={<Suspense fallback={<Loading />}><TasksPage /></Suspense>} />
+              </Route>
+              <Route element={<DateRangeProvider><Outlet /></DateRangeProvider>}>
+                <Route element={<PermissionRoute pageId="marketing" />}>
+                  <Route path="/marketing/influencers" element={<Suspense fallback={<Loading />}><InfluencerList /></Suspense>} />
+                </Route>
+              </Route>
+              <Route element={<DateRangeProvider><Outlet /></DateRangeProvider>}>
+                <Route element={<PermissionRoute pageId="pos-sync" />}>
+                  <Route path="/pos-sync" element={<Suspense fallback={<Loading />}><PosSyncPage /></Suspense>} />
+                </Route>
               </Route>
               <Route path="/settings" element={<Navigate to="/settings/companies" replace />} />
-              <Route element={<PermissionRoute module="settings" />}>
+              <Route path="/settings/cargos" element={<Navigate to="/settings/puestos" replace />} />
+              <Route element={<PermissionRoute pageId="settings.companies" />}>
                 <Route path="/settings/companies" element={<Suspense fallback={<Loading />}><SettingsCompanies /></Suspense>} />
+              </Route>
+              <Route element={<PermissionRoute pageId="settings.categories" />}>
                 <Route path="/settings/categories" element={<Suspense fallback={<Loading />}><SettingsCategories /></Suspense>} />
+              </Route>
+              <Route element={<PermissionRoute pageId="settings.roles" />}>
                 <Route path="/settings/roles" element={<Suspense fallback={<Loading />}><SettingsRoles /></Suspense>} />
+              </Route>
+              <Route element={<PermissionRoute pageId="settings.puestos" />}>
+                <Route path="/settings/puestos" element={<Suspense fallback={<Loading />}><SettingsPuestos /></Suspense>} />
+              </Route>
+              <Route element={<PermissionRoute pageId="settings.departments" />}>
                 <Route path="/settings/departments" element={<Suspense fallback={<Loading />}><SettingsDepartments /></Suspense>} />
+              </Route>
+              <Route element={<PermissionRoute pageId="settings.team" />}>
                 <Route path="/settings/team" element={<Suspense fallback={<Loading />}><SettingsTeam /></Suspense>} />
               </Route>
             </Route>

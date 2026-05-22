@@ -7,15 +7,19 @@ import {
   fetchMembers,
   adminDeleteUserCallable,
   adminSetUserStatusCallable,
+  updateMember,
 } from '@/core/services/permissions-service'
 import { ConfirmDialog } from './confirm-dialog'
 import { SettingsTeamInvite } from './settings-team-invite'
+import { SelectInput } from './select-input'
 import { UserAvatar } from './user-avatar'
 import type { CompanyMember } from '@/core/types/permissions'
 
 export function SettingsTeamMembers() {
   const { selectedCompany } = useCompany()
-  const { member: currentMember, canManageUsers } = usePermissions()
+  const { member: currentMember, canManageUsers, roles } = usePermissions()
+  const roleOptions = roles.map((r) => ({ value: r.id, label: r.label }))
+  const roleLabel = (roleId: string) => roles.find((r) => r.id === roleId)?.label ?? roleId
   const [members, setMembers] = useState<CompanyMember[]>([])
   const [loading, setLoading] = useState(true)
   const [inviteOpen, setInviteOpen] = useState(false)
@@ -53,6 +57,17 @@ export function SettingsTeamMembers() {
       console.error('Error deleting member:', err)
       setActionError(err instanceof Error ? err.message : 'Error al eliminar')
       setDeleteTarget(null)
+    }
+  }
+
+  async function handleRoleChange(target: CompanyMember, roleId: string) {
+    if (!selectedCompany || roleId === target.role) return
+    try {
+      await updateMember(selectedCompany.id, target.userId, { role: roleId })
+      setMembers((prev) => prev.map((m) => (m.userId === target.userId ? { ...m, role: roleId } : m)))
+    } catch (err) {
+      console.error('Error changing role:', err)
+      setActionError(err instanceof Error ? err.message : 'Error al cambiar el rol')
     }
   }
 
@@ -122,6 +137,9 @@ export function SettingsTeamMembers() {
               <th className="text-left text-caption uppercase tracking-wider font-semibold text-mid-gray px-4 py-3 hidden md:table-cell">
                 Estado
               </th>
+              <th className="text-left text-caption uppercase tracking-wider font-semibold text-mid-gray px-4 py-3 hidden md:table-cell">
+                Rol
+              </th>
               {canManageUsers && (
                 <th className="text-right text-caption uppercase tracking-wider font-semibold text-mid-gray px-4 py-3 w-24" />
               )}
@@ -165,6 +183,18 @@ export function SettingsTeamMembers() {
                     >
                       {statusBadge.label}
                     </span>
+                  </td>
+                  <td className="px-4 py-3 hidden md:table-cell">
+                    {canManageUsers && !isOwner && !isSelf ? (
+                      <SelectInput
+                        value={member.role}
+                        onChange={(v) => handleRoleChange(member, v)}
+                        options={roleOptions}
+                        className="min-w-[150px]"
+                      />
+                    ) : (
+                      <span className="text-body text-graphite">{roleLabel(member.role)}</span>
+                    )}
                   </td>
                   {canManageUsers && (
                     <td className="px-4 py-3 text-right">

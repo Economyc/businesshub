@@ -15,19 +15,19 @@ import {
 import { DateRangePicker } from '@/modules/finance/components/date-range-picker'
 import { useDateRange } from '@/modules/finance/context/date-range-context'
 import { usePermissions } from '@/core/hooks/use-permissions'
+import { TAB_IDS } from '@/core/config/access-registry'
 import { useCompanyLocalIds } from '../company-mapping'
 import { VentasTab } from './ventas-tab'
 import { CatalogoTab } from './catalogo-tab'
 import { AnuladasTab } from './anuladas-tab'
 import { CacheStatusTab } from './cache-status-tab'
 
-const BASE_TABS = [
-  { value: 'ventas', label: 'Ventas', icon: ShoppingBag },
-  { value: 'catalogo', label: 'Catálogo', icon: Package },
-  { value: 'anuladas', label: 'Anuladas', icon: XCircle },
+const ALL_TABS = [
+  { value: 'ventas', label: 'Ventas', icon: ShoppingBag, tabId: TAB_IDS.posVentas },
+  { value: 'catalogo', label: 'Catálogo', icon: Package, tabId: TAB_IDS.posCatalogo },
+  { value: 'anuladas', label: 'Anuladas', icon: XCircle, tabId: TAB_IDS.posAnuladas },
+  { value: 'cache', label: 'Caché', icon: Database, tabId: TAB_IDS.posCache },
 ]
-
-const CACHE_TAB = { value: 'cache', label: 'Caché', icon: Database }
 
 export function PosSyncPage() {
   const [activeTab, setActiveTab] = useState('ventas')
@@ -40,11 +40,11 @@ export function PosSyncPage() {
     error: localesError,
   } = useCompanyLocalIds()
   const { setPreset } = useDateRange()
-  const { isAdmin } = usePermissions()
+  const { canAccessTab } = usePermissions()
 
   const tabs = useMemo(
-    () => (isAdmin ? [...BASE_TABS, CACHE_TAB] : BASE_TABS),
-    [isAdmin],
+    () => ALL_TABS.filter((t) => canAccessTab(t.tabId)),
+    [canAccessTab],
   )
 
   useEffect(() => {
@@ -52,9 +52,9 @@ export function PosSyncPage() {
     return () => { setPreset('thisMonth') }
   }, [setPreset])
 
-  // Si el tab activo deja de ser visible (ej. pierde isAdmin), volver a ventas.
+  // Si el tab activo deja de ser visible, volver al primero disponible.
   useEffect(() => {
-    if (!tabs.some((t) => t.value === activeTab)) setActiveTab('ventas')
+    if (!tabs.some((t) => t.value === activeTab)) setActiveTab(tabs[0]?.value ?? 'ventas')
   }, [tabs, activeTab])
 
   return (
@@ -96,7 +96,7 @@ export function PosSyncPage() {
           localDisplayNames={localDisplayNames}
         />
       )}
-      {activeTab === 'cache' && isAdmin && <CacheStatusTab />}
+      {activeTab === 'cache' && canAccessTab(TAB_IDS.posCache) && <CacheStatusTab />}
     </PageTransition>
   )
 }

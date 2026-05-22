@@ -126,7 +126,7 @@ export function TransactionList() {
   const { startDate, endDate } = useDateRange()
   const { categories: categoryItems } = useSettings()
   const { can } = usePermissions()
-  const canEdit = can('finance', 'create')
+  const canEdit = can('finance.invoicing', 'create')
   const { selectedCompany } = useCompany()
   const companyId = selectedCompany?.id ?? ''
   const { data: suppliers } = useSuppliers()

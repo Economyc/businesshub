@@ -62,7 +62,7 @@ export function BankImportView() {
   const { selectedCompany } = useCompany()
   const companyId = selectedCompany?.id ?? ''
   const { can } = usePermissions()
-  const canEdit = can('finance', 'create')
+  const canEdit = can('finance.bank', 'create')
 
   const [bank, setBank] = useState('Bancolombia')
   const [file, setFile] = useState<File | null>(null)

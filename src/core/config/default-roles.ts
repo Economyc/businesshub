@@ -1,77 +1,117 @@
-import type { RoleDefinition, ModuleKey, PermissionAction } from '@/core/types/permissions'
+import type { RoleDefinition, PermissionAction, RolePermissions } from '@/core/types/permissions'
+import { getMatrixPages, defaultPermissionsFull } from '@/core/config/access-registry'
 
-const ALL_MODULES: ModuleKey[] = [
-  'home', 'analytics', 'agent', 'tasks', 'finance', 'closings',
-  'contracts', 'partners', 'talent', 'suppliers', 'marketing', 'settings',
+/** Permisos para un conjunto de páginas, con las acciones indicadas (acotadas a las
+ *  disponibles de cada página) y todos sus tabs habilitados. */
+function permsFor(pageIds: string[], actions: PermissionAction[]): RolePermissions {
+  const pages: Record<string, PermissionAction[]> = {}
+  const tabs: Record<string, boolean> = {}
+  const wanted = new Set(pageIds)
+  for (const p of getMatrixPages()) {
+    if (!wanted.has(p.id)) continue
+    const allowed = p.actions.filter((a) => actions.includes(a))
+    if (allowed.length === 0) continue
+    pages[p.id] = allowed
+    if (p.tabs) for (const t of p.tabs) tabs[t.id] = true
+  }
+  return { pages, tabs }
+}
+
+function merge(...parts: RolePermissions[]): RolePermissions {
+  const pages: Record<string, PermissionAction[]> = {}
+  const tabs: Record<string, boolean> = {}
+  for (const part of parts) {
+    Object.assign(pages, part.pages)
+    Object.assign(tabs, part.tabs)
+  }
+  return { pages, tabs }
+}
+
+const ALL: PermissionAction[] = ['read', 'create', 'update', 'delete']
+const READ: PermissionAction[] = ['read']
+
+const FINANCE_PAGES = [
+  'finance.invoicing',
+  'finance.payroll',
+  'finance.bank',
+  'finance.cashflow',
+  'finance.income',
+  'finance.budget',
 ]
-
-const ALL_ACTIONS: PermissionAction[] = ['read', 'create', 'update', 'delete']
-
-function fullAccess(modules: ModuleKey[]) {
-  return modules.map((module) => ({ module, actions: [...ALL_ACTIONS] }))
-}
-
-function readOnly(modules: ModuleKey[]) {
-  return modules.map((module) => ({ module, actions: ['read'] as PermissionAction[] }))
-}
 
 export const DEFAULT_ROLES: RoleDefinition[] = [
   {
     id: 'owner',
     label: 'Propietario',
-    description: 'Acceso total a todos los modulos, gestion de usuarios y configuracion de empresa',
+    description: 'Acceso total a todos los módulos, gestión de usuarios y configuración de empresa',
     color: '#1a1a2e',
     isSystem: true,
-    permissions: fullAccess(ALL_MODULES),
+    permissions: defaultPermissionsFull(),
     canManageUsers: true,
     canManageCompany: true,
   },
   {
     id: 'admin',
     label: 'Administrador',
-    description: 'Acceso completo a todos los modulos y gestion de usuarios',
+    description: 'Acceso completo a todos los módulos y gestión de usuarios',
     color: '#7c3aed',
     isSystem: true,
-    permissions: fullAccess(ALL_MODULES),
+    permissions: defaultPermissionsFull(),
     canManageUsers: true,
     canManageCompany: true,
   },
   {
     id: 'finance',
     label: 'Finanzas',
-    description: 'Gestion financiera: transacciones, cierres y proveedores',
+    description: 'Gestión financiera: facturación, nómina, cierres y proveedores',
     color: '#0891b2',
     isSystem: true,
-    permissions: [
-      ...fullAccess(['finance', 'closings', 'suppliers', 'tasks']),
-      ...readOnly(['home', 'analytics', 'partners']),
-    ],
+    permissions: merge(
+      permsFor([...FINANCE_PAGES, 'closings', 'discounts', 'suppliers', 'tasks'], ALL),
+      permsFor(['home', 'analytics', 'partners'], READ),
+    ),
     canManageUsers: false,
     canManageCompany: false,
   },
   {
     id: 'hr',
     label: 'Recursos Humanos',
-    description: 'Gestion de personal: equipo y contratos',
+    description: 'Gestión de personal: equipo y contratos',
     color: '#059669',
     isSystem: true,
-    permissions: [
-      ...fullAccess(['talent', 'contracts', 'tasks']),
-      ...readOnly(['home', 'analytics']),
-    ],
+    permissions: merge(
+      permsFor(['talent', 'contracts', 'tasks'], ALL),
+      permsFor(['home', 'analytics'], READ),
+    ),
     canManageUsers: false,
     canManageCompany: false,
   },
   {
     id: 'viewer',
     label: 'Solo lectura',
-    description: 'Puede ver informacion pero no crear, editar ni eliminar',
+    description: 'Puede ver información pero no crear, editar ni eliminar',
     color: '#6b7280',
     isSystem: true,
-    permissions: [
-      ...readOnly(ALL_MODULES.filter((m) => m !== 'settings' && m !== 'tasks')),
-      ...fullAccess(['tasks']),
-    ],
+    permissions: merge(
+      permsFor(
+        [
+          'home',
+          'analytics',
+          'agent',
+          ...FINANCE_PAGES,
+          'closings',
+          'discounts',
+          'contracts',
+          'partners',
+          'talent',
+          'suppliers',
+          'marketing',
+          'pos-sync',
+        ],
+        READ,
+      ),
+      permsFor(['tasks'], ALL),
+    ),
     canManageUsers: false,
     canManageCompany: false,
   },

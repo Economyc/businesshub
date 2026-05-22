@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo, useCallback } from 'react'
+import { useState, useRef, useMemo, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -23,6 +23,7 @@ import { DateInput } from '@/core/ui/date-input'
 import { useCompany } from '@/core/hooks/use-company'
 import { useCollection } from '@/core/hooks/use-firestore'
 import { usePermissions } from '@/core/hooks/use-permissions'
+import { TAB_IDS } from '@/core/config/access-registry'
 import { formatCurrency } from '@/core/utils/format'
 import { EmptyState } from '@/core/ui/empty-state'
 import type { Employee } from '@/modules/talent/types'
@@ -102,10 +103,22 @@ export function PayrollView() {
   const { selectedCompany } = useCompany()
   const companyId = selectedCompany?.id ?? ''
   const { data: employees } = useCollection<Employee>('employees')
-  const { can } = usePermissions()
-  const canEdit = can('finance', 'create')
+  const { can, canAccessTab } = usePermissions()
+  const canEdit = can('finance.payroll', 'create')
+
+  const payrollTabs = [
+    { value: 'nomina', label: 'Nómina', tabId: TAB_IDS.payrollNomina },
+    { value: 'propinas', label: 'Propinas', tabId: TAB_IDS.payrollPropinas },
+    { value: 'historial', label: 'Historial', tabId: TAB_IDS.payrollHistorial },
+  ].filter((t) => canAccessTab(t.tabId))
 
   const [tab, setTab] = useState<Tab>('nomina')
+  // Si el tab activo no es visible para el rol, caer al primero disponible.
+  useEffect(() => {
+    if (payrollTabs.length > 0 && !payrollTabs.some((t) => t.value === tab)) {
+      setTab(payrollTabs[0].value as Tab)
+    }
+  }, [payrollTabs, tab])
   const [periodLabel, setPeriodLabel] = useState('')
   const [paidDate, setPaidDate] = useState(todayISO())
 
@@ -168,34 +181,19 @@ export function PayrollView() {
       )}
 
       {/* Tabs */}
-      <div className="grid grid-cols-3 gap-2 p-1 rounded-lg bg-bone/60 border border-border/60 mb-6 max-w-xl">
-        <button
-          type="button"
-          onClick={() => setTab('nomina')}
-          className={`px-4 py-2 rounded-lg text-body font-medium transition-colors ${
-            tab === 'nomina' ? 'bg-surface text-graphite card-elevated' : 'text-mid-gray hover:text-graphite'
-          }`}
-        >
-          Nómina
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab('propinas')}
-          className={`px-4 py-2 rounded-lg text-body font-medium transition-colors ${
-            tab === 'propinas' ? 'bg-surface text-graphite card-elevated' : 'text-mid-gray hover:text-graphite'
-          }`}
-        >
-          Propinas
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab('historial')}
-          className={`px-4 py-2 rounded-lg text-body font-medium transition-colors ${
-            tab === 'historial' ? 'bg-surface text-graphite card-elevated' : 'text-mid-gray hover:text-graphite'
-          }`}
-        >
-          Historial
-        </button>
+      <div className="flex gap-2 p-1 rounded-lg bg-bone/60 border border-border/60 mb-6 max-w-xl">
+        {payrollTabs.map((t) => (
+          <button
+            key={t.value}
+            type="button"
+            onClick={() => setTab(t.value as Tab)}
+            className={`flex-1 px-4 py-2 rounded-lg text-body font-medium transition-colors ${
+              tab === t.value ? 'bg-surface text-graphite card-elevated' : 'text-mid-gray hover:text-graphite'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
 
       {tab === 'nomina' ? (

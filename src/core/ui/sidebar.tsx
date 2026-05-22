@@ -15,7 +15,7 @@ import { useCompany } from '@/core/hooks/use-company'
 import { usePermissions } from '@/core/hooks/use-permissions'
 import { prefetchRoute, resetPrefetchCache } from '@/core/utils/prefetch'
 import { prefetchSelectorSales } from '@/modules/home/selector-sales'
-import { NAV_SECTIONS, SETTINGS_ITEMS, FINANCE_ITEMS, getActiveSections } from '@/core/config/navigation'
+import { NAV_SECTIONS, SETTINGS_ITEMS, FINANCE_ITEMS, getActiveSections, isNavItemVisible } from '@/core/config/navigation'
 
 interface SidebarProps {
   onNavClick?: () => void
@@ -81,7 +81,8 @@ export function Sidebar({ onNavClick }: SidebarProps) {
   const { user, logout } = useAuth()
   const { config: avatarConfig, setConfig: setAvatarConfig } = useAvatarConfig(user?.uid)
   const { companies, selectedCompany, selectCompany } = useCompany()
-  const { can, loading: permissionsLoading } = usePermissions()
+  const { canAccessPage, loading: permissionsLoading } = usePermissions()
+  const canAccessSettings = SETTINGS_ITEMS.some((i) => canAccessPage(i.pageId))
 
   const [openSections, setOpenSections] = useState<Set<string>>(() => getActiveSections(location.pathname))
   const [companyOpen, setCompanyOpen] = useState(false)
@@ -362,7 +363,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                 </div>
               ) : (
                 NAV_SECTIONS.map((section, sIdx) => {
-                  const visibleItems = section.items.filter(({ moduleKey }) => !moduleKey || can(moduleKey, 'read'))
+                  const visibleItems = section.items.filter((item) => isNavItemVisible(item, canAccessPage))
                   if (visibleItems.length === 0) return null
 
                   const isOpen = !section.title || openSections.has(section.title)
@@ -509,7 +510,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                           <LayoutGrid size={16} strokeWidth={1.5} />
                           Mis compañías
                         </button>
-                        {can('settings', 'read') && (
+                        {canAccessSettings && (
                           <>
                             <div className="border-t border-border/60" />
                             {/* Configuración button — opens side panel */}
@@ -562,7 +563,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
           <h3 className="text-caption uppercase tracking-wider font-semibold text-mid-gray">Contabilidad</h3>
         </div>
         <div className="flex flex-col gap-0.5 flex-1">
-          {FINANCE_ITEMS.map(({ to, label, icon: Icon, end }) => (
+          {FINANCE_ITEMS.filter((i) => canAccessPage(i.pageId)).map(({ to, label, icon: Icon, end }) => (
             <NavLink
               key={to}
               to={to}
@@ -605,7 +606,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
           <h3 className="text-caption uppercase tracking-wider font-semibold text-mid-gray">Configuración</h3>
         </div>
         <div className="flex flex-col gap-0.5 flex-1">
-          {SETTINGS_ITEMS.map(({ to, label, icon: Icon }) => (
+          {SETTINGS_ITEMS.filter((i) => canAccessPage(i.pageId)).map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}

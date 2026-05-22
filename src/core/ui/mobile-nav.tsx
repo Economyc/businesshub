@@ -11,7 +11,7 @@ import { ThemeToggle } from '@/core/ui/theme-toggle'
 import { AvatarPicker } from '@/core/ui/avatar-picker'
 import { UserAvatar } from '@/core/ui/user-avatar'
 import { useAvatarConfig } from '@/core/hooks/use-avatar-config'
-import { NAV_SECTIONS, SETTINGS_ITEMS, FINANCE_ITEMS, getActiveSections } from '@/core/config/navigation'
+import { NAV_SECTIONS, SETTINGS_ITEMS, FINANCE_ITEMS, getActiveSections, isNavItemVisible } from '@/core/config/navigation'
 
 interface MobileNavProps {
   open: boolean
@@ -21,7 +21,8 @@ interface MobileNavProps {
 export function MobileNav({ open, onClose }: MobileNavProps) {
   const { companies, selectedCompany, selectCompany } = useCompany()
   const { user, logout } = useAuth()
-  const { can } = usePermissions()
+  const { canAccessPage } = usePermissions()
+  const canAccessSettings = SETTINGS_ITEMS.some((i) => canAccessPage(i.pageId))
   const { config: avatarConfig, setConfig: setAvatarConfig } = useAvatarConfig(user?.uid)
   const location = useLocation()
   const isFinanceRoute = location.pathname.startsWith('/finance')
@@ -163,7 +164,7 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
             {/* Navigation */}
             <div className="flex-1 overflow-y-auto overflow-x-hidden py-2" style={{ touchAction: 'pan-y', overscrollBehaviorX: 'none' }}>
               {NAV_SECTIONS.map((section, sIdx) => {
-                const visibleItems = section.items.filter(({ moduleKey }) => !moduleKey || can(moduleKey, 'read'))
+                const visibleItems = section.items.filter((item) => isNavItemVisible(item, canAccessPage))
                 if (visibleItems.length === 0) return null
 
                 const isOpen = !section.title || openSections.has(section.title)
@@ -211,7 +212,7 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
                             if (to === '/finance') {
                               const isExpanded = financeExpanded
                               const setExpanded = setFinanceExpanded
-                              const subItems = FINANCE_ITEMS
+                              const subItems = FINANCE_ITEMS.filter((i) => canAccessPage(i.pageId))
                               const isOnRoute = location.pathname.startsWith(to)
                               return (
                                 <div key={to}>
@@ -332,13 +333,13 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
                         <LayoutGrid size={16} strokeWidth={1.5} />
                         Mis compañías
                       </NavLink>
-                      {can('settings', 'read') && (
+                      {canAccessSettings && (
                         <>
                           <div className="mx-3 my-1 border-t border-border/60" />
                           <div className="px-3 pt-1 pb-1">
                             <span className="text-[10px] font-semibold uppercase tracking-wider font-semibold text-mid-gray/60">Configuración</span>
                           </div>
-                          {SETTINGS_ITEMS.map(({ to, label, icon: Icon }) => (
+                          {SETTINGS_ITEMS.filter((i) => canAccessPage(i.pageId)).map(({ to, label, icon: Icon }) => (
                             <NavLink
                               key={to}
                               to={to}

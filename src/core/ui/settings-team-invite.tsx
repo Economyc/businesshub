@@ -3,7 +3,9 @@ import { Loader2, UserPlus, Copy, Check, RefreshCw } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { modalVariants } from '@/core/animations/variants'
 import { useCompany } from '@/core/hooks/use-company'
+import { usePermissions } from '@/core/hooks/use-permissions'
 import { adminCreateUserCallable } from '@/core/services/permissions-service'
+import { SelectInput } from './select-input'
 
 interface Props {
   open: boolean
@@ -20,9 +22,12 @@ function generatePassword(length = 12): string {
 
 export function SettingsTeamInvite({ open, onClose, onInvited }: Props) {
   const { selectedCompany } = useCompany()
+  const { roles } = usePermissions()
+  const roleOptions = roles.map((r) => ({ value: r.id, label: r.label }))
   const [email, setEmail] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [password, setPassword] = useState(() => generatePassword())
+  const [role, setRole] = useState('viewer')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [createdCreds, setCreatedCreds] = useState<{ email: string; password: string } | null>(null)
@@ -32,6 +37,7 @@ export function SettingsTeamInvite({ open, onClose, onInvited }: Props) {
     setEmail('')
     setDisplayName('')
     setPassword(generatePassword())
+    setRole('viewer')
     setError('')
     setCreatedCreds(null)
     setCopied(false)
@@ -81,7 +87,7 @@ export function SettingsTeamInvite({ open, onClose, onInvited }: Props) {
         email: trimmedEmail,
         password,
         displayName: trimmedName,
-        role: 'admin',
+        role,
       })
       setCreatedCreds({ email: trimmedEmail, password })
       onInvited()
@@ -197,6 +203,18 @@ export function SettingsTeamInvite({ open, onClose, onInvited }: Props) {
                       placeholder="correo@ejemplo.com"
                       className="w-full px-3 py-2.5 rounded-lg border border-input-border bg-input-bg text-body text-graphite placeholder:text-mid-gray/60 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200"
                       disabled={loading}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-caption font-medium text-graphite mb-1.5">
+                      Rol
+                    </label>
+                    <SelectInput
+                      value={role}
+                      onChange={setRole}
+                      options={roleOptions}
+                      placeholder="Seleccionar rol..."
                     />
                   </div>
 

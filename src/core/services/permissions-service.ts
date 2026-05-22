@@ -10,8 +10,9 @@ import {
 } from 'firebase/firestore'
 import { httpsCallable } from 'firebase/functions'
 import { db, getAppFunctions } from '@/core/firebase/config'
-import type { CompanyMember, RoleDefinition } from '@/core/types/permissions'
+import type { CompanyMember, ModulePermission, RoleDefinition, RolePermissions } from '@/core/types/permissions'
 import { DEFAULT_ROLES } from '@/core/config/default-roles'
+import { migrateLegacyPermissions, defaultPermissionsOff, OWNER_EMAIL } from '@/core/config/access-registry'
 
 function membersCollection(companyId: string) {
   return collection(db, 'companies', companyId, 'members')
@@ -66,25 +67,67 @@ function roleDoc(companyId: string, roleId: string) {
   return doc(db, 'companies', companyId, 'roles', roleId)
 }
 
+/** Normaliza un doc de rol a la forma actual `RolePermissions`, migrando si viene
+ *  en la forma vieja (`ModulePermission[]`). No reescribe Firestore en la lectura. */
+function normalizeRole(raw: Record<string, unknown> & { id: string }): RoleDefinition {
+  const rawPerms = raw.permissions
+  let permissions: RolePermissions
+
+  if (Array.isArray(rawPerms)) {
+    // Forma vieja. Para roles de sistema, usar el default nuevo; el resto se migra.
+    const def = DEFAULT_ROLES.find((r) => r.id === raw.id)
+    permissions = def ? def.permissions : migrateLegacyPermissions(rawPerms as ModulePermission[])
+  } else if (rawPerms && typeof rawPerms === 'object') {
+    const p = rawPerms as Partial<RolePermissions>
+    permissions = { pages: p.pages ?? {}, tabs: p.tabs ?? {} }
+  } else {
+    permissions = defaultPermissionsOff()
+  }
+
+  return { ...(raw as unknown as RoleDefinition), permissions }
+}
+
+function roleToDoc(role: RoleDefinition) {
+  return {
+    label: role.label,
+    description: role.description,
+    color: role.color,
+    isSystem: role.isSystem,
+    permissions: role.permissions,
+    canManageUsers: role.canManageUsers,
+    canManageCompany: role.canManageCompany,
+  }
+}
+
 /** Fetch all roles for a company. Seeds defaults if none exist. */
 export async function fetchRoles(companyId: string): Promise<RoleDefinition[]> {
   const snapshot = await getDocs(rolesCollection(companyId))
   if (snapshot.empty) {
     // Seed default roles
     for (const role of DEFAULT_ROLES) {
-      await setDoc(roleDoc(companyId, role.id), {
-        label: role.label,
-        description: role.description,
-        color: role.color,
-        isSystem: role.isSystem,
-        permissions: role.permissions,
-        canManageUsers: role.canManageUsers,
-        canManageCompany: role.canManageCompany,
-      })
+      await setDoc(roleDoc(companyId, role.id), roleToDoc(role))
     }
     return [...DEFAULT_ROLES]
   }
-  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as RoleDefinition)
+  return snapshot.docs.map((d) => normalizeRole({ id: d.id, ...d.data() }))
+}
+
+export async function createRole(companyId: string, role: RoleDefinition): Promise<void> {
+  await setDoc(roleDoc(companyId, role.id), roleToDoc(role))
+}
+
+export async function updateRole(
+  companyId: string,
+  roleId: string,
+  data: Partial<RoleDefinition>,
+): Promise<void> {
+  const { id: _id, ...rest } = data as RoleDefinition & { id?: string }
+  void _id
+  await updateDoc(roleDoc(companyId, roleId), rest)
+}
+
+export async function removeRole(companyId: string, roleId: string): Promise<void> {
+  await deleteDoc(roleDoc(companyId, roleId))
 }
 
 // ---- Members ----
@@ -102,7 +145,7 @@ export async function seedMembershipIfNeeded(
   const existing = await fetchMember(companyId, userId)
   if (existing) return existing
 
-  const role = email === 'admin@filipoblue.co' ? 'owner' : 'viewer'
+  const role = email.toLowerCase() === OWNER_EMAIL ? 'owner' : 'viewer'
 
   const member: Omit<CompanyMember, 'id'> = {
     userId,

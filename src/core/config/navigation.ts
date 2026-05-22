@@ -1,11 +1,15 @@
-import { Home, Users, Briefcase, DollarSign, Tags, BadgeCheck, Network, Handshake, ClipboardList, FileSignature, Wallet, FileText, Shield, RefreshCw, Megaphone, List, Target, Building2, Percent, Landmark } from 'lucide-react'
-import type { ModuleKey } from '@/core/types/permissions'
+import type { LucideIcon } from 'lucide-react'
+import { getAllPages, type AccessPage } from '@/core/config/access-registry'
 
 export interface NavItem {
   to: string
   label: string
-  icon?: typeof Home
-  moduleKey?: ModuleKey
+  icon?: LucideIcon
+  /** pageId del registro para el gating de visibilidad. */
+  pageId?: string
+  /** Para openers de panel: visible si alguna página hija es accesible. */
+  childPageIds?: string[]
+  end?: boolean
 }
 
 export interface NavSection {
@@ -13,67 +17,68 @@ export interface NavSection {
   items: NavItem[]
 }
 
-export const NAV_SECTIONS: NavSection[] = [
-  {
-    items: [
-      { to: '/home', label: 'Home', moduleKey: 'home' },
-      { to: '/tasks', label: 'Tasks', moduleKey: 'tasks' },
-      { to: '/agent', label: 'Asistente AI', moduleKey: 'agent' },
-      { to: '/analytics', label: 'Análisis', moduleKey: 'analytics' },
-    ],
-  },
-  {
-    title: 'Finanzas',
-    items: [
-      { to: '/finance', label: 'Contabilidad', icon: DollarSign, moduleKey: 'finance' },
-      { to: '/closings', label: 'Cierres de Caja', icon: ClipboardList, moduleKey: 'closings' },
-      { to: '/discounts', label: 'Descuentos', icon: Percent, moduleKey: 'closings' },
-    ],
-  },
-  {
-    title: 'Operaciones',
-    items: [
-      { to: '/contracts', label: 'Contratos', icon: FileSignature, moduleKey: 'contracts' },
-      { to: '/partners', label: 'Socios', icon: Handshake, moduleKey: 'partners' },
-      { to: '/talent', label: 'Equipo', icon: Users, moduleKey: 'talent' },
-      { to: '/suppliers', label: 'Proveedores', icon: Briefcase, moduleKey: 'suppliers' },
-    ],
-  },
-  {
-    title: 'Mercadeo',
-    items: [
-      { to: '/marketing/influencers', label: 'Influencers', icon: Megaphone, moduleKey: 'marketing' },
-    ],
-  },
-  {
-    title: 'Integraciones',
-    items: [
-      { to: '/pos-sync', label: 'POS Sync', icon: RefreshCw },
-    ],
-  },
-]
+function toNavItem(p: AccessPage): NavItem {
+  return {
+    to: p.path,
+    label: p.label,
+    icon: p.icon,
+    // El opener de panel se filtra por sus hijas; el resto por su propio pageId.
+    pageId: p.nav?.isSubPanel ? undefined : p.id,
+    childPageIds: p.nav?.childPageIds,
+    end: p.nav?.end,
+  }
+}
 
-export const SETTINGS_ITEMS = [
-  { to: '/settings/team', label: 'Equipo', icon: Shield },
-  { to: '/settings/companies', label: 'Compañías', icon: Building2 },
-  { to: '/settings/categories', label: 'Categorías', icon: Tags },
-  { to: '/settings/roles', label: 'Cargos', icon: BadgeCheck },
-  { to: '/settings/departments', label: 'Departamentos', icon: Network },
-]
+const sortByOrder = (a: AccessPage, b: AccessPage) => (a.nav?.order ?? 0) - (b.nav?.order ?? 0)
 
-export const FINANCE_ITEMS: (Omit<NavItem, 'icon'> & { icon: typeof Home; end?: boolean })[] = [
-  { to: '/finance', label: 'Facturación', icon: List, end: true },
-  { to: '/finance/nomina', label: 'Nómina', icon: Users },
-  { to: '/finance/bank', label: 'Extracto Bancario', icon: Landmark },
-  { to: '/finance/cash-flow', label: 'Flujo de Caja', icon: Wallet },
-  { to: '/finance/income-statement', label: 'Estado de Resultados', icon: FileText },
-  { to: '/finance/budget', label: 'Presupuesto', icon: Target },
-]
+/** Secciones del sidebar derivadas de las páginas con `nav.group === 'main'`. */
+export const NAV_SECTIONS: NavSection[] = (() => {
+  const mainPages = getAllPages().filter((p) => p.nav?.group === 'main')
+  const order: string[] = []
+  const groups = new Map<string, AccessPage[]>()
+  for (const p of mainPages) {
+    const key = p.nav?.section ?? ''
+    if (!groups.has(key)) {
+      groups.set(key, [])
+      order.push(key)
+    }
+    groups.get(key)!.push(p)
+  }
+  return order.map((key) => ({
+    title: key || undefined,
+    items: groups.get(key)!.slice().sort(sortByOrder).map(toNavItem),
+  }))
+})()
+
+/** Sub-tabs del panel de Contabilidad. */
+export const FINANCE_ITEMS: { to: string; label: string; icon: LucideIcon; pageId: string; end?: boolean }[] =
+  getAllPages()
+    .filter((p) => p.nav?.group === 'finance')
+    .slice()
+    .sort(sortByOrder)
+    .map((p) => ({ to: p.path, label: p.label, icon: p.icon as LucideIcon, pageId: p.id, end: p.nav?.end }))
+
+/** Sub-páginas del panel de Configuración. */
+export const SETTINGS_ITEMS: { to: string; label: string; icon: LucideIcon; pageId: string }[] =
+  getAllPages()
+    .filter((p) => p.nav?.group === 'settings')
+    .slice()
+    .sort(sortByOrder)
+    .map((p) => ({ to: p.path, label: p.label, icon: p.icon as LucideIcon, pageId: p.id }))
+
+/** Visibilidad de un item de nav según el acceso del usuario. */
+export function isNavItemVisible(item: NavItem, canAccessPage: (pageId: string) => boolean): boolean {
+  if (item.childPageIds && item.childPageIds.length > 0) {
+    return item.childPageIds.some(canAccessPage)
+  }
+  if (item.pageId) return canAccessPage(item.pageId)
+  return true
+}
 
 export function getActiveSections(pathname: string): Set<string> {
   const active = new Set<string>()
   for (const section of NAV_SECTIONS) {
-    if (section.title && section.items.some(item => pathname.startsWith(item.to))) {
+    if (section.title && section.items.some((item) => pathname.startsWith(item.to))) {
       active.add(section.title)
     }
   }

@@ -1,16 +1,16 @@
 import { Outlet } from 'react-router-dom'
 import { usePermissions } from '@/core/hooks/use-permissions'
 import { NoAccessPage } from './no-access-page'
-import type { ModuleKey, PermissionAction } from '@/core/types/permissions'
+import type { PermissionAction } from '@/core/types/permissions'
 import { Skeleton } from './skeleton'
 
 interface Props {
-  module: ModuleKey
+  pageId: string
   action?: PermissionAction
 }
 
-export function PermissionRoute({ module, action = 'read' }: Props) {
-  const { can, loading, member } = usePermissions()
+export function PermissionRoute({ pageId, action }: Props) {
+  const { can, canAccessPage, loading, member } = usePermissions()
 
   if (loading) {
     return (
@@ -26,7 +26,8 @@ export function PermissionRoute({ module, action = 'read' }: Props) {
     return <NoAccessPage />
   }
 
-  if (!can(module, action)) {
+  const allowed = action ? can(pageId, action) : canAccessPage(pageId)
+  if (!allowed) {
     return <NoAccessPage />
   }
 
