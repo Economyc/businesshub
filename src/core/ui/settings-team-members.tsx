@@ -5,7 +5,6 @@ import { useCompany } from '@/core/hooks/use-company'
 import { usePermissions } from '@/core/hooks/use-permissions'
 import {
   fetchMembers,
-  updateMember,
   adminDeleteUserCallable,
   adminSetUserStatusCallable,
 } from '@/core/services/permissions-service'
@@ -16,13 +15,12 @@ import type { CompanyMember } from '@/core/types/permissions'
 
 export function SettingsTeamMembers() {
   const { selectedCompany } = useCompany()
-  const { member: currentMember, canManageUsers, roles, refetch } = usePermissions()
+  const { member: currentMember, canManageUsers } = usePermissions()
   const [members, setMembers] = useState<CompanyMember[]>([])
   const [loading, setLoading] = useState(true)
   const [inviteOpen, setInviteOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<CompanyMember | null>(null)
   const [statusTarget, setStatusTarget] = useState<{ member: CompanyMember; status: 'active' | 'suspended' } | null>(null)
-  const [editingRole, setEditingRole] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
 
   async function loadMembers() {
@@ -41,19 +39,6 @@ export function SettingsTeamMembers() {
   useEffect(() => {
     loadMembers()
   }, [selectedCompany?.id])
-
-  async function handleRoleChange(member: CompanyMember, newRole: string) {
-    if (!selectedCompany) return
-    await updateMember(selectedCompany.id, member.userId, { role: newRole })
-    setMembers((prev) =>
-      prev.map((m) => (m.userId === member.userId ? { ...m, role: newRole } : m)),
-    )
-    setEditingRole(null)
-    // Refetch permissions in case the current user changed their own role
-    if (member.userId === currentMember?.userId) {
-      refetch()
-    }
-  }
 
   async function handleRemove() {
     if (!selectedCompany || !deleteTarget) return
@@ -90,12 +75,6 @@ export function SettingsTeamMembers() {
       setActionError(err instanceof Error ? err.message : 'Error al cambiar estado')
       setStatusTarget(null)
     }
-  }
-
-  function getRoleBadge(roleId: string) {
-    const role = roles.find((r) => r.id === roleId)
-    if (!role) return { label: roleId, color: '#6b7280' }
-    return { label: role.label, color: role.color }
   }
 
   function getStatusBadge(status: CompanyMember['status']) {
@@ -140,9 +119,6 @@ export function SettingsTeamMembers() {
               <th className="text-left text-caption uppercase tracking-wider font-semibold text-mid-gray px-4 py-3">
                 Miembro
               </th>
-              <th className="text-left text-caption uppercase tracking-wider font-semibold text-mid-gray px-4 py-3 hidden sm:table-cell">
-                Rol
-              </th>
               <th className="text-left text-caption uppercase tracking-wider font-semibold text-mid-gray px-4 py-3 hidden md:table-cell">
                 Estado
               </th>
@@ -153,7 +129,6 @@ export function SettingsTeamMembers() {
           </thead>
           <tbody>
             {members.map((member) => {
-              const roleBadge = getRoleBadge(member.role)
               const statusBadge = getStatusBadge(member.status)
               const isSelf = member.userId === currentMember?.userId
               const isOwner = member.role === 'owner'
@@ -180,39 +155,6 @@ export function SettingsTeamMembers() {
                         <div className="text-caption text-mid-gray truncate">{member.email}</div>
                       </div>
                     </div>
-                  </td>
-                  <td className="px-4 py-3 hidden sm:table-cell">
-                    {editingRole === member.userId && canManageUsers && !isOwner ? (
-                      <select
-                        value={member.role}
-                        onChange={(e) => handleRoleChange(member, e.target.value)}
-                        onBlur={() => setEditingRole(null)}
-                        autoFocus
-                        className="text-body rounded-md border border-input-border bg-input-bg px-2 py-1 outline-none focus:border-input-focus"
-                      >
-                        {roles.map((r) => (
-                          <option key={r.id} value={r.id}>
-                            {r.label}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <button
-                        onClick={() => canManageUsers && !isOwner && setEditingRole(member.userId)}
-                        className={cn(
-                          'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-caption font-medium transition-colors',
-                          canManageUsers && !isOwner && 'cursor-pointer hover:opacity-80',
-                        )}
-                        style={{
-                          backgroundColor: roleBadge.color + '15',
-                          color: roleBadge.color,
-                        }}
-                        disabled={!canManageUsers || isOwner}
-                      >
-                        <Shield size={11} />
-                        {roleBadge.label}
-                      </button>
-                    )}
                   </td>
                   <td className="px-4 py-3 hidden md:table-cell">
                     <span

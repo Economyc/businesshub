@@ -87,27 +87,6 @@ export async function fetchRoles(companyId: string): Promise<RoleDefinition[]> {
   return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as RoleDefinition)
 }
 
-export async function createRole(companyId: string, role: RoleDefinition): Promise<void> {
-  await setDoc(roleDoc(companyId, role.id), {
-    label: role.label,
-    description: role.description,
-    color: role.color,
-    isSystem: role.isSystem,
-    permissions: role.permissions,
-    canManageUsers: role.canManageUsers,
-    canManageCompany: role.canManageCompany,
-  })
-}
-
-export async function updateRole(companyId: string, roleId: string, data: Partial<RoleDefinition>): Promise<void> {
-  const { id, ...rest } = data as RoleDefinition & { id?: string }
-  await updateDoc(roleDoc(companyId, roleId), rest)
-}
-
-export async function removeRole(companyId: string, roleId: string): Promise<void> {
-  await deleteDoc(roleDoc(companyId, roleId))
-}
-
 // ---- Members ----
 
 /** Seed the current user if no membership exists.

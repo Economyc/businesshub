@@ -105,16 +105,9 @@ export function usePermissionsLoader(): PermissionsContextValue {
 
   const role = member ? roles.find((r) => r.id === member.role) ?? null : null
 
-  const can = useCallback(
-    (module: ModuleKey, action: PermissionAction = 'read') => {
-      if (!role) return false
-      if (role.id === 'owner' || role.id === 'admin') return true
-      const perm = role.permissions.find((p) => p.module === module)
-      if (!perm) return false
-      return perm.actions.includes(action)
-    },
-    [role],
-  )
+  // Roles de permisos eliminados temporalmente: todos los usuarios tienen acceso
+  // total mientras se reconstruye el modulo de permisos desde cero.
+  const can = useCallback<PermissionsContextValue['can']>(() => true, [])
 
   return {
     member,
@@ -122,9 +115,9 @@ export function usePermissionsLoader(): PermissionsContextValue {
     roles,
     loading,
     can,
-    isOwner: member?.role === 'owner',
-    isAdmin: member?.role === 'owner' || member?.role === 'admin',
-    canManageUsers: role?.canManageUsers ?? false,
+    isOwner: true,
+    isAdmin: true,
+    canManageUsers: true,
     refetch: loadMembership,
     refetchRoles: loadRoles,
   }
