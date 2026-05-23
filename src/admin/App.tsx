@@ -1,0 +1,78 @@
+import { Suspense } from 'react'
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
+import { QueryClientProvider } from '@tanstack/react-query'
+import { queryClient } from '@/core/query/query-client'
+import { AuthProvider, useAuth } from '@/core/hooks/use-auth'
+import { CompanyProvider } from '@/core/ui/company-provider'
+import { PermissionsProvider } from '@/core/ui/permissions-provider'
+import { PermissionRoute } from '@/core/ui/permission-route'
+import { LoginPage } from '@/core/ui/login-page'
+import { TooltipProvider } from '@/components/ui/tooltip'
+import { ErrorBoundary } from '@/core/ui/error-boundary'
+import { Skeleton } from '@/core/ui/skeleton'
+import { DateRangeProvider } from '@/modules/finance/context/date-range-context'
+import { AdminLayout } from './layout'
+// Módulos: Horarios es nuevo; Cierres y Descuentos se reutilizan tal cual de App1
+// (mismo monorepo, mismo Firebase). No se copia código.
+import { ScheduleView } from '@/modules/schedule/routes'
+import { ClosingList } from '@/modules/closings/routes'
+import { DiscountsPage } from '@/modules/discounts/routes'
+
+function Loading() {
+  return (
+    <div className="space-y-4 p-6">
+      <Skeleton className="h-6 w-48 rounded" />
+      <Skeleton className="h-64 rounded-xl" />
+    </div>
+  )
+}
+
+// Zona protegida: requiere sesión, monta permisos y el layout de App2.
+function Protected() {
+  const { user } = useAuth()
+  if (!user) return <Navigate to="/login" replace />
+  return (
+    <PermissionsProvider>
+      <ErrorBoundary>
+        <AdminLayout />
+      </ErrorBoundary>
+    </PermissionsProvider>
+  )
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <CompanyProvider>
+            <TooltipProvider delayDuration={250} skipDelayDuration={300}>
+              <Routes>
+                <Route path="/login" element={<LoginPage />} />
+                <Route element={<Protected />}>
+                  <Route index element={<Navigate to="/horarios" replace />} />
+
+                  <Route element={<PermissionRoute pageId="schedule" />}>
+                    <Route path="/horarios" element={<Suspense fallback={<Loading />}><ScheduleView /></Suspense>} />
+                  </Route>
+
+                  {/* Cierres y Descuentos requieren DateRangeProvider (igual que en App1). */}
+                  <Route element={<DateRangeProvider><Outlet /></DateRangeProvider>}>
+                    <Route element={<PermissionRoute pageId="closings" />}>
+                      <Route path="/cierres" element={<Suspense fallback={<Loading />}><ClosingList /></Suspense>} />
+                    </Route>
+                    <Route element={<PermissionRoute pageId="discounts" />}>
+                      <Route path="/descuentos" element={<Suspense fallback={<Loading />}><DiscountsPage /></Suspense>} />
+                    </Route>
+                  </Route>
+                </Route>
+
+                <Route path="*" element={<Navigate to="/horarios" replace />} />
+              </Routes>
+            </TooltipProvider>
+          </CompanyProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </BrowserRouter>
+  )
+}

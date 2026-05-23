@@ -20,6 +20,7 @@ import {
   Percent,
   Landmark,
   KeyRound,
+  CalendarDays,
 } from 'lucide-react'
 import type {
   ModuleKey,
@@ -187,6 +188,10 @@ export const ACCESS_REGISTRY: AccessModule[] = [
         ],
       },
       { id: 'suppliers', label: 'Proveedores', path: '/suppliers', icon: Briefcase, actions: [...ALL_ACTIONS], nav: { group: 'main', section: 'Operaciones', order: 4 } },
+      // Horarios vive solo en App2 (herramienta operativa de local). Sin `nav`
+      // para NO aparecer en el sidebar de App1, pero sí en la matriz de Roles
+      // para poder concederlo a los puestos que arman horarios.
+      { id: 'schedule', label: 'Horarios', path: '/horarios', icon: CalendarDays, actions: [...ALL_ACTIONS] },
     ],
   },
   {
