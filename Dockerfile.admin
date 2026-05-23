@@ -23,7 +23,9 @@ ENV VITE_FIREBASE_API_KEY=$VITE_FIREBASE_API_KEY \
     VITE_FIREBASE_MESSAGING_SENDER_ID=$VITE_FIREBASE_MESSAGING_SENDER_ID \
     VITE_FIREBASE_APP_ID=$VITE_FIREBASE_APP_ID
 
-COPY package*.json ./
+# Incluimos .npmrc (legacy-peer-deps=true) ANTES de npm ci: el repo lo necesita
+# para resolver el conflicto de peer deps (zod 4 vs @ai-sdk/react que pide zod 3).
+COPY package*.json .npmrc ./
 RUN npm ci
 COPY . .
 RUN npm run build:admin
