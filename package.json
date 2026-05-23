@@ -8,7 +8,6 @@
     "dev:admin": "vite --port 5174 --open /admin.html",
     "build": "vite build",
     "build:admin": "vite build --config vite.config.admin.ts",
-    "deploy:admin": "bash deploy-admin.sh",
     "typecheck": "tsc -b",
     "lint": "eslint .",
     "preview": "vite preview",

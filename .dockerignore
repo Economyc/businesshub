@@ -1,0 +1,11 @@
+node_modules
+dist
+dist-admin
+.git
+.claude
+e2e
+*.tar.gz
+.env
+.env.local
+.env.e2e
+npm-debug.log

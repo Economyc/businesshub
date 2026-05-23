@@ -1,0 +1,34 @@
+# Dockerfile de App2 (herramienta admin) para deploy en Coolify/Hetzner.
+# En Coolify: Build Pack = Dockerfile, Dockerfile Location = /Dockerfile.admin,
+# Port = 80. Las VITE_FIREBASE_* se pasan como build args/env (Vite las inlinea
+# en build) — definirlas en Coolify (Environment Variables, marcadas "Build").
+#
+# App1 NO usa este Dockerfile (sigue desplegándose a Oracle con deploy.sh).
+
+FROM node:20-alpine AS build
+WORKDIR /app
+
+# Args de Firebase: se vuelven ENV para que estén en process.env durante el build
+# (Vite expone las variables prefijadas VITE_ presentes en el entorno de build).
+ARG VITE_FIREBASE_API_KEY
+ARG VITE_FIREBASE_AUTH_DOMAIN
+ARG VITE_FIREBASE_PROJECT_ID
+ARG VITE_FIREBASE_STORAGE_BUCKET
+ARG VITE_FIREBASE_MESSAGING_SENDER_ID
+ARG VITE_FIREBASE_APP_ID
+ENV VITE_FIREBASE_API_KEY=$VITE_FIREBASE_API_KEY \
+    VITE_FIREBASE_AUTH_DOMAIN=$VITE_FIREBASE_AUTH_DOMAIN \
+    VITE_FIREBASE_PROJECT_ID=$VITE_FIREBASE_PROJECT_ID \
+    VITE_FIREBASE_STORAGE_BUCKET=$VITE_FIREBASE_STORAGE_BUCKET \
+    VITE_FIREBASE_MESSAGING_SENDER_ID=$VITE_FIREBASE_MESSAGING_SENDER_ID \
+    VITE_FIREBASE_APP_ID=$VITE_FIREBASE_APP_ID
+
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build:admin
+
+FROM nginx:alpine
+COPY --from=build /app/dist-admin /usr/share/nginx/html
+COPY nginx.admin.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80
