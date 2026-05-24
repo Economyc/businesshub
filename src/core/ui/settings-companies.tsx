@@ -1,4 +1,4 @@
-import { useState, useEffect, Fragment, useCallback } from 'react'
+import { useState, useEffect, Fragment } from 'react'
 import { Plus, MapPin, Trash2, Check, ChevronRight, X, AlertCircle, Cloud, CloudOff, LogOut } from 'lucide-react'
 import { httpsCallable } from 'firebase/functions'
 import { cn } from '@/lib/utils'
@@ -7,6 +7,7 @@ import { PageHeader } from '@/core/ui/page-header'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 import { HoverHint } from '@/components/ui/tooltip'
 import { useCompany } from '@/core/hooks/use-company'
+import { useDriveAuth } from '@/core/hooks/use-drive-auth'
 import { CompanyLogo } from '@/core/ui/company-logo'
 import { LogoPicker } from '@/core/ui/logo-picker'
 import { getAppFunctions } from '@/core/firebase/config'
@@ -47,8 +48,18 @@ export function SettingsCompanies() {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [driveValidation, setDriveValidation] = useState<DriveValidationState>({ kind: 'idle' })
   const [discountsValidation, setDiscountsValidation] = useState<DriveValidationState>({ kind: 'idle' })
-  const [driveAuth, setDriveAuth] = useState<DriveAuthState>({ kind: 'loading' })
-  const [connecting, setConnecting] = useState(false)
+  const { status: driveStatus, isLoading: driveLoading, isError: driveError, queryError, connecting, actionError, connect, disconnect } = useDriveAuth()
+
+  // Estado derivado para el render (mismo shape que antes).
+  const driveAuth: DriveAuthState = actionError
+    ? { kind: 'error', error: actionError }
+    : driveLoading
+      ? { kind: 'loading' }
+      : driveError
+        ? { kind: 'error', error: (queryError as Error)?.message ?? 'Error de red' }
+        : driveStatus?.connected
+          ? { kind: 'connected', email: driveStatus.email }
+          : { kind: 'disconnected' }
 
   useEffect(() => {
     if (!expandedId) return
@@ -63,30 +74,6 @@ export function SettingsCompanies() {
     document.addEventListener('keydown', handleKey, true)
     return () => document.removeEventListener('keydown', handleKey, true)
   }, [expandedId])
-
-  const fetchDriveAuthStatus = useCallback(async () => {
-    setDriveAuth({ kind: 'loading' })
-    try {
-      const fns = await getAppFunctions()
-      const fn = httpsCallable<
-        Record<string, never>,
-        { connected: boolean; email: string | null; connectedAt: number | null }
-      >(fns, 'driveAuthStatus')
-      const res = await fn({})
-      if (res.data.connected) {
-        setDriveAuth({ kind: 'connected', email: res.data.email })
-      } else {
-        setDriveAuth({ kind: 'disconnected' })
-      }
-    } catch (err) {
-      setDriveAuth({ kind: 'error', error: (err as Error).message ?? 'Error de red' })
-    }
-  }, [])
-
-  // Una sola conexión por usuario, válida para todas las empresas.
-  useEffect(() => {
-    void fetchDriveAuthStatus()
-  }, [fetchDriveAuthStatus])
 
   function toggleExpand(company: typeof companies[0]) {
     if (expandedId === company.id) {
@@ -114,58 +101,10 @@ export function SettingsCompanies() {
     }
   }
 
-  async function handleConnectDrive() {
-    setConnecting(true)
-    try {
-      const fns = await getAppFunctions()
-      const fn = httpsCallable<Record<string, never>, { url: string }>(fns, 'driveAuthStart')
-      const res = await fn({})
-      const url = res.data.url
-      const w = 500, h = 700
-      const left = window.screenX + (window.outerWidth - w) / 2
-      const top = window.screenY + (window.outerHeight - h) / 2
-      const popup = window.open(url, 'drive-oauth', `width=${w},height=${h},left=${left},top=${top}`)
-      if (!popup) {
-        setDriveAuth({ kind: 'error', error: 'El navegador bloqueó el popup. Permite popups para este sitio.' })
-        setConnecting(false)
-        return
-      }
-      function onMessage(e: MessageEvent) {
-        if (!e.data || e.data.type !== 'drive-oauth') return
-        window.removeEventListener('message', onMessage)
-        setConnecting(false)
-        if (e.data.status === 'ok') {
-          void fetchDriveAuthStatus()
-        } else {
-          setDriveAuth({ kind: 'error', error: e.data.message ?? 'Error al conectar' })
-        }
-      }
-      window.addEventListener('message', onMessage)
-      const poll = setInterval(() => {
-        if (popup.closed) {
-          clearInterval(poll)
-          window.removeEventListener('message', onMessage)
-          setConnecting(false)
-          void fetchDriveAuthStatus()
-        }
-      }, 1000)
-    } catch (err) {
-      setDriveAuth({ kind: 'error', error: (err as Error).message ?? 'Error de red' })
-      setConnecting(false)
-    }
-  }
-
   async function handleDisconnectDrive() {
-    try {
-      const fns = await getAppFunctions()
-      const fn = httpsCallable<Record<string, never>, { ok: boolean }>(fns, 'driveAuthDisconnect')
-      await fn({})
-      setDriveAuth({ kind: 'disconnected' })
-      setDriveValidation({ kind: 'idle' })
-      setDiscountsValidation({ kind: 'idle' })
-    } catch (err) {
-      setDriveAuth({ kind: 'error', error: (err as Error).message ?? 'Error de red' })
-    }
+    await disconnect()
+    setDriveValidation({ kind: 'idle' })
+    setDiscountsValidation({ kind: 'idle' })
   }
 
   async function validateFolder(folderId: string, setState: (s: DriveValidationState) => void) {
@@ -253,7 +192,7 @@ export function SettingsCompanies() {
             {driveAuth.kind === 'disconnected' && (
               <button
                 type="button"
-                onClick={handleConnectDrive}
+                onClick={() => void connect()}
                 disabled={connecting}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-body font-medium text-graphite bg-bone border border-border/60 hover:bg-bone/70 transition-colors disabled:opacity-50"
               >
@@ -286,7 +225,7 @@ export function SettingsCompanies() {
                 </span>
                 <button
                   type="button"
-                  onClick={handleConnectDrive}
+                  onClick={() => void connect()}
                   className="px-3 py-1.5 rounded-lg text-caption font-medium text-graphite bg-bone border border-border/60 hover:bg-bone/70 transition-colors"
                 >
                   Reintentar
