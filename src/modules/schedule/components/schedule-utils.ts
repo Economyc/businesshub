@@ -20,6 +20,22 @@ export function parseDateStr(s: string): Date {
   return new Date(y, m - 1, d, 12, 0, 0)
 }
 
+/** 'HH:mm' (24h) → formato 12h con am/pm. Ej: '16:00' → '4:00 pm', '08:00' → '8:00 am'. */
+export function formatTime12h(hhmm: string): string {
+  const [hStr, m = '00'] = (hhmm ?? '').split(':')
+  let h = Number(hStr)
+  if (Number.isNaN(h)) return hhmm
+  const period = h >= 12 ? 'pm' : 'am'
+  h = h % 12
+  if (h === 0) h = 12
+  return `${h}:${m} ${period}`
+}
+
+/** Rango de turno en 12h. Ej: ('08:00','16:00') → '8:00 am – 4:00 pm'. */
+export function formatShiftRange(start: string, end: string): string {
+  return `${formatTime12h(start)} – ${formatTime12h(end)}`
+}
+
 /** Lunes (inicio de semana) de la fecha dada, a medianoche local. */
 export function mondayOf(d: Date): Date {
   const r = new Date(d.getFullYear(), d.getMonth(), d.getDate())

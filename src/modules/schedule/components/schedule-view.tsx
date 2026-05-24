@@ -19,6 +19,7 @@ import {
   totalHours,
   shiftHours,
   formatHours,
+  formatShiftRange,
   shiftsOverlap,
   parseDateStr,
   WEEKDAY_LABELS,
@@ -38,7 +39,7 @@ interface FormTarget {
   shift?: Shift
 }
 
-export function ScheduleView() {
+export function ScheduleView({ allowedDepartments }: { allowedDepartments?: string[] }) {
   const { selectedCompany } = useCompany()
   const { user } = useAuth()
   const { can } = usePermissions()
@@ -53,10 +54,25 @@ export function ScheduleView() {
   const dates = useMemo(() => weekDates(monday), [monday])
   const gridRef = useRef<HTMLDivElement>(null)
 
-  const { data: employees, loading: empLoading } = useActiveEmployees()
-  const { data: shifts, refetch: refetchShifts } = useShifts(weekKey)
+  const { data: allEmployees, loading: empLoading } = useActiveEmployees()
+  const { data: allShifts, refetch: refetchShifts } = useShifts(weekKey)
   const { week, refetch: refetchWeek } = useScheduleWeek(weekKey)
   const { data: templates } = useShiftTemplates()
+
+  // Filtro opcional por departamento: App2 sólo muestra Cocina y Servicio (los
+  // que manejan horarios). Sin el prop se muestran todos los empleados.
+  const employees = useMemo(() => {
+    if (!allowedDepartments) return allEmployees
+    const allow = new Set(allowedDepartments.map((d) => d.toLowerCase()))
+    return allEmployees.filter((e) => allow.has((e.department ?? '').trim().toLowerCase()))
+  }, [allEmployees, allowedDepartments])
+  // Restringe los turnos a los empleados visibles para que métricas y totales
+  // (semana, por día) cuadren con lo que se muestra en la grilla.
+  const visibleEmpIds = useMemo(() => new Set(employees.map((e) => e.id)), [employees])
+  const shifts = useMemo(
+    () => (allowedDepartments ? allShifts.filter((s) => visibleEmpIds.has(s.employeeId)) : allShifts),
+    [allShifts, visibleEmpIds, allowedDepartments],
+  )
 
   const groups = useMemo(() => groupByDepartment(employees), [employees])
 
@@ -96,7 +112,7 @@ export function ScheduleView() {
 
   const weekTotal = useMemo(() => totalHours(shifts), [shifts])
   const isPublished = week.status === 'published'
-  const gridCols = { gridTemplateColumns: `minmax(180px, 220px) repeat(7, minmax(116px, 1fr))` }
+  const gridCols = { gridTemplateColumns: `minmax(180px, 220px) repeat(7, minmax(132px, 1fr))` }
 
   async function copyPrevWeek() {
     if (!selectedCompany || busy) return
@@ -133,14 +149,14 @@ export function ScheduleView() {
 
   if (!selectedCompany) {
     return (
-      <div className="p-6">
+      <div>
         <p className="text-body text-mid-gray">Selecciona una empresa para ver el horario.</p>
       </div>
     )
   }
 
   return (
-    <div className="p-4 sm:p-6">
+    <div>
       <PageHeader title="Horarios" subtitle={<span className="text-caption text-mid-gray">{selectedCompany.name}</span>}>
         <WeekNav
           label={weekLabel(monday)}
@@ -192,7 +208,9 @@ export function ScheduleView() {
         {/* Encabezado imprimible */}
         <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border/60">
           <div>
-            <p className="text-subheading text-graphite">{selectedCompany.name}</p>
+            <p className="text-subheading font-semibold text-graphite">
+              {selectedCompany.name}{selectedCompany.location ? ` - ${selectedCompany.location}` : ''}
+            </p>
             <p className="text-caption text-mid-gray">Semana {weekLabel(monday)}</p>
           </div>
           <span
@@ -206,13 +224,13 @@ export function ScheduleView() {
           </span>
         </div>
 
-        <div className="min-w-[920px]">
+        <div className="min-w-[1100px]">
           {/* Fila de días */}
           <div className="grid border-b border-border/60" style={gridCols}>
-            <div className="sticky left-0 bg-card-bg px-3 py-2 text-caption text-mid-gray">Empleado</div>
+            <div className="sticky left-0 bg-card-bg px-3 py-2 text-caption font-semibold text-mid-gray">Empleado</div>
             {dates.map((d, i) => (
               <div key={d} className="px-3 py-2 text-center">
-                <p className="text-caption text-mid-gray">{WEEKDAY_LABELS[i]}</p>
+                <p className="text-caption font-semibold text-mid-gray">{WEEKDAY_LABELS[i]}</p>
                 <p className="text-body text-graphite">{parseDateStr(d).getDate()}</p>
               </div>
             ))}
@@ -222,19 +240,21 @@ export function ScheduleView() {
             <div className="px-4 py-8 text-center text-caption text-mid-gray">Cargando empleados…</div>
           ) : employees.length === 0 ? (
             <div className="px-4 py-8 text-center text-caption text-mid-gray">
-              No hay empleados activos. Agrégalos en el módulo Equipo.
+              {allowedDepartments
+                ? `No hay empleados en ${allowedDepartments.join(' o ')}. Asigna el departamento en Equipo.`
+                : 'No hay empleados activos. Agrégalos en el módulo Equipo.'}
             </div>
           ) : (
             groups.map((group) => (
               <div key={group.department}>
-                <div className="bg-bone/60 px-3 py-1.5 text-caption uppercase tracking-wide text-mid-gray border-b border-border/60">
+                <div className="bg-bone/30 px-3 py-1.5 text-caption tracking-wide text-mid-gray border-b border-border-hover/70">
                   {group.department}
                 </div>
                 {group.employees.map((emp) => {
                   const mt = metrics.get(emp.id)
                   return (
-                    <div key={emp.id} className="grid border-b border-border/40 last:border-b-0" style={gridCols}>
-                      <div className="sticky left-0 bg-card-bg px-3 py-2 border-r border-border/40">
+                    <div key={emp.id} className="grid border-b border-border-hover/70 last:border-b-0 bg-surface" style={gridCols}>
+                      <div className="sticky left-0 bg-surface px-3 py-2 border-r border-border-hover/70">
                         <p className="text-body text-graphite truncate">{emp.name}</p>
                         <div className="flex items-center gap-2 mt-0.5">
                           <span className="text-caption text-mid-gray inline-flex items-center gap-1">
@@ -265,8 +285,8 @@ export function ScheduleView() {
                             key={d}
                             onClick={canEdit ? () => setFormTarget({ date: d, employee: emp }) : undefined}
                             className={
-                              'px-1.5 py-1.5 border-r border-border/40 last:border-r-0 space-y-1 min-h-[52px] group/cell ' +
-                              (canEdit ? 'cursor-pointer hover:bg-bone/50 transition-colors' : '')
+                              'px-1.5 py-1.5 border-r border-border-hover/70 last:border-r-0 space-y-1 min-h-[52px] group/cell ' +
+                              (canEdit ? 'cursor-pointer hover:bg-smoke/60 transition-colors' : '')
                             }
                           >
                             {cellShifts.map((s) => (
@@ -274,10 +294,10 @@ export function ScheduleView() {
                                 key={s.id}
                                 type="button"
                                 onClick={canEdit ? (e) => { e.stopPropagation(); setFormTarget({ date: d, employee: emp, shift: s }) } : undefined}
-                                className="w-full text-left rounded-lg border border-border/60 bg-bone px-2 py-1 hover:border-graphite/40 transition-colors"
+                                className="w-full text-left rounded-lg border border-positive-text/15 bg-positive-bg px-2 py-1 hover:border-positive-text/35 transition-colors"
                               >
-                                <span className="block text-caption text-graphite">{s.start}–{s.end}</span>
-                                <span className="block text-caption text-mid-gray">
+                                <span className="block text-caption text-positive-text font-medium whitespace-nowrap">{formatShiftRange(s.start, s.end)}</span>
+                                <span className="block text-caption text-positive-text/70">
                                   {formatHours(shiftHours(s.start, s.end, s.breakMin))}
                                   {s.notes ? ' · ' + s.notes : ''}
                                 </span>
@@ -299,8 +319,8 @@ export function ScheduleView() {
           )}
 
           {/* Footer de totales */}
-          <div className="grid border-t border-border/60 bg-bone/40" style={gridCols}>
-            <div className="sticky left-0 bg-bone/40 px-3 py-2 text-caption text-mid-gray">
+          <div className="grid border-t border-border/60 bg-bone/20" style={gridCols}>
+            <div className="sticky left-0 bg-card-bg px-3 py-2 text-caption font-semibold text-mid-gray">
               Total semana: <span className="text-graphite">{formatHours(weekTotal)}</span>
             </div>
             {dates.map((d) => {

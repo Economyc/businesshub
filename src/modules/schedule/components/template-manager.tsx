@@ -10,7 +10,7 @@ import {
 import { Button } from '@/components/ui/button'
 import type { ShiftTemplate, ShiftTemplateFormData } from '../types'
 import { useCreateTemplate, useRemoveTemplate } from '../hooks'
-import { shiftHours, formatHours } from './schedule-utils'
+import { shiftHours, formatHours, formatShiftRange } from './schedule-utils'
 
 const inputClass =
   'w-full px-3 py-2.5 rounded-lg border border-input-border bg-input-bg text-body text-graphite focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200'
@@ -82,7 +82,7 @@ export function TemplateManager({ open, onClose, templates, onChanged }: Props) 
                 <div>
                   <p className="text-body text-graphite">{t.name}</p>
                   <p className="text-caption text-mid-gray">
-                    {t.start}–{t.end} · {formatHours(shiftHours(t.start, t.end, t.breakMin))}
+                    {formatShiftRange(t.start, t.end)} · {formatHours(shiftHours(t.start, t.end, t.breakMin))}
                   </p>
                 </div>
                 <button
