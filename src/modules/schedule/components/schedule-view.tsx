@@ -349,7 +349,7 @@ export function ScheduleView({ allowedDepartments }: { allowedDepartments?: stri
                               />
                             ))}
                             {canEdit && cellShifts.length === 0 && (
-                              <span className="hidden group-hover/cell:flex items-center justify-center text-mid-gray/60">
+                              <span className="hidden group-hover/cell:flex absolute inset-0 items-center justify-center text-mid-gray/60 pointer-events-none">
                                 <Plus size={14} strokeWidth={1.5} />
                               </span>
                             )}
@@ -474,7 +474,7 @@ function DroppableCell({
       ref={setNodeRef}
       onClick={onClick}
       className={
-        'px-1.5 py-1.5 border-r border-border-hover/70 last:border-r-0 space-y-1 min-h-[52px] group/cell transition-colors ' +
+        'relative px-1.5 py-1.5 border-r border-border-hover/70 last:border-r-0 space-y-1 min-h-[52px] group/cell transition-colors ' +
         (canEdit ? 'cursor-pointer ' : '') +
         (isOver ? 'bg-smoke ring-1 ring-inset ring-graphite/20' : canEdit ? 'hover:bg-smoke/60' : '')
       }
