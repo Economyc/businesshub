@@ -115,6 +115,9 @@ export function SplitExpenseDialog({ open, onClose, onSaved }: SplitExpenseDialo
   const [frequency, setFrequency] = useState<RecurrenceFrequency>('monthly')
   const [startDate, setStartDate] = useState(todayLocalISO())
   const [endDate, setEndDate] = useState('')
+  // Un solo estado para confirmar la fecha vieja: es seguro compartirlo entre la
+  // fecha única (`date`) y la de inicio recurrente (`startDate`) porque son
+  // mutuamente excluyentes vía `isRecurring` (nunca se muestran ambos avisos).
   const [dateConfirmed, setDateConfirmed] = useState(false)
 
   const [docNumber, setDocNumber] = useState('')

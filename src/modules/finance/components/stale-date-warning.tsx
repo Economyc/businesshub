@@ -42,7 +42,7 @@ export function StaleDateWarning({
               type="checkbox"
               checked={!!confirmed}
               onChange={(e) => onConfirmChange?.(e.target.checked)}
-              className="h-3.5 w-3.5 rounded border-warning/40 text-warning-text focus:ring-warning/30"
+              className="h-3.5 w-3.5 rounded border-warning-text/40 accent-warning-text focus:ring-2 focus:ring-warning-text/40 focus:ring-offset-0 outline-none"
             />
             <span className="font-medium">Confirmo que la fecha es correcta</span>
           </label>

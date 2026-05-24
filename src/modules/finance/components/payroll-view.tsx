@@ -189,7 +189,7 @@ export function PayrollView() {
             <div className="mt-2">
               <StaleDateWarning
                 dateISO={paidDate}
-                fieldLabel="fecha de pago"
+                fieldLabel="fecha del pago"
                 confirmed={dateConfirmed}
                 onConfirmChange={setDateConfirmed}
               />

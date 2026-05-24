@@ -12,7 +12,13 @@ export function isDateTooOld(iso: string, now: Date = new Date()): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return false
   const [y, m, d] = iso.split('-').map(Number)
   const date = new Date(y, m - 1, d)
-  const threshold = new Date(now.getFullYear(), now.getMonth() - STALE_DATE_MONTHS, now.getDate())
+  // Umbral = hoy menos 3 meses. Fijamos el día con clamp al último día del mes
+  // objetivo para evitar el desborde de JS (ej. 31 may − 3 meses → "31 feb" →
+  // 3 mar, que acortaría la ventana). JS maneja mes negativo retrocediendo el año.
+  const ty = now.getFullYear()
+  const tm = now.getMonth() - STALE_DATE_MONTHS
+  const lastDay = new Date(ty, tm + 1, 0).getDate()
+  const threshold = new Date(ty, tm, Math.min(now.getDate(), lastDay))
   return date < threshold
 }
 
