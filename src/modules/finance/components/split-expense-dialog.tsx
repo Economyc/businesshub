@@ -7,6 +7,8 @@ import { CategorySelect } from '@/core/ui/category-select'
 import { CurrencyInput } from '@/core/ui/currency-input'
 import { SelectInput } from '@/core/ui/select-input'
 import { DateInput } from '@/core/ui/date-input'
+import { StaleDateWarning } from './stale-date-warning'
+import { isDateTooOld } from '../utils/date-validation'
 import { modalVariants } from '@/core/animations/variants'
 import { getAppFunctions } from '@/core/firebase/config'
 import { useCompany } from '@/core/hooks/use-company'
@@ -113,6 +115,7 @@ export function SplitExpenseDialog({ open, onClose, onSaved }: SplitExpenseDialo
   const [frequency, setFrequency] = useState<RecurrenceFrequency>('monthly')
   const [startDate, setStartDate] = useState(todayLocalISO())
   const [endDate, setEndDate] = useState('')
+  const [dateConfirmed, setDateConfirmed] = useState(false)
 
   const [docNumber, setDocNumber] = useState('')
   const [file, setFile] = useState<File | null>(null)
@@ -144,6 +147,7 @@ export function SplitExpenseDialog({ open, onClose, onSaved }: SplitExpenseDialo
     setFrequency('monthly')
     setStartDate(todayLocalISO())
     setEndDate('')
+    setDateConfirmed(false)
     setDocNumber('')
     setFile(null)
     setFileError(null)
@@ -163,6 +167,11 @@ export function SplitExpenseDialog({ open, onClose, onSaved }: SplitExpenseDialo
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [open, onClose, submitting])
+
+  // Si cambia la fecha (una vez o inicio del recurrente), re-exigir confirmación.
+  useEffect(() => {
+    setDateConfirmed(false)
+  }, [date, startDate])
 
   const includedCompanies = useMemo(
     () => companies.filter((c) => included[c.id]),
@@ -252,7 +261,8 @@ export function SplitExpenseDialog({ open, onClose, onSaved }: SplitExpenseDialo
   }, [processFile])
 
   const conceptOk = concept.trim().length > 0
-  const dateOk = isRecurring ? !!startDate : !!date
+  const activeDate = isRecurring ? startDate : date
+  const dateOk = (isRecurring ? !!startDate : !!date) && (!isDateTooOld(activeDate) || dateConfirmed)
   const payeeOk =
     payeeKind === 'none' ||
     (payeeKind === 'external' && customSupplier.trim().length > 0) ||
@@ -469,6 +479,16 @@ export function SplitExpenseDialog({ open, onClose, onSaved }: SplitExpenseDialo
                 <div>
                   <label className={labelClass}>Fecha</label>
                   <DateInput value={date} onChange={setDate} />
+                </div>
+              )}
+              {!isRecurring && isDateTooOld(date) && (
+                <div className="sm:col-span-2">
+                  <StaleDateWarning
+                    dateISO={date}
+                    fieldLabel="fecha"
+                    confirmed={dateConfirmed}
+                    onConfirmChange={setDateConfirmed}
+                  />
                 </div>
               )}
               <div className={isRecurring ? '' : 'sm:col-span-2'}>
@@ -723,6 +743,16 @@ export function SplitExpenseDialog({ open, onClose, onSaved }: SplitExpenseDialo
                     <label className={labelClass}>Fin (opcional)</label>
                     <DateInput value={endDate} onChange={setEndDate} />
                   </div>
+                  {isDateTooOld(startDate) && (
+                    <div className="sm:col-span-2">
+                      <StaleDateWarning
+                        dateISO={startDate}
+                        fieldLabel="fecha de inicio"
+                        confirmed={dateConfirmed}
+                        onConfirmChange={setDateConfirmed}
+                      />
+                    </div>
+                  )}
                 </div>
               )}
             </div>

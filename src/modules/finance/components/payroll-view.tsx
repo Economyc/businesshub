@@ -20,6 +20,8 @@ import { PageHeader } from '@/core/ui/page-header'
 import { CurrencyInput } from '@/core/ui/currency-input'
 import { SelectInput } from '@/core/ui/select-input'
 import { DateInput } from '@/core/ui/date-input'
+import { StaleDateWarning } from './stale-date-warning'
+import { isDateTooOld } from '../utils/date-validation'
 import { useCompany } from '@/core/hooks/use-company'
 import { useCollection } from '@/core/hooks/use-firestore'
 import { usePermissions } from '@/core/hooks/use-permissions'
@@ -121,6 +123,13 @@ export function PayrollView() {
   }, [payrollTabs, tab])
   const [periodLabel, setPeriodLabel] = useState('')
   const [paidDate, setPaidDate] = useState(todayISO())
+  const [dateConfirmed, setDateConfirmed] = useState(false)
+
+  // Si cambia la fecha de pago, re-exigir confirmación del aviso.
+  useEffect(() => {
+    setDateConfirmed(false)
+  }, [paidDate])
+  const dateBlocked = isDateTooOld(paidDate) && !dateConfirmed
 
   const employeeOptions = useMemo(
     () => [
@@ -176,6 +185,16 @@ export function PayrollView() {
             Fecha de pago
           </label>
           <DateInput value={paidDate} onChange={setPaidDate} />
+          {isDateTooOld(paidDate) && (
+            <div className="mt-2">
+              <StaleDateWarning
+                dateISO={paidDate}
+                fieldLabel="fecha de pago"
+                confirmed={dateConfirmed}
+                onConfirmChange={setDateConfirmed}
+              />
+            </div>
+          )}
         </div>
       </div>
       )}
@@ -202,6 +221,7 @@ export function PayrollView() {
           employees={employees}
           employeeOptions={employeeOptions}
           canEdit={canEdit}
+          dateBlocked={dateBlocked}
           periodKey={periodKey}
           periodLabel={effectiveLabel}
           paidDate={parseISO(paidDate)}
@@ -212,6 +232,7 @@ export function PayrollView() {
           employees={employees}
           employeeOptions={employeeOptions}
           canEdit={canEdit}
+          dateBlocked={dateBlocked}
           periodKey={periodKey}
           periodLabel={effectiveLabel}
           paidDate={parseISO(paidDate)}
@@ -228,6 +249,7 @@ interface TabProps {
   employees: Employee[]
   employeeOptions: { value: string; label: string }[]
   canEdit: boolean
+  dateBlocked: boolean
   periodKey: string
   periodLabel: string
   paidDate: Date
@@ -310,6 +332,7 @@ function NominaTab({
   employees,
   employeeOptions,
   canEdit,
+  dateBlocked,
   periodKey,
   periodLabel,
   paidDate,
@@ -402,7 +425,7 @@ function NominaTab({
     .reduce((s, r) => s + r.amountToPost, 0)
 
   async function handleSubmit() {
-    if (!canEdit || includedCount === 0) return
+    if (!canEdit || dateBlocked || includedCount === 0) return
     if (!companyId) {
       setError('Selecciona una empresa antes de registrar.')
       return
@@ -565,7 +588,7 @@ function NominaTab({
             </div>
             <button
               onClick={handleSubmit}
-              disabled={!canEdit || submitting || includedCount === 0}
+              disabled={!canEdit || dateBlocked || submitting || includedCount === 0}
               className="px-5 py-2.5 rounded-lg btn-primary text-body font-medium transition-all disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {submitting ? 'Registrando…' : `Confirmar y registrar ${includedCount}`}
@@ -601,6 +624,7 @@ function PropinasTab({
   employees,
   employeeOptions,
   canEdit,
+  dateBlocked,
   periodKey,
   periodLabel,
   paidDate,
@@ -654,7 +678,7 @@ function PropinasTab({
   const mismatch = extractedTotal > 0 && Math.abs(includedSum - extractedTotal) > 1
 
   async function handleSubmit() {
-    if (!canEdit || includedCount === 0) return
+    if (!canEdit || dateBlocked || includedCount === 0) return
     if (!companyId) {
       setError('Selecciona una empresa antes de registrar.')
       return
@@ -812,7 +836,7 @@ function PropinasTab({
             </div>
             <button
               onClick={handleSubmit}
-              disabled={!canEdit || submitting || includedCount === 0}
+              disabled={!canEdit || dateBlocked || submitting || includedCount === 0}
               className="px-5 py-2.5 rounded-lg btn-primary text-body font-medium transition-all disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {submitting ? 'Registrando…' : 'Confirmar y registrar'}

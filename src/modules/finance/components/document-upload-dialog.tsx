@@ -15,6 +15,8 @@ import { queryClient } from '@/core/query/query-client'
 import { financeService } from '../services'
 import { generateVirtualInvoicePDF } from '../utils/generate-virtual-invoice-pdf'
 import { AiUsageBanner, type AiUsageSnapshot } from './ai-usage-banner'
+import { StaleDateWarning } from './stale-date-warning'
+import { isDateTooOld } from '../utils/date-validation'
 import type { DocumentKind, PayableFile, TransactionPriority } from '../types'
 import type { Supplier } from '@/modules/suppliers/types'
 
@@ -97,6 +99,7 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
   const [category, setCategory] = useState('')
   const [notes, setNotes] = useState('')
   const [priority, setPriority] = useState<TransactionPriority>('waiting')
+  const [dateConfirmed, setDateConfirmed] = useState(false)
 
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -136,6 +139,7 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
       setCategory('')
       setNotes('')
       setPriority('waiting')
+      setDateConfirmed(false)
       setError(null)
       setStep('idle')
       setSubmitting(false)
@@ -155,6 +159,12 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [open, onClose, submitting])
+
+  // Si cambia la fecha, re-exigir confirmación de la advertencia (la nueva fecha
+  // puede ser válida o una vieja distinta).
+  useEffect(() => {
+    setDateConfirmed(false)
+  }, [date])
 
   const runDocumentAnalysis = useCallback(async (f: File) => {
     if (!companyId) return
@@ -267,7 +277,8 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
     const hasSupplier = isCustom ? !!customSupplier.trim() : !!supplierId
     const isVirtual = kind === 'invoice' && mode === 'virtual'
     const hasFile = isVirtual ? true : !!file
-    return !submitting && !analyzing && hasFile && hasSupplier && !!docNumber.trim() && !!date && Number(amount) > 0 && !!category
+    const dateOk = !isDateTooOld(date) || dateConfirmed
+    return !submitting && !analyzing && hasFile && hasSupplier && !!docNumber.trim() && !!date && dateOk && Number(amount) > 0 && !!category
   }
 
   async function handleSubmit() {
@@ -634,6 +645,16 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
                 <label className="block text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1">Fecha</label>
                 <DateInput value={date} onChange={setDate} />
               </div>
+              {isDateTooOld(date) && (
+                <div className="sm:col-span-2">
+                  <StaleDateWarning
+                    dateISO={date}
+                    fieldLabel="fecha del documento"
+                    confirmed={dateConfirmed}
+                    onConfirmChange={setDateConfirmed}
+                  />
+                </div>
+              )}
               <div>
                 <label className="block text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1">Valor</label>
                 <CurrencyInput

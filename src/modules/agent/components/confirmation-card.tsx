@@ -5,6 +5,8 @@ import { useCompany } from '@/core/hooks/use-company'
 import { supplierService } from '@/modules/suppliers/services'
 import { talentService } from '@/modules/talent/services'
 import { financeService, budgetService } from '@/modules/finance/services'
+import { StaleDateWarning } from '@/modules/finance/components/stale-date-warning'
+import { isDateTooOld } from '@/modules/finance/utils/date-validation'
 
 type ActionType = 'create' | 'update' | 'delete'
 
@@ -484,6 +486,20 @@ export function ConfirmationCard({ toolName, args, onConfirm, onCancel, userQuot
               <span className="text-dark-graphite">{formatValue(key, value)}</span>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Aviso de fecha sospechosa (>3 meses) — el lector IA a veces confunde el
+          año. Sin checkbox: "Confirmar" es la confirmación, "Cancelar" deja
+          corregir por chat. */}
+      {typeof args.date === 'string' && isDateTooOld(args.date) && (
+        <div className="mb-4">
+          <StaleDateWarning dateISO={args.date} fieldLabel="fecha del documento" />
+        </div>
+      )}
+      {typeof args.paidDate === 'string' && isDateTooOld(args.paidDate) && (
+        <div className="mb-4">
+          <StaleDateWarning dateISO={args.paidDate} fieldLabel="fecha del pago" />
         </div>
       )}
 

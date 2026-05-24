@@ -16,6 +16,8 @@ import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { useCollection } from '@/core/hooks/use-firestore'
 import { queryClient } from '@/core/query/query-client'
 import { financeService } from '../services'
+import { StaleDateWarning } from './stale-date-warning'
+import { isDateTooOld } from '../utils/date-validation'
 import type { Transaction, PayeeRef, PayeeType, PayableFile, TransactionPriority } from '../types'
 import type { Supplier } from '@/modules/suppliers/types'
 
@@ -50,6 +52,7 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
   const deleteMutation = useFirestoreMutation<string>('transactions', (companyId, id) => financeService.remove(companyId, id), { optimisticDelete: true })
   const [loading, setLoading] = useState(false)
   const [showDelete, setShowDelete] = useState(false)
+  const [dateConfirmed, setDateConfirmed] = useState(false)
   const [isLinked, setIsLinked] = useState(false)
   const [isRecurring, setIsRecurring] = useState(false)
   const [isSplit, setIsSplit] = useState(false)
@@ -126,6 +129,7 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
       setIsRecurring(false)
       setIsSplit(false)
       setShowDelete(false)
+      setDateConfirmed(false)
       setPayeeType('')
       setPayeeId('')
       setPayeeExternalName('')
@@ -184,6 +188,14 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
     document.addEventListener('keydown', handleKey)
     return () => document.removeEventListener('keydown', handleKey)
   }, [open, onClose, showDelete])
+
+  // Si cambia la fecha (solo importa al crear), re-exigir confirmación del aviso.
+  useEffect(() => {
+    setDateConfirmed(false)
+  }, [form.date])
+
+  // Solo avisamos al CREAR; editar una transacción vieja existente no debe molestar.
+  const dateBlocked = !transactionId && isDateTooOld(form.date) && !dateConfirmed
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -262,7 +274,7 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!selectedCompany) return
+    if (!selectedCompany || dateBlocked) return
 
     let payeeRef: PayeeRef | undefined
     if (payeeType === 'external' && payeeExternalName.trim()) {
@@ -427,6 +439,16 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
                         required
                       />
                     </div>
+                    {!transactionId && isDateTooOld(form.date) && (
+                      <div className="md:col-span-2">
+                        <StaleDateWarning
+                          dateISO={form.date}
+                          fieldLabel="fecha"
+                          confirmed={dateConfirmed}
+                          onConfirmChange={setDateConfirmed}
+                        />
+                      </div>
+                    )}
                     <div>
                       <label className={labelClass}>Estado</label>
                       <SelectInput
@@ -556,7 +578,7 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
                   <div className="flex gap-3 px-4 sm:px-6 py-4 border-t border-border shrink-0">
                     <button
                       type="submit"
-                      disabled={saveMutation.isPending}
+                      disabled={saveMutation.isPending || dateBlocked}
                       className="px-5 py-2.5 rounded-lg btn-primary text-body font-medium transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       {saveMutation.isPending ? 'Guardando...' : transactionId ? 'Guardar Cambios' : 'Guardar Transacción'}

@@ -12,6 +12,8 @@ import { queryClient } from '@/core/query/query-client'
 import { formatCurrency } from '@/core/utils/format'
 import { financeService } from '../services'
 import { AiUsageBanner, type AiUsageSnapshot } from './ai-usage-banner'
+import { StaleDateWarning } from './stale-date-warning'
+import { isDateTooOld } from '../utils/date-validation'
 import type { Transaction, PayableFile, TransactionFormData } from '../types'
 
 const MAX_SIZE = 10 * 1024 * 1024
@@ -132,6 +134,7 @@ export function PaymentUploadDialog({ open, onClose, onSaved, pendingInvoices }:
   const [selectedInvoiceId, setSelectedInvoiceId] = useState('')
   const [showAllCandidates, setShowAllCandidates] = useState(false)
   const [docNumberInput, setDocNumberInput] = useState('')
+  const [dateConfirmed, setDateConfirmed] = useState(false)
 
   const [analyzing, setAnalyzing] = useState(false)
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null)
@@ -148,6 +151,7 @@ export function PaymentUploadDialog({ open, onClose, onSaved, pendingInvoices }:
       setSelectedInvoiceId('')
       setShowAllCandidates(false)
       setDocNumberInput('')
+      setDateConfirmed(false)
       setAnalyzing(false)
       setAnalysis(null)
       setAnalyzeError(null)
@@ -280,9 +284,15 @@ export function PaymentUploadDialog({ open, onClose, onSaved, pendingInvoices }:
     setDocNumberInput('')
   }, [selectedInvoiceId])
 
+  // Si cambia la fecha del pago, re-exigir confirmación de la advertencia.
+  useEffect(() => {
+    setDateConfirmed(false)
+  }, [paidDate])
+
   function canSubmit(): boolean {
     if (submitting || !file || !selectedInvoiceId || !paidDate) return false
     if (needsDocNumber && !docNumberInput.trim()) return false
+    if (isDateTooOld(paidDate) && !dateConfirmed) return false
     return true
   }
 
@@ -602,9 +612,17 @@ export function PaymentUploadDialog({ open, onClose, onSaved, pendingInvoices }:
 
             {/* Fecha de pago */}
             {file && !analyzing && dropdownOptions.length > 0 && (
-              <div>
-                <label className="block text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1">Fecha del pago</label>
-                <DateInput value={paidDate} onChange={setPaidDate} />
+              <div className="space-y-2">
+                <div>
+                  <label className="block text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1">Fecha del pago</label>
+                  <DateInput value={paidDate} onChange={setPaidDate} />
+                </div>
+                <StaleDateWarning
+                  dateISO={paidDate}
+                  fieldLabel="fecha del pago"
+                  confirmed={dateConfirmed}
+                  onConfirmChange={setDateConfirmed}
+                />
               </div>
             )}
 
