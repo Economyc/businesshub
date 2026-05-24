@@ -13,6 +13,7 @@ import { CurrencyInput } from '@/core/ui/currency-input'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 import { UnderlineButtonTabs } from '@/core/ui/underline-tabs'
 import { useCompany } from '@/core/hooks/use-company'
+import { useSettings } from '@/core/hooks/use-settings'
 import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { formatCurrency } from '@/core/utils/format'
 import { Skeleton } from '@/core/ui/skeleton'
@@ -40,6 +41,7 @@ export function EmployeeProfile() {
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
   const { selectedCompany } = useCompany()
+  const { departments } = useSettings()
   const { data: employee, loading, error } = useEmployee(id)
   const { can, canAccessTab } = usePermissions()
   const canEdit = can('talent', 'create')
@@ -225,7 +227,16 @@ export function EmployeeProfile() {
                 </div>
                 <div>
                   <label className={labelClass}>Departamento</label>
-                  <input name="department" value={editForm.department} onChange={handleChange} className={inputClass} />
+                  {departments.length > 0 ? (
+                    <SelectInput
+                      value={editForm.department}
+                      onChange={(v) => setEditForm((prev) => ({ ...prev, department: v }))}
+                      options={departments.map((d) => ({ value: d, label: d }))}
+                      placeholder="Seleccionar departamento"
+                    />
+                  ) : (
+                    <input name="department" value={editForm.department} onChange={handleChange} className={inputClass} />
+                  )}
                 </div>
                 <div>
                   <label className={labelClass}>Email</label>

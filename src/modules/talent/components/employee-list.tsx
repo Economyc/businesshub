@@ -16,6 +16,7 @@ import { ImportDialog } from '@/core/ui/import-dialog'
 import { usePaginatedEmployees } from '../hooks'
 import { talentService } from '../services'
 import { useCompany } from '@/core/hooks/use-company'
+import { useSettings } from '@/core/hooks/use-settings'
 import { usePermissions } from '@/core/hooks/use-permissions'
 import { EmployeeForm } from './employee-form'
 import { employeeFields } from '../utils/field-schema'
@@ -49,10 +50,9 @@ export function EmployeeList() {
     return { success, failed }
   }
 
-  const departments = useMemo(() => {
-    const set = new Set(employees.map((e) => e.department).filter(Boolean))
-    return Array.from(set).sort()
-  }, [employees])
+  // Lista de departamentos desde Configuración (no derivada de los empleados),
+  // para que el filtro ofrezca todos los definidos aunque no tengan empleados asignados.
+  const { departments } = useSettings()
 
   const filtered = useMemo(() => {
     return employees.filter((e) => {
