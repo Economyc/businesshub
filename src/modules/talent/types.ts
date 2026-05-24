@@ -8,7 +8,6 @@ export interface Employee extends BaseEntity {
   department?: string
   email?: string
   phone: string
-  salary?: number
   startDate: Timestamp
   status: 'active' | 'inactive'
 }

@@ -9,13 +9,11 @@ import { PageHeader } from '@/core/ui/page-header'
 import { DateInput } from '@/core/ui/date-input'
 import { SelectInput } from '@/core/ui/select-input'
 import { StatusBadge } from '@/core/ui/status-badge'
-import { CurrencyInput } from '@/core/ui/currency-input'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 import { UnderlineButtonTabs } from '@/core/ui/underline-tabs'
 import { useCompany } from '@/core/hooks/use-company'
 import { useSettings } from '@/core/hooks/use-settings'
 import { useFirestoreMutation } from '@/core/query/use-mutation'
-import { formatCurrency } from '@/core/utils/format'
 import { Skeleton } from '@/core/ui/skeleton'
 import { useEmployee } from '../hooks'
 import { talentService } from '../services'
@@ -85,7 +83,6 @@ export function EmployeeProfile() {
     department: string
     email: string
     phone: string
-    salary: string
     startDate: string
     status: 'active' | 'inactive'
   }>({
@@ -95,7 +92,6 @@ export function EmployeeProfile() {
     department: '',
     email: '',
     phone: '',
-    salary: '',
     startDate: '',
     status: 'active',
   })
@@ -109,7 +105,6 @@ export function EmployeeProfile() {
       department: displayed.department ?? '',
       email: displayed.email ?? '',
       phone: displayed.phone,
-      salary: String(displayed.salary ?? ''),
       startDate: toDateInputValue(displayed.startDate),
       status: displayed.status,
     })
@@ -130,7 +125,6 @@ export function EmployeeProfile() {
       department: editForm.department,
       email: editForm.email,
       phone: editForm.phone,
-      salary: editForm.salary ? Number(editForm.salary) : undefined,
       startDate: Timestamp.fromDate(new Date(editForm.startDate)),
       status: editForm.status,
     }
@@ -247,10 +241,6 @@ export function EmployeeProfile() {
                   <input name="phone" value={editForm.phone} onChange={handleChange} className={inputClass} />
                 </div>
                 <div>
-                  <label className={labelClass}>Salario</label>
-                  <CurrencyInput name="salary" value={editForm.salary} onChange={(raw) => setEditForm((prev) => ({ ...prev, salary: raw }))} className={inputClass} />
-                </div>
-                <div>
                   <label className={labelClass}>Fecha de Inicio</label>
                   <DateInput
                     value={editForm.startDate}
@@ -290,12 +280,6 @@ export function EmployeeProfile() {
                 <div>
                   <p className={labelClass}>Teléfono</p>
                   <p className="text-body text-graphite">{displayed.phone}</p>
-                </div>
-                <div>
-                  <p className={labelClass}>Salario</p>
-                  <p className="text-body text-graphite">
-                    {formatCurrency(displayed.salary ?? 0)}
-                  </p>
                 </div>
                 <div>
                   <p className={labelClass}>Fecha de Inicio</p>

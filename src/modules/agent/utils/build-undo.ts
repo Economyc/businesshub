@@ -54,7 +54,6 @@ export function buildUndoAction(
         'department',
         'email',
         'phone',
-        'salary',
         'status',
       ]
       const revert: Partial<EmployeeFormData> = {}

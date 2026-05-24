@@ -248,18 +248,18 @@ export declare function createDocumentTools(companyId: string): {
         startDate: z.ZodString;
         endDate: z.ZodOptional<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        salary: number;
         startDate: string;
         employeeName: string;
+        salary: number;
         position: string;
         templateId: string;
         employeeIdentification: string;
         endDate?: string | undefined;
         employeeId?: string | undefined;
     }, {
-        salary: number;
         startDate: string;
         employeeName: string;
+        salary: number;
         position: string;
         templateId: string;
         employeeIdentification: string;

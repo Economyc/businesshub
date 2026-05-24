@@ -20,7 +20,6 @@ export declare function createMutationTools(): {
         department: z.ZodString;
         email: z.ZodString;
         phone: z.ZodString;
-        salary: z.ZodNumber;
         startDate: z.ZodString;
         status: z.ZodDefault<z.ZodOptional<z.ZodEnum<["active", "inactive"]>>>;
     }, "strip", z.ZodTypeAny, {
@@ -30,7 +29,6 @@ export declare function createMutationTools(): {
         department: string;
         email: string;
         phone: string;
-        salary: number;
         startDate: string;
         status: "active" | "inactive";
     }, {
@@ -40,7 +38,6 @@ export declare function createMutationTools(): {
         department: string;
         email: string;
         phone: string;
-        salary: number;
         startDate: string;
         status?: "active" | "inactive" | undefined;
     }>, unknown> & {
@@ -53,7 +50,6 @@ export declare function createMutationTools(): {
         department: z.ZodOptional<z.ZodString>;
         email: z.ZodOptional<z.ZodString>;
         phone: z.ZodOptional<z.ZodString>;
-        salary: z.ZodOptional<z.ZodNumber>;
         status: z.ZodOptional<z.ZodEnum<["active", "inactive"]>>;
     }, "strip", z.ZodTypeAny, {
         id: string;
@@ -62,7 +58,6 @@ export declare function createMutationTools(): {
         department?: string | undefined;
         email?: string | undefined;
         phone?: string | undefined;
-        salary?: number | undefined;
         status?: "active" | "inactive" | undefined;
     }, {
         id: string;
@@ -71,7 +66,6 @@ export declare function createMutationTools(): {
         department?: string | undefined;
         email?: string | undefined;
         phone?: string | undefined;
-        salary?: number | undefined;
         status?: "active" | "inactive" | undefined;
     }>, unknown> & {
         execute: undefined;

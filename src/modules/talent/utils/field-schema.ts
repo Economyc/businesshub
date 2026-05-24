@@ -23,11 +23,6 @@ export const employeeFields: FieldDef[] = [
   { key: 'email', header: 'Email', type: 'string' },
   { key: 'phone', header: 'Telefono', type: 'string' },
   {
-    key: 'salary',
-    header: 'Salario',
-    type: 'number',
-  },
-  {
     key: 'startDate',
     header: 'Fecha Ingreso',
     required: true,

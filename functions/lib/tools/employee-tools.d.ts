@@ -19,7 +19,6 @@ export declare function createEmployeeTools(companyId: string): {
             department: unknown;
             email: unknown;
             phone: unknown;
-            salary: unknown;
             startDate: string | null;
             status: unknown;
         }[];
@@ -37,7 +36,6 @@ export declare function createEmployeeTools(companyId: string): {
                 department: unknown;
                 email: unknown;
                 phone: unknown;
-                salary: unknown;
                 startDate: string | null;
                 status: unknown;
             }[];
@@ -57,7 +55,6 @@ export declare function createEmployeeTools(companyId: string): {
         department: unknown;
         email: unknown;
         phone: unknown;
-        salary: unknown;
         startDate: string | null;
         status: unknown;
     } | {
@@ -73,7 +70,6 @@ export declare function createEmployeeTools(companyId: string): {
             department: unknown;
             email: unknown;
             phone: unknown;
-            salary: unknown;
             startDate: string | null;
             status: unknown;
         } | {

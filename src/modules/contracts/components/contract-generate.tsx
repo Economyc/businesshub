@@ -71,8 +71,6 @@ export function ContractGenerate() {
           employeeName: emp.name,
           employeeIdentification: emp.identification ?? '',
           position: emp.role ?? prev.position,
-          salary: emp.salary ?? prev.salary,
-          salaryWords: numberToWords(emp.salary ?? 0),
           startDate: emp.startDate ? emp.startDate.toDate().toISOString().split('T')[0] : prev.startDate,
         }))
       }

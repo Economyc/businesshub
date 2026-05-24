@@ -69,7 +69,6 @@ export async function executeMutation(
         department: String(args.department),
         email: String(args.email),
         phone: String(args.phone),
-        salary: Number(args.salary),
         startDate: toTimestamp(String(args.startDate)),
         status: (args.status as 'active' | 'inactive') ?? 'active',
       }
@@ -85,7 +84,6 @@ export async function executeMutation(
       if (changes.department) updateData.department = String(changes.department)
       if (changes.email) updateData.email = String(changes.email)
       if (changes.phone) updateData.phone = String(changes.phone)
-      if (changes.salary) updateData.salary = Number(changes.salary)
       if (changes.status) updateData.status = changes.status as 'active' | 'inactive'
       await talentService.update(companyId, String(id), updateData)
       return { success: true, message: 'Empleado actualizado exitosamente.' }

@@ -20,7 +20,6 @@ function formatEmployee(emp: Record<string, unknown>) {
     department: emp.department,
     email: emp.email,
     phone: emp.phone,
-    salary: emp.salary,
     startDate: serializeTimestamp(emp.startDate),
     status: emp.status,
   }

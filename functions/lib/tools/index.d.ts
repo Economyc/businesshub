@@ -2314,18 +2314,18 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
         startDate: import("zod").ZodString;
         endDate: import("zod").ZodOptional<import("zod").ZodString>;
     }, "strip", import("zod").ZodTypeAny, {
-        salary: number;
         startDate: string;
         employeeName: string;
+        salary: number;
         position: string;
         templateId: string;
         employeeIdentification: string;
         endDate?: string | undefined;
         employeeId?: string | undefined;
     }, {
-        salary: number;
         startDate: string;
         employeeName: string;
+        salary: number;
         position: string;
         templateId: string;
         employeeIdentification: string;
@@ -2341,7 +2341,6 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
         department: import("zod").ZodString;
         email: import("zod").ZodString;
         phone: import("zod").ZodString;
-        salary: import("zod").ZodNumber;
         startDate: import("zod").ZodString;
         status: import("zod").ZodDefault<import("zod").ZodOptional<import("zod").ZodEnum<["active", "inactive"]>>>;
     }, "strip", import("zod").ZodTypeAny, {
@@ -2351,7 +2350,6 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
         department: string;
         email: string;
         phone: string;
-        salary: number;
         startDate: string;
         status: "active" | "inactive";
     }, {
@@ -2361,7 +2359,6 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
         department: string;
         email: string;
         phone: string;
-        salary: number;
         startDate: string;
         status?: "active" | "inactive" | undefined;
     }>, unknown> & {
@@ -2374,7 +2371,6 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
         department: import("zod").ZodOptional<import("zod").ZodString>;
         email: import("zod").ZodOptional<import("zod").ZodString>;
         phone: import("zod").ZodOptional<import("zod").ZodString>;
-        salary: import("zod").ZodOptional<import("zod").ZodNumber>;
         status: import("zod").ZodOptional<import("zod").ZodEnum<["active", "inactive"]>>;
     }, "strip", import("zod").ZodTypeAny, {
         id: string;
@@ -2383,7 +2379,6 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
         department?: string | undefined;
         email?: string | undefined;
         phone?: string | undefined;
-        salary?: number | undefined;
         status?: "active" | "inactive" | undefined;
     }, {
         id: string;
@@ -2392,7 +2387,6 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
         department?: string | undefined;
         email?: string | undefined;
         phone?: string | undefined;
-        salary?: number | undefined;
         status?: "active" | "inactive" | undefined;
     }>, unknown> & {
         execute: undefined;
@@ -3180,7 +3174,6 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
             department: unknown;
             email: unknown;
             phone: unknown;
-            salary: unknown;
             startDate: string | null;
             status: unknown;
         }[];
@@ -3198,7 +3191,6 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
                 department: unknown;
                 email: unknown;
                 phone: unknown;
-                salary: unknown;
                 startDate: string | null;
                 status: unknown;
             }[];
@@ -3218,7 +3210,6 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
         department: unknown;
         email: unknown;
         phone: unknown;
-        salary: unknown;
         startDate: string | null;
         status: unknown;
     } | {
@@ -3234,7 +3225,6 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
             department: unknown;
             email: unknown;
             phone: unknown;
-            salary: unknown;
             startDate: string | null;
             status: unknown;
         } | {

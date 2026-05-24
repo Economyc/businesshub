@@ -4,7 +4,6 @@ import { X, Trash2 } from 'lucide-react'
 import { Timestamp } from 'firebase/firestore'
 import { DateInput } from '@/core/ui/date-input'
 import { SelectInput } from '@/core/ui/select-input'
-import { CurrencyInput } from '@/core/ui/currency-input'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 import { HoverHint } from '@/components/ui/tooltip'
 import { useCompany } from '@/core/hooks/use-company'
@@ -58,7 +57,6 @@ export function EmployeeForm({ open, onClose, employee }: EmployeeFormProps) {
     department: '',
     email: '',
     phone: '',
-    salary: '',
     startDate: '',
     status: 'active' as 'active' | 'inactive',
   })
@@ -72,7 +70,6 @@ export function EmployeeForm({ open, onClose, employee }: EmployeeFormProps) {
         department: employee.department ?? '',
         email: employee.email ?? '',
         phone: employee.phone,
-        salary: String(employee.salary ?? ''),
         startDate: toDateInputValue(employee.startDate),
         status: employee.status,
       })
@@ -94,7 +91,6 @@ export function EmployeeForm({ open, onClose, employee }: EmployeeFormProps) {
       department: '',
       email: '',
       phone: '',
-      salary: '',
       startDate: '',
       status: 'active',
     })
@@ -110,7 +106,6 @@ export function EmployeeForm({ open, onClose, employee }: EmployeeFormProps) {
       department: form.department,
       email: form.email,
       phone: form.phone,
-      salary: form.salary ? Number(form.salary) : undefined,
       startDate: Timestamp.fromDate(new Date(form.startDate)),
       status: form.status,
     }
@@ -254,16 +249,6 @@ export function EmployeeForm({ open, onClose, employee }: EmployeeFormProps) {
                     value={form.phone}
                     onChange={handleChange}
                     placeholder="+1 000 000 0000"
-                    className={inputClass}
-                  />
-                </div>
-                <div>
-                  <label className={labelClass}>Salario</label>
-                  <CurrencyInput
-                    name="salary"
-                    value={form.salary}
-                    onChange={(raw) => setForm((prev) => ({ ...prev, salary: raw }))}
-                    placeholder="0"
                     className={inputClass}
                   />
                 </div>

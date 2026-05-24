@@ -8,7 +8,6 @@ import { FilterPopover } from '@/core/ui/filter-popover'
 import { DataTable } from '@/core/ui/data-table'
 import { StatusBadge } from '@/core/ui/status-badge'
 import { EmptyState } from '@/core/ui/empty-state'
-import { formatCurrency } from '@/core/utils/format'
 import { TableSkeleton } from '@/core/ui/skeleton'
 import { LoadMoreButton } from '@/core/ui/load-more-button'
 import { ExportButton } from '@/core/ui/export-button'
@@ -68,10 +67,6 @@ export function EmployeeList() {
     })
   }, [employees, search, departmentFilter, statusFilter])
 
-  const totalPayroll = useMemo(() => {
-    return filtered.reduce((sum, e) => sum + (e.salary ?? 0), 0)
-  }, [filtered])
-
   const columns = [
     {
       key: 'name',
@@ -96,13 +91,6 @@ export function EmployeeList() {
       header: 'Departamento',
       width: '1fr',
       render: (e: Employee) => e.department || '—',
-    },
-    {
-      key: 'salary',
-      header: 'Salario',
-      width: '1fr',
-      render: (e: Employee) =>
-        formatCurrency(e.salary ?? 0),
     },
     {
       key: 'status',
@@ -150,13 +138,6 @@ export function EmployeeList() {
         onImport={handleImport}
       />
 
-      <div className="mb-4 text-caption text-mid-gray">
-        Nómina total:{' '}
-        <span className="font-medium text-graphite">
-          {formatCurrency(totalPayroll)}
-        </span>
-      </div>
-
       <div className="flex gap-3 mb-5">
         <div className="flex-1">
           <SearchInput value={search} onChange={setSearch} placeholder="Buscar empleado..." />
@@ -199,7 +180,7 @@ export function EmployeeList() {
       </div>
 
       {loading ? (
-        <TableSkeleton rows={5} columns={6} />
+        <TableSkeleton rows={5} columns={5} />
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={Users}
