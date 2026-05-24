@@ -71,7 +71,7 @@ export default function App() {
                   {/* Cierres y Descuentos requieren DateRangeProvider (igual que en App1). */}
                   <Route element={<DateRangeProvider><Outlet /></DateRangeProvider>}>
                     <Route element={<PermissionRoute pageId="closings" />}>
-                      <Route path="/cierres" element={<Suspense fallback={<Loading />}><ClosingList /></Suspense>} />
+                      <Route path="/cierres" element={<Suspense fallback={<Loading />}><ClosingList accumulatedOwnerOnly /></Suspense>} />
                     </Route>
                     <Route element={<PermissionRoute pageId="discounts" />}>
                       <Route path="/descuentos" element={<Suspense fallback={<Loading />}><DiscountsPage /></Suspense>} />

@@ -294,18 +294,20 @@ function AccumulatedTab({ canEdit, onEdit, onDelete, onRowClick }: AccumulatedTa
   )
 }
 
-export function ClosingList() {
+export function ClosingList({ accumulatedOwnerOnly = false }: { accumulatedOwnerOnly?: boolean } = {}) {
   const { selectedCompany } = useCompany()
-  const { can, canAccessTab } = usePermissions()
+  const { can, canAccessTab, isOwner } = usePermissions()
   const canEdit = can('closings', 'create')
   const visibleTabs = useMemo(
     () =>
       CLOSING_TABS.filter((t) => {
         if (!canAccessTab(t.tabId)) return false
+        // App2: el Acumulado es solo-owner aunque el rol tenga el permiso del tab.
+        if (t.value === 'accumulated' && accumulatedOwnerOnly && !isOwner) return false
         if (t.value === 'form') return canEdit
         return true
       }),
-    [canAccessTab, canEdit],
+    [canAccessTab, canEdit, accumulatedOwnerOnly, isOwner],
   )
   const { data: closings, loading, loadingMore, hasMore, totalCount, loadMore } = usePaginatedClosings()
 
