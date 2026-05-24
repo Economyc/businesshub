@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react'
-import { Copy, Send, Settings2, Plus, AlertTriangle, Clock, Tag, ChevronDown } from 'lucide-react'
+import { Copy, Send, Settings2, Plus, AlertTriangle, Clock, Tag } from 'lucide-react'
 import {
   DndContext,
   DragOverlay,
@@ -13,7 +13,6 @@ import {
   type DragStartEvent,
 } from '@dnd-kit/core'
 import { PageHeader } from '@/core/ui/page-header'
-import { Popover, PopoverTrigger, PopoverContent, PopoverClose } from '@/components/ui/popover'
 import { useCompany } from '@/core/hooks/use-company'
 import { useAuth } from '@/core/hooks/use-auth'
 import { usePermissions } from '@/core/hooks/use-permissions'
@@ -256,33 +255,26 @@ export function ScheduleView({ allowedDepartments }: { allowedDepartments?: stri
               <Copy size={15} strokeWidth={1.5} />
               Copiar semana
             </button>
-            <Popover>
-              <PopoverTrigger className="flex items-center gap-2 px-3.5 py-2 rounded-lg border border-input-border bg-input-bg text-body text-graphite hover:bg-bone transition-all duration-200 cursor-pointer">
-                <Settings2 size={15} strokeWidth={1.5} />
-                Plantillas
-                <ChevronDown size={14} strokeWidth={1.5} />
-              </PopoverTrigger>
-              <PopoverContent className="w-60 p-1.5">
-                <PopoverClose
-                  type="button"
-                  onClick={() => setTemplatesOpen(true)}
-                  className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-body text-graphite hover:bg-graphite/5 transition-colors cursor-pointer text-left"
-                >
-                  <Settings2 size={15} strokeWidth={1.5} />
-                  Plantillas de turnos
-                </PopoverClose>
-                {isOwner && (
-                  <PopoverClose
-                    type="button"
-                    onClick={() => setNoveltyTypesOpen(true)}
-                    className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-body text-graphite hover:bg-graphite/5 transition-colors cursor-pointer text-left"
-                  >
-                    <Tag size={15} strokeWidth={1.5} />
-                    Plantillas de novedades
-                  </PopoverClose>
-                )}
-              </PopoverContent>
-            </Popover>
+            <button
+              type="button"
+              onClick={() => setTemplatesOpen(true)}
+              title="Plantillas de turnos"
+              className="flex items-center gap-2 px-3.5 py-2 rounded-lg border border-input-border bg-input-bg text-body text-graphite hover:bg-bone transition-all duration-200"
+            >
+              <Settings2 size={15} strokeWidth={1.5} />
+              Plantillas
+            </button>
+            {isOwner && (
+              <button
+                type="button"
+                onClick={() => setNoveltyTypesOpen(true)}
+                title="Plantillas de novedades"
+                className="flex items-center gap-2 px-3.5 py-2 rounded-lg border border-input-border bg-input-bg text-body text-graphite hover:bg-bone transition-all duration-200"
+              >
+                <Tag size={15} strokeWidth={1.5} />
+                Novedades
+              </button>
+            )}
           </>
         )}
         <ScheduleExport targetRef={gridRef} fileName={`horario-${weekKey}`} />
