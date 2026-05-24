@@ -2,7 +2,12 @@ import { useQuery } from '@tanstack/react-query'
 import { useCompany } from '@/core/hooks/use-company'
 import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { scheduleService } from './services'
-import type { ShiftFormData, ShiftTemplateFormData } from './types'
+import type {
+  ShiftFormData,
+  ShiftTemplateFormData,
+  NoveltyFormData,
+  NoveltyTypeFormData,
+} from './types'
 
 const STALE_MS = 5 * 60 * 1000
 
@@ -85,6 +90,71 @@ export function useRemoveTemplate() {
   return useFirestoreMutation<string>(
     'shiftTemplates',
     (cid, id) => scheduleService.removeTemplate(cid, id),
+    { optimisticDelete: true },
+  )
+}
+
+// ── Novedades aplicadas (instancias en la grilla) ──
+export function useNovelties(weekKey: string) {
+  const { selectedCompany } = useCompany()
+  const companyId = selectedCompany?.id
+
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ['firestore', companyId, 'novelties', weekKey],
+    queryFn: () => scheduleService.getNoveltiesByWeek(companyId!, weekKey),
+    enabled: !!companyId && !!weekKey,
+    staleTime: STALE_MS,
+  })
+
+  return { data: data ?? [], loading: isLoading, error: error as Error | null, refetch }
+}
+
+export function useCreateNovelty() {
+  return useFirestoreMutation<NoveltyFormData, string>('novelties', (cid, data) =>
+    scheduleService.createNovelty(cid, data),
+  )
+}
+
+export function useUpdateNovelty() {
+  return useFirestoreMutation<{ id: string; data: Partial<NoveltyFormData> }>(
+    'novelties',
+    (cid, { id, data }) => scheduleService.updateNovelty(cid, id, data),
+  )
+}
+
+export function useRemoveNovelty() {
+  return useFirestoreMutation<string>(
+    'novelties',
+    (cid, id) => scheduleService.removeNovelty(cid, id),
+    { optimisticDelete: true },
+  )
+}
+
+// ── Tipos de novedad (catálogo, solo lo gestiona el Owner) ──
+export function useNoveltyTypes() {
+  const { selectedCompany } = useCompany()
+  const companyId = selectedCompany?.id
+
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ['firestore', companyId, 'noveltyTypes'],
+    queryFn: () => scheduleService.getNoveltyTypes(companyId!),
+    enabled: !!companyId,
+    staleTime: STALE_MS,
+  })
+
+  return { data: data ?? [], loading: isLoading, refetch }
+}
+
+export function useCreateNoveltyType() {
+  return useFirestoreMutation<NoveltyTypeFormData, string>('noveltyTypes', (cid, data) =>
+    scheduleService.createNoveltyType(cid, data),
+  )
+}
+
+export function useRemoveNoveltyType() {
+  return useFirestoreMutation<string>(
+    'noveltyTypes',
+    (cid, id) => scheduleService.removeNoveltyType(cid, id),
     { optimisticDelete: true },
   )
 }

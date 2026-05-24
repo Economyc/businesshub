@@ -41,3 +41,33 @@ export interface ShiftTemplate extends BaseEntity {
 }
 
 export type ShiftTemplateFormData = Omit<ShiftTemplate, 'id' | 'createdAt' | 'updatedAt'>
+
+// Colores disponibles para tipos de novedad. Mapean a pares de tokens del
+// Design System en `components/novelty-colors.ts` (no hex hardcodeado).
+export type NoveltyColor = 'green' | 'amber' | 'red' | 'blue' | 'gray'
+
+// Tipo de novedad reutilizable ("Cumpleaños", "Descanso", "Incapacidad"). Es un
+// catálogo que SOLO el Owner gestiona; los demás usuarios solo lo usan al poner
+// novedades en la grilla. Análogo a `ShiftTemplate` pero para novedades.
+export interface NoveltyType extends BaseEntity {
+  name: string
+  color: NoveltyColor
+}
+
+export type NoveltyTypeFormData = Omit<NoveltyType, 'id' | 'createdAt' | 'updatedAt'>
+
+// Novedad concreta aplicada a un empleado en un día. REEMPLAZA el turno de ese
+// día (una celda es día de trabajo o día de novedad, nunca ambos). Igual que
+// `Shift`, se consulta por `weekKey`. Guarda un snapshot de `typeName`+`color`
+// para que el chip se siga viendo bien aunque el tipo origen se elimine.
+export interface Novelty extends BaseEntity {
+  weekKey: string // ISO week, ej. '2026-W21'
+  date: string // 'YYYY-MM-DD'
+  employeeId: string
+  typeId: string
+  typeName: string // snapshot del nombre del tipo
+  color: NoveltyColor // snapshot del color del tipo
+  notes?: string
+}
+
+export type NoveltyFormData = Omit<Novelty, 'id' | 'createdAt' | 'updatedAt'>

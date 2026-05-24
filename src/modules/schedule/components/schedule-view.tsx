@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react'
-import { Copy, Send, Settings2, Plus, AlertTriangle, Clock } from 'lucide-react'
+import { Copy, Send, Settings2, Plus, AlertTriangle, Clock, Tag, ChevronDown } from 'lucide-react'
 import {
   DndContext,
   DragOverlay,
@@ -13,15 +13,23 @@ import {
   type DragStartEvent,
 } from '@dnd-kit/core'
 import { PageHeader } from '@/core/ui/page-header'
+import { Popover, PopoverTrigger, PopoverContent, PopoverClose } from '@/components/ui/popover'
 import { useCompany } from '@/core/hooks/use-company'
 import { useAuth } from '@/core/hooks/use-auth'
 import { usePermissions } from '@/core/hooks/use-permissions'
 import { queryClient } from '@/core/query/query-client'
 import { useActiveEmployees } from '@/modules/talent/hooks'
 import type { Employee } from '@/modules/talent/types'
-import type { Shift } from '../types'
+import type { Shift, Novelty } from '../types'
 import { scheduleService } from '../services'
-import { useShifts, useScheduleWeek, useShiftTemplates, useUpdateShift } from '../hooks'
+import {
+  useShifts,
+  useScheduleWeek,
+  useShiftTemplates,
+  useUpdateShift,
+  useNovelties,
+  useNoveltyTypes,
+} from '../hooks'
 import {
   mondayOf,
   weekKeyOf,
@@ -38,8 +46,10 @@ import {
   parseDateStr,
   WEEKDAY_LABELS,
 } from './schedule-utils'
-import { ShiftForm } from './shift-form'
+import { CellForm } from './cell-form'
 import { TemplateManager } from './template-manager'
+import { NoveltyTypeManager } from './novelty-type-manager'
+import { NOVELTY_COLORS } from './novelty-colors'
 import { WeekNav } from './week-nav'
 import { ScheduleExport } from './schedule-export'
 
@@ -59,17 +69,19 @@ interface FormTarget {
   date: string
   employee: Employee
   shift?: Shift
+  novelty?: Novelty
 }
 
 export function ScheduleView({ allowedDepartments }: { allowedDepartments?: string[] }) {
   const { selectedCompany } = useCompany()
   const { user } = useAuth()
-  const { can } = usePermissions()
+  const { can, isOwner } = usePermissions()
   const canEdit = can('schedule', 'create')
 
   const [monday, setMonday] = useState(() => mondayOf(new Date()))
   const [formTarget, setFormTarget] = useState<FormTarget | null>(null)
   const [templatesOpen, setTemplatesOpen] = useState(false)
+  const [noveltyTypesOpen, setNoveltyTypesOpen] = useState(false)
   const [busy, setBusy] = useState(false)
 
   const weekKey = weekKeyOf(monday)
@@ -78,8 +90,10 @@ export function ScheduleView({ allowedDepartments }: { allowedDepartments?: stri
 
   const { data: allEmployees, loading: empLoading } = useActiveEmployees()
   const { data: allShifts, refetch: refetchShifts } = useShifts(weekKey)
+  const { data: allNovelties, refetch: refetchNovelties } = useNovelties(weekKey)
   const { week, refetch: refetchWeek } = useScheduleWeek(weekKey)
   const { data: templates } = useShiftTemplates()
+  const { data: noveltyTypes } = useNoveltyTypes()
   const updateShift = useUpdateShift()
 
   // Drag & drop: arrastrar turnos entre celdas (empleado × día).
@@ -96,6 +110,8 @@ export function ScheduleView({ allowedDepartments }: { allowedDepartments?: stri
     const target = e.over?.data.current as { employeeId: string; date: string } | undefined
     if (!shift || !target || !selectedCompany) return
     if (target.employeeId === shift.employeeId && target.date === shift.date) return
+    // No se permiten turnos en un día marcado como novedad.
+    if (noveltyByCell.has(`${target.employeeId}|${target.date}`)) return
 
     // Optimista: mueve el turno en la cache para feedback inmediato; la mutación
     // invalida y reconcilia con el servidor (rollback incluido si falla).
@@ -120,6 +136,10 @@ export function ScheduleView({ allowedDepartments }: { allowedDepartments?: stri
     () => (allowedDepartments ? allShifts.filter((s) => visibleEmpIds.has(s.employeeId)) : allShifts),
     [allShifts, visibleEmpIds, allowedDepartments],
   )
+  const novelties = useMemo(
+    () => (allowedDepartments ? allNovelties.filter((n) => visibleEmpIds.has(n.employeeId)) : allNovelties),
+    [allNovelties, visibleEmpIds, allowedDepartments],
+  )
 
   const groups = useMemo(() => groupByDepartment(employees), [employees])
 
@@ -134,6 +154,13 @@ export function ScheduleView({ allowedDepartments }: { allowedDepartments?: stri
     for (const list of map.values()) list.sort((a, b) => a.start.localeCompare(b.start))
     return map
   }, [shifts])
+
+  // Índice empId|date → novedad (una por celda; reemplaza el día).
+  const noveltyByCell = useMemo(() => {
+    const map = new Map<string, Novelty>()
+    for (const n of novelties) map.set(`${n.employeeId}|${n.date}`, n)
+    return map
+  }, [novelties])
 
   // Métricas y alertas por empleado.
   const metrics = useMemo(() => {
@@ -165,13 +192,20 @@ export function ScheduleView({ allowedDepartments }: { allowedDepartments?: stri
     setBusy(true)
     try {
       const prevMonday = addWeeks(monday, -1)
-      const prevShifts = await scheduleService.getShiftsByWeek(selectedCompany.id, weekKeyOf(prevMonday))
-      if (prevShifts.length === 0) return
+      const prevWeekKey = weekKeyOf(prevMonday)
+      const [prevShifts, prevNovelties] = await Promise.all([
+        scheduleService.getShiftsByWeek(selectedCompany.id, prevWeekKey),
+        scheduleService.getNoveltiesByWeek(selectedCompany.id, prevWeekKey),
+      ])
+      if (prevShifts.length === 0 && prevNovelties.length === 0) return
       const prevDates = weekDates(prevMonday)
       const dateMap: Record<string, string> = {}
       prevDates.forEach((d, i) => { dateMap[d] = dates[i] })
-      await scheduleService.copyWeek(selectedCompany.id, prevShifts, weekKey, dateMap)
-      await refetchShifts()
+      await Promise.all([
+        scheduleService.copyWeek(selectedCompany.id, prevShifts, weekKey, dateMap),
+        scheduleService.copyNovelties(selectedCompany.id, prevNovelties, weekKey, dateMap),
+      ])
+      await Promise.all([refetchShifts(), refetchNovelties()])
     } finally {
       setBusy(false)
     }
@@ -215,21 +249,40 @@ export function ScheduleView({ allowedDepartments }: { allowedDepartments?: stri
             <button
               type="button"
               onClick={copyPrevWeek}
-              disabled={busy || shifts.length > 0}
-              title={shifts.length > 0 ? 'La semana ya tiene turnos' : 'Copiar turnos de la semana anterior'}
+              disabled={busy || shifts.length > 0 || novelties.length > 0}
+              title={shifts.length > 0 || novelties.length > 0 ? 'La semana ya tiene turnos o novedades' : 'Copiar la semana anterior'}
               className="flex items-center gap-2 px-3.5 py-2 rounded-lg border border-input-border bg-input-bg text-body text-graphite hover:bg-bone transition-all duration-200 disabled:opacity-50"
             >
               <Copy size={15} strokeWidth={1.5} />
               Copiar semana
             </button>
-            <button
-              type="button"
-              onClick={() => setTemplatesOpen(true)}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-lg border border-input-border bg-input-bg text-body text-graphite hover:bg-bone transition-all duration-200"
-            >
-              <Settings2 size={15} strokeWidth={1.5} />
-              Plantillas
-            </button>
+            <Popover>
+              <PopoverTrigger className="flex items-center gap-2 px-3.5 py-2 rounded-lg border border-input-border bg-input-bg text-body text-graphite hover:bg-bone transition-all duration-200 cursor-pointer">
+                <Settings2 size={15} strokeWidth={1.5} />
+                Plantillas
+                <ChevronDown size={14} strokeWidth={1.5} />
+              </PopoverTrigger>
+              <PopoverContent className="w-60 p-1.5">
+                <PopoverClose
+                  type="button"
+                  onClick={() => setTemplatesOpen(true)}
+                  className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-body text-graphite hover:bg-graphite/5 transition-colors cursor-pointer text-left"
+                >
+                  <Settings2 size={15} strokeWidth={1.5} />
+                  Plantillas de turnos
+                </PopoverClose>
+                {isOwner && (
+                  <PopoverClose
+                    type="button"
+                    onClick={() => setNoveltyTypesOpen(true)}
+                    className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-body text-graphite hover:bg-graphite/5 transition-colors cursor-pointer text-left"
+                  >
+                    <Tag size={15} strokeWidth={1.5} />
+                    Plantillas de novedades
+                  </PopoverClose>
+                )}
+              </PopoverContent>
+            </Popover>
           </>
         )}
         <ScheduleExport targetRef={gridRef} fileName={`horario-${weekKey}`} />
@@ -331,27 +384,43 @@ export function ScheduleView({ allowedDepartments }: { allowedDepartments?: stri
                         </div>
                       </div>
                       {dates.map((d) => {
-                        const cellShifts = byCell.get(`${emp.id}|${d}`) ?? []
+                        const cellKey = `${emp.id}|${d}`
+                        const cellNovelty = noveltyByCell.get(cellKey)
+                        const cellShifts = cellNovelty ? [] : (byCell.get(cellKey) ?? [])
                         return (
                           <DroppableCell
                             key={d}
                             employeeId={emp.id}
                             date={d}
                             canEdit={canEdit}
-                            onClick={canEdit ? () => setFormTarget({ date: d, employee: emp }) : undefined}
+                            onClick={
+                              canEdit && !cellNovelty
+                                ? () => setFormTarget({ date: d, employee: emp })
+                                : undefined
+                            }
                           >
-                            {cellShifts.map((s) => (
-                              <DraggableShift
-                                key={s.id}
-                                shift={s}
+                            {cellNovelty ? (
+                              <NoveltyChip
+                                novelty={cellNovelty}
                                 canEdit={canEdit}
-                                onEdit={() => setFormTarget({ date: d, employee: emp, shift: s })}
+                                onEdit={() => setFormTarget({ date: d, employee: emp, novelty: cellNovelty })}
                               />
-                            ))}
-                            {canEdit && cellShifts.length === 0 && (
-                              <span className="hidden group-hover/cell:flex absolute inset-0 items-center justify-center text-mid-gray/60 pointer-events-none">
-                                <Plus size={14} strokeWidth={1.5} />
-                              </span>
+                            ) : (
+                              <>
+                                {cellShifts.map((s) => (
+                                  <DraggableShift
+                                    key={s.id}
+                                    shift={s}
+                                    canEdit={canEdit}
+                                    onEdit={() => setFormTarget({ date: d, employee: emp, shift: s })}
+                                  />
+                                ))}
+                                {canEdit && cellShifts.length === 0 && (
+                                  <span className="hidden group-hover/cell:flex absolute inset-0 items-center justify-center text-mid-gray/60 pointer-events-none">
+                                    <Plus size={14} strokeWidth={1.5} />
+                                  </span>
+                                )}
+                              </>
                             )}
                           </DroppableCell>
                         )
@@ -389,15 +458,18 @@ export function ScheduleView({ allowedDepartments }: { allowedDepartments?: stri
       </div>
 
       {formTarget && (
-        <ShiftForm
+        <CellForm
           open
           onClose={() => setFormTarget(null)}
           weekKey={weekKey}
           date={formTarget.date}
           employee={formTarget.employee}
           shift={formTarget.shift}
+          novelty={formTarget.novelty}
           templates={templates}
-          onSaved={() => refetchShifts()}
+          noveltyTypes={noveltyTypes}
+          dayShifts={byCell.get(`${formTarget.employee.id}|${formTarget.date}`) ?? []}
+          onSaved={() => { refetchShifts(); refetchNovelties() }}
         />
       )}
 
@@ -405,6 +477,13 @@ export function ScheduleView({ allowedDepartments }: { allowedDepartments?: stri
         open={templatesOpen}
         onClose={() => setTemplatesOpen(false)}
         templates={templates}
+        onChanged={() => { /* React Query invalida solo vía mutación */ }}
+      />
+
+      <NoveltyTypeManager
+        open={noveltyTypesOpen}
+        onClose={() => setNoveltyTypesOpen(false)}
+        noveltyTypes={noveltyTypes}
         onChanged={() => { /* React Query invalida solo vía mutación */ }}
       />
     </div>
@@ -449,6 +528,26 @@ function DraggableShift({ shift, canEdit, onEdit }: { shift: Shift; canEdit: boo
       }
     >
       <ShiftChipContent shift={shift} />
+    </button>
+  )
+}
+
+// Chip de novedad (ocupa el día completo). Clickeable para editar; NO es
+// arrastrable porque una novedad no se mueve entre celdas como un turno.
+function NoveltyChip({ novelty, canEdit, onEdit }: { novelty: Novelty; canEdit: boolean; onEdit: () => void }) {
+  const chipClass = NOVELTY_COLORS[novelty.color]?.chip ?? NOVELTY_COLORS.gray.chip
+  return (
+    <button
+      type="button"
+      onClick={canEdit ? (e) => { e.stopPropagation(); onEdit() } : undefined}
+      className={
+        'w-full text-left rounded-lg border px-2 py-1 transition-colors ' +
+        chipClass +
+        (canEdit ? ' cursor-pointer' : '')
+      }
+    >
+      <span className="block text-caption font-medium whitespace-nowrap truncate">{novelty.typeName}</span>
+      {novelty.notes && <span className="block text-caption opacity-70 truncate">{novelty.notes}</span>}
     </button>
   )
 }

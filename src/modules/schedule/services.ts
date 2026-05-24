@@ -13,11 +13,17 @@ import type {
   WeekStatus,
   ShiftTemplate,
   ShiftTemplateFormData,
+  Novelty,
+  NoveltyFormData,
+  NoveltyType,
+  NoveltyTypeFormData,
 } from './types'
 
 const SHIFTS = 'shifts'
 const WEEKS = 'scheduleWeeks'
 const TEMPLATES = 'shiftTemplates'
+const NOVELTIES = 'novelties'
+const NOVELTY_TYPES = 'noveltyTypes'
 
 export const scheduleService = {
   // ── Shifts ──
@@ -91,4 +97,49 @@ export const scheduleService = {
     createDocument(companyId, TEMPLATES, data),
 
   removeTemplate: (companyId: string, id: string) => removeDocument(companyId, TEMPLATES, id),
+
+  // ── Novelties (novedades aplicadas en la grilla) ──
+  getNoveltiesByWeek: (companyId: string, weekKey: string) =>
+    fetchCollection<Novelty>(companyId, NOVELTIES, where('weekKey', '==', weekKey)),
+
+  createNovelty: (companyId: string, data: NoveltyFormData) =>
+    createDocument(companyId, NOVELTIES, data),
+
+  updateNovelty: (companyId: string, id: string, data: Partial<NoveltyFormData>) =>
+    updateDocument(companyId, NOVELTIES, id, data),
+
+  removeNovelty: (companyId: string, id: string) => removeDocument(companyId, NOVELTIES, id),
+
+  /** Clona las novedades de una semana a `toWeekKey` (con sus fechas trasladadas). */
+  copyNovelties: async (
+    companyId: string,
+    fromNovelties: Novelty[],
+    toWeekKey: string,
+    dateMap: Record<string, string>,
+  ): Promise<void> => {
+    await Promise.all(
+      fromNovelties.map((n) => {
+        const data: NoveltyFormData = {
+          weekKey: toWeekKey,
+          date: dateMap[n.date] ?? n.date,
+          employeeId: n.employeeId,
+          typeId: n.typeId,
+          typeName: n.typeName,
+          color: n.color,
+          ...(n.notes ? { notes: n.notes } : {}),
+        }
+        return createDocument(companyId, NOVELTIES, data)
+      }),
+    )
+  },
+
+  // ── Novelty types (catálogo, solo lo gestiona el Owner) ──
+  getNoveltyTypes: (companyId: string) =>
+    fetchCollection<NoveltyType>(companyId, NOVELTY_TYPES, orderBy('name', 'asc')),
+
+  createNoveltyType: (companyId: string, data: NoveltyTypeFormData) =>
+    createDocument(companyId, NOVELTY_TYPES, data),
+
+  removeNoveltyType: (companyId: string, id: string) =>
+    removeDocument(companyId, NOVELTY_TYPES, id),
 }
