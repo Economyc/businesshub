@@ -18,10 +18,16 @@ function parseDate(raw: string): Timestamp {
 export const employeeFields: FieldDef[] = [
   { key: 'name', header: 'Nombre', required: true, type: 'string' },
   { key: 'identification', header: 'Identificacion', required: true, type: 'string' },
-  { key: 'role', header: 'Cargo', required: true, type: 'string' },
   { key: 'department', header: 'Departamento', type: 'string' },
   { key: 'email', header: 'Email', type: 'string' },
   { key: 'phone', header: 'Telefono', type: 'string' },
+  {
+    key: 'birthDate',
+    header: 'Fecha Nacimiento',
+    type: 'date',
+    format: formatTimestamp,
+    parse: parseDate,
+  },
   {
     key: 'startDate',
     header: 'Fecha Ingreso',

@@ -16,7 +16,6 @@ export declare function createMutationTools(): {
     createEmployee: import("ai").Tool<z.ZodObject<{
         name: z.ZodString;
         identification: z.ZodString;
-        role: z.ZodString;
         department: z.ZodString;
         email: z.ZodString;
         phone: z.ZodString;
@@ -25,7 +24,6 @@ export declare function createMutationTools(): {
     }, "strip", z.ZodTypeAny, {
         name: string;
         identification: string;
-        role: string;
         department: string;
         email: string;
         phone: string;
@@ -34,7 +32,6 @@ export declare function createMutationTools(): {
     }, {
         name: string;
         identification: string;
-        role: string;
         department: string;
         email: string;
         phone: string;
@@ -46,7 +43,6 @@ export declare function createMutationTools(): {
     updateEmployee: import("ai").Tool<z.ZodObject<{
         id: z.ZodString;
         name: z.ZodOptional<z.ZodString>;
-        role: z.ZodOptional<z.ZodString>;
         department: z.ZodOptional<z.ZodString>;
         email: z.ZodOptional<z.ZodString>;
         phone: z.ZodOptional<z.ZodString>;
@@ -54,7 +50,6 @@ export declare function createMutationTools(): {
     }, "strip", z.ZodTypeAny, {
         id: string;
         name?: string | undefined;
-        role?: string | undefined;
         department?: string | undefined;
         email?: string | undefined;
         phone?: string | undefined;
@@ -62,7 +57,6 @@ export declare function createMutationTools(): {
     }, {
         id: string;
         name?: string | undefined;
-        role?: string | undefined;
         department?: string | undefined;
         email?: string | undefined;
         phone?: string | undefined;

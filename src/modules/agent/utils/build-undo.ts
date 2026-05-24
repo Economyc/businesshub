@@ -50,7 +50,6 @@ export function buildUndoAction(
       const id = String(args.id)
       const fields: (keyof EmployeeFormData)[] = [
         'name',
-        'role',
         'department',
         'email',
         'phone',

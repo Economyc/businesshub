@@ -65,7 +65,6 @@ export async function executeMutation(
       const data: EmployeeFormData = {
         name: String(args.name),
         identification: String(args.identification),
-        role: String(args.role),
         department: String(args.department),
         email: String(args.email),
         phone: String(args.phone),
@@ -80,7 +79,6 @@ export async function executeMutation(
       const { id, ...changes } = args
       const updateData: Partial<EmployeeFormData> = {}
       if (changes.name) updateData.name = String(changes.name)
-      if (changes.role) updateData.role = String(changes.role)
       if (changes.department) updateData.department = String(changes.department)
       if (changes.email) updateData.email = String(changes.email)
       if (changes.phone) updateData.phone = String(changes.phone)

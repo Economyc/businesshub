@@ -21,6 +21,11 @@ import { EmployeeForm } from './employee-form'
 import { employeeFields } from '../utils/field-schema'
 import type { Employee, EmployeeFormData } from '../types'
 
+function formatBirthday(ts: Employee['birthDate']): string {
+  if (!ts) return '—'
+  return ts.toDate().toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: 'numeric' })
+}
+
 export function EmployeeList() {
   const navigate = useNavigate()
   const { selectedCompany } = useCompany()
@@ -39,6 +44,9 @@ export function EmployeeList() {
     let failed = 0
     for (const record of records) {
       try {
+        // birthDate es opcional: una celda vacía llega como '' desde validateRows;
+        // se elimina para no persistir un string vacío en un campo Timestamp.
+        if (!record.birthDate) delete record.birthDate
         await talentService.create(selectedCompany.id, record)
         success++
       } catch {
@@ -59,7 +67,6 @@ export function EmployeeList() {
         search === '' ||
         e.name.toLowerCase().includes(search.toLowerCase()) ||
         (e.identification ?? '').toLowerCase().includes(search.toLowerCase()) ||
-        e.role.toLowerCase().includes(search.toLowerCase()) ||
         (e.email ?? '').toLowerCase().includes(search.toLowerCase())
       const matchesDept = departmentFilter === '' || e.department === departmentFilter
       const matchesStatus = statusFilter === '' || e.status === statusFilter
@@ -81,16 +88,16 @@ export function EmployeeList() {
       render: (e: Employee) => e.identification || '—',
     },
     {
-      key: 'role',
-      header: 'Cargo',
-      width: '1.5fr',
-      render: (e: Employee) => e.role,
-    },
-    {
       key: 'department',
       header: 'Departamento',
       width: '1fr',
       render: (e: Employee) => e.department || '—',
+    },
+    {
+      key: 'birthDate',
+      header: 'Nacimiento',
+      width: '1.5fr',
+      render: (e: Employee) => formatBirthday(e.birthDate),
     },
     {
       key: 'status',

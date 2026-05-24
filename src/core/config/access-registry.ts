@@ -4,7 +4,6 @@ import {
   Briefcase,
   DollarSign,
   Tags,
-  BadgeCheck,
   Network,
   Handshake,
   ClipboardList,
@@ -229,8 +228,7 @@ export const ACCESS_REGISTRY: AccessModule[] = [
       { id: 'settings.companies', label: 'Compañías', path: '/settings/companies', icon: Building2, actions: [...ALL_ACTIONS], nav: { group: 'settings', order: 2 } },
       { id: 'settings.categories', label: 'Categorías', path: '/settings/categories', icon: Tags, actions: [...ALL_ACTIONS], nav: { group: 'settings', order: 3 } },
       { id: 'settings.roles', label: 'Roles', path: '/settings/roles', icon: KeyRound, actions: [...ALL_ACTIONS], nav: { group: 'settings', order: 4 } },
-      { id: 'settings.puestos', label: 'Puestos', path: '/settings/puestos', icon: BadgeCheck, actions: [...ALL_ACTIONS], nav: { group: 'settings', order: 5 } },
-      { id: 'settings.departments', label: 'Departamentos', path: '/settings/departments', icon: Network, actions: [...ALL_ACTIONS], nav: { group: 'settings', order: 6 } },
+      { id: 'settings.departments', label: 'Departamentos', path: '/settings/departments', icon: Network, actions: [...ALL_ACTIONS], nav: { group: 'settings', order: 5 } },
     ],
   },
 ]
@@ -313,7 +311,6 @@ const PAGE_LEGACY_MODULE: Record<string, ModuleKey> = {
   'settings.companies': 'settings',
   'settings.categories': 'settings',
   'settings.roles': 'settings',
-  'settings.puestos': 'settings',
   'settings.departments': 'settings',
 }
 

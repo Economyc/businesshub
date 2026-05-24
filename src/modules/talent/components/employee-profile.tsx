@@ -79,19 +79,19 @@ export function EmployeeProfile() {
   const [editForm, setEditForm] = useState<{
     name: string
     identification: string
-    role: string
     department: string
     email: string
     phone: string
+    birthDate: string
     startDate: string
     status: 'active' | 'inactive'
   }>({
     name: '',
     identification: '',
-    role: '',
     department: '',
     email: '',
     phone: '',
+    birthDate: '',
     startDate: '',
     status: 'active',
   })
@@ -101,10 +101,10 @@ export function EmployeeProfile() {
     setEditForm({
       name: displayed.name,
       identification: displayed.identification ?? '',
-      role: displayed.role,
       department: displayed.department ?? '',
       email: displayed.email ?? '',
       phone: displayed.phone,
+      birthDate: toDateInputValue(displayed.birthDate),
       startDate: toDateInputValue(displayed.startDate),
       status: displayed.status,
     })
@@ -121,10 +121,10 @@ export function EmployeeProfile() {
     const updates: Partial<EmployeeFormData> = {
       name: editForm.name,
       identification: editForm.identification,
-      role: editForm.role,
       department: editForm.department,
       email: editForm.email,
       phone: editForm.phone,
+      birthDate: editForm.birthDate ? Timestamp.fromDate(new Date(editForm.birthDate)) : undefined,
       startDate: Timestamp.fromDate(new Date(editForm.startDate)),
       status: editForm.status,
     }
@@ -216,10 +216,6 @@ export function EmployeeProfile() {
                   <input name="identification" value={editForm.identification} onChange={handleChange} placeholder="Cédula o NIT" className={inputClass} />
                 </div>
                 <div>
-                  <label className={labelClass}>Cargo</label>
-                  <input name="role" value={editForm.role} onChange={handleChange} className={inputClass} />
-                </div>
-                <div>
                   <label className={labelClass}>Departamento</label>
                   {departments.length > 0 ? (
                     <SelectInput
@@ -239,6 +235,13 @@ export function EmployeeProfile() {
                 <div>
                   <label className={labelClass}>Teléfono</label>
                   <input name="phone" value={editForm.phone} onChange={handleChange} className={inputClass} />
+                </div>
+                <div>
+                  <label className={labelClass}>Fecha de Nacimiento</label>
+                  <DateInput
+                    value={editForm.birthDate}
+                    onChange={(v) => setEditForm((prev) => ({ ...prev, birthDate: v }))}
+                  />
                 </div>
                 <div>
                   <label className={labelClass}>Fecha de Inicio</label>
@@ -266,10 +269,6 @@ export function EmployeeProfile() {
                   <p className="text-body text-graphite">{displayed.identification || '—'}</p>
                 </div>
                 <div>
-                  <p className={labelClass}>Cargo</p>
-                  <p className="text-body text-graphite">{displayed.role}</p>
-                </div>
-                <div>
                   <p className={labelClass}>Departamento</p>
                   <p className="text-body text-graphite">{displayed.department || '—'}</p>
                 </div>
@@ -280,6 +279,10 @@ export function EmployeeProfile() {
                 <div>
                   <p className={labelClass}>Teléfono</p>
                   <p className="text-body text-graphite">{displayed.phone}</p>
+                </div>
+                <div>
+                  <p className={labelClass}>Fecha de Nacimiento</p>
+                  <p className="text-body text-graphite">{formatDate(displayed.birthDate)}</p>
                 </div>
                 <div>
                   <p className={labelClass}>Fecha de Inicio</p>

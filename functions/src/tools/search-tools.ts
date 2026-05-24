@@ -43,14 +43,12 @@ export function createSearchTools(companyId: string) {
           .filter((e) =>
             matchesSearch(e.name, search) ||
             matchesSearch(e.identification, search) ||
-            matchesSearch(e.role, search) ||
             matchesSearch(e.department, search) ||
             matchesSearch(e.email, search)
           )
           .map((e) => ({
             id: e.id,
             name: e.name,
-            role: e.role,
             department: e.department,
             email: e.email,
             status: e.status,

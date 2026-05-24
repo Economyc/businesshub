@@ -80,7 +80,6 @@ function formatFieldName(key: string): string {
     supplierName: 'Proveedor',
     name: 'Nombre',
     identification: 'Identificación',
-    role: 'Cargo',
     department: 'Departamento',
     email: 'Correo',
     phone: 'Teléfono',

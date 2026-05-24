@@ -15,7 +15,6 @@ export declare function createEmployeeTools(companyId: string): {
             id: unknown;
             name: unknown;
             identification: unknown;
-            role: unknown;
             department: unknown;
             email: unknown;
             phone: unknown;
@@ -32,7 +31,6 @@ export declare function createEmployeeTools(companyId: string): {
                 id: unknown;
                 name: unknown;
                 identification: unknown;
-                role: unknown;
                 department: unknown;
                 email: unknown;
                 phone: unknown;
@@ -51,7 +49,6 @@ export declare function createEmployeeTools(companyId: string): {
         id: unknown;
         name: unknown;
         identification: unknown;
-        role: unknown;
         department: unknown;
         email: unknown;
         phone: unknown;
@@ -66,7 +63,6 @@ export declare function createEmployeeTools(companyId: string): {
             id: unknown;
             name: unknown;
             identification: unknown;
-            role: unknown;
             department: unknown;
             email: unknown;
             phone: unknown;

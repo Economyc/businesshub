@@ -23,7 +23,7 @@ import { useAuth } from '@/core/hooks/use-auth'
 
 // Split en dos contextos para evitar re-renders globales:
 //  - CompanyContext: companies + selectedCompany. Lo consumen 49 archivos.
-//  - SettingsContext: categories + roles + departments. Lo consumen ~9 archivos
+//  - SettingsContext: categories + departments. Lo consumen ~9 archivos
 //    (settings UIs, employee-form, transaction-list, analytics).
 // Antes era un unico contexto: editar un departamento gatillaba re-render en
 // los 58 consumers. Ahora cada Provider memoiza su value con sus propias deps,
@@ -40,7 +40,6 @@ interface CompanyContextValue {
 
 interface SettingsContextValue {
   categories: CategoryItem[]
-  roles: string[]
   departments: string[]
   addCategory: (name: string, color?: string) => void
   removeCategory: (id: string) => void
@@ -48,9 +47,6 @@ interface SettingsContextValue {
   addSubcategory: (categoryId: string, subcategory: string) => void
   removeSubcategory: (categoryId: string, subcategory: string) => void
   updateSubcategory: (categoryId: string, oldName: string, newName: string) => void
-  addRole: (name: string) => void
-  removeRole: (name: string) => void
-  updateRole: (oldName: string, newName: string) => void
   addDepartment: (name: string) => void
   removeDepartment: (name: string) => void
   updateDepartment: (oldName: string, newName: string) => void
@@ -61,17 +57,11 @@ export const SettingsContext = createContext<SettingsContextValue | null>(null)
 
 const companiesRef = collection(db, 'companies')
 const categoriesDocRef = doc(db, 'settings', 'categories')
-const rolesDocRef = doc(db, 'settings', 'roles')
 const departmentsDocRef = doc(db, 'settings', 'departments')
 
 function persistCategories(cats: CategoryItem[]) {
   setDoc(categoriesDocRef, { categories: cats })
   cacheSet('categories', cats)
-}
-
-function persistRoles(list: string[]) {
-  setDoc(rolesDocRef, { list })
-  cacheSet('roles', list)
 }
 
 function persistDepartments(list: string[]) {
@@ -82,7 +72,6 @@ function persistDepartments(list: string[]) {
 // Load cached data immediately
 const cachedCompanies = cacheGet<Company[]>('companies')
 const cachedCategories = cacheGet<CategoryItem[]>('categories')
-const cachedRoles = cacheGet<string[]>('roles')
 const cachedDepartments = cacheGet<string[]>('departments')
 const cachedSelectedId = cacheGet<string>('selectedCompanyId')
 
@@ -93,7 +82,6 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
     return cachedCompanies.find((c) => c.id === cachedSelectedId) ?? cachedCompanies[0]
   })
   const [categories, setCategories] = useState<CategoryItem[]>(cachedCategories ?? [])
-  const [roles, setRoles] = useState<string[]>(cachedRoles ?? [])
   const [departments, setDepartments] = useState<string[]>(cachedDepartments ?? [])
   const [loading, setLoading] = useState(!cachedCompanies)
   const { user } = useAuth()
@@ -113,10 +101,9 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
     }
     async function load() {
       try {
-        const [companiesSnap, catSnap, rolesSnap, depsSnap] = await Promise.all([
+        const [companiesSnap, catSnap, depsSnap] = await Promise.all([
           getDocs(companiesRef),
           getDoc(categoriesDocRef),
-          getDoc(rolesDocRef),
           getDoc(departmentsDocRef),
         ])
 
@@ -168,13 +155,6 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
           await setDoc(categoriesDocRef, { categories: DEFAULT_CATEGORIES })
           cacheSet('categories', [...DEFAULT_CATEGORIES])
           setCategories([...DEFAULT_CATEGORIES])
-        }
-
-        // ─── Roles ───
-        if (rolesSnap.exists()) {
-          const r = rolesSnap.data().list ?? []
-          cacheSet('roles', r)
-          setRoles(r)
         }
 
         // ─── Departments ───
@@ -390,36 +370,6 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
-  const addRole = useCallback((name: string) => {
-    const trimmed = name.trim()
-    if (!trimmed) return
-    setRoles((prev) => {
-      if (prev.includes(trimmed)) return prev
-      const updated = [...prev, trimmed]
-      persistRoles(updated)
-      return updated
-    })
-  }, [])
-
-  const removeRole = useCallback((name: string) => {
-    setRoles((prev) => {
-      const updated = prev.filter((r) => r !== name)
-      persistRoles(updated)
-      return updated
-    })
-  }, [])
-
-  const updateRole = useCallback((oldName: string, newName: string) => {
-    const trimmed = newName.trim()
-    if (!trimmed || trimmed === oldName) return
-    setRoles((prev) => {
-      if (prev.includes(trimmed)) return prev
-      const updated = prev.map((r) => r === oldName ? trimmed : r)
-      persistRoles(updated)
-      return updated
-    })
-  }, [])
-
   const addDepartment = useCallback((name: string) => {
     const trimmed = name.trim()
     if (!trimmed) return
@@ -464,17 +414,15 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
 
   const settingsValue = useMemo<SettingsContextValue>(
     () => ({
-      categories, roles, departments,
+      categories, departments,
       addCategory, removeCategory, updateCategory,
       addSubcategory, removeSubcategory, updateSubcategory,
-      addRole, removeRole, updateRole,
       addDepartment, removeDepartment, updateDepartment,
     }),
     [
-      categories, roles, departments,
+      categories, departments,
       addCategory, removeCategory, updateCategory,
       addSubcategory, removeSubcategory, updateSubcategory,
-      addRole, removeRole, updateRole,
       addDepartment, removeDepartment, updateDepartment,
     ],
   )

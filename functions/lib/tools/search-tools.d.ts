@@ -14,7 +14,6 @@ export declare function createSearchTools(companyId: string): {
             results: {
                 id: unknown;
                 name: unknown;
-                role: unknown;
                 department: unknown;
                 email: unknown;
                 status: unknown;
@@ -64,7 +63,6 @@ export declare function createSearchTools(companyId: string): {
                 results: {
                     id: unknown;
                     name: unknown;
-                    role: unknown;
                     department: unknown;
                     email: unknown;
                     status: unknown;

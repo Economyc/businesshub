@@ -20,7 +20,6 @@ export function createMutationTools() {
             parameters: z.object({
                 name: z.string().describe('Nombre completo del empleado'),
                 identification: z.string().describe('Número de identificación (cédula)'),
-                role: z.string().describe('Cargo del empleado'),
                 department: z.string().describe('Departamento'),
                 email: z.string().email().describe('Correo electrónico'),
                 phone: z.string().describe('Teléfono'),
@@ -34,7 +33,6 @@ export function createMutationTools() {
             parameters: z.object({
                 id: z.string().describe('ID del empleado a actualizar'),
                 name: z.string().optional().describe('Nuevo nombre'),
-                role: z.string().optional().describe('Nuevo cargo'),
                 department: z.string().optional().describe('Nuevo departamento'),
                 email: z.string().email().optional().describe('Nuevo correo electrónico'),
                 phone: z.string().optional().describe('Nuevo teléfono'),

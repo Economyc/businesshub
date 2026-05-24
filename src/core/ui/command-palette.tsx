@@ -186,7 +186,6 @@ export function CommandPalette() {
     for (const emp of employees) {
       if (
         normalize(emp.name).includes(q) ||
-        normalize(emp.role).includes(q) ||
         normalize(emp.identification || '').includes(q) ||
         normalize(emp.email || '').includes(q)
       ) {
@@ -194,7 +193,7 @@ export function CommandPalette() {
           id: `emp-${emp.id}`,
           type: 'employee',
           label: emp.name,
-          description: emp.department ? `${emp.role} · ${emp.department}` : emp.role,
+          description: emp.department || emp.email || '',
           icon: <Users size={ICON_SIZE} strokeWidth={STROKE} className="text-blue-500" />,
           to: `/talent/${emp.id}`,
         })

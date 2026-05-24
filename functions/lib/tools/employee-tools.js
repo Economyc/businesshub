@@ -15,7 +15,6 @@ function formatEmployee(emp) {
         id: emp.id,
         name: emp.name,
         identification: emp.identification,
-        role: emp.role,
         department: emp.department,
         email: emp.email,
         phone: emp.phone,

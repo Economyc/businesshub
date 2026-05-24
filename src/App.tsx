@@ -31,7 +31,6 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 const SettingsCompanies = lazy(() => import('@/core/ui/settings-companies').then(m => ({ default: m.SettingsCompanies })))
 const SettingsCategories = lazy(() => import('@/core/ui/settings-categories').then(m => ({ default: m.SettingsCategories })))
 const SettingsRoles = lazy(() => import('@/core/ui/settings-roles').then(m => ({ default: m.SettingsRoles })))
-const SettingsPuestos = lazy(() => import('@/core/ui/settings-puestos').then(m => ({ default: m.SettingsPuestos })))
 const SettingsDepartments = lazy(() => import('@/core/ui/settings-departments').then(m => ({ default: m.SettingsDepartments })))
 const SettingsTeam = lazy(() => import('@/core/ui/settings-team').then(m => ({ default: m.SettingsTeam })))
 
@@ -166,7 +165,6 @@ export default function App() {
                 </Route>
               </Route>
               <Route path="/settings" element={<Navigate to="/settings/companies" replace />} />
-              <Route path="/settings/cargos" element={<Navigate to="/settings/puestos" replace />} />
               <Route element={<PermissionRoute pageId="settings.companies" />}>
                 <Route path="/settings/companies" element={<Suspense fallback={<Loading />}><SettingsCompanies /></Suspense>} />
               </Route>
@@ -175,9 +173,6 @@ export default function App() {
               </Route>
               <Route element={<PermissionRoute pageId="settings.roles" />}>
                 <Route path="/settings/roles" element={<Suspense fallback={<Loading />}><SettingsRoles /></Suspense>} />
-              </Route>
-              <Route element={<PermissionRoute pageId="settings.puestos" />}>
-                <Route path="/settings/puestos" element={<Suspense fallback={<Loading />}><SettingsPuestos /></Suspense>} />
               </Route>
               <Route element={<PermissionRoute pageId="settings.departments" />}>
                 <Route path="/settings/departments" element={<Suspense fallback={<Loading />}><SettingsDepartments /></Suspense>} />

@@ -1877,7 +1877,6 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
             results: {
                 id: unknown;
                 name: unknown;
-                role: unknown;
                 department: unknown;
                 email: unknown;
                 status: unknown;
@@ -1927,7 +1926,6 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
                 results: {
                     id: unknown;
                     name: unknown;
-                    role: unknown;
                     department: unknown;
                     email: unknown;
                     status: unknown;
@@ -2337,7 +2335,6 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
     createEmployee: import("ai").Tool<import("zod").ZodObject<{
         name: import("zod").ZodString;
         identification: import("zod").ZodString;
-        role: import("zod").ZodString;
         department: import("zod").ZodString;
         email: import("zod").ZodString;
         phone: import("zod").ZodString;
@@ -2346,7 +2343,6 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
     }, "strip", import("zod").ZodTypeAny, {
         name: string;
         identification: string;
-        role: string;
         department: string;
         email: string;
         phone: string;
@@ -2355,7 +2351,6 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
     }, {
         name: string;
         identification: string;
-        role: string;
         department: string;
         email: string;
         phone: string;
@@ -2367,7 +2362,6 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
     updateEmployee: import("ai").Tool<import("zod").ZodObject<{
         id: import("zod").ZodString;
         name: import("zod").ZodOptional<import("zod").ZodString>;
-        role: import("zod").ZodOptional<import("zod").ZodString>;
         department: import("zod").ZodOptional<import("zod").ZodString>;
         email: import("zod").ZodOptional<import("zod").ZodString>;
         phone: import("zod").ZodOptional<import("zod").ZodString>;
@@ -2375,7 +2369,6 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
     }, "strip", import("zod").ZodTypeAny, {
         id: string;
         name?: string | undefined;
-        role?: string | undefined;
         department?: string | undefined;
         email?: string | undefined;
         phone?: string | undefined;
@@ -2383,7 +2376,6 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
     }, {
         id: string;
         name?: string | undefined;
-        role?: string | undefined;
         department?: string | undefined;
         email?: string | undefined;
         phone?: string | undefined;
@@ -3170,7 +3162,6 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
             id: unknown;
             name: unknown;
             identification: unknown;
-            role: unknown;
             department: unknown;
             email: unknown;
             phone: unknown;
@@ -3187,7 +3178,6 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
                 id: unknown;
                 name: unknown;
                 identification: unknown;
-                role: unknown;
                 department: unknown;
                 email: unknown;
                 phone: unknown;
@@ -3206,7 +3196,6 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
         id: unknown;
         name: unknown;
         identification: unknown;
-        role: unknown;
         department: unknown;
         email: unknown;
         phone: unknown;
@@ -3221,7 +3210,6 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
             id: unknown;
             name: unknown;
             identification: unknown;
-            role: unknown;
             department: unknown;
             email: unknown;
             phone: unknown;

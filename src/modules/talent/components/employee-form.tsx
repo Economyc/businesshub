@@ -31,7 +31,7 @@ interface EmployeeFormProps {
 
 export function EmployeeForm({ open, onClose, employee }: EmployeeFormProps) {
   const { selectedCompany } = useCompany()
-  const { roles, departments } = useSettings()
+  const { departments } = useSettings()
   const [deleteOpen, setDeleteOpen] = useState(false)
   const isEditing = !!employee
 
@@ -53,10 +53,10 @@ export function EmployeeForm({ open, onClose, employee }: EmployeeFormProps) {
   const [form, setForm] = useState({
     name: '',
     identification: '',
-    role: '',
     department: '',
     email: '',
     phone: '',
+    birthDate: '',
     startDate: '',
     status: 'active' as 'active' | 'inactive',
   })
@@ -66,10 +66,10 @@ export function EmployeeForm({ open, onClose, employee }: EmployeeFormProps) {
       setForm({
         name: employee.name,
         identification: employee.identification ?? '',
-        role: employee.role,
         department: employee.department ?? '',
         email: employee.email ?? '',
         phone: employee.phone,
+        birthDate: toDateInputValue(employee.birthDate),
         startDate: toDateInputValue(employee.startDate),
         status: employee.status,
       })
@@ -87,10 +87,10 @@ export function EmployeeForm({ open, onClose, employee }: EmployeeFormProps) {
     setForm({
       name: '',
       identification: '',
-      role: '',
       department: '',
       email: '',
       phone: '',
+      birthDate: '',
       startDate: '',
       status: 'active',
     })
@@ -102,10 +102,10 @@ export function EmployeeForm({ open, onClose, employee }: EmployeeFormProps) {
     const data = {
       name: form.name,
       identification: form.identification,
-      role: form.role,
       department: form.department,
       email: form.email,
       phone: form.phone,
+      birthDate: form.birthDate ? Timestamp.fromDate(new Date(form.birthDate)) : undefined,
       startDate: Timestamp.fromDate(new Date(form.startDate)),
       status: form.status,
     }
@@ -193,26 +193,6 @@ export function EmployeeForm({ open, onClose, employee }: EmployeeFormProps) {
                   />
                 </div>
                 <div>
-                  <label className={labelClass}>Cargo</label>
-                  {roles.length > 0 ? (
-                    <SelectInput
-                      value={form.role}
-                      onChange={(v) => setForm((prev) => ({ ...prev, role: v }))}
-                      options={roles.map((r) => ({ value: r, label: r }))}
-                      placeholder="Seleccionar cargo"
-                    />
-                  ) : (
-                    <input
-                      name="role"
-                      value={form.role}
-                      onChange={handleChange}
-                      required
-                      placeholder="Título del puesto"
-                      className={inputClass}
-                    />
-                  )}
-                </div>
-                <div>
                   <label className={labelClass}>Departamento</label>
                   {departments.length > 0 ? (
                     <SelectInput
@@ -250,6 +230,13 @@ export function EmployeeForm({ open, onClose, employee }: EmployeeFormProps) {
                     onChange={handleChange}
                     placeholder="+1 000 000 0000"
                     className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>Fecha de Nacimiento</label>
+                  <DateInput
+                    value={form.birthDate}
+                    onChange={(v) => setForm((prev) => ({ ...prev, birthDate: v }))}
                   />
                 </div>
                 <div>

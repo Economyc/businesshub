@@ -70,7 +70,6 @@ export function ContractGenerate() {
           ...prev,
           employeeName: emp.name,
           employeeIdentification: emp.identification ?? '',
-          position: emp.role ?? prev.position,
           startDate: emp.startDate ? emp.startDate.toDate().toISOString().split('T')[0] : prev.startDate,
         }))
       }
@@ -245,7 +244,7 @@ export function ContractGenerate() {
                   onChange={setSelectedEmployeeId}
                   options={[
                     { value: '', label: 'Ingresar datos manualmente' },
-                    ...employees.map((e) => ({ value: e.id, label: `${e.name} — ${e.role}` })),
+                    ...employees.map((e) => ({ value: e.id, label: e.department ? `${e.name} — ${e.department}` : e.name })),
                   ]}
                 />
               </div>

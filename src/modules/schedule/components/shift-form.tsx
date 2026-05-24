@@ -67,7 +67,6 @@ export function ShiftForm({ open, onClose, weekKey, date, employee, shift, templ
       end,
       ...(brk > 0 ? { breakMin: brk } : {}),
       ...(notes.trim() ? { notes: notes.trim() } : {}),
-      ...(employee.role ? { role: employee.role } : {}),
     }
     try {
       if (isEdit) {
@@ -101,7 +100,6 @@ export function ShiftForm({ open, onClose, weekKey, date, employee, shift, templ
             <DialogTitle>{isEdit ? 'Editar turno' : 'Nuevo turno'}</DialogTitle>
             <p className="text-caption text-mid-gray">
               {employee.name}
-              {employee.role ? ` · ${employee.role}` : ''}
             </p>
           </DialogHeader>
 
