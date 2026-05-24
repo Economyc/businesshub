@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { ChevronsLeft, ChevronsUpDown, Check, MapPin, LogOut, Lock, LockOpen } from 'lucide-react'
+import { ChevronsLeft, ChevronsUpDown, Check, MapPin, LogOut, Lock, LockOpen, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { HoverHint } from '@/components/ui/tooltip'
 import { CompanyLogo } from '@/core/ui/company-logo'
@@ -13,16 +13,23 @@ import { usePermissions } from '@/core/hooks/use-permissions'
 import { ADMIN_NAV } from './nav'
 
 interface AdminSidebarProps {
+  /** Cierra el drawer al navegar (sólo en variante móvil). */
   onNavClick?: () => void
+  /** Variante drawer para pantallas pequeñas: ancho fijo, sin colapso ni auto-hide. */
+  mobile?: boolean
+  /** Cerrar el drawer (botón X, sólo móvil). */
+  onClose?: () => void
 }
 
 // Sidebar de App2 (operación de local). Replica la estética y el comportamiento
 // del sidebar de App1 (src/core/ui/sidebar.tsx): bg-bone 200px, colapsable con
 // botón flotante en el borde, auto-hide opcional persistido en localStorage,
 // selector de compañía estilo pill con dropdown lateral y menú de usuario con
-// avatar al fondo. Se podan las piezas que no aplican a App2 (command palette,
-// sub-paneles Finance/Settings, secciones colapsables, notification bell).
-export function AdminSidebar({ onNavClick }: AdminSidebarProps) {
+// avatar al fondo. En móvil se monta como drawer (prop `mobile`): ancho fijo,
+// siempre expandido, dropdowns anclados dentro del propio panel.
+// Se podan las piezas que no aplican a App2 (command palette, sub-paneles
+// Finance/Settings, secciones colapsables, notification bell).
+export function AdminSidebar({ onNavClick, mobile = false, onClose }: AdminSidebarProps) {
   const [collapsed, setCollapsed] = useState(false)
   const [autoHide, setAutoHide] = useState<boolean>(() =>
     typeof window !== 'undefined' && localStorage.getItem('admin-sidebar-auto-hide') === 'true'
@@ -58,7 +65,8 @@ export function AdminSidebar({ onNavClick }: AdminSidebarProps) {
     function handleKey(e: KeyboardEvent) {
       if (e.key === 'Escape' && !e.defaultPrevented) {
         if (companyOpen) { e.preventDefault(); setCompanyOpen(false) }
-        if (userMenuOpen) { e.preventDefault(); setUserMenuOpen(false) }
+        else if (userMenuOpen) { e.preventDefault(); setUserMenuOpen(false) }
+        else if (mobile && onClose) { e.preventDefault(); onClose() }
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -67,11 +75,14 @@ export function AdminSidebar({ onNavClick }: AdminSidebarProps) {
       document.removeEventListener('mousedown', handleClickOutside)
       window.removeEventListener('keydown', handleKey, true)
     }
-  }, [companyOpen, userMenuOpen])
+  }, [companyOpen, userMenuOpen, mobile, onClose])
 
-  const effectiveCollapsed = autoHide
-    ? !(hovered || companyOpen || userMenuOpen)
-    : collapsed
+  // En móvil el panel está siempre expandido; el colapso/auto-hide es sólo desktop.
+  const effectiveCollapsed = mobile
+    ? false
+    : autoHide
+      ? !(hovered || companyOpen || userMenuOpen)
+      : collapsed
 
   function toggleAutoHide() {
     const next = !autoHide
@@ -81,18 +92,18 @@ export function AdminSidebar({ onNavClick }: AdminSidebarProps) {
 
   return (
     <div
-      className="flex flex-shrink-0 group/sidebar"
+      className={cn('flex flex-shrink-0 group/sidebar', mobile && 'h-full')}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
       <nav
         className={cn(
           'bg-bone py-5 flex-shrink-0 flex flex-col transition-all duration-300 ease-in-out relative border-r border-border/60',
-          effectiveCollapsed ? 'w-[14px]' : 'w-[200px]'
+          mobile ? 'w-[280px] h-full' : effectiveCollapsed ? 'w-[14px]' : 'w-[200px]'
         )}
       >
-        {/* Collapse toggle — hover-reveal on sidebar edge */}
-        {!autoHide && (
+        {/* Collapse toggle — hover-reveal on sidebar edge (sólo desktop) */}
+        {!mobile && !autoHide && (
           <button
             onClick={() => setCollapsed(!collapsed)}
             className="absolute top-1/2 -translate-y-1/2 -right-3 w-6 h-6 rounded-full bg-bone border border-border shadow-sm flex items-center justify-center text-mid-gray/60 hover:text-graphite hover:bg-smoke opacity-0 group-hover/sidebar:opacity-100 transition-all duration-200 z-20 cursor-pointer"
@@ -103,11 +114,18 @@ export function AdminSidebar({ onNavClick }: AdminSidebarProps) {
 
         {!effectiveCollapsed && (
           <>
-            {/* Header */}
-            <div className="px-4 mb-3">
-              <p className="text-subheading text-graphite leading-tight">BusinessHub</p>
-              <p className="text-caption text-mid-gray">Operación de local</p>
-            </div>
+            {/* Botón cerrar (sólo móvil) */}
+            {mobile && (
+              <div className="flex justify-end px-3 -mt-2 mb-1">
+                <button
+                  onClick={onClose}
+                  className="p-1.5 rounded-md text-mid-gray hover:text-graphite hover:bg-smoke transition-colors"
+                  aria-label="Cerrar menú"
+                >
+                  <X size={18} strokeWidth={1.5} />
+                </button>
+              </div>
+            )}
 
             {/* Company selector */}
             <div className="mb-3 px-3" ref={companyRef}>
@@ -138,8 +156,11 @@ export function AdminSidebar({ onNavClick }: AdminSidebarProps) {
                   <div
                     ref={companyDropdownRef}
                     role="listbox"
-                    className="card-elevated fixed top-4 z-50 min-w-[240px] max-w-[280px] bg-card-bg rounded-xl overflow-hidden animate-in fade-in slide-in-from-left-2 duration-200"
-                    style={{ left: 208 }}
+                    className={cn(
+                      'card-elevated z-50 min-w-[240px] max-w-[280px] bg-card-bg rounded-xl overflow-hidden animate-in fade-in slide-in-from-left-2 duration-200',
+                      mobile ? 'absolute left-0 right-0 top-full mt-1' : 'fixed top-4'
+                    )}
+                    style={mobile ? undefined : { left: 208 }}
                   >
                     <div className="px-3 pt-2 pb-1 text-caption text-mid-gray">
                       Cambiar compañía
@@ -197,21 +218,20 @@ export function AdminSidebar({ onNavClick }: AdminSidebarProps) {
                   ))}
                 </div>
               ) : (
-                items.map(({ path, label, icon: Icon }) => (
+                items.map(({ path, label }) => (
                   <NavLink
                     key={path}
                     to={path}
                     onClick={onNavClick}
                     className={({ isActive }) =>
                       cn(
-                        'group/nav relative flex items-center gap-2.5 px-3 mx-2 py-2.5 rounded-lg text-body transition-all duration-150',
+                        'group/nav relative flex items-center px-3 mx-2 py-2.5 rounded-lg text-body transition-all duration-150',
                         isActive
                           ? 'text-dark-graphite font-medium bg-smoke'
                           : 'text-graphite/70 hover:bg-card-bg hover:text-graphite'
                       )
                     }
                   >
-                    <Icon size={16} strokeWidth={1.5} />
                     {label}
                   </NavLink>
                 ))
@@ -220,21 +240,23 @@ export function AdminSidebar({ onNavClick }: AdminSidebarProps) {
 
             {/* Bottom — auto-hide toggle + User menu */}
             <div className="border-t border-border mx-4 pt-1">
-              <div className="flex items-center py-2 px-1">
-                <HoverHint label={autoHide ? 'Fijar sidebar' : 'Auto-ocultar sidebar'} side="right">
-                  <button
-                    onClick={toggleAutoHide}
-                    className="p-1.5 rounded-md text-mid-gray/60 hover:text-graphite hover:bg-smoke transition-colors duration-150 cursor-pointer"
-                    aria-label={autoHide ? 'Fijar sidebar' : 'Auto-ocultar sidebar'}
-                  >
-                    {autoHide
-                      ? <LockOpen size={15} strokeWidth={1.5} />
-                      : <Lock size={15} strokeWidth={1.5} />}
-                  </button>
-                </HoverHint>
-              </div>
+              {!mobile && (
+                <div className="flex items-center py-2 px-1">
+                  <HoverHint label={autoHide ? 'Fijar sidebar' : 'Auto-ocultar sidebar'} side="right">
+                    <button
+                      onClick={toggleAutoHide}
+                      className="p-1.5 rounded-md text-mid-gray/60 hover:text-graphite hover:bg-smoke transition-colors duration-150 cursor-pointer"
+                      aria-label={autoHide ? 'Fijar sidebar' : 'Auto-ocultar sidebar'}
+                    >
+                      {autoHide
+                        ? <LockOpen size={15} strokeWidth={1.5} />
+                        : <Lock size={15} strokeWidth={1.5} />}
+                    </button>
+                  </HoverHint>
+                </div>
+              )}
 
-              <div className="relative" ref={userMenuRef}>
+              <div className={cn('relative', mobile ? 'mt-2' : '')} ref={userMenuRef}>
                 <button
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
                   className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg bg-smoke dark:bg-smoke hover:bg-selector-bg dark:hover:bg-selector-bg shadow-sm transition-all duration-150 cursor-pointer"
@@ -246,12 +268,15 @@ export function AdminSidebar({ onNavClick }: AdminSidebarProps) {
                   </div>
                 </button>
 
-                {/* User dropdown — opens to the right of sidebar */}
+                {/* User dropdown — abre a la derecha (desktop) o sobre el botón (móvil) */}
                 {userMenuOpen && (
                   <div
                     ref={userDropdownRef}
-                    className="fixed bottom-4 z-50 w-[250px] animate-in fade-in slide-in-from-left-2 duration-200"
-                    style={{ left: 208 }}
+                    className={cn(
+                      'z-50 w-[250px] animate-in fade-in slide-in-from-left-2 duration-200',
+                      mobile ? 'absolute bottom-full left-0 right-0 mb-2 w-auto' : 'fixed bottom-4'
+                    )}
+                    style={mobile ? undefined : { left: 208 }}
                   >
                     <div className="bg-bone border border-border rounded-xl shadow-lg p-2">
                       {/* Main card */}
