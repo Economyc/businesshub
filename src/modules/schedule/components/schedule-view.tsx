@@ -1,14 +1,27 @@
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { Copy, Send, Settings2, Plus, AlertTriangle, Clock } from 'lucide-react'
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  pointerWithin,
+  useSensor,
+  useSensors,
+  useDraggable,
+  useDroppable,
+  type DragEndEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core'
 import { PageHeader } from '@/core/ui/page-header'
 import { useCompany } from '@/core/hooks/use-company'
 import { useAuth } from '@/core/hooks/use-auth'
 import { usePermissions } from '@/core/hooks/use-permissions'
+import { queryClient } from '@/core/query/query-client'
 import { useActiveEmployees } from '@/modules/talent/hooks'
 import type { Employee } from '@/modules/talent/types'
 import type { Shift } from '../types'
 import { scheduleService } from '../services'
-import { useShifts, useScheduleWeek, useShiftTemplates } from '../hooks'
+import { useShifts, useScheduleWeek, useShiftTemplates, useUpdateShift } from '../hooks'
 import {
   mondayOf,
   weekKeyOf,
@@ -67,6 +80,31 @@ export function ScheduleView({ allowedDepartments }: { allowedDepartments?: stri
   const { data: allShifts, refetch: refetchShifts } = useShifts(weekKey)
   const { week, refetch: refetchWeek } = useScheduleWeek(weekKey)
   const { data: templates } = useShiftTemplates()
+  const updateShift = useUpdateShift()
+
+  // Drag & drop: arrastrar turnos entre celdas (empleado × día).
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
+  const [activeShift, setActiveShift] = useState<Shift | null>(null)
+
+  function handleDragStart(e: DragStartEvent) {
+    setActiveShift((e.active.data.current?.shift as Shift) ?? null)
+  }
+
+  function handleDragEnd(e: DragEndEvent) {
+    setActiveShift(null)
+    const shift = e.active.data.current?.shift as Shift | undefined
+    const target = e.over?.data.current as { employeeId: string; date: string } | undefined
+    if (!shift || !target || !selectedCompany) return
+    if (target.employeeId === shift.employeeId && target.date === shift.date) return
+
+    // Optimista: mueve el turno en la cache para feedback inmediato; la mutación
+    // invalida y reconcilia con el servidor (rollback incluido si falla).
+    const cacheKey = ['firestore', selectedCompany.id, 'shifts', weekKey]
+    queryClient.setQueryData<Shift[]>(cacheKey, (old) =>
+      old?.map((s) => (s.id === shift.id ? { ...s, employeeId: target.employeeId, date: target.date } : s)) ?? [],
+    )
+    updateShift.mutate({ id: shift.id, data: { employeeId: target.employeeId, date: target.date } })
+  }
 
   // Filtro opcional por departamento: App2 sólo muestra Cocina y Servicio (los
   // que manejan horarios). Sin el prop se muestran todos los empleados.
@@ -232,13 +270,19 @@ export function ScheduleView({ allowedDepartments }: { allowedDepartments?: stri
           </span>
         </div>
 
+        <DndContext
+          sensors={sensors}
+          collisionDetection={pointerWithin}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
         <div className="min-w-[760px] xl:min-w-[940px] 2xl:min-w-[1100px]">
           {/* Fila de días */}
           <div className={`grid border-b border-border/60 ${gridColsClass}`}>
-            <div className="sticky left-0 bg-card-bg px-3 py-2 text-caption font-semibold text-mid-gray">Empleado</div>
+            <div className="sticky left-0 bg-card-bg px-3 py-2 text-body font-semibold text-mid-gray">Empleado</div>
             {dates.map((d, i) => (
               <div key={d} className="px-3 py-2 text-center">
-                <p className="text-caption font-semibold text-mid-gray">{WEEKDAY_LABELS[i]}</p>
+                <p className="text-body font-semibold text-mid-gray">{WEEKDAY_LABELS[i]}</p>
                 <p className="text-body text-graphite">{parseDateStr(d).getDate()}</p>
               </div>
             ))}
@@ -255,7 +299,7 @@ export function ScheduleView({ allowedDepartments }: { allowedDepartments?: stri
           ) : (
             groups.map((group) => (
               <div key={group.department}>
-                <div className="bg-bone/30 px-3 py-1.5 text-caption tracking-wide text-mid-gray border-b border-border-hover/70">
+                <div className="bg-bone/30 px-3 py-1.5 text-body tracking-wide text-mid-gray border-b border-border-hover/70">
                   {group.department}
                 </div>
                 {group.employees.map((emp) => {
@@ -289,35 +333,27 @@ export function ScheduleView({ allowedDepartments }: { allowedDepartments?: stri
                       {dates.map((d) => {
                         const cellShifts = byCell.get(`${emp.id}|${d}`) ?? []
                         return (
-                          <div
+                          <DroppableCell
                             key={d}
+                            employeeId={emp.id}
+                            date={d}
+                            canEdit={canEdit}
                             onClick={canEdit ? () => setFormTarget({ date: d, employee: emp }) : undefined}
-                            className={
-                              'px-1.5 py-1.5 border-r border-border-hover/70 last:border-r-0 space-y-1 min-h-[52px] group/cell ' +
-                              (canEdit ? 'cursor-pointer hover:bg-smoke/60 transition-colors' : '')
-                            }
                           >
                             {cellShifts.map((s) => (
-                              <button
+                              <DraggableShift
                                 key={s.id}
-                                type="button"
-                                onClick={canEdit ? (e) => { e.stopPropagation(); setFormTarget({ date: d, employee: emp, shift: s }) } : undefined}
-                                className="w-full text-left rounded-lg border border-positive-text/15 bg-positive-bg px-2 py-1 hover:border-positive-text/35 transition-colors"
-                              >
-                                <span className="block text-caption text-positive-text font-medium whitespace-nowrap 2xl:hidden">{formatShiftRangeCompact(s.start, s.end)}</span>
-                                <span className="hidden 2xl:block text-caption text-positive-text font-medium whitespace-nowrap">{formatShiftRange(s.start, s.end)}</span>
-                                <span className="block text-caption text-positive-text/70">
-                                  {formatHours(shiftHours(s.start, s.end, s.breakMin))}
-                                  {s.notes ? ' · ' + s.notes : ''}
-                                </span>
-                              </button>
+                                shift={s}
+                                canEdit={canEdit}
+                                onEdit={() => setFormTarget({ date: d, employee: emp, shift: s })}
+                              />
                             ))}
                             {canEdit && cellShifts.length === 0 && (
                               <span className="hidden group-hover/cell:flex items-center justify-center text-mid-gray/60">
                                 <Plus size={14} strokeWidth={1.5} />
                               </span>
                             )}
-                          </div>
+                          </DroppableCell>
                         )
                       })}
                     </div>
@@ -329,19 +365,27 @@ export function ScheduleView({ allowedDepartments }: { allowedDepartments?: stri
 
           {/* Footer de totales */}
           <div className={`grid border-t border-border/60 bg-bone/20 ${gridColsClass}`}>
-            <div className="sticky left-0 bg-card-bg px-3 py-2 text-caption font-semibold text-mid-gray">
+            <div className="sticky left-0 bg-card-bg px-3 py-2 text-body font-semibold text-mid-gray">
               Total semana: <span className="text-graphite">{formatHours(weekTotal)}</span>
             </div>
             {dates.map((d) => {
               const dayHours = totalHours(shifts.filter((s) => s.date === d))
               return (
-                <div key={d} className="px-3 py-2 text-center text-caption text-mid-gray">
+                <div key={d} className="px-3 py-2 text-center text-body text-mid-gray">
                   {dayHours > 0 ? formatHours(dayHours) : '—'}
                 </div>
               )
             })}
           </div>
         </div>
+        <DragOverlay>
+          {activeShift ? (
+            <div className="rounded-lg border border-positive-text/40 bg-positive-bg px-2 py-1 cursor-grabbing">
+              <ShiftChipContent shift={activeShift} />
+            </div>
+          ) : null}
+        </DragOverlay>
+        </DndContext>
       </div>
 
       {formTarget && (
@@ -363,6 +407,79 @@ export function ScheduleView({ allowedDepartments }: { allowedDepartments?: stri
         templates={templates}
         onChanged={() => { /* React Query invalida solo vía mutación */ }}
       />
+    </div>
+  )
+}
+
+// Contenido visual de un chip de turno (compartido entre el chip arrastrable y
+// el clon que sigue al cursor en el DragOverlay).
+function ShiftChipContent({ shift }: { shift: Shift }) {
+  return (
+    <>
+      <span className="block text-caption text-positive-text font-medium whitespace-nowrap 2xl:hidden">{formatShiftRangeCompact(shift.start, shift.end)}</span>
+      <span className="hidden 2xl:block text-caption text-positive-text font-medium whitespace-nowrap">{formatShiftRange(shift.start, shift.end)}</span>
+      <span className="block text-caption text-positive-text/70">
+        {formatHours(shiftHours(shift.start, shift.end, shift.breakMin))}
+        {shift.notes ? ' · ' + shift.notes : ''}
+      </span>
+    </>
+  )
+}
+
+// Chip de turno arrastrable. Click (sin mover) = editar; arrastrar = mover de
+// celda. El sensor con activationConstraint distance:6 distingue click de drag.
+function DraggableShift({ shift, canEdit, onEdit }: { shift: Shift; canEdit: boolean; onEdit: () => void }) {
+  const { setNodeRef, listeners, attributes, isDragging } = useDraggable({
+    id: shift.id,
+    data: { shift },
+    disabled: !canEdit,
+  })
+  return (
+    <button
+      ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+      type="button"
+      onClick={canEdit ? (e) => { e.stopPropagation(); onEdit() } : undefined}
+      style={{ touchAction: 'none' }}
+      className={
+        'w-full text-left rounded-lg border border-positive-text/15 bg-positive-bg px-2 py-1 transition-colors hover:border-positive-text/35 ' +
+        (canEdit ? 'cursor-grab ' : '') +
+        (isDragging ? 'opacity-40' : '')
+      }
+    >
+      <ShiftChipContent shift={shift} />
+    </button>
+  )
+}
+
+// Celda (empleado × día) donde se sueltan los turnos. Resalta al pasar un turno
+// por encima. Mantiene el click para crear un turno nuevo en la celda vacía.
+function DroppableCell({
+  employeeId,
+  date,
+  canEdit,
+  onClick,
+  children,
+}: {
+  employeeId: string
+  date: string
+  canEdit: boolean
+  onClick?: () => void
+  children: ReactNode
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: `${employeeId}|${date}`, data: { employeeId, date } })
+  return (
+    <div
+      ref={setNodeRef}
+      onClick={onClick}
+      className={
+        'px-1.5 py-1.5 border-r border-border-hover/70 last:border-r-0 space-y-1 min-h-[52px] group/cell transition-colors ' +
+        (canEdit ? 'cursor-pointer ' : '') +
+        (isOver ? 'bg-smoke ring-1 ring-inset ring-graphite/20' : canEdit ? 'hover:bg-smoke/60' : '')
+      }
+    >
+      {children}
     </div>
   )
 }

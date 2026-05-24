@@ -8,7 +8,6 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 import type { Employee } from '@/modules/talent/types'
 import type { Shift, ShiftFormData, ShiftTemplate } from '../types'
 import { useCreateShift, useUpdateShift, useRemoveShift } from '../hooks'
@@ -42,6 +41,7 @@ export function ShiftForm({ open, onClose, weekKey, date, employee, shift, templ
   const updateShift = useUpdateShift()
   const removeShift = useRemoveShift()
   const saving = createShift.isPending || updateShift.isPending
+  const deleting = removeShift.isPending
 
   function applyTemplate(t: ShiftTemplate) {
     setStart(t.start)
@@ -95,7 +95,6 @@ export function ShiftForm({ open, onClose, weekKey, date, employee, shift, templ
   const hours = start && end ? shiftHours(start, end, Number(breakMin) || 0) : 0
 
   return (
-    <>
       <Dialog open={open} onOpenChange={(o: boolean) => { if (!o) onClose() }}>
         <DialogContent>
           <DialogHeader>
@@ -166,33 +165,39 @@ export function ShiftForm({ open, onClose, weekKey, date, employee, shift, templ
           {error && <p className="text-caption text-negative-text">{error}</p>}
 
           <DialogFooter>
-            {isEdit && (
-              <Button
-                variant="destructive"
-                onClick={() => setConfirmDelete(true)}
-                className="sm:mr-auto"
-              >
-                <Trash2 className="size-4" />
-                Eliminar
-              </Button>
+            {confirmDelete ? (
+              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center w-full">
+                <span className="text-caption text-negative-text sm:mr-auto">
+                  ¿Eliminar este turno? No se puede deshacer.
+                </span>
+                <Button variant="outline" onClick={() => setConfirmDelete(false)} disabled={deleting}>
+                  Cancelar
+                </Button>
+                <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+                  <Trash2 className="size-4" />
+                  {deleting ? 'Eliminando…' : 'Sí, eliminar'}
+                </Button>
+              </div>
+            ) : (
+              <>
+                {isEdit && (
+                  <Button
+                    variant="destructive"
+                    onClick={() => setConfirmDelete(true)}
+                    className="sm:mr-auto"
+                  >
+                    <Trash2 className="size-4" />
+                    Eliminar
+                  </Button>
+                )}
+                <Button variant="outline" onClick={onClose}>Cancelar</Button>
+                <Button onClick={handleSave} disabled={saving}>
+                  {saving ? 'Guardando…' : 'Guardar'}
+                </Button>
+              </>
             )}
-            <Button variant="outline" onClick={onClose}>Cancelar</Button>
-            <Button onClick={handleSave} disabled={saving}>
-              {saving ? 'Guardando…' : 'Guardar'}
-            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <ConfirmDialog
-        open={confirmDelete}
-        title="Eliminar turno"
-        description="¿Seguro que quieres eliminar este turno?"
-        confirmLabel="Eliminar"
-        variant="danger"
-        onConfirm={handleDelete}
-        onCancel={() => setConfirmDelete(false)}
-      />
-    </>
   )
 }
