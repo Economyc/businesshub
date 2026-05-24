@@ -20,6 +20,7 @@ import {
   shiftHours,
   formatHours,
   formatShiftRange,
+  formatShiftRangeCompact,
   shiftsOverlap,
   parseDateStr,
   WEEKDAY_LABELS,
@@ -32,6 +33,14 @@ import { ScheduleExport } from './schedule-export'
 // Tope de horas semanales para la alerta blanda (referencia legal Colombia).
 // Configurable a futuro por empresa; por ahora constante.
 const MAX_WEEKLY_HOURS = 48
+
+// Columnas de la grilla, responsive por breakpoint para que los 7 días entren
+// con el sidebar abierto. base (<xl): compacto; xl (1280–1535): medio;
+// 2xl (≥1536): tamaño completo. El `1fr` estira las columnas en pantallas anchas.
+const gridColsClass =
+  '[grid-template-columns:minmax(116px,150px)_repeat(7,minmax(92px,1fr))] ' +
+  'xl:[grid-template-columns:minmax(150px,180px)_repeat(7,minmax(112px,1fr))] ' +
+  '2xl:[grid-template-columns:minmax(180px,220px)_repeat(7,minmax(132px,1fr))]'
 
 interface FormTarget {
   date: string
@@ -112,7 +121,6 @@ export function ScheduleView({ allowedDepartments }: { allowedDepartments?: stri
 
   const weekTotal = useMemo(() => totalHours(shifts), [shifts])
   const isPublished = week.status === 'published'
-  const gridCols = { gridTemplateColumns: `minmax(180px, 220px) repeat(7, minmax(132px, 1fr))` }
 
   async function copyPrevWeek() {
     if (!selectedCompany || busy) return
@@ -224,9 +232,9 @@ export function ScheduleView({ allowedDepartments }: { allowedDepartments?: stri
           </span>
         </div>
 
-        <div className="min-w-[1100px]">
+        <div className="min-w-[760px] xl:min-w-[940px] 2xl:min-w-[1100px]">
           {/* Fila de días */}
-          <div className="grid border-b border-border/60" style={gridCols}>
+          <div className={`grid border-b border-border/60 ${gridColsClass}`}>
             <div className="sticky left-0 bg-card-bg px-3 py-2 text-caption font-semibold text-mid-gray">Empleado</div>
             {dates.map((d, i) => (
               <div key={d} className="px-3 py-2 text-center">
@@ -253,7 +261,7 @@ export function ScheduleView({ allowedDepartments }: { allowedDepartments?: stri
                 {group.employees.map((emp) => {
                   const mt = metrics.get(emp.id)
                   return (
-                    <div key={emp.id} className="grid border-b border-border-hover/70 last:border-b-0 bg-surface" style={gridCols}>
+                    <div key={emp.id} className={`grid border-b border-border-hover/70 last:border-b-0 bg-surface ${gridColsClass}`}>
                       <div className="sticky left-0 bg-surface px-3 py-2 border-r border-border-hover/70">
                         <p className="text-body text-graphite truncate">{emp.name}</p>
                         <div className="flex items-center gap-2 mt-0.5">
@@ -296,7 +304,8 @@ export function ScheduleView({ allowedDepartments }: { allowedDepartments?: stri
                                 onClick={canEdit ? (e) => { e.stopPropagation(); setFormTarget({ date: d, employee: emp, shift: s }) } : undefined}
                                 className="w-full text-left rounded-lg border border-positive-text/15 bg-positive-bg px-2 py-1 hover:border-positive-text/35 transition-colors"
                               >
-                                <span className="block text-caption text-positive-text font-medium whitespace-nowrap">{formatShiftRange(s.start, s.end)}</span>
+                                <span className="block text-caption text-positive-text font-medium whitespace-nowrap 2xl:hidden">{formatShiftRangeCompact(s.start, s.end)}</span>
+                                <span className="hidden 2xl:block text-caption text-positive-text font-medium whitespace-nowrap">{formatShiftRange(s.start, s.end)}</span>
                                 <span className="block text-caption text-positive-text/70">
                                   {formatHours(shiftHours(s.start, s.end, s.breakMin))}
                                   {s.notes ? ' · ' + s.notes : ''}
@@ -319,7 +328,7 @@ export function ScheduleView({ allowedDepartments }: { allowedDepartments?: stri
           )}
 
           {/* Footer de totales */}
-          <div className="grid border-t border-border/60 bg-bone/20" style={gridCols}>
+          <div className={`grid border-t border-border/60 bg-bone/20 ${gridColsClass}`}>
             <div className="sticky left-0 bg-card-bg px-3 py-2 text-caption font-semibold text-mid-gray">
               Total semana: <span className="text-graphite">{formatHours(weekTotal)}</span>
             </div>

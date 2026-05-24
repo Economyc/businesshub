@@ -36,6 +36,22 @@ export function formatShiftRange(start: string, end: string): string {
   return `${formatTime12h(start)} – ${formatTime12h(end)}`
 }
 
+/** 'HH:mm' (24h) → 12h compacto. '16:00' → '4p'; '16:30' → '4:30p'. */
+export function formatTime12hCompact(hhmm: string): string {
+  const [hStr, m = '00'] = (hhmm ?? '').split(':')
+  let h = Number(hStr)
+  if (Number.isNaN(h)) return hhmm
+  const period = h >= 12 ? 'p' : 'a'
+  h = h % 12
+  if (h === 0) h = 12
+  return m === '00' ? `${h}${period}` : `${h}:${m}${period}`
+}
+
+/** Rango compacto. ('08:00','16:00') → '8a–4p'. */
+export function formatShiftRangeCompact(start: string, end: string): string {
+  return `${formatTime12hCompact(start)}–${formatTime12hCompact(end)}`
+}
+
 /** Lunes (inicio de semana) de la fecha dada, a medianoche local. */
 export function mondayOf(d: Date): Date {
   const r = new Date(d.getFullYear(), d.getMonth(), d.getDate())
