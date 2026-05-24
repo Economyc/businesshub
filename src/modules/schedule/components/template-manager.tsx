@@ -64,7 +64,7 @@ export function TemplateManager({ open, onClose, templates, onChanged }: Props) 
 
   return (
     <Dialog open={open} onOpenChange={(o: boolean) => { if (!o) onClose() }}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Plantillas de turno</DialogTitle>
           <p className="text-caption text-mid-gray">
