@@ -104,7 +104,7 @@ function RolePermissionSheet({
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 20 }}
-      className="fixed inset-y-0 right-0 w-full max-w-md bg-surface-elevated border-l border-border z-50 flex flex-col"
+      className="fixed inset-y-0 right-0 w-full max-w-3xl bg-surface-elevated border-l border-border z-50 flex flex-col"
     >
       {/* Header */}
       <div className="sticky top-0 bg-surface-elevated border-b border-border px-5 py-4 flex items-center justify-between z-10">
