@@ -15,8 +15,13 @@ import { AdminLayout } from './layout'
 // Módulos: Horarios es nuevo; Cierres y Descuentos se reutilizan tal cual de App1
 // (mismo monorepo, mismo Firebase). No se copia código.
 import { ScheduleView } from '@/modules/schedule/routes'
+import { EmployeeList, EmployeeProfile } from '@/modules/talent/routes'
 import { ClosingList } from '@/modules/closings/routes'
 import { DiscountsPage } from '@/modules/discounts/routes'
+
+// Departamentos que manejan horarios: la grilla de Horarios en App2 sólo
+// muestra empleados de estos. Referencia estable para no invalidar memos.
+const SCHEDULE_DEPARTMENTS = ['Cocina', 'Servicio']
 
 function Loading() {
   return (
@@ -53,7 +58,14 @@ export default function App() {
                   <Route index element={<Navigate to="/horarios" replace />} />
 
                   <Route element={<PermissionRoute pageId="schedule" />}>
-                    <Route path="/horarios" element={<Suspense fallback={<Loading />}><ScheduleView /></Suspense>} />
+                    <Route path="/horarios" element={<Suspense fallback={<Loading />}><ScheduleView allowedDepartments={SCHEDULE_DEPARTMENTS} /></Suspense>} />
+                  </Route>
+
+                  {/* Equipo (Talent): mismas rutas que App1 (/talent, /talent/:id) porque
+                      EmployeeList/EmployeeProfile navegan a /talent de forma fija. */}
+                  <Route element={<PermissionRoute pageId="talent" />}>
+                    <Route path="/talent" element={<Suspense fallback={<Loading />}><EmployeeList /></Suspense>} />
+                    <Route path="/talent/:id" element={<Suspense fallback={<Loading />}><EmployeeProfile /></Suspense>} />
                   </Route>
 
                   {/* Cierres y Descuentos requieren DateRangeProvider (igual que en App1). */}
