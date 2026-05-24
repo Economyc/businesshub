@@ -14,8 +14,6 @@ export const combineInvoicePaymentToDrive = onCall({ region: 'us-central1', memo
         throw new HttpsError('invalid-argument', 'companyId requerido');
     if (!data.sourceFileId)
         throw new HttpsError('invalid-argument', 'sourceFileId requerido');
-    if (!data.proofFileId)
-        throw new HttpsError('invalid-argument', 'proofFileId requerido');
     if (!data.supplierName?.trim())
         throw new HttpsError('invalid-argument', 'supplierName requerido');
     if (!data.docNumber?.trim())
@@ -34,15 +32,19 @@ export const combineInvoicePaymentToDrive = onCall({ region: 'us-central1', memo
         throw new HttpsError('failed-precondition', 'El Drive de la empresa no está conectado. El propietario debe conectarlo en Ajustes → Compañías.');
     }
     const date = parseDate(data.date ?? Date.now());
-    const { year, month, baseName } = buildDocLocation(data.supplierName, 'Factura+Pago', data.docNumber, date);
+    const docType = data.docType ?? 'Factura+Pago';
+    const { year, month, baseName } = buildDocLocation(data.supplierName, docType, data.docNumber, date);
     const fileName = `${baseName}.pdf`;
     try {
-        // Factura primero, comprobante después.
-        const [source, proof] = await Promise.all([
-            downloadFile(driveUid, data.sourceFileId),
-            downloadFile(driveUid, data.proofFileId),
-        ]);
-        const pdf = await buildCombinedPdf([source, proof]);
+        // Factura primero, comprobante después. Sin proofFileId (compra de
+        // contado) envolvemos solo el documento fuente como PDF.
+        const parts = data.proofFileId
+            ? await Promise.all([
+                downloadFile(driveUid, data.sourceFileId),
+                downloadFile(driveUid, data.proofFileId),
+            ])
+            : [await downloadFile(driveUid, data.sourceFileId)];
+        const pdf = await buildCombinedPdf(parts);
         const pdfBase64 = pdf.toString('base64');
         const targetFolderId = await ensureFolderPath(driveUid, data.companyId, company.driveRootFolderId, [year, month, SUBFOLDER_CONSOLIDATED]);
         const uploaded = await uploadFile(driveUid, targetFolderId, fileName, 'application/pdf', pdfBase64);

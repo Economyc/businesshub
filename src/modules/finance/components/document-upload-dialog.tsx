@@ -100,7 +100,7 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
 
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [step, setStep] = useState<'idle' | 'uploading' | 'saving' | 'done'>('idle')
+  const [step, setStep] = useState<'idle' | 'uploading' | 'combining' | 'saving' | 'done'>('idle')
   const [analyzing, setAnalyzing] = useState(false)
   const [aiFilled, setAiFilled] = useState(false)
   const [aiFailed, setAiFailed] = useState(false)
@@ -330,8 +330,6 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
         mimeType,
       })
 
-      // 2) Crear transaction con sourceDocument.
-      setStep('saving')
       const dateTs = Timestamp.fromDate(parseLocalDate(date))
       const sourceDocument: PayableFile = {
         driveFileId: uploadRes.data.driveFileId,
@@ -340,6 +338,47 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
         mimeType,
         uploadedAt: Timestamp.now(),
       }
+
+      // 2) Compra de contado: es un documento final (no hay comprobante que
+      // cruzar), así que generamos su PDF en "PDFs consolidados" de una vez para
+      // la contadora. Best-effort: si falla, la compra igual se crea.
+      let combinedDocument: PayableFile | undefined
+      if (kind === 'purchase') {
+        setStep('combining')
+        try {
+          const combine = httpsCallable<
+            {
+              companyId: string
+              sourceFileId: string
+              supplierName: string
+              docNumber: string
+              date: string
+              docType: 'Compra'
+            },
+            { driveFileId: string; webViewLink: string; fileName: string }
+          >(fns, 'combineInvoicePaymentToDrive')
+          const combineRes = await combine({
+            companyId,
+            sourceFileId: uploadRes.data.driveFileId,
+            supplierName,
+            docNumber: docNumber.trim(),
+            date,
+            docType: 'Compra',
+          })
+          combinedDocument = {
+            driveFileId: combineRes.data.driveFileId,
+            driveWebViewLink: combineRes.data.webViewLink,
+            fileName: combineRes.data.fileName,
+            mimeType: 'application/pdf',
+            uploadedAt: Timestamp.now(),
+          }
+        } catch {
+          /* combinado best-effort: continuamos sin él */
+        }
+      }
+
+      // 3) Crear transaction con sourceDocument (y combinado si es compra).
+      setStep('saving')
       const conceptLabel = `${supplierName} - ${docType} ${docNumber.trim()}${isVirtual ? ' (virtual)' : ''}`
 
       await financeService.create(companyId, {
@@ -356,6 +395,7 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
         documentKind: kind,
         docNumber: docNumber.trim(),
         sourceDocument,
+        ...(combinedDocument ? { combinedDocument } : {}),
         ...(kind === 'invoice' ? { priority } : {}),
         ...(kind === 'purchase' ? { paidDate: dateTs } : {}),
       })
@@ -642,6 +682,12 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
               <div className="flex items-center gap-2 text-caption text-mid-gray">
                 <Loader2 size={14} className="animate-spin" />
                 {kind === 'invoice' && mode === 'virtual' ? 'Generando PDF y subiendo a Drive...' : 'Subiendo a Drive...'}
+              </div>
+            )}
+            {step === 'combining' && (
+              <div className="flex items-center gap-2 text-caption text-mid-gray">
+                <Loader2 size={14} className="animate-spin" />
+                Generando PDF consolidado...
               </div>
             )}
             {step === 'saving' && (

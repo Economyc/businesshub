@@ -12,6 +12,19 @@ export const MESES_ES = [
 export const SUBFOLDER_CONSOLIDATED = 'PDFs consolidados'; // PDF combinado factura+pago
 export const SUBFOLDER_TRACKING = 'Seguimiento'; // Excel/Google Sheet de seguimiento del mes
 export const SUBFOLDER_LOOSE = 'Facturas y pagos sueltos'; // facturas/comprobantes individuales
+// Subcarpetas dentro de "Facturas y pagos sueltos" para separar por tipo de
+// documento: la contadora pidió no mezclar facturas, compras y comprobantes.
+export const LOOSE_SUB_INVOICES = 'Facturas'; // docType 'Factura'
+export const LOOSE_SUB_PURCHASES = 'Compras'; // docType 'Compra'
+export const LOOSE_SUB_PAYMENTS = 'Pagos'; // docType 'Pago'
+// Mapea el tipo de documento a su subcarpeta dentro de SUBFOLDER_LOOSE.
+export function looseSubfolderFor(docType) {
+    if (docType === 'Pago')
+        return LOOSE_SUB_PAYMENTS;
+    if (docType === 'Compra')
+        return LOOSE_SUB_PURCHASES;
+    return LOOSE_SUB_INVOICES; // 'Factura' (y cualquier otro de origen)
+}
 export function sanitizeForFileName(s) {
     return s.replace(/[\\/:*?"<>|]/g, '').trim();
 }

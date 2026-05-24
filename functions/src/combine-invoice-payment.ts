@@ -12,21 +12,26 @@ import {
   DriveScopeError,
 } from './services/drive-oauth.js'
 import { assertCompanyMember } from './utils/company-access.js'
-import { buildDocLocation, parseDate, SUBFOLDER_CONSOLIDATED } from './utils/doc-naming.js'
+import { buildDocLocation, parseDate, SUBFOLDER_CONSOLIDATED, type DocType } from './utils/doc-naming.js'
 import { buildCombinedPdf } from './utils/build-combined-pdf.js'
 
-// Combina una factura y su comprobante de pago (ambos ya en Drive) en un solo
-// PDF y lo sube a la misma carpeta {root}/{YYYY}/{MesEs}. No borra los
-// originales — el combinado queda como un tercer archivo.
-// Nombre: "{Proveedor} - Factura+Pago {docNumber} - {Mes DD YYYY}.pdf"
+// Genera el PDF consolidado para la contadora y lo sube a
+// {root}/{YYYY}/{MesEs}/PDFs consolidados. Dos modos:
+//   - Factura + comprobante (proofFileId presente): combina ambos en un PDF.
+//     Nombre: "{Proveedor} - Factura+Pago {docNumber} - {Mes DD YYYY}.pdf"
+//   - Compra de contado (sin proofFileId, docType 'Compra'): envuelve el único
+//     documento como PDF, porque ya es un documento final.
+//     Nombre: "{Proveedor} - Compra {docNumber} - {Mes DD YYYY}.pdf"
+// No borra los originales — el consolidado queda como archivo adicional.
 
 interface CombineInput {
   companyId: string
   sourceFileId: string
-  proofFileId: string
+  proofFileId?: string
   supplierName: string
   docNumber: string
   date: string | number
+  docType?: DocType
 }
 
 const SECRETS = [driveClientId, driveClientSecret]
@@ -40,7 +45,6 @@ export const combineInvoicePaymentToDrive = onCall(
     const data = request.data as CombineInput
     if (!data?.companyId) throw new HttpsError('invalid-argument', 'companyId requerido')
     if (!data.sourceFileId) throw new HttpsError('invalid-argument', 'sourceFileId requerido')
-    if (!data.proofFileId) throw new HttpsError('invalid-argument', 'proofFileId requerido')
     if (!data.supplierName?.trim()) throw new HttpsError('invalid-argument', 'supplierName requerido')
     if (!data.docNumber?.trim()) throw new HttpsError('invalid-argument', 'docNumber requerido')
 
@@ -66,17 +70,21 @@ export const combineInvoicePaymentToDrive = onCall(
     }
 
     const date = parseDate(data.date ?? Date.now())
-    const { year, month, baseName } = buildDocLocation(data.supplierName, 'Factura+Pago', data.docNumber, date)
+    const docType: DocType = data.docType ?? 'Factura+Pago'
+    const { year, month, baseName } = buildDocLocation(data.supplierName, docType, data.docNumber, date)
     const fileName = `${baseName}.pdf`
 
     try {
-      // Factura primero, comprobante después.
-      const [source, proof] = await Promise.all([
-        downloadFile(driveUid, data.sourceFileId),
-        downloadFile(driveUid, data.proofFileId),
-      ])
+      // Factura primero, comprobante después. Sin proofFileId (compra de
+      // contado) envolvemos solo el documento fuente como PDF.
+      const parts = data.proofFileId
+        ? await Promise.all([
+            downloadFile(driveUid, data.sourceFileId),
+            downloadFile(driveUid, data.proofFileId),
+          ])
+        : [await downloadFile(driveUid, data.sourceFileId)]
 
-      const pdf = await buildCombinedPdf([source, proof])
+      const pdf = await buildCombinedPdf(parts)
       const pdfBase64 = pdf.toString('base64')
 
       const targetFolderId = await ensureFolderPath(driveUid, data.companyId, company.driveRootFolderId, [year, month, SUBFOLDER_CONSOLIDATED])

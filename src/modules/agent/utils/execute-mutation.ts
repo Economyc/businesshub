@@ -728,6 +728,44 @@ export async function executeMutation(
         uploadedAt: Timestamp.now(),
       }
 
+      // Compra de contado: es un documento final (no hay comprobante que
+      // cruzar), así que generamos su PDF en "PDFs consolidados" para la
+      // contadora. Best-effort: si falla, la compra igual se crea.
+      let combinedDocument: PayableFile | undefined
+      if (documentKind === 'purchase') {
+        void reportProgressClient(toolCallId, { label: 'Generando PDF consolidado', status: 'running' })
+        try {
+          const combineFn = httpsCallable<
+            {
+              companyId: string
+              sourceFileId: string
+              supplierName: string
+              docNumber: string
+              date: string
+              docType: 'Compra'
+            },
+            { driveFileId: string; webViewLink: string; fileName: string }
+          >(fns, 'combineInvoicePaymentToDrive')
+          const combineRes = await combineFn({
+            companyId,
+            sourceFileId: uploadRes.data.driveFileId,
+            supplierName: payeeRef.name,
+            docNumber,
+            date: dateStr,
+            docType: 'Compra',
+          })
+          combinedDocument = {
+            driveFileId: combineRes.data.driveFileId,
+            driveWebViewLink: combineRes.data.webViewLink,
+            fileName: combineRes.data.fileName,
+            mimeType: 'application/pdf',
+            uploadedAt: Timestamp.now(),
+          }
+        } catch {
+          /* combinado best-effort: continuamos sin él */
+        }
+      }
+
       const priorityArg =
         args.priority === 'immediate' || args.priority === 'waiting'
           ? (args.priority as TransactionPriority)
@@ -744,6 +782,7 @@ export async function executeMutation(
         documentKind,
         docNumber,
         sourceDocument,
+        ...(combinedDocument ? { combinedDocument } : {}),
         ...(documentKind === 'purchase' ? { paidDate: dateTs } : {}),
         ...(documentKind === 'invoice' && priorityArg ? { priority: priorityArg } : {}),
       }
