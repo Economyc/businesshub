@@ -60,6 +60,10 @@ export interface Transaction extends BaseEntity {
   combinedDocument?: PayableFile
   paidDate?: Timestamp
   priority?: TransactionPriority
+  // Método de pago elegido al montar la compra de contado o al cruzar el pago
+  // de una factura. Texto libre tomado del catálogo por empresa (settings/
+  // paymentMethods). Se vuelca a la columna "Metodo Pago" del Sheet.
+  paymentMethod?: string
 }
 
 export type RecurrenceFrequency = 'daily' | 'weekly' | 'monthly' | 'yearly'

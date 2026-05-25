@@ -71,7 +71,7 @@ export function buildAccountingRows(txs, suppliersById, startIndex = 1) {
             numero: t.docNumber ?? '',
             valor: t.amount ?? 0,
             estado: estadoLabel(t.status),
-            metodoPago: '',
+            metodoPago: t.paymentMethod ?? '',
             notas: t.notes ?? '',
         };
     });

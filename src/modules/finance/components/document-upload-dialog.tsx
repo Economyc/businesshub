@@ -11,6 +11,7 @@ import { modalVariants } from '@/core/animations/variants'
 import { getAppFunctions } from '@/core/firebase/config'
 import { useCompany } from '@/core/hooks/use-company'
 import { useCollection } from '@/core/hooks/use-firestore'
+import { usePaymentMethods } from '@/modules/payment-methods/hooks'
 import { queryClient } from '@/core/query/query-client'
 import { financeService } from '../services'
 import { generateVirtualInvoicePDF } from '../utils/generate-virtual-invoice-pdf'
@@ -83,6 +84,7 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
   const { selectedCompany } = useCompany()
   const companyId = selectedCompany?.id ?? ''
   const { data: suppliers } = useCollection<Supplier>('suppliers')
+  const { methods: paymentMethods } = usePaymentMethods()
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dragCounter = useRef(0)
@@ -99,6 +101,7 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
   const [category, setCategory] = useState('')
   const [notes, setNotes] = useState('')
   const [priority, setPriority] = useState<TransactionPriority>('waiting')
+  const [paymentMethod, setPaymentMethod] = useState('')
   const [dateConfirmed, setDateConfirmed] = useState(false)
 
   const [submitting, setSubmitting] = useState(false)
@@ -139,6 +142,7 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
       setCategory('')
       setNotes('')
       setPriority('waiting')
+      setPaymentMethod('')
       setDateConfirmed(false)
       setError(null)
       setStep('idle')
@@ -409,6 +413,7 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
         ...(combinedDocument ? { combinedDocument } : {}),
         ...(kind === 'invoice' ? { priority } : {}),
         ...(kind === 'purchase' ? { paidDate: dateTs } : {}),
+        ...(kind === 'purchase' && paymentMethod ? { paymentMethod } : {}),
       })
 
       queryClient.invalidateQueries({ queryKey: ['firestore', companyId, 'transactions'] })
@@ -668,6 +673,19 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
                 <label className="block text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1">Categoría</label>
                 <CategorySelect value={category} onChange={setCategory} placeholder="Selecciona categoría" allowCustom />
               </div>
+              {kind === 'purchase' && (
+                <div className="sm:col-span-2">
+                  <label className="block text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1">Método de pago (opcional)</label>
+                  <SelectInput
+                    value={paymentMethod}
+                    onChange={setPaymentMethod}
+                    options={[
+                      { value: '', label: 'Sin especificar' },
+                      ...paymentMethods.map((m) => ({ value: m, label: m })),
+                    ]}
+                  />
+                </div>
+              )}
               {kind === 'invoice' && (
                 <div className="sm:col-span-2">
                   <label className="block text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1">Prioridad</label>

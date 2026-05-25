@@ -16,6 +16,7 @@ export interface AdminTx {
     documentKind?: 'invoice' | 'purchase';
     docNumber?: string;
     priority?: 'immediate' | 'waiting';
+    paymentMethod?: string;
 }
 export interface FieldDef {
     key: string;

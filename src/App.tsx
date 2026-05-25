@@ -32,6 +32,7 @@ const SettingsCompanies = lazy(() => import('@/core/ui/settings-companies').then
 const SettingsCategories = lazy(() => import('@/core/ui/settings-categories').then(m => ({ default: m.SettingsCategories })))
 const SettingsRoles = lazy(() => import('@/core/ui/settings-roles').then(m => ({ default: m.SettingsRoles })))
 const SettingsDepartments = lazy(() => import('@/core/ui/settings-departments').then(m => ({ default: m.SettingsDepartments })))
+const SettingsPaymentMethods = lazy(() => import('@/core/ui/settings-payment-methods').then(m => ({ default: m.SettingsPaymentMethods })))
 const SettingsTeam = lazy(() => import('@/core/ui/settings-team').then(m => ({ default: m.SettingsTeam })))
 
 function Loading() {
@@ -176,6 +177,9 @@ export default function App() {
               </Route>
               <Route element={<PermissionRoute pageId="settings.departments" />}>
                 <Route path="/settings/departments" element={<Suspense fallback={<Loading />}><SettingsDepartments /></Suspense>} />
+              </Route>
+              <Route element={<PermissionRoute pageId="settings.payment-methods" />}>
+                <Route path="/settings/payment-methods" element={<Suspense fallback={<Loading />}><SettingsPaymentMethods /></Suspense>} />
               </Route>
               <Route element={<PermissionRoute pageId="settings.team" />}>
                 <Route path="/settings/team" element={<Suspense fallback={<Loading />}><SettingsTeam /></Suspense>} />

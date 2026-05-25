@@ -20,6 +20,7 @@ import {
   Landmark,
   KeyRound,
   CalendarDays,
+  CreditCard,
 } from 'lucide-react'
 import type {
   ModuleKey,
@@ -229,6 +230,7 @@ export const ACCESS_REGISTRY: AccessModule[] = [
       { id: 'settings.categories', label: 'Categorías', path: '/settings/categories', icon: Tags, actions: [...ALL_ACTIONS], nav: { group: 'settings', order: 3 } },
       { id: 'settings.roles', label: 'Roles', path: '/settings/roles', icon: KeyRound, actions: [...ALL_ACTIONS], nav: { group: 'settings', order: 4 } },
       { id: 'settings.departments', label: 'Departamentos', path: '/settings/departments', icon: Network, actions: [...ALL_ACTIONS], nav: { group: 'settings', order: 5 } },
+      { id: 'settings.payment-methods', label: 'Métodos de pago', path: '/settings/payment-methods', icon: CreditCard, actions: [...ALL_ACTIONS], nav: { group: 'settings', order: 6 } },
     ],
   },
 ]

@@ -8,6 +8,7 @@ import { DateInput } from '@/core/ui/date-input'
 import { modalVariants } from '@/core/animations/variants'
 import { getAppFunctions } from '@/core/firebase/config'
 import { useCompany } from '@/core/hooks/use-company'
+import { usePaymentMethods } from '@/modules/payment-methods/hooks'
 import { queryClient } from '@/core/query/query-client'
 import { formatCurrency } from '@/core/utils/format'
 import { financeService } from '../services'
@@ -124,6 +125,7 @@ function ConfidenceBadge({ level }: { level: 'high' | 'medium' | 'low' }) {
 export function PaymentUploadDialog({ open, onClose, onSaved, pendingInvoices }: PaymentUploadDialogProps) {
   const { selectedCompany } = useCompany()
   const companyId = selectedCompany?.id ?? ''
+  const { methods: paymentMethods } = usePaymentMethods()
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dragCounter = useRef(0)
@@ -134,6 +136,7 @@ export function PaymentUploadDialog({ open, onClose, onSaved, pendingInvoices }:
   const [selectedInvoiceId, setSelectedInvoiceId] = useState('')
   const [showAllCandidates, setShowAllCandidates] = useState(false)
   const [docNumberInput, setDocNumberInput] = useState('')
+  const [paymentMethod, setPaymentMethod] = useState('')
   const [dateConfirmed, setDateConfirmed] = useState(false)
 
   const [analyzing, setAnalyzing] = useState(false)
@@ -151,6 +154,7 @@ export function PaymentUploadDialog({ open, onClose, onSaved, pendingInvoices }:
       setSelectedInvoiceId('')
       setShowAllCandidates(false)
       setDocNumberInput('')
+      setPaymentMethod('')
       setDateConfirmed(false)
       setAnalyzing(false)
       setAnalysis(null)
@@ -391,6 +395,7 @@ export function PaymentUploadDialog({ open, onClose, onSaved, pendingInvoices }:
         paymentProof,
         ...(combinedDocument ? { combinedDocument } : {}),
         ...(needsDocNumber ? { docNumber: docNumberInput.trim() } : {}),
+        ...(paymentMethod ? { paymentMethod } : {}),
       } as Partial<TransactionFormData>)
 
       queryClient.invalidateQueries({ queryKey: ['firestore', companyId, 'transactions'] })
@@ -616,6 +621,17 @@ export function PaymentUploadDialog({ open, onClose, onSaved, pendingInvoices }:
                 <div>
                   <label className="block text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1">Fecha del pago</label>
                   <DateInput value={paidDate} onChange={setPaidDate} />
+                </div>
+                <div>
+                  <label className="block text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1">Método de pago (opcional)</label>
+                  <SelectInput
+                    value={paymentMethod}
+                    onChange={setPaymentMethod}
+                    options={[
+                      { value: '', label: 'Sin especificar' },
+                      ...paymentMethods.map((m) => ({ value: m, label: m })),
+                    ]}
+                  />
                 </div>
                 <StaleDateWarning
                   dateISO={paidDate}
