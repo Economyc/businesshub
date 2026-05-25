@@ -22,7 +22,10 @@ export function ScheduleExport({ targetRef, fileName = 'horario', getExcelSheets
   const exportingRef = useRef(false)
 
   async function renderCanvas() {
-    const { default: html2canvas } = await import('html2canvas')
+    // html2canvas-pro (no el original): soporta los colores oklch() del Design
+    // System (Tailwind v4). El html2canvas clásico lanza al parsear oklch y la
+    // exportación de imagen fallaba en silencio.
+    const { default: html2canvas } = await import('html2canvas-pro')
     return html2canvas(targetRef.current!, {
       scale: 2,
       useCORS: true,
@@ -62,6 +65,11 @@ export function ScheduleExport({ targetRef, fileName = 'horario', getExcelSheets
       exportingRef.current = true
       try {
         await fn()
+      } catch (err) {
+        // No dejar fallar en silencio: sin esto, un error de render dejaba al
+        // usuario sin descarga y sin pista de por qué.
+        console.error('Error al exportar el horario:', err)
+        alert('No se pudo generar la descarga. Intenta de nuevo.')
       } finally {
         exportingRef.current = false
       }
