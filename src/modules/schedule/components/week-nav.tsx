@@ -21,7 +21,7 @@ export function WeekNav({ label, onPrev, onNext, onToday }: Props) {
       <button
         type="button"
         onClick={onToday}
-        className="min-w-[12rem] text-center text-body text-graphite px-3 py-2 rounded-lg hover:bg-bone transition-colors"
+        className="min-w-[12rem] text-center text-body font-semibold text-graphite px-3 py-2 rounded-lg hover:bg-bone transition-colors"
         title="Ir a la semana actual"
       >
         {label}
