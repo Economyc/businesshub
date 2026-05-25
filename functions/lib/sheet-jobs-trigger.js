@@ -27,7 +27,17 @@ function monthsForTx(tx, months) {
             months.add(currentYm().key);
     }
 }
-export const markSheetJobDirty = onDocumentWritten({ document: 'companies/{companyId}/transactions/{txId}', region: 'us-central1' }, async (event) => {
+export const markSheetJobDirty = onDocumentWritten({
+    document: 'companies/{companyId}/transactions/{txId}',
+    region: 'us-central1',
+    // 256 MiB (default) hacía OOM en cold start al cargar firebase-admin (usaba
+    // 256-260 MiB) y el contenedor moría ANTES del batch.commit() → el flag dirty
+    // nunca se escribía y la hoja nunca se regeneraba (OOM diario desde 2026-05-21).
+    // OJO: el deploy con gcloud IGNORA este valor; al redeployar HAY que pasar
+    // también `--memory=512Mi`. Este literal solo documenta la intención (y aplica
+    // si algún día se migra a `firebase deploy`).
+    memory: '512MiB',
+}, async (event) => {
     const { companyId } = event.params;
     const before = event.data?.before?.exists ? event.data.before.data() : null;
     const after = event.data?.after?.exists ? event.data.after.data() : null;

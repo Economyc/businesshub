@@ -148,6 +148,12 @@ export async function indexContract(companyId, contractId, data) {
 export const indexContractEmbeddings = onDocumentWritten({
     document: 'companies/{companyId}/contracts/{contractId}',
     region: 'us-central1',
+    // Declarado explícito para no caer en el OOM del default 256MiB: este trigger
+    // carga firebase-admin + @ai-sdk (embeddings), aún más pesado que markSheetJobDirty.
+    // En prod ya corría 512Mi por el flag de un deploy histórico, pero el código no lo
+    // fijaba → un redeploy sin --memory lo habría roto. OJO: gcloud IGNORA este valor;
+    // al redeployar HAY que pasar también `--memory=512Mi`.
+    memory: '512MiB',
     secrets: ['GEMINI_API_KEY'],
 }, async (event) => {
     const { companyId, contractId } = event.params;
