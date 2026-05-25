@@ -1,7 +1,7 @@
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'path'
-import type { UserConfig } from 'vite'
+import { loadEnv, type Plugin, type UserConfig } from 'vite'
 
 // Config compartida entre las dos apps del monorepo (App1 = BusinessHub en
 // Oracle, App2 = herramienta admin en Hetzner). Ambas comparten `src/`, plugins,
@@ -12,6 +12,43 @@ import type { UserConfig } from 'vite'
 // importados (este archivo no es el config principal, es un helper).
 const root = process.cwd()
 
+// Espejo de los campos que `src/core/firebase/config.ts` consume. Si alguna
+// falta en build, Vite las inlinea como `undefined` y producción arranca con
+// `apiKey: void 0` → Firebase lanza `auth/invalid-api-key` y la app queda en
+// pantalla blanca (ya pasó en prod una vez con un deploy sin `.env.local`).
+const REQUIRED_FIREBASE_ENV = [
+  'VITE_FIREBASE_API_KEY',
+  'VITE_FIREBASE_AUTH_DOMAIN',
+  'VITE_FIREBASE_PROJECT_ID',
+  'VITE_FIREBASE_STORAGE_BUCKET',
+  'VITE_FIREBASE_MESSAGING_SENDER_ID',
+  'VITE_FIREBASE_APP_ID',
+] as const
+
+// Aborta `vite build` si falta cualquier VITE_FIREBASE_*: falla ruidosa en vez
+// de publicar un bundle roto. `loadEnv` resuelve los `.env*` Y las vars de
+// `process.env` con prefijo VITE_, así cubre App1 (deploy local con .env.local)
+// y App2 (Dockerfile.admin las inyecta como ENV vía Coolify). Solo corre en
+// build: `dev`/vitest no se ven afectados.
+function validateFirebaseEnv(): Plugin {
+  return {
+    name: 'validate-firebase-env',
+    config(_config, { command, mode }) {
+      if (command !== 'build') return
+      const env = loadEnv(mode, root)
+      const missing = REQUIRED_FIREBASE_ENV.filter((key) => !env[key])
+      if (missing.length > 0) {
+        throw new Error(
+          `[build abortado] Faltan variables VITE_FIREBASE_* requeridas:\n` +
+            missing.map((key) => `  - ${key}`).join('\n') +
+            `\nCopia .env.local (gitignoreado, ver .env.example) o define los ` +
+            `build args antes de compilar.`,
+        )
+      }
+    },
+  }
+}
+
 export function makeConfig({
   outDir,
   input,
@@ -20,7 +57,7 @@ export function makeConfig({
   input: string
 }): UserConfig {
   return {
-    plugins: [react(), tailwindcss()],
+    plugins: [validateFirebaseEnv(), react(), tailwindcss()],
     resolve: {
       alias: {
         '@': path.resolve(root, './src'),

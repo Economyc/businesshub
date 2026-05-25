@@ -4,8 +4,8 @@ export declare const analyzePayrollDocument: import("firebase-functions/v2/https
     kind: PayrollKind;
     extracted: {
         identification: string;
-        role: string;
         employeeName: string;
+        role: string;
         payPeriod: string;
         totalDevengado: number;
         totalDeducciones: number;
