@@ -188,6 +188,14 @@ export function TransactionList() {
     })
   }, [pendingInvoicesAll, paidInRange, activeTab, search, categoryFilter, typeFilter, priorityFilter])
 
+  const totalAmount = useMemo(
+    () => filtered.reduce((sum, t) => sum + t.amount, 0),
+    [filtered],
+  )
+
+  const hasActiveFilter =
+    search !== '' || categoryFilter !== '' || typeFilter !== '' || priorityFilter !== ''
+
   const handleRowClick = useCallback((t: Transaction) => {
     setEditingId(t.id)
     setFormOpen(true)
@@ -196,7 +204,6 @@ export function TransactionList() {
   // Snapshot que se inyecta al system prompt cuando el usuario abre el
   // asistente desde esta vista. Mantenerlo compacto (<1KB stringificado).
   const handleOpenAgent = useCallback(() => {
-    const totalAmount = filtered.reduce((sum, t) => sum + t.amount, 0)
     const categoryCount = new Map<string, number>()
     for (const t of filtered) {
       const key = t.category || 'Sin categoría'
@@ -225,7 +232,7 @@ export function TransactionList() {
       },
       topCategories,
     })
-  }, [filtered, activeTab, search, categoryFilter, typeFilter, priorityFilter, startDate, endDate, inlineAgent])
+  }, [filtered, totalAmount, activeTab, search, categoryFilter, typeFilter, priorityFilter, startDate, endDate, inlineAgent])
 
   const columns = useMemo<Column<Transaction>[]>(() => [
     {
@@ -447,6 +454,17 @@ export function TransactionList() {
           data={filtered}
           onRowClick={handleRowClick}
         />
+      )}
+
+      {!loading && filtered.length > 0 && hasActiveFilter && (
+        <div className="mt-3 flex items-center justify-between rounded-xl border border-border/60 bg-bone px-[18px] py-3">
+          <span className="text-body text-mid-gray">
+            {activeTab === 'paid' ? 'Total pagado' : 'Total pendiente'}
+          </span>
+          <span className="text-subheading font-semibold text-graphite tabular-nums">
+            {formatCurrency(totalAmount, 0)}
+          </span>
+        </div>
       )}
 
       <TransactionForm
