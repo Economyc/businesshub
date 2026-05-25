@@ -681,7 +681,7 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
                     onChange={setPaymentMethod}
                     options={[
                       { value: '', label: 'Sin especificar' },
-                      ...paymentMethods.map((m) => ({ value: m, label: m })),
+                      ...paymentMethods.map((m) => ({ value: m.name, label: m.name })),
                     ]}
                   />
                 </div>

@@ -2,11 +2,12 @@ import { useQuery } from '@tanstack/react-query'
 import { useCompany } from '@/core/hooks/use-company'
 import { queryClient } from '@/core/query/query-client'
 import { paymentMethodService } from './services'
+import type { PaymentMethod } from './types'
 
 // Lista de métodos de pago de la company activa + mutaciones de catálogo.
-// El catálogo es un array de strings; add/remove/update lo reescriben completo
-// (mismo enfoque que addDepartment/updateDepartment en company-provider) y
-// sincronizan el cache de React Query con setQueryData para feedback inmediato.
+// El catálogo es un array de objetos; add/update/remove operan por id y
+// reescriben el array completo, sincronizando el cache de React Query con
+// setQueryData para feedback inmediato.
 export function usePaymentMethods() {
   const { selectedCompany } = useCompany()
   const companyId = selectedCompany?.id
@@ -21,27 +22,26 @@ export function usePaymentMethods() {
 
   const methods = data ?? []
 
-  async function persist(next: string[]) {
+  async function persist(next: PaymentMethod[]) {
     if (!companyId) return
     queryClient.setQueryData(queryKey, next)
     await paymentMethodService.setList(companyId, next)
   }
 
-  function addMethod(name: string) {
-    const trimmed = name.trim()
-    if (!trimmed || methods.includes(trimmed)) return
-    void persist([...methods, trimmed])
+  function addMethod(input: Omit<PaymentMethod, 'id'>) {
+    const id = crypto.randomUUID()
+    void persist([...methods, { ...input, id }])
   }
 
-  function removeMethod(name: string) {
-    void persist(methods.filter((m) => m !== name))
+  // Reemplaza los campos editables (no hace merge) para que limpiar entidad o
+  // últimos 4 en el formulario realmente los borre y no queden valores undefined.
+  function updateMethod(id: string, data: Omit<PaymentMethod, 'id'>) {
+    void persist(methods.map((m) => (m.id === id ? { ...data, id } : m)))
   }
 
-  function updateMethod(oldName: string, newName: string) {
-    const trimmed = newName.trim()
-    if (!trimmed || trimmed === oldName || methods.includes(trimmed)) return
-    void persist(methods.map((m) => (m === oldName ? trimmed : m)))
+  function removeMethod(id: string) {
+    void persist(methods.filter((m) => m.id !== id))
   }
 
-  return { methods, loading: isLoading, addMethod, removeMethod, updateMethod }
+  return { methods, loading: isLoading, addMethod, updateMethod, removeMethod }
 }
