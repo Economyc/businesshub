@@ -1,51 +1,83 @@
-import { useState, type RefObject } from 'react'
-import { Download } from 'lucide-react'
+import { useRef, type RefObject } from 'react'
+import { saveAs } from 'file-saver'
+import { Download, FileSpreadsheet, FileText, Image } from 'lucide-react'
+import { ActionMenu } from '@/core/ui/action-menu'
+import { exportSheetsToExcel, type SheetSpec } from '@/core/utils/data-transfer'
 
 interface Props {
   targetRef: RefObject<HTMLDivElement | null>
   fileName?: string
+  /** Construye las hojas del Excel solo al clickear (lazy, evita trabajo si no se usa). */
+  getExcelSheets: () => SheetSpec[]
 }
 
-// Exporta la grilla del horario a PDF (apaisado) para compartir/imprimir, ya que
-// los empleados no entran a la app. Mismo patrón que analytics/export-pdf:
-// html2canvas + jspdf cargados dinámicamente (≈250KB) solo al exportar.
-export function ScheduleExport({ targetRef, fileName = 'horario' }: Props) {
-  const [exporting, setExporting] = useState(false)
+// Botón "Descargar" del horario con menú de formatos. Los empleados no entran a
+// la app, así que el horario se comparte/imprime: PDF y PNG son imagen de la
+// grilla (html2canvas, ≈250KB cargados solo al exportar); Excel replica la
+// grilla con datos estructurados. Usa ActionMenu (no Popover: Base UI no abre
+// en App2/Horarios).
+export function ScheduleExport({ targetRef, fileName = 'horario', getExcelSheets }: Props) {
+  // Los export de imagen tardan ~1–2s y el menú cierra al clickear (sin estado
+  // de carga visible); el ref ignora clics concurrentes.
+  const exportingRef = useRef(false)
 
-  async function handleExport() {
-    if (!targetRef.current || exporting) return
-    setExporting(true)
-    try {
-      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
-        import('html2canvas'),
-        import('jspdf'),
-      ])
-      const canvas = await html2canvas(targetRef.current, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#faf9f7',
-      })
-      const imgData = canvas.toDataURL('image/png')
-      const pdf = new jsPDF({
-        orientation: 'landscape',
-        unit: 'px',
-        format: [canvas.width, canvas.height],
-      })
-      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height)
-      pdf.save(`${fileName}.pdf`)
-    } finally {
-      setExporting(false)
+  async function renderCanvas() {
+    const { default: html2canvas } = await import('html2canvas')
+    return html2canvas(targetRef.current!, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: '#faf9f7',
+    })
+  }
+
+  async function exportPDF() {
+    const [canvas, { jsPDF }] = await Promise.all([renderCanvas(), import('jspdf')])
+    const imgData = canvas.toDataURL('image/png')
+    const pdf = new jsPDF({
+      orientation: 'landscape',
+      unit: 'px',
+      format: [canvas.width, canvas.height],
+    })
+    pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height)
+    pdf.save(`${fileName}.pdf`)
+  }
+
+  async function exportPNG() {
+    const canvas = await renderCanvas()
+    await new Promise<void>((resolve) => {
+      canvas.toBlob((blob) => {
+        if (blob) saveAs(blob, `${fileName}.png`)
+        resolve()
+      }, 'image/png')
+    })
+  }
+
+  async function exportExcel() {
+    await exportSheetsToExcel(getExcelSheets(), fileName)
+  }
+
+  function run(fn: () => Promise<void>) {
+    return async () => {
+      if (exportingRef.current || !targetRef.current) return
+      exportingRef.current = true
+      try {
+        await fn()
+      } finally {
+        exportingRef.current = false
+      }
     }
   }
 
   return (
-    <button
-      onClick={handleExport}
-      disabled={exporting}
-      className="flex items-center gap-2 px-3.5 py-2 rounded-lg border border-input-border bg-input-bg text-body text-graphite hover:bg-bone transition-all duration-200 disabled:opacity-50"
-    >
-      <Download size={15} strokeWidth={1.5} />
-      {exporting ? 'Exportando…' : 'PDF'}
-    </button>
+    <ActionMenu
+      label="Descargar"
+      icon={Download}
+      variant="secondary"
+      items={[
+        { label: 'Excel', icon: FileSpreadsheet, onClick: run(exportExcel) },
+        { label: 'PDF', icon: FileText, onClick: run(exportPDF) },
+        { label: 'PNG', icon: Image, onClick: run(exportPNG) },
+      ]}
+    />
   )
 }

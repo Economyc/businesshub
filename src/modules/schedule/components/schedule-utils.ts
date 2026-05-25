@@ -1,5 +1,6 @@
 import type { Employee } from '@/modules/talent/types'
-import type { Shift } from '../types'
+import type { SheetSpec, FieldDef } from '@/core/utils/data-transfer'
+import type { Shift, Novelty } from '../types'
 
 const DAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
 const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
@@ -146,4 +147,71 @@ export function groupByDepartment(employees: Employee[]): { department: string; 
 /** Formatea horas como "8.5h". */
 export function formatHours(h: number): string {
   return `${Number.isInteger(h) ? h : h.toFixed(1)}h`
+}
+
+/**
+ * Construye el `SheetSpec[]` para exportar el horario a Excel replicando la
+ * grilla (empleados × días). Una fila por empleado más una fila de total
+ * semanal al final. Cada celda de día = rango(s) del turno, o el nombre de la
+ * novedad si la celda es un día de novedad (igual que la vista). Función pura
+ * para mantenerla testeable y fuera del componente.
+ */
+export function buildScheduleSheet(args: {
+  weekName: string
+  dates: string[]
+  groups: { department: string; employees: Employee[] }[]
+  byCell: ReadonlyMap<string, Shift[]>
+  noveltyByCell: ReadonlyMap<string, Novelty>
+  metrics: ReadonlyMap<string, { hours: number }>
+  weekTotal: number
+  shifts: Shift[]
+}): SheetSpec[] {
+  const { weekName, dates, groups, byCell, noveltyByCell, metrics, weekTotal, shifts } = args
+
+  const dayKeys = dates.map((_, i) => `d${i}`)
+  const fields: FieldDef[] = [
+    { key: 'departamento', header: 'Departamento', type: 'string' },
+    { key: 'empleado', header: 'Empleado', type: 'string' },
+    ...dates.map((d, i) => ({
+      key: dayKeys[i],
+      header: `${WEEKDAY_LABELS[i]} ${parseDateStr(d).getDate()}`,
+      type: 'string' as const,
+    })),
+    { key: 'total', header: 'Total', type: 'string' },
+  ]
+
+  // Texto de una celda: novedad reemplaza el día; si no, los rangos de turno.
+  function cellText(employeeId: string, date: string): string {
+    const novelty = noveltyByCell.get(`${employeeId}|${date}`)
+    if (novelty) return novelty.typeName
+    const cellShifts = byCell.get(`${employeeId}|${date}`) ?? []
+    return cellShifts.map((s) => formatShiftRange(s.start, s.end)).join(' / ')
+  }
+
+  const data: Record<string, unknown>[] = []
+  for (const group of groups) {
+    for (const emp of group.employees) {
+      const row: Record<string, unknown> = {
+        departamento: group.department,
+        empleado: emp.name,
+        total: formatHours(metrics.get(emp.id)?.hours ?? 0),
+      }
+      dates.forEach((d, i) => { row[dayKeys[i]] = cellText(emp.id, d) })
+      data.push(row)
+    }
+  }
+
+  // Fila de totales por día (mismo cálculo que el footer de la grilla).
+  const totalRow: Record<string, unknown> = {
+    departamento: '',
+    empleado: 'Total semana',
+    total: formatHours(weekTotal),
+  }
+  dates.forEach((d, i) => {
+    const dayHours = totalHours(shifts.filter((s) => s.date === d))
+    totalRow[dayKeys[i]] = dayHours > 0 ? formatHours(dayHours) : ''
+  })
+  data.push(totalRow)
+
+  return [{ name: weekName, data, fields }]
 }

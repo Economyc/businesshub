@@ -43,6 +43,7 @@ import {
   formatShiftRangeCompact,
   shiftsOverlap,
   parseDateStr,
+  buildScheduleSheet,
   WEEKDAY_LABELS,
 } from './schedule-utils'
 import { CellForm } from './cell-form'
@@ -277,7 +278,22 @@ export function ScheduleView({ allowedDepartments }: { allowedDepartments?: stri
             )}
           </>
         )}
-        <ScheduleExport targetRef={gridRef} fileName={`horario-${weekKey}`} />
+        <ScheduleExport
+          targetRef={gridRef}
+          fileName={`horario-${weekKey}`}
+          getExcelSheets={() =>
+            buildScheduleSheet({
+              weekName: `Semana ${weekLabel(monday)}`,
+              dates,
+              groups,
+              byCell,
+              noveltyByCell,
+              metrics,
+              weekTotal,
+              shifts,
+            })
+          }
+        />
         {canEdit && (
           <button
             type="button"
