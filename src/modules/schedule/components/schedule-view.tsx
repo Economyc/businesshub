@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react'
-import { Copy, Send, Settings2, Plus, AlertTriangle, Clock, Tag } from 'lucide-react'
+import { Copy, Send, Settings2, Plus, AlertTriangle, Clock, Tag, Lock } from 'lucide-react'
 import {
   DndContext,
   DragOverlay,
@@ -106,6 +106,8 @@ export function ScheduleView({ allowedDepartments }: { allowedDepartments?: stri
 
   function handleDragEnd(e: DragEndEvent) {
     setActiveShift(null)
+    // Semana publicada = bloqueada (el draggable ya queda disabled, esto es defensa extra).
+    if (isPublished) return
     const shift = e.active.data.current?.shift as Shift | undefined
     const target = e.over?.data.current as { employeeId: string; date: string } | undefined
     if (!shift || !target || !selectedCompany) return
@@ -186,9 +188,11 @@ export function ScheduleView({ allowedDepartments }: { allowedDepartments?: stri
 
   const weekTotal = useMemo(() => totalHours(shifts), [shifts])
   const isPublished = week.status === 'published'
+  // Publicar congela la semana: la grilla pasa a solo-lectura hasta despublicar.
+  const editable = canEdit && !isPublished
 
   async function copyPrevWeek() {
-    if (!selectedCompany || busy) return
+    if (!selectedCompany || busy || isPublished) return
     setBusy(true)
     try {
       const prevMonday = addWeeks(monday, -1)
@@ -249,8 +253,14 @@ export function ScheduleView({ allowedDepartments }: { allowedDepartments?: stri
             <button
               type="button"
               onClick={copyPrevWeek}
-              disabled={busy || shifts.length > 0 || novelties.length > 0}
-              title={shifts.length > 0 || novelties.length > 0 ? 'La semana ya tiene turnos o novedades' : 'Copiar la semana anterior'}
+              disabled={busy || isPublished || shifts.length > 0 || novelties.length > 0}
+              title={
+                isPublished
+                  ? 'La semana está publicada; despublícala para editar'
+                  : shifts.length > 0 || novelties.length > 0
+                    ? 'La semana ya tiene turnos o novedades'
+                    : 'Copiar la semana anterior'
+              }
               className="flex items-center gap-2 px-3.5 py-2 rounded-lg border border-input-border bg-input-bg text-body text-graphite hover:bg-bone transition-all duration-200 disabled:opacity-50"
             >
               <Copy size={15} strokeWidth={1.5} />
@@ -320,15 +330,23 @@ export function ScheduleView({ allowedDepartments }: { allowedDepartments?: stri
             </p>
             <p className="text-caption text-mid-gray">Semana {weekLabel(monday)}</p>
           </div>
-          <span
-            className={
-              isPublished
-                ? 'text-caption px-2.5 py-1 rounded-full bg-positive-bg text-positive-text'
-                : 'text-caption px-2.5 py-1 rounded-full bg-warning-bg text-warning-text'
-            }
-          >
-            {isPublished ? 'Publicado' : 'Borrador'}
-          </span>
+          <div className="flex items-center gap-2">
+            {isPublished && (
+              <span className="text-caption text-mid-gray inline-flex items-center gap-1">
+                <Lock size={12} strokeWidth={1.5} />
+                Edición bloqueada — despublica para modificar
+              </span>
+            )}
+            <span
+              className={
+                isPublished
+                  ? 'text-caption px-2.5 py-1 rounded-full bg-positive-bg text-positive-text'
+                  : 'text-caption px-2.5 py-1 rounded-full bg-warning-bg text-warning-text'
+              }
+            >
+              {isPublished ? 'Publicado' : 'Borrador'}
+            </span>
+          </div>
         </div>
 
         <DndContext
@@ -400,9 +418,9 @@ export function ScheduleView({ allowedDepartments }: { allowedDepartments?: stri
                             key={d}
                             employeeId={emp.id}
                             date={d}
-                            canEdit={canEdit}
+                            canEdit={editable}
                             onClick={
-                              canEdit && !cellNovelty
+                              editable && !cellNovelty
                                 ? () => setFormTarget({ date: d, employee: emp })
                                 : undefined
                             }
@@ -410,7 +428,7 @@ export function ScheduleView({ allowedDepartments }: { allowedDepartments?: stri
                             {cellNovelty ? (
                               <NoveltyChip
                                 novelty={cellNovelty}
-                                canEdit={canEdit}
+                                canEdit={editable}
                                 onEdit={() => setFormTarget({ date: d, employee: emp, novelty: cellNovelty })}
                               />
                             ) : (
@@ -419,11 +437,11 @@ export function ScheduleView({ allowedDepartments }: { allowedDepartments?: stri
                                   <DraggableShift
                                     key={s.id}
                                     shift={s}
-                                    canEdit={canEdit}
+                                    canEdit={editable}
                                     onEdit={() => setFormTarget({ date: d, employee: emp, shift: s })}
                                   />
                                 ))}
-                                {canEdit && cellShifts.length === 0 && (
+                                {editable && cellShifts.length === 0 && (
                                   <span className="hidden group-hover/cell:flex absolute inset-0 items-center justify-center text-mid-gray/60 pointer-events-none">
                                     <Plus size={14} strokeWidth={1.5} />
                                   </span>
