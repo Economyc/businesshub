@@ -115,16 +115,39 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   // companies visible = allCompanies filtradas. Owner bypassea todo el filtro.
   // Mientras `accessLoaded` sea false y no haya cache, dejamos la lista vacía
   // para evitar flash de companies que después desaparecen.
+  //
+  // Regla GLOBAL (no per-membership):
+  //  1. Si el usuario tiene CUALQUIER rol con `allowedCompanyIds` definido
+  //     (incluso `[]`), está "restringido". Su universo total visible es la
+  //     UNIÓN de todos esos arrays, sin importar otros memberships sueltos
+  //     que tenga sin restricción. Esto resuelve el caso de memberships
+  //     viejos creados por el seed automático antiguo: aunque el usuario
+  //     siga como member de Filipo con rol 'viewer' (sin allowedCompanyIds),
+  //     si tiene "Blue Staff" en Blue Manila con [manila, oculta], solo verá
+  //     {manila, oculta}. El rol restrictivo manda.
+  //  2. Si ningún rol restringe, el usuario ve todas las companies donde es
+  //     miembro (comportamiento previo, compatible con roles existentes).
+  //  3. La membership sigue siendo requisito final: estar en la unión sin
+  //     ser member no basta — el usuario tampoco puede leer datos de esa
+  //     company por reglas. Ergo: visible = (en unión, si hay restricción)
+  //     AND (es member de la company).
   const companies = useMemo<Company[]>(() => {
     if (isOwnerByEmail) return allCompanies
     if (!accessLoaded) return []
+
+    const restrictedEntries = Object.values(companyAccess).filter(
+      (e) => e.isMember && Array.isArray(e.allowedCompanyIds),
+    )
+    const isRestricted = restrictedEntries.length > 0
+    const allowedUnion = isRestricted
+      ? new Set(restrictedEntries.flatMap((e) => e.allowedCompanyIds ?? []))
+      : null
+
     return allCompanies.filter((c) => {
       const access = companyAccess[c.id]
       if (!access || !access.isMember) return false
-      const allow = access.allowedCompanyIds
-      // Semántica: undefined = todas, [] = ninguna, lista = solo esas.
-      if (allow === undefined) return true
-      return allow.includes(c.id)
+      if (allowedUnion && !allowedUnion.has(c.id)) return false
+      return true
     })
   }, [allCompanies, companyAccess, accessLoaded, isOwnerByEmail])
 
