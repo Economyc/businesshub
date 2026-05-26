@@ -93,7 +93,10 @@ const cachedCategories = cacheGet<CategoryItem[]>('categories')
 const cachedDepartments = cacheGet<string[]>('departments')
 const cachedSelectedId = cacheGet<string>('selectedCompanyId')
 
-const accessCacheKey = (uid: string) => `companyAccess:v1:${uid}`
+// v2: la semántica del filtro cambió (rol restrictivo manda globalmente,
+// no per-company). Subir la versión invalida cachés viejas en el browser de
+// cada usuario y fuerza una lectura fresca de memberships/roles.
+const accessCacheKey = (uid: string) => `companyAccess:v2:${uid}`
 
 export function CompanyProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth()

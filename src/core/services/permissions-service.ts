@@ -164,11 +164,14 @@ export async function createRole(companyId: string, role: RoleDefinition): Promi
 export async function updateRole(
   companyId: string,
   roleId: string,
-  data: Partial<RoleDefinition>,
+  role: RoleDefinition,
 ): Promise<void> {
-  const { id: _id, ...rest } = data as RoleDefinition & { id?: string }
-  void _id
-  await updateDoc(roleDoc(companyId, roleId), rest)
+  // setDoc (no updateDoc) reemplaza el doc completo. Crítico porque updateDoc
+  // ignora props con valor `undefined`: pasar de `allowedCompanyIds=[a,b]` a
+  // "Acceso a todas" (undefined) NO borraría el array viejo del doc — el
+  // filtro seguiría viendo el rol como restrictivo con los ids previos.
+  // setDoc + roleToDoc garantiza estado limpio en cada guardado.
+  await setDoc(roleDoc(companyId, roleId), roleToDoc(role))
 }
 
 export async function removeRole(companyId: string, roleId: string): Promise<void> {
