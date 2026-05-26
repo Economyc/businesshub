@@ -112,6 +112,15 @@ export function usePermissionsLoader(): PermissionsContextValue {
 
   const role = member ? roles.find((r) => r.id === member.role) ?? null : null
 
+  // Diagnóstico (solo dev): si hay member pero el rol referenciado no está en la
+  // lista cargada, el usuario verá NoAccessPage sin pista visible. Aviso aquí.
+  if (import.meta.env.DEV && member && !role && roles.length > 0) {
+    console.warn(
+      `[permissions] member.role="${member.role}" no encontrado en roles cargados`,
+      { memberId: member.id, availableRoleIds: roles.map((r) => r.id) },
+    )
+  }
+
   // Owner madre: acceso total por bypass (incluye páginas/tabs nuevas).
   const isOwner = member?.role === 'owner' || (user?.email ?? '').toLowerCase() === OWNER_EMAIL
   const isAdmin = isOwner || member?.role === 'admin'

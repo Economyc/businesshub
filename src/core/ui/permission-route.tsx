@@ -23,12 +23,12 @@ export function PermissionRoute({ pageId, action }: Props) {
 
   // No membership at all — no access
   if (!member) {
-    return <NoAccessPage />
+    return <NoAccessPage requestedPageId={pageId} />
   }
 
   const allowed = action ? can(pageId, action) : canAccessPage(pageId)
   if (!allowed) {
-    return <NoAccessPage />
+    return <NoAccessPage requestedPageId={pageId} />
   }
 
   return <Outlet />
