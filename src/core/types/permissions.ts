@@ -50,6 +50,13 @@ export interface RoleDefinition {
   permissions: RolePermissions
   canManageUsers: boolean
   canManageCompany: boolean
+  /**
+   * Companies a las que el usuario con este rol puede entrar.
+   * - `undefined` o `[]` = sin restricción (todas las companies de las que sea miembro).
+   * - Array no vacío = exclusivamente esas companies.
+   * El owner ignora este filtro (acceso total por bypass).
+   */
+  allowedCompanyIds?: string[]
 }
 
 export interface CompanyMember {

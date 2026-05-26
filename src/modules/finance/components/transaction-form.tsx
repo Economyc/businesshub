@@ -8,6 +8,7 @@ import { CategorySelect } from '@/core/ui/category-select'
 import { SelectInput } from '@/core/ui/select-input'
 import { CurrencyInput } from '@/core/ui/currency-input'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { HoverHint } from '@/components/ui/tooltip'
 import { modalVariants } from '@/core/animations/variants'
 import { getAppFunctions } from '@/core/firebase/config'
@@ -33,6 +34,30 @@ function toDateString(ts: Timestamp | undefined): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
+// Extrae un mensaje accionable del error que devuelve una callable de Functions
+// v2. Cuando el backend lanza HttpsError('failed-precondition', '...'), el
+// cliente recibe FunctionsError con `code='functions/failed-precondition'` y el
+// `message` original — ese caso lo mostramos tal cual. Para errores de red /
+// internos donde `.message` es opaco ("internal", "deadline-exceeded"),
+// devolvemos un texto accionable.
+function extractCallableError(err: unknown): string {
+  const e = err as { code?: string; message?: string }
+  const code = e?.code ?? ''
+  const message = e?.message ?? ''
+  // failed-precondition es el código que el backend usa para errores con
+  // mensaje preparado para el usuario (Drive desconectado, sin permisos, etc.).
+  if (code === 'functions/failed-precondition' || code === 'functions/not-found' || code === 'functions/permission-denied' || code === 'functions/invalid-argument') {
+    return message || 'No se pudo completar la operación.'
+  }
+  if (code === 'functions/unavailable' || code === 'functions/deadline-exceeded') {
+    return 'No se pudo contactar al servidor. Verificá tu conexión e intentá de nuevo.'
+  }
+  if (message && message.toLowerCase() !== 'internal') {
+    return message
+  }
+  return 'Ocurrió un error al eliminar. Intentá de nuevo o avisá a soporte.'
+}
+
 interface TransactionFormProps {
   open: boolean
   transactionId?: string | null
@@ -49,9 +74,14 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
       await financeService.create(companyId, data.payload)
     }
   })
-  const deleteMutation = useFirestoreMutation<string>('transactions', (companyId, id) => financeService.remove(companyId, id), { optimisticDelete: true })
+  // El borrado va contra la callable `deleteTransactionWithAttachments`, que
+  // limpia también archivos en Drive y regenera la hoja contable del mes. Si
+  // Drive está caído / sin permisos, la callable aborta sin borrar Firestore;
+  // useFirestoreMutation revierte el optimistic delete y mostramos `deleteError`.
+  const deleteMutation = useFirestoreMutation<string>('transactions', (companyId, id) => financeService.deleteWithAttachments(companyId, id), { optimisticDelete: true })
   const [loading, setLoading] = useState(false)
   const [showDelete, setShowDelete] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const [dateConfirmed, setDateConfirmed] = useState(false)
   const [isLinked, setIsLinked] = useState(false)
   const [isRecurring, setIsRecurring] = useState(false)
@@ -129,6 +159,7 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
       setIsRecurring(false)
       setIsSplit(false)
       setShowDelete(false)
+      setDeleteError(null)
       setDateConfirmed(false)
       setPayeeType('')
       setPayeeId('')
@@ -139,6 +170,9 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
       setCombineError(null)
       return
     }
+    // Reset del banner de error al (re)abrir el modal — evita que un error de
+    // una tx anterior quede visible cuando el usuario abre otra.
+    setDeleteError(null)
     if (!transactionId || !selectedCompany) {
       setLoading(false)
       return
@@ -305,10 +339,35 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
     onSaved()
   }
 
+  // Cuenta de archivos en Drive que se borrarán — para el copy del diálogo.
+  const attachmentCount = [attachments.source, attachments.proof, attachments.combined].filter(Boolean).length
+
+  // El botón Eliminar se muestra solo en tx independientes editables. Las
+  // vinculadas (cierre/compra automática), las generadas por recurring y las
+  // partes de un gasto compartido tienen su propio flujo de borrado — borrarlas
+  // individualmente desde acá dejaría huérfanos o grupos inconsistentes.
+  const canDelete = !!transactionId && !isLinked && !isRecurring && !isSplit && !loading
+
   async function handleDelete() {
     if (!selectedCompany || !transactionId) return
-    await deleteMutation.mutateAsync(transactionId)
-    onSaved()
+    setDeleteError(null)
+    try {
+      const result = await deleteMutation.mutateAsync(transactionId)
+      // El resultado lo devuelve la callable. Si Drive falló al limpiar (la tx
+      // ya está borrada en Firestore), avisamos sin bloquear el cierre del form
+      // — el usuario verá un toast al volver al panel; los huérfanos se pueden
+      // limpiar manualmente en Drive.
+      const r = result as unknown as { driveErrors?: string[]; sheetWarning?: string | null }
+      const warnings = [...(r?.driveErrors ?? []), ...(r?.sheetWarning ? [r.sheetWarning] : [])]
+      if (warnings.length > 0) {
+        console.warn('[transaction-form] borrado completado con advertencias:', warnings)
+      }
+      onSaved()
+    } catch (err) {
+      // useFirestoreMutation revierte el optimistic delete; solo nos toca avisar.
+      setDeleteError(extractCallableError(err))
+      setShowDelete(false)
+    }
   }
 
   return (
@@ -339,7 +398,7 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
                   {loading ? 'Cargando...' : isLinked ? 'Transacción Vinculada' : transactionId ? 'Editar Transacción' : 'Nueva Transacción'}
                 </h2>
                 <div className="flex items-center gap-1">
-                  {transactionId && !isLinked && !loading && (
+                  {canDelete && (
                     <HoverHint label="Eliminar">
                       <button
                         onClick={() => setShowDelete(true)}
@@ -575,6 +634,14 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
                   </div>
 
                   </div>
+                  {deleteError && (
+                    <div className="mx-4 sm:mx-6 mb-2">
+                      <Alert variant="negative">
+                        <AlertCircle strokeWidth={2} />
+                        <AlertDescription>{deleteError}</AlertDescription>
+                      </Alert>
+                    </div>
+                  )}
                   <div className="flex gap-3 px-4 sm:px-6 py-4 border-t border-border shrink-0">
                     <button
                       type="submit"
@@ -603,7 +670,11 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
         onCancel={() => setShowDelete(false)}
         onConfirm={handleDelete}
         title="Eliminar transacción"
-        description={`¿Estás seguro de que deseas eliminar "${form.concept || 'esta transacción'}"? Esta acción no se puede deshacer.`}
+        description={
+          attachmentCount > 0
+            ? `Se eliminará "${form.concept || 'esta transacción'}" y también ${attachmentCount === 1 ? 'su archivo adjunto' : `sus ${attachmentCount} archivos adjuntos`} en Google Drive (factura, comprobante y/o PDF combinado). La fila desaparecerá de la hoja contable. Esta acción es irreversible.`
+            : `¿Estás seguro de que deseas eliminar "${form.concept || 'esta transacción'}"? Esta acción no se puede deshacer.`
+        }
       />
     </>
   )

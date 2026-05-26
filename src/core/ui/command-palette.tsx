@@ -13,6 +13,8 @@ import { useTransactions } from '@/modules/finance/hooks'
 import { useSuppliers } from '@/modules/suppliers/hooks'
 import { usePartners } from '@/modules/partners/hooks'
 import { formatCurrency } from '@/core/utils/format'
+import { usePermissions } from '@/core/hooks/use-permissions'
+import { getPageByPath } from '@/core/config/access-registry'
 
 // --- Types ---
 
@@ -102,6 +104,7 @@ export function CommandPalette() {
   const dropdownRef = useRef<HTMLDivElement>(null)
   const [position, setPosition] = useState<{ top: number; left: number; width: number } | null>(null)
   const navigate = useNavigate()
+  const { canAccessPage } = usePermissions()
 
   // Entity data
   const { data: employees } = useEmployees()
@@ -258,12 +261,18 @@ export function CommandPalette() {
   const filteredNav = useMemo(() => {
     const q = normalize(query)
     if (!q) return []
-    return NAV_RESULTS.filter(
-      (item) =>
+    return NAV_RESULTS.filter((item) => {
+      // Ocultar entradas a páginas a las que el usuario no tiene acceso —
+      // si no las puede ver en el sidebar, tampoco deberían aparecer aquí
+      // (especialmente Cargos, que es solo del owner).
+      const page = item.to ? getPageByPath(item.to) : undefined
+      if (page && !canAccessPage(page.id)) return false
+      return (
         normalize(item.label).includes(q) ||
         normalize(item.keywords || '').includes(q)
-    ).slice(0, 6)
-  }, [query])
+      )
+    }).slice(0, 6)
+  }, [query, canAccessPage])
 
   const filteredActions = useMemo(() => {
     const q = normalize(query)

@@ -88,7 +88,7 @@ function normalizeRole(raw: Record<string, unknown> & { id: string }): RoleDefin
 }
 
 function roleToDoc(role: RoleDefinition) {
-  return {
+  const doc: Record<string, unknown> = {
     label: role.label,
     description: role.description,
     color: role.color,
@@ -97,6 +97,51 @@ function roleToDoc(role: RoleDefinition) {
     canManageUsers: role.canManageUsers,
     canManageCompany: role.canManageCompany,
   }
+  // Semántica:
+  //  - `undefined`     → sin restricción (todas las empresas presentes y futuras).
+  //  - `[]`            → ninguna empresa (rol "vacío" que bloquea a sus usuarios).
+  //  - `[id1, id2]`    → solo esas.
+  // Persistimos el array (incluso vacío) cuando está definido, porque la
+  // diferencia entre "todas" y "ninguna" es crítica.
+  if (Array.isArray(role.allowedCompanyIds)) {
+    doc.allowedCompanyIds = role.allowedCompanyIds
+  }
+  return doc
+}
+
+/**
+ * Resuelve si una company está permitida para un rol.
+ * - Rol sin `allowedCompanyIds` (undefined) → sin restricción, true.
+ * - Rol con `allowedCompanyIds = []` → ninguna company permitida.
+ * - Rol con lista → la company debe estar en la lista.
+ */
+export function isCompanyAllowedForRole(
+  companyId: string,
+  role: Pick<RoleDefinition, 'allowedCompanyIds'> | null | undefined,
+): boolean {
+  if (!role) return true
+  const list = role.allowedCompanyIds
+  if (list === undefined) return true
+  return list.includes(companyId)
+}
+
+/**
+ * Replica un rol en todas las companies de `allowedCompanyIds`. Necesario
+ * porque cada company guarda su propia copia de roles: si el owner crea
+ * "Blue Staff" en Blue Manila y lo restringe a [manila, oculta], el doc
+ * también debe existir en Blue Oculta para que el `loadAccess` del provider
+ * encuentre el rol al validar el membership de un usuario en esa company.
+ *
+ * Se hace con `setDoc` (merge=false): el rol se sobreescribe completo en
+ * cada destino, garantizando que `allowedCompanyIds` esté igual en todos.
+ * No-op si la lista es undefined (sin restricción) o vacía (sin destinos).
+ */
+export async function replicateRoleToAllowedCompanies(role: RoleDefinition): Promise<void> {
+  const targets = role.allowedCompanyIds
+  if (!Array.isArray(targets) || targets.length === 0) return
+  await Promise.all(
+    targets.map((cid) => setDoc(roleDoc(cid, role.id), roleToDoc(role))),
+  )
 }
 
 /** Fetch all roles for a company. Seeds defaults if none exist. */
@@ -132,9 +177,9 @@ export async function removeRole(companyId: string, roleId: string): Promise<voi
 
 // ---- Members ----
 
-/** Seed the current user if no membership exists.
- *  - admin@filipoblue.co → owner
- *  - Any other authenticated user → viewer (admin can change role from UI)
+/** Seed membership solo para el owner. Cualquier otro usuario debe ser invitado
+ *  explícitamente por el owner desde /settings/team — sin invitación no hay
+ *  acceso a la company (necesario para que el filtro por empresa funcione).
  */
 export async function seedMembershipIfNeeded(
   companyId: string,
@@ -145,13 +190,14 @@ export async function seedMembershipIfNeeded(
   const existing = await fetchMember(companyId, userId)
   if (existing) return existing
 
-  const role = email.toLowerCase() === OWNER_EMAIL ? 'owner' : 'viewer'
+  // Solo el owner se autocrea como miembro. El resto necesita invitación.
+  if (email.toLowerCase() !== OWNER_EMAIL) return null
 
   const member: Omit<CompanyMember, 'id'> = {
     userId,
     email,
     displayName: displayName || email,
-    role,
+    role: 'owner',
     status: 'active',
     joinedAt: Timestamp.now(),
   }

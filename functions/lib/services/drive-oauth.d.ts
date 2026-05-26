@@ -85,6 +85,16 @@ export declare function uploadFile(uid: string, parentFolderId: string, fileName
  */
 export declare function uploadOrReplaceFile(uid: string, parentFolderId: string, fileName: string, mediaMimeType: string, fileBase64: string, convertToMimeType?: string): Promise<UploadResult>;
 /**
+ * Borra un archivo de Drive por id. Idempotente: si el archivo ya no existe
+ * (404), devuelve `notFound: true` sin lanzar — el caller lo trata como éxito.
+ * Cualquier otro error de Drive sí se propaga (incluyendo invalid_grant y
+ * insufficient scopes, que se traducen vía runDrive a los errores tipados).
+ */
+export declare function deleteDriveFile(uid: string, fileId: string): Promise<{
+    deleted: boolean;
+    notFound: boolean;
+}>;
+/**
  * Descarga un archivo de Drive y devuelve sus bytes + mimeType. Usado para
  * recuperar la factura y el comprobante ya subidos y fusionarlos en un PDF.
  */

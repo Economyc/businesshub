@@ -20,6 +20,21 @@ import { cacheGet, cacheSet } from '@/core/utils/cache'
 import { prefetchHomeData, resetPrefetchCache } from '@/core/utils/prefetch'
 import { queryClient } from '@/core/query/query-client'
 import { useAuth } from '@/core/hooks/use-auth'
+import { OWNER_EMAIL } from '@/core/config/access-registry'
+
+/**
+ * Por company, qué sabemos del acceso del usuario actual:
+ * - `isMember`: existe un doc en `companies/{id}/members/{uid}`.
+ * - `allowedCompanyIds`: del rol asignado al miembro (si está restringido).
+ *
+ * Una company es visible si `isMember` y, en caso de tener `allowedCompanyIds`,
+ * el id de la company está incluido. El owner ignora todo este filtro.
+ */
+interface CompanyAccessEntry {
+  isMember: boolean
+  allowedCompanyIds?: string[]
+}
+type CompanyAccessMap = Record<string, CompanyAccessEntry>
 
 // Split en dos contextos para evitar re-renders globales:
 //  - CompanyContext: companies + selectedCompany. Lo consumen 49 archivos.
@@ -29,7 +44,10 @@ import { useAuth } from '@/core/hooks/use-auth'
 // los 58 consumers. Ahora cada Provider memoiza su value con sus propias deps,
 // asi cambios en settings solo re-renderizan a quien usa SettingsContext.
 interface CompanyContextValue {
+  /** Companies visibles para el usuario (filtradas por membership + allowedCompanyIds del rol). */
   companies: Company[]
+  /** Lista raw, sin filtro. Solo para flujos del owner (ej. selector de empresas permitidas en Cargos). */
+  allCompanies: Company[]
   selectedCompany: Company | null
   loading: boolean
   selectCompany: (company: Company) => void
@@ -75,8 +93,15 @@ const cachedCategories = cacheGet<CategoryItem[]>('categories')
 const cachedDepartments = cacheGet<string[]>('departments')
 const cachedSelectedId = cacheGet<string>('selectedCompanyId')
 
+const accessCacheKey = (uid: string) => `companyAccess:v1:${uid}`
+
 export function CompanyProvider({ children }: { children: ReactNode }) {
-  const [companies, setCompanies] = useState<Company[]>(cachedCompanies ?? [])
+  const { user } = useAuth()
+  const cachedAccess = user ? cacheGet<CompanyAccessMap>(accessCacheKey(user.uid)) : null
+
+  const [allCompanies, setAllCompanies] = useState<Company[]>(cachedCompanies ?? [])
+  const [companyAccess, setCompanyAccess] = useState<CompanyAccessMap>(cachedAccess ?? {})
+  const [accessLoaded, setAccessLoaded] = useState<boolean>(Boolean(cachedAccess))
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(() => {
     if (!cachedCompanies?.length) return null
     return cachedCompanies.find((c) => c.id === cachedSelectedId) ?? cachedCompanies[0]
@@ -84,7 +109,24 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   const [categories, setCategories] = useState<CategoryItem[]>(cachedCategories ?? [])
   const [departments, setDepartments] = useState<string[]>(cachedDepartments ?? [])
   const [loading, setLoading] = useState(!cachedCompanies)
-  const { user } = useAuth()
+
+  const isOwnerByEmail = (user?.email ?? '').toLowerCase() === OWNER_EMAIL
+
+  // companies visible = allCompanies filtradas. Owner bypassea todo el filtro.
+  // Mientras `accessLoaded` sea false y no haya cache, dejamos la lista vacía
+  // para evitar flash de companies que después desaparecen.
+  const companies = useMemo<Company[]>(() => {
+    if (isOwnerByEmail) return allCompanies
+    if (!accessLoaded) return []
+    return allCompanies.filter((c) => {
+      const access = companyAccess[c.id]
+      if (!access || !access.isMember) return false
+      const allow = access.allowedCompanyIds
+      // Semántica: undefined = todas, [] = ninguna, lista = solo esas.
+      if (allow === undefined) return true
+      return allow.includes(c.id)
+    })
+  }, [allCompanies, companyAccess, accessLoaded, isOwnerByEmail])
 
   // --- Fetch fresh data from Firestore in background ---
   // Las 4 lecturas (companies, categories, roles, departments) van en paralelo
@@ -129,7 +171,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
         }
 
         cacheSet('companies', loaded)
-        setCompanies(loaded)
+        setAllCompanies(loaded)
         setSelectedCompany((prev) => {
           if (prev) {
             const fresh = loaded.find((c) => c.id === prev.id)
@@ -197,6 +239,86 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
     load()
   }, [user])
 
+  // --- Cargar el "access map" del usuario: para cada company, sabemos si es
+  // miembro y, si su rol restringe companies, qué companies acepta. Esto deriva
+  // `companies` (visible) sin tener que pedirlo en cada lugar del app. El owner
+  // bypassea esta lectura porque ignora el filtro. ---
+  useEffect(() => {
+    if (!user) {
+      setCompanyAccess({})
+      setAccessLoaded(false)
+      return
+    }
+    if (isOwnerByEmail) {
+      // Owner ignora el filtro — sin lecturas innecesarias.
+      setAccessLoaded(true)
+      return
+    }
+    if (allCompanies.length === 0) return
+
+    let cancelled = false
+    async function loadAccess() {
+      if (!user) return
+      const uid = user.uid
+      try {
+        const entries = await Promise.all(
+          allCompanies.map(async (c): Promise<[string, CompanyAccessEntry]> => {
+            try {
+              const memberSnap = await getDoc(doc(db, 'companies', c.id, 'members', uid))
+              if (!memberSnap.exists()) return [c.id, { isMember: false }]
+              const memberData = memberSnap.data() as { role?: string }
+              if (!memberData.role) return [c.id, { isMember: true }]
+              const roleSnap = await getDoc(doc(db, 'companies', c.id, 'roles', memberData.role))
+              const allowedCompanyIds = roleSnap.exists()
+                ? ((roleSnap.data() as { allowedCompanyIds?: string[] }).allowedCompanyIds)
+                : undefined
+              return [c.id, { isMember: true, allowedCompanyIds }]
+            } catch (err) {
+              // Sin acceso de lectura por reglas: tratamos como no-miembro.
+              console.warn(`[company-access] ${c.id}:`, err)
+              return [c.id, { isMember: false }]
+            }
+          }),
+        )
+        if (cancelled) return
+        const map = Object.fromEntries(entries) as CompanyAccessMap
+        setCompanyAccess(map)
+        setAccessLoaded(true)
+        cacheSet(accessCacheKey(uid), map)
+      } catch (err) {
+        console.error('[company-access] load failed:', err)
+        if (!cancelled) setAccessLoaded(true)
+      }
+    }
+    loadAccess()
+    return () => { cancelled = true }
+    // Solo re-cargamos cuando cambia el set de ids (no al renombrar una company,
+    // que reasigna identidad de `allCompanies` pero no agrega/quita docs).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.uid, isOwnerByEmail, allCompanies.map((c) => c.id).sort().join('|')])
+
+  // Si la company seleccionada queda fuera de las visibles (por ejemplo,
+  // restauramos `selectedCompanyId` de cache que ya no aplica), saltar a la
+  // primera visible. Si no hay ninguna, dejar en null → CompanySelectorPage
+  // mostrará el empty state.
+  useEffect(() => {
+    if (!accessLoaded) return
+    if (selectedCompany) {
+      const isVisible = companies.some((c) => c.id === selectedCompany.id)
+      if (isVisible) return
+      const fallback = companies[0] ?? null
+      setSelectedCompany(fallback)
+      if (fallback) cacheSet('selectedCompanyId', fallback.id)
+      return
+    }
+    // No había company previa pero el access ya cargó: si hay visibles, elegir
+    // la primera para no quedarnos en pantalla en blanco.
+    if (companies.length > 0) {
+      setSelectedCompany(companies[0])
+      cacheSet('selectedCompanyId', companies[0].id)
+    }
+  }, [accessLoaded, selectedCompany?.id, companies])
+
   // Al cambiar de company, limpiar todo el cache React Query scopeado al
   // tenant anterior. `removeQueries` (no `invalidate`) evita refetch de data
   // que ya no se va a usar — un invalidate dispararía refetch de las queries
@@ -229,7 +351,20 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
     if (selectedCompany?.id) prefetchHomeData(selectedCompany.id)
   }, [selectedCompany?.id])
 
+  // Refs a state derivado para que `selectCompany` mantenga identidad estable
+  // (los consumers que la guardan en deps no re-renderean en cada cambio).
+  const visibleCompaniesRef = useRef(companies)
+  useEffect(() => { visibleCompaniesRef.current = companies }, [companies])
+  const accessLoadedRef = useRef(accessLoaded)
+  useEffect(() => { accessLoadedRef.current = accessLoaded }, [accessLoaded])
+
   const selectCompany = useCallback((company: Company) => {
+    // Si ya cargamos el access y la company no es visible para este usuario,
+    // ignorar silenciosamente: evita que un link directo o el cache cliente
+    // entren a una company restringida.
+    if (accessLoadedRef.current && !visibleCompaniesRef.current.some((c) => c.id === company.id)) {
+      return
+    }
     setSelectedCompany(company)
     cacheSet('selectedCompanyId', company.id)
   }, [])
@@ -241,7 +376,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
       data[key] = val === undefined || val === '' ? deleteField() : val
     }
     await updateDoc(companyRef, data)
-    setCompanies((prev) => {
+    setAllCompanies((prev) => {
       const updated = prev.map((c) => {
         if (c.id !== id) return c
         const u = { ...c }
@@ -274,7 +409,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   const deleteCompany = useCallback(async (id: string) => {
     const ref = doc(db, 'companies', id)
     await deleteDoc(ref)
-    setCompanies((prev) => {
+    setAllCompanies((prev) => {
       const updated = prev.filter((c) => c.id !== id)
       cacheSet('companies', updated)
       setSelectedCompany((sel) => (sel?.id === id ? updated[0] ?? null : sel))
@@ -287,7 +422,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
     const data = { name: 'Nueva Compañía', slug: `company-${Date.now()}`, createdAt: now }
     const ref = await addDoc(companiesRef, data)
     const newCompany: Company = { id: ref.id, ...data } as Company
-    setCompanies((prev) => {
+    setAllCompanies((prev) => {
       const updated = [...prev, newCompany]
       cacheSet('companies', updated)
       return updated
@@ -404,12 +539,18 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   // departamento, solo `settingsValue` cambia identidad — `companyValue`
   // mantiene la misma referencia y los 49 consumers de useCompany() no
   // re-renderean.
+  // `loading` expuesto: para consumers como CompanySelectorPage que necesitan
+  // saber si todavía falta filtrar (sin esperar accessLoaded, podrían auto-elegir
+  // una company que después desaparece).
+  const effectiveLoading = loading || !accessLoaded
+
   const companyValue = useMemo<CompanyContextValue>(
     () => ({
-      companies, selectedCompany, loading,
+      companies, allCompanies, selectedCompany,
+      loading: effectiveLoading,
       selectCompany, updateCompany, deleteCompany, addCompany,
     }),
-    [companies, selectedCompany, loading, selectCompany, updateCompany, deleteCompany, addCompany],
+    [companies, allCompanies, selectedCompany, effectiveLoading, selectCompany, updateCompany, deleteCompany, addCompany],
   )
 
   const settingsValue = useMemo<SettingsContextValue>(

@@ -1,17 +1,19 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { MapPin, Plus, LogOut, ArrowUpRight } from 'lucide-react'
+import { MapPin, Plus, LogOut, ArrowUpRight, Lock } from 'lucide-react'
 import { useCompany } from '@/core/hooks/use-company'
 import { useAuth } from '@/core/hooks/use-auth'
 import { CompanyLogo } from '@/core/ui/company-logo'
 import { Skeleton } from '@/core/ui/skeleton'
 import { HoverHint } from '@/components/ui/tooltip'
+import { OWNER_EMAIL } from '@/core/config/access-registry'
 import type { Company } from '@/core/types'
 
 export function CompanySelectorPage() {
   const { companies, loading, selectCompany, addCompany } = useCompany()
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+  const isOwner = (user?.email ?? '').toLowerCase() === OWNER_EMAIL
 
   useEffect(() => {
     if (loading) return
@@ -45,16 +47,18 @@ export function CompanySelectorPage() {
       </p>
 
       <div className="absolute top-3 right-3 md:top-[72px] md:right-8 z-10 flex items-center gap-1">
-        <HoverHint label="Crear compañía">
-          <button
-            type="button"
-            onClick={handleCreate}
-            className="w-9 h-9 rounded-lg grid place-items-center text-mid-gray hover:bg-smoke hover:text-dark-graphite transition-colors"
-            aria-label="Crear compañía"
-          >
-            <Plus className="w-[18px] h-[18px]" strokeWidth={1.5} />
-          </button>
-        </HoverHint>
+        {isOwner && (
+          <HoverHint label="Crear compañía">
+            <button
+              type="button"
+              onClick={handleCreate}
+              className="w-9 h-9 rounded-lg grid place-items-center text-mid-gray hover:bg-smoke hover:text-dark-graphite transition-colors"
+              aria-label="Crear compañía"
+            >
+              <Plus className="w-[18px] h-[18px]" strokeWidth={1.5} />
+            </button>
+          </HoverHint>
+        )}
         <HoverHint label="Cerrar sesión">
           <button
             type="button"
@@ -68,7 +72,7 @@ export function CompanySelectorPage() {
       </div>
 
       <div className="max-w-[1320px] mx-auto px-4 pt-20 pb-12 md:px-12 md:pt-40 md:pb-28">
-        {!hasCompanies ? (
+        {loading && !hasCompanies ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
             {Array.from({ length: 2 }).map((_, i) => (
               <div
@@ -82,6 +86,16 @@ export function CompanySelectorPage() {
                 </div>
               </div>
             ))}
+          </div>
+        ) : !hasCompanies ? (
+          <div className="max-w-xl mx-auto card-elevated rounded-2xl p-8 md:p-10 text-center">
+            <div className="w-12 h-12 rounded-full bg-smoke grid place-items-center mx-auto mb-4">
+              <Lock className="w-5 h-5 text-mid-gray" strokeWidth={1.5} />
+            </div>
+            <h2 className="text-subheading font-medium text-dark-graphite mb-2">Sin empresas asignadas</h2>
+            <p className="text-body text-mid-gray">
+              Aún no tienes acceso a ninguna empresa. Pide al propietario que te asigne una desde Cargos y Equipo.
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">

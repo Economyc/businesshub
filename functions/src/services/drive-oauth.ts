@@ -422,6 +422,40 @@ export async function uploadOrReplaceFile(
 }
 
 /**
+ * Borra un archivo de Drive por id. Idempotente: si el archivo ya no existe
+ * (404), devuelve `notFound: true` sin lanzar — el caller lo trata como éxito.
+ * Cualquier otro error de Drive sí se propaga (incluyendo invalid_grant y
+ * insufficient scopes, que se traducen vía runDrive a los errores tipados).
+ */
+export async function deleteDriveFile(
+  uid: string,
+  fileId: string,
+): Promise<{ deleted: boolean; notFound: boolean }> {
+  const drive = await getDriveForUser(uid)
+  return runDrive(uid, async () => {
+    try {
+      await drive.files.delete({ fileId, supportsAllDrives: true })
+      return { deleted: true, notFound: false }
+    } catch (err) {
+      // Detecta "no existe" cubriendo las formas en que googleapis lo devuelve:
+      // code numérico, code como string ("404"), status del response, o reason
+      // del payload ("notFound" en errors[0]).
+      const e = err as {
+        code?: number | string
+        response?: { status?: number; data?: { error?: { errors?: { reason?: string }[] } } }
+      }
+      const codeNum = typeof e.code === 'number' ? e.code : Number(e.code)
+      const status = Number.isFinite(codeNum) ? codeNum : e.response?.status
+      const reasons = e.response?.data?.error?.errors?.map((x) => x.reason) ?? []
+      if (status === 404 || reasons.includes('notFound')) {
+        return { deleted: false, notFound: true }
+      }
+      throw err
+    }
+  })
+}
+
+/**
  * Descarga un archivo de Drive y devuelve sus bytes + mimeType. Usado para
  * recuperar la factura y el comprobante ya subidos y fusionarlos en un PDF.
  */

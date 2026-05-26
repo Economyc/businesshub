@@ -128,6 +128,9 @@ export function usePermissionsLoader(): PermissionsContextValue {
   const canAccessPage = useCallback(
     (pageId: string) => {
       if (isOwner) return true
+      // Cargos (gestión de roles) es exclusivo del owner. Aunque un rol tenga
+      // pages['settings.roles'] habilitado en Firestore, se ignora.
+      if (pageId === 'settings.roles') return false
       const acts = role?.permissions?.pages?.[pageId]
       return Array.isArray(acts) && acts.length > 0
     },
@@ -137,6 +140,7 @@ export function usePermissionsLoader(): PermissionsContextValue {
   const can = useCallback<PermissionsContextValue['can']>(
     (pageId, action = 'read') => {
       if (isOwner) return true
+      if (pageId === 'settings.roles') return false
       const acts = role?.permissions?.pages?.[pageId]
       return Array.isArray(acts) && acts.includes(action)
     },
