@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Upload, X, FileText, ImageIcon, FileIcon, Loader2, AlertCircle, Check, Sparkles, ChevronDown } from 'lucide-react'
 import { httpsCallable } from 'firebase/functions'
@@ -125,7 +126,8 @@ function ConfidenceBadge({ level }: { level: 'high' | 'medium' | 'low' }) {
 export function PaymentUploadDialog({ open, onClose, onSaved, pendingInvoices }: PaymentUploadDialogProps) {
   const { selectedCompany } = useCompany()
   const companyId = selectedCompany?.id ?? ''
-  const { methods: paymentMethods } = usePaymentMethods()
+  const { methods: paymentMethods, loading: paymentMethodsLoading } = usePaymentMethods()
+  const navigate = useNavigate()
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dragCounter = useRef(0)
@@ -297,6 +299,7 @@ export function PaymentUploadDialog({ open, onClose, onSaved, pendingInvoices }:
     if (submitting || !file || !selectedInvoiceId || !paidDate) return false
     if (needsDocNumber && !docNumberInput.trim()) return false
     if (isDateTooOld(paidDate) && !dateConfirmed) return false
+    if (!paymentMethod) return false
     return true
   }
 
@@ -395,7 +398,7 @@ export function PaymentUploadDialog({ open, onClose, onSaved, pendingInvoices }:
         paymentProof,
         ...(combinedDocument ? { combinedDocument } : {}),
         ...(needsDocNumber ? { docNumber: docNumberInput.trim() } : {}),
-        ...(paymentMethod ? { paymentMethod } : {}),
+        paymentMethod,
       } as Partial<TransactionFormData>)
 
       queryClient.invalidateQueries({ queryKey: ['firestore', companyId, 'transactions'] })
@@ -623,15 +626,30 @@ export function PaymentUploadDialog({ open, onClose, onSaved, pendingInvoices }:
                   <DateInput value={paidDate} onChange={setPaidDate} />
                 </div>
                 <div>
-                  <label className="block text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1">Método de pago (opcional)</label>
-                  <SelectInput
-                    value={paymentMethod}
-                    onChange={setPaymentMethod}
-                    options={[
-                      { value: '', label: 'Sin especificar' },
-                      ...paymentMethods.map((m) => ({ value: m.name, label: m.name })),
-                    ]}
-                  />
+                  <label className="block text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1">Método de pago</label>
+                  {!paymentMethodsLoading && paymentMethods.length === 0 ? (
+                    <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-warning-bg/50 border border-warning/20 text-caption text-warning-text">
+                      <AlertCircle size={13} strokeWidth={1.5} className="mt-0.5 shrink-0" />
+                      <span>
+                        No tienes métodos de pago configurados.{' '}
+                        <button
+                          type="button"
+                          onClick={() => navigate('/settings/payment-methods')}
+                          className="font-medium underline underline-offset-2 hover:text-graphite transition-colors"
+                        >
+                          Créalos en Ajustes
+                        </button>
+                        .
+                      </span>
+                    </div>
+                  ) : (
+                    <SelectInput
+                      value={paymentMethod}
+                      onChange={setPaymentMethod}
+                      placeholder="Selecciona un método"
+                      options={paymentMethods.map((m) => ({ value: m.name, label: m.name }))}
+                    />
+                  )}
                 </div>
                 <StaleDateWarning
                   dateISO={paidDate}

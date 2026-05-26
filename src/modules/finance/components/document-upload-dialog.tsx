@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Upload, X, FileText, ImageIcon, FileIcon, Loader2, AlertCircle, Check, Sparkles } from 'lucide-react'
 import { httpsCallable } from 'firebase/functions'
@@ -84,7 +85,8 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
   const { selectedCompany } = useCompany()
   const companyId = selectedCompany?.id ?? ''
   const { data: suppliers } = useCollection<Supplier>('suppliers')
-  const { methods: paymentMethods } = usePaymentMethods()
+  const { methods: paymentMethods, loading: paymentMethodsLoading } = usePaymentMethods()
+  const navigate = useNavigate()
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dragCounter = useRef(0)
@@ -282,7 +284,10 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
     const isVirtual = kind === 'invoice' && mode === 'virtual'
     const hasFile = isVirtual ? true : !!file
     const dateOk = !isDateTooOld(date) || dateConfirmed
-    return !submitting && !analyzing && hasFile && hasSupplier && !!docNumber.trim() && !!date && dateOk && Number(amount) > 0 && !!category
+    // El método de pago es obligatorio en compras (status='paid'); en facturas
+    // se asigna al cruzar el pago, así que no se exige aquí.
+    const paymentMethodOk = kind !== 'purchase' || !!paymentMethod
+    return !submitting && !analyzing && hasFile && hasSupplier && !!docNumber.trim() && !!date && dateOk && Number(amount) > 0 && !!category && paymentMethodOk
   }
 
   async function handleSubmit() {
@@ -413,7 +418,7 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
         ...(combinedDocument ? { combinedDocument } : {}),
         ...(kind === 'invoice' ? { priority } : {}),
         ...(kind === 'purchase' ? { paidDate: dateTs } : {}),
-        ...(kind === 'purchase' && paymentMethod ? { paymentMethod } : {}),
+        ...(kind === 'purchase' ? { paymentMethod } : {}),
       })
 
       queryClient.invalidateQueries({ queryKey: ['firestore', companyId, 'transactions'] })
@@ -675,15 +680,30 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
               </div>
               {kind === 'purchase' && (
                 <div className="sm:col-span-2">
-                  <label className="block text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1">Método de pago (opcional)</label>
-                  <SelectInput
-                    value={paymentMethod}
-                    onChange={setPaymentMethod}
-                    options={[
-                      { value: '', label: 'Sin especificar' },
-                      ...paymentMethods.map((m) => ({ value: m.name, label: m.name })),
-                    ]}
-                  />
+                  <label className="block text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1">Método de pago</label>
+                  {!paymentMethodsLoading && paymentMethods.length === 0 ? (
+                    <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-warning-bg/50 border border-warning/20 text-caption text-warning-text">
+                      <AlertCircle size={13} strokeWidth={1.5} className="mt-0.5 shrink-0" />
+                      <span>
+                        No tienes métodos de pago configurados.{' '}
+                        <button
+                          type="button"
+                          onClick={() => navigate('/settings/payment-methods')}
+                          className="font-medium underline underline-offset-2 hover:text-graphite transition-colors"
+                        >
+                          Créalos en Ajustes
+                        </button>
+                        .
+                      </span>
+                    </div>
+                  ) : (
+                    <SelectInput
+                      value={paymentMethod}
+                      onChange={setPaymentMethod}
+                      placeholder="Selecciona un método"
+                      options={paymentMethods.map((m) => ({ value: m.name, label: m.name }))}
+                    />
+                  )}
                 </div>
               )}
               {kind === 'invoice' && (
