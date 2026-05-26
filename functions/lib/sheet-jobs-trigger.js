@@ -6,6 +6,15 @@
 //
 // Se marca el mes del estado ANTES y DESPUÉS del cambio: mover una factura entre
 // meses (cambio de paidDate, o pending→paid) debe regenerar ambos archivos.
+//
+// BUG firebase-functions v2 (visto en prod 2026-05-25): con este trigger
+// desplegado por gcloud, el evento NO se decodifica — el handler recibe el
+// protobuf crudo (DocumentEventData) y `event.data`/`event.params` llegan
+// vacíos, así que nunca se sabía qué cambió y el flag jamás se escribía
+// (latencia ~7 ms, sin commit). Ver issues firebase/firebase-functions #1659,
+// #1669. FALLBACK: si `event.data` no viene decodificado, extraemos la ruta del
+// documento del buffer crudo y releemos el estado actual de Firestore. Cuando
+// firebase-functions decodifique bien (futura versión) se usa la ruta nativa.
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { FieldValue } from 'firebase-admin/firestore';
 import { db } from './firestore.js';
@@ -27,6 +36,25 @@ function monthsForTx(tx, months) {
             months.add(currentYm().key);
     }
 }
+// Extrae la ruta `companies/{id}/transactions/{id}` del evento crudo cuando
+// firebase-functions no lo decodificó. El evento llega como bytes (protobuf
+// DocumentEventData con claves numéricas 0..N); el `name` del documento es
+// texto ASCII dentro del buffer.
+function extractDocPath(event) {
+    const ev = event;
+    const idx = [];
+    for (const k of Object.keys(ev)) {
+        if (/^\d+$/.test(k))
+            idx.push(Number(k));
+    }
+    if (idx.length === 0)
+        return null;
+    idx.sort((a, b) => a - b);
+    const bytes = Buffer.from(idx.map((i) => Number(ev[i]) & 0xff));
+    const s = bytes.toString('latin1');
+    const m = /companies\/[A-Za-z0-9_-]+\/transactions\/[A-Za-z0-9_-]+/.exec(s);
+    return m ? m[0] : null;
+}
 export const markSheetJobDirty = onDocumentWritten({
     document: 'companies/{companyId}/transactions/{txId}',
     region: 'us-central1',
@@ -38,9 +66,23 @@ export const markSheetJobDirty = onDocumentWritten({
     // si algún día se migra a `firebase deploy`).
     memory: '512MiB',
 }, async (event) => {
-    const { companyId } = event.params;
-    const before = event.data?.before?.exists ? event.data.before.data() : null;
-    const after = event.data?.after?.exists ? event.data.after.data() : null;
+    let companyId = event.params?.companyId;
+    let before = event.data?.before?.exists ? event.data.before.data() : null;
+    let after = event.data?.after?.exists ? event.data.after.data() : null;
+    // Fallback: firebase-functions no decodificó el evento (ver cabecera).
+    if (!event.data) {
+        const path = extractDocPath(event);
+        if (!path) {
+            console.warn('[markSheetJobDirty] evento no decodificado y sin ruta extraíble');
+            return;
+        }
+        companyId = path.split('/')[1];
+        const snap = await db.doc(path).get();
+        after = snap.exists ? snap.data() : null;
+        before = null; // estado previo no disponible en el fallback
+    }
+    if (!companyId)
+        return;
     const months = new Set();
     monthsForTx(before, months);
     monthsForTx(after, months);
@@ -62,5 +104,6 @@ export const markSheetJobDirty = onDocumentWritten({
         }, { merge: true });
     }
     await batch.commit();
+    console.log(`[markSheetJobDirty] ${companyId} → ${[...months].join(',')} (${event.data ? 'native' : 'fallback'})`);
 });
 //# sourceMappingURL=sheet-jobs-trigger.js.map
