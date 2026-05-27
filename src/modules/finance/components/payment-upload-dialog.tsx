@@ -10,6 +10,7 @@ import { modalVariants } from '@/core/animations/variants'
 import { getAppFunctions } from '@/core/firebase/config'
 import { useCompany } from '@/core/hooks/use-company'
 import { usePaymentMethods } from '@/modules/payment-methods/hooks'
+import { getPaymentMethodIcon } from '@/modules/payment-methods/icons'
 import { queryClient } from '@/core/query/query-client'
 import { formatCurrency } from '@/core/utils/format'
 import { financeService } from '../services'
@@ -647,7 +648,7 @@ export function PaymentUploadDialog({ open, onClose, onSaved, pendingInvoices }:
                       value={paymentMethod}
                       onChange={setPaymentMethod}
                       placeholder="Selecciona un método"
-                      options={paymentMethods.map((m) => ({ value: m.name, label: m.name }))}
+                      options={paymentMethods.map((m) => ({ value: m.name, label: m.name, icon: getPaymentMethodIcon(m) }))}
                     />
                   )}
                 </div>

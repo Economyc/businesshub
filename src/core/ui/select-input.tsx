@@ -1,11 +1,13 @@
 import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { ChevronDown, Check } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export interface SelectOption {
   value: string
   label: string
+  icon?: LucideIcon
 }
 
 interface SelectInputProps {
@@ -99,8 +101,11 @@ export function SelectInput({ value, onChange, options, placeholder = 'Seleccion
             : 'border-input-border hover:border-border-hover'
         )}
       >
-        <span className={selected ? 'text-graphite' : 'text-mid-gray/60'}>
-          {selected ? selected.label : placeholder}
+        <span className={cn('inline-flex items-center gap-2 min-w-0', selected ? 'text-graphite' : 'text-mid-gray/60')}>
+          {selected?.icon && (
+            <selected.icon size={14} strokeWidth={1.5} className="text-mid-gray shrink-0" />
+          )}
+          <span className="truncate">{selected ? selected.label : placeholder}</span>
         </span>
         <ChevronDown
           size={14}
@@ -127,13 +132,18 @@ export function SelectInput({ value, onChange, options, placeholder = 'Seleccion
               type="button"
               onClick={() => handleSelect(option.value)}
               className={cn(
-                'w-full flex items-center justify-between px-3 py-2 text-body text-left transition-colors duration-100',
+                'w-full flex items-center justify-between gap-2 px-3 py-2 text-body text-left transition-colors duration-100',
                 value === option.value
                   ? 'bg-bone text-dark-graphite font-medium'
                   : 'text-graphite hover:bg-bone/50'
               )}
             >
-              {option.label}
+              <span className="inline-flex items-center gap-2 min-w-0">
+                {option.icon && (
+                  <option.icon size={14} strokeWidth={1.5} className="text-mid-gray shrink-0" />
+                )}
+                <span className="truncate">{option.label}</span>
+              </span>
               {value === option.value && <Check size={14} className="text-graphite shrink-0" />}
             </button>
           ))}

@@ -13,6 +13,7 @@ import { getAppFunctions } from '@/core/firebase/config'
 import { useCompany } from '@/core/hooks/use-company'
 import { useCollection } from '@/core/hooks/use-firestore'
 import { usePaymentMethods } from '@/modules/payment-methods/hooks'
+import { getPaymentMethodIcon } from '@/modules/payment-methods/icons'
 import { queryClient } from '@/core/query/query-client'
 import { financeService } from '../services'
 import { generateVirtualInvoicePDF } from '../utils/generate-virtual-invoice-pdf'
@@ -701,7 +702,7 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
                       value={paymentMethod}
                       onChange={setPaymentMethod}
                       placeholder="Selecciona un método"
-                      options={paymentMethods.map((m) => ({ value: m.name, label: m.name }))}
+                      options={paymentMethods.map((m) => ({ value: m.name, label: m.name, icon: getPaymentMethodIcon(m) }))}
                     />
                   )}
                 </div>

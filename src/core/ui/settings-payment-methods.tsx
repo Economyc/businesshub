@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { CreditCard, Landmark, Banknote, ArrowLeftRight, Wallet, Pencil, Trash2, Plus, X } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
+import { Pencil, Trash2, Plus, X } from 'lucide-react'
 import { PageTransition } from '@/core/ui/page-transition'
 import { PageHeader } from '@/core/ui/page-header'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 import { SelectInput } from '@/core/ui/select-input'
 import { modalVariants } from '@/core/animations/variants'
 import { usePaymentMethods } from '@/modules/payment-methods/hooks'
+import { PAYMENT_METHOD_TYPE_ICON } from '@/modules/payment-methods/icons'
 import {
   PAYMENT_METHOD_TYPE_LABELS,
   PAYMENT_METHOD_TYPE_ORDER,
@@ -18,23 +18,14 @@ import {
 const inputClass =
   'w-full px-3 py-2.5 rounded-lg border border-input-border bg-input-bg text-body text-graphite placeholder:text-mid-gray/60 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200'
 
-const TYPE_ICON: Record<PaymentMethodType, LucideIcon> = {
-  credit_card: CreditCard,
-  debit_card: CreditCard,
-  savings_account: Landmark,
-  checking_account: Landmark,
-  cash: Banknote,
-  transfer: ArrowLeftRight,
-  other: Wallet,
-}
-
 const TYPE_OPTIONS = PAYMENT_METHOD_TYPE_ORDER.map((t) => ({
   value: t,
   label: PAYMENT_METHOD_TYPE_LABELS[t],
+  icon: PAYMENT_METHOD_TYPE_ICON[t],
 }))
 
 function TypeBadge({ type }: { type: PaymentMethodType }) {
-  const Icon = TYPE_ICON[type]
+  const Icon = PAYMENT_METHOD_TYPE_ICON[type]
   return (
     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border/60 bg-bone/40 text-caption text-mid-gray">
       <Icon size={13} strokeWidth={1.5} />
