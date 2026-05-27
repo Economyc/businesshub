@@ -40,7 +40,6 @@ import {
   shiftHours,
   formatHours,
   formatShiftRange,
-  formatShiftRangeCompact,
   shiftsOverlap,
   parseDateStr,
   buildScheduleSheet,
@@ -521,8 +520,7 @@ export function ScheduleView({ allowedDepartments }: { allowedDepartments?: stri
 function ShiftChipContent({ shift }: { shift: Shift }) {
   return (
     <>
-      <span className="block text-caption text-positive-text font-medium whitespace-nowrap 2xl:hidden">{formatShiftRangeCompact(shift.start, shift.end)}</span>
-      <span className="hidden 2xl:block text-caption text-positive-text font-medium whitespace-nowrap">{formatShiftRange(shift.start, shift.end)}</span>
+      <span className="block text-caption text-positive-text font-medium whitespace-nowrap">{formatShiftRange(shift.start, shift.end)}</span>
       <span className="block text-caption text-positive-text/70">
         {formatHours(shiftHours(shift.start, shift.end, shift.breakMin))}
         {shift.notes ? ' · ' + shift.notes : ''}
