@@ -170,8 +170,9 @@ export function buildScheduleSheet(args: {
 
   const dayKeys = dates.map((_, i) => `d${i}`)
   const fields: FieldDef[] = [
-    { key: 'departamento', header: 'Departamento', type: 'string' },
     { key: 'empleado', header: 'Empleado', type: 'string' },
+    { key: 'documento', header: 'Documento', type: 'string' },
+    { key: 'departamento', header: 'Departamento', type: 'string' },
     ...dates.map((d, i) => ({
       key: dayKeys[i],
       header: `${WEEKDAY_LABELS[i]} ${parseDateStr(d).getDate()}`,
@@ -192,8 +193,9 @@ export function buildScheduleSheet(args: {
   for (const group of groups) {
     for (const emp of group.employees) {
       const row: Record<string, unknown> = {
-        departamento: group.department,
         empleado: emp.name,
+        documento: emp.identification ?? '',
+        departamento: group.department,
         total: formatHours(metrics.get(emp.id)?.hours ?? 0),
       }
       dates.forEach((d, i) => { row[dayKeys[i]] = cellText(emp.id, d) })
@@ -203,8 +205,9 @@ export function buildScheduleSheet(args: {
 
   // Fila de totales por día (mismo cálculo que el footer de la grilla).
   const totalRow: Record<string, unknown> = {
-    departamento: '',
     empleado: 'Total semana',
+    documento: '',
+    departamento: '',
     total: formatHours(weekTotal),
   }
   dates.forEach((d, i) => {
