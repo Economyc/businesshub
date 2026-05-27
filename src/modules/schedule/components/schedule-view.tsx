@@ -40,6 +40,7 @@ import {
   shiftHours,
   formatHours,
   formatShiftRange,
+  formatShiftRangeCompact,
   shiftsOverlap,
   parseDateStr,
   buildScheduleSheet,
@@ -474,7 +475,7 @@ export function ScheduleView({ allowedDepartments }: { allowedDepartments?: stri
         </div>
         <DragOverlay>
           {activeShift ? (
-            <div className="rounded-lg border border-positive-text/40 bg-positive-bg px-2 py-1 cursor-grabbing">
+            <div className="@container/chip rounded-lg border border-positive-text/40 bg-positive-bg px-2 py-1 cursor-grabbing">
               <ShiftChipContent shift={activeShift} />
             </div>
           ) : null}
@@ -520,7 +521,8 @@ export function ScheduleView({ allowedDepartments }: { allowedDepartments?: stri
 function ShiftChipContent({ shift }: { shift: Shift }) {
   return (
     <>
-      <span className="block text-caption text-positive-text font-medium whitespace-nowrap">{formatShiftRange(shift.start, shift.end)}</span>
+      <span className="block text-caption text-positive-text font-medium whitespace-nowrap @[140px]/chip:hidden">{formatShiftRangeCompact(shift.start, shift.end)}</span>
+      <span className="hidden text-caption text-positive-text font-medium whitespace-nowrap @[140px]/chip:block">{formatShiftRange(shift.start, shift.end)}</span>
       <span className="block text-caption text-positive-text/70">
         {formatHours(shiftHours(shift.start, shift.end, shift.breakMin))}
         {shift.notes ? ' · ' + shift.notes : ''}
@@ -546,7 +548,7 @@ function DraggableShift({ shift, canEdit, onEdit }: { shift: Shift; canEdit: boo
       onClick={canEdit ? (e) => { e.stopPropagation(); onEdit() } : undefined}
       style={{ touchAction: 'none' }}
       className={
-        'w-full text-left rounded-lg border border-positive-text/15 bg-positive-bg px-2 py-1 transition-colors hover:border-positive-text/35 ' +
+        '@container/chip w-full text-left rounded-lg border border-positive-text/15 bg-positive-bg px-2 py-1 transition-colors hover:border-positive-text/35 ' +
         (canEdit ? 'cursor-grab ' : '') +
         (isDragging ? 'opacity-40' : '')
       }
