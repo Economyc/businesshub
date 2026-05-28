@@ -17,6 +17,7 @@ import { db } from './firestore.js'
 import { LLMRouter } from './llm-router.js'
 import { extractWithFallback, ExtractionFailedError } from './extract-with-fallback.js'
 import { getUsageSnapshot, type UsageSnapshot } from './ai-usage-stats.js'
+import { parseCopAmount } from './parse-cop.js'
 
 const geminiApiKey = defineSecret('GEMINI_API_KEY')
 const groqApiKey = defineSecret('GROQ_API_KEY')
@@ -61,9 +62,13 @@ const ExtractionSchema = z.object({
   date: z
     .string()
     .describe('Fecha de emisión del documento en formato YYYY-MM-DD. Cadena vacía si no es clara.'),
-  amount: z
-    .number()
-    .describe('Valor total a pagar en pesos colombianos, sin separadores ni símbolos. 0 si no es claro.'),
+  amountRaw: z
+    .string()
+    .describe(
+      'El valor total a pagar EXACTAMENTE como aparece impreso en el documento, ' +
+      'con sus separadores y símbolo tal cual (ej. "$1.197.773,00" o "10.200,40"). ' +
+      'NO conviertas ni quites separadores. Cadena vacía si no es claro.',
+    ),
   category: z
     .string()
     .describe('Categoría que mejor describe el gasto. Si la lista de categorías existentes contiene una apropiada, devuelve EXACTAMENTE ese nombre. Si ninguna calza, propone una nueva en español capitalizada (ej. "Servicios Públicos").'),
@@ -79,9 +84,14 @@ const EMPTY_EXTRACTION: Extraction = {
   supplierName: '',
   docNumber: '',
   date: '',
-  amount: 0,
+  amountRaw: '',
   category: '',
   notes: undefined,
+}
+
+// Forma que consume el cliente: el monto ya parseado a entero de pesos.
+interface ClientExtraction extends Omit<Extraction, 'amountRaw'> {
+  amount: number
 }
 
 function normalize(s: string): string {
@@ -172,7 +182,7 @@ export const analyzeInvoiceDocument = onCall(
       `- supplierName: razón social o nombre comercial del proveedor que EMITE el documento (no el cliente).\n` +
       `- docNumber: solo el número/código de la factura, recibo o cuenta de cobro.\n` +
       `- date: fecha de emisión en YYYY-MM-DD.\n` +
-      `- amount: total a pagar (sin separadores ni símbolos), solo el número.\n` +
+      `- amountRaw: el total a pagar TAL CUAL aparece impreso, con sus separadores y símbolo (ej. "$1.197.773,00" o "10.200,40"). No conviertas ni quites separadores.\n` +
       `- category: ${categoryHint}\n` +
       `- notes (opcional): 1 línea con concepto o descripción si aparece.\n\n` +
       `Si algún campo no se puede leer con seguridad, déjalo vacío (string vacío o 0). NO inventes datos.`
@@ -216,6 +226,14 @@ export const analyzeInvoiceDocument = onCall(
 
     const categoryExists = categoryItems.includes(extracted.category)
 
+    // Parseo determinista del monto (formato CO). El modelo solo transcribe el
+    // literal en amountRaw; aquí lo convertimos a entero de pesos.
+    const { amountRaw, ...rest } = extracted
+    const clientExtracted: ClientExtraction = {
+      ...rest,
+      amount: parseCopAmount(amountRaw),
+    }
+
     // Snapshot mensual de uso IA (fail-soft: si Firestore falla, omitimos).
     let usage: UsageSnapshot | undefined
     try {
@@ -225,7 +243,7 @@ export const analyzeInvoiceDocument = onCall(
     }
 
     return {
-      extracted,
+      extracted: clientExtracted,
       supplierMatch,
       categoryExists,
       extractionFailed,

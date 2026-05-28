@@ -15,6 +15,7 @@ import { db } from './firestore.js'
 import { LLMRouter } from './llm-router.js'
 import { extractWithFallback, ExtractionFailedError } from './extract-with-fallback.js'
 import { getUsageSnapshot, type UsageSnapshot } from './ai-usage-stats.js'
+import { parseCopAmount } from './parse-cop.js'
 
 const geminiApiKey = defineSecret('GEMINI_API_KEY')
 const groqApiKey = defineSecret('GROQ_API_KEY')
@@ -52,9 +53,13 @@ const ExtractionSchema = z.object({
   supplierName: z
     .string()
     .describe('Nombre del proveedor o beneficiario que recibe el pago. Vacío si no es claro.'),
-  amount: z
-    .number()
-    .describe('Monto total del pago en pesos colombianos, sin separadores. 0 si no es claro.'),
+  amountRaw: z
+    .string()
+    .describe(
+      'El monto total del pago EXACTAMENTE como aparece impreso en el comprobante, ' +
+      'con sus separadores y símbolo tal cual (ej. "$1.197.773,00" o "10.200,40"). ' +
+      'NO conviertas ni quites separadores. Cadena vacía si no es claro.',
+    ),
   date: z
     .string()
     .describe('Fecha del pago en formato YYYY-MM-DD. Cadena vacía si no es clara.'),
@@ -68,9 +73,14 @@ type Extraction = z.infer<typeof ExtractionSchema>
 
 const EMPTY_EXTRACTION: Extraction = {
   supplierName: '',
-  amount: 0,
+  amountRaw: '',
   date: '',
   referenceNumber: undefined,
+}
+
+// Forma que consume el cliente: el monto ya parseado a entero de pesos.
+interface ClientExtraction extends Omit<Extraction, 'amountRaw'> {
+  amount: number
 }
 
 function normalize(s: string): string {
@@ -152,8 +162,9 @@ export const analyzePaymentReceipt = onCall(
       'Este es un comprobante de pago (transferencia, recibo, soporte bancario, etc.). ' +
       'Extrae el nombre del proveedor/beneficiario que RECIBE el dinero, el monto pagado, ' +
       'la fecha del pago y un número de referencia si aparece visible. ' +
-      'Para amount devuelve solo el número sin separadores ni símbolo. ' +
-      'Si algún campo no está claro, déjalo vacío (string vacío o 0). NO inventes datos.'
+      'Para amountRaw devuelve el monto TAL CUAL aparece impreso, con sus separadores y símbolo ' +
+      '(ej. "$1.197.773,00" o "10.200,40"); no conviertas ni quites separadores. ' +
+      'Si algún campo no está claro, déjalo vacío. NO inventes datos.'
 
     let extracted: Extraction = EMPTY_EXTRACTION
     let extractionFailed = false
@@ -179,6 +190,14 @@ export const analyzePaymentReceipt = onCall(
       } else {
         console.error('[analyzePaymentReceipt] unexpected error:', err)
       }
+    }
+
+    // Parseo determinista del monto (formato CO). El modelo solo transcribe el
+    // literal en amountRaw; aquí lo convertimos a entero de pesos.
+    const { amountRaw, ...rest } = extracted
+    const clientExtracted: ClientExtraction = {
+      ...rest,
+      amount: parseCopAmount(amountRaw),
     }
 
     // 2) Traer facturas pendientes de la empresa. Incluye 'overdue': las
@@ -207,9 +226,9 @@ export const analyzePaymentReceipt = onCall(
 
     // 3) Rankear contra el extracted. Combina similitud de nombre + cercanía de monto.
     const candidates: CandidateInternal[] = pendings.map((p) => {
-      const nameScore = nameSimilarity(extracted.supplierName, p.supplierName)
+      const nameScore = nameSimilarity(clientExtracted.supplierName, p.supplierName)
       const amountDeltaPct = p.amount > 0
-        ? Math.abs(extracted.amount - p.amount) / p.amount
+        ? Math.abs(clientExtracted.amount - p.amount) / p.amount
         : 1
       const amountScore = Math.max(0, 1 - amountDeltaPct * 4)
       const score = nameScore * 0.6 + amountScore * 0.4
@@ -253,9 +272,9 @@ export const analyzePaymentReceipt = onCall(
     // 5) Fallback adicional: si la extracción no dio nombre pero hay UNA SOLA factura
     //    pendiente con monto exacto (±2%), sugerirla con confianza media. Esto cubre
     //    comprobantes bancarios COL (Bancolombia/Nequi/PSE) que rara vez traen nombre.
-    if (!suggestion && extracted.amount > 0) {
+    if (!suggestion && clientExtracted.amount > 0) {
       const exactAmount = candidates.filter(
-        (c) => Math.abs(extracted.amount - c.amount) / c.amount <= 0.02,
+        (c) => Math.abs(clientExtracted.amount - c.amount) / c.amount <= 0.02,
       )
       if (exactAmount.length === 1) {
         const c = exactAmount[0]
@@ -279,7 +298,7 @@ export const analyzePaymentReceipt = onCall(
     }
 
     return {
-      extracted,
+      extracted: clientExtracted,
       suggestion,
       candidates: candidates.map((c) => ({
         invoiceId: c.invoiceId,

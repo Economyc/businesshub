@@ -1,11 +1,27 @@
+import { z } from 'zod';
 import { type UsageSnapshot } from './ai-usage-stats.js';
+declare const ExtractionSchema: z.ZodObject<{
+    supplierName: z.ZodString;
+    amountRaw: z.ZodString;
+    date: z.ZodString;
+    referenceNumber: z.ZodOptional<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    date: string;
+    supplierName: string;
+    amountRaw: string;
+    referenceNumber?: string | undefined;
+}, {
+    date: string;
+    supplierName: string;
+    amountRaw: string;
+    referenceNumber?: string | undefined;
+}>;
+type Extraction = z.infer<typeof ExtractionSchema>;
+interface ClientExtraction extends Omit<Extraction, 'amountRaw'> {
+    amount: number;
+}
 export declare const analyzePaymentReceipt: import("firebase-functions/v2/https").CallableFunction<any, Promise<{
-    extracted: {
-        date: string;
-        amount: number;
-        supplierName: string;
-        referenceNumber?: string | undefined;
-    };
+    extracted: ClientExtraction;
     suggestion: {
         invoiceId: string;
         docNumber: string;
@@ -27,4 +43,5 @@ export declare const analyzePaymentReceipt: import("firebase-functions/v2/https"
     fallbackUsed: boolean;
     usage: UsageSnapshot | undefined;
 }>, unknown>;
+export {};
 //# sourceMappingURL=analyze-payment-receipt.d.ts.map

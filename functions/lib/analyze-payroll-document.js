@@ -22,27 +22,16 @@ import { db } from './firestore.js';
 import { LLMRouter, isRateLimitError, isCreditDepletedError, parseRetryAfter, } from './llm-router.js';
 import { extractWithFallback, ExtractionFailedError } from './extract-with-fallback.js';
 import { getUsageSnapshot, recordUsage, providerToField, } from './ai-usage-stats.js';
+import { parseCopAmount } from './parse-cop.js';
 /** Tamaño máx. del archivo en base64 (~9 MB reales). Evita OOM / límite callable. */
 const MAX_FILE_B64 = 12_000_000;
 /** Cooldown largo cuando un provider se quedó sin créditos prepagados. */
 const CREDITS_DEPLETED_COOLDOWN_MS = 6 * 60 * 60 * 1000;
 // Montos colombianos: "1.197.773" / "$1.197.773,00" / 1197773. El modelo a
 // veces devuelve string o un número mal tokenizado por el separador de miles.
-// Limpiamos a entero de pesos (descartando centavos tras la coma).
-function parseCop(v) {
-    if (typeof v === 'number')
-        return Number.isFinite(v) ? Math.round(v) : 0;
-    if (typeof v !== 'string')
-        return 0;
-    let s = v.replace(/[^\d.,]/g, '');
-    const comma = s.indexOf(',');
-    if (comma !== -1)
-        s = s.slice(0, comma);
-    s = s.replace(/\./g, '');
-    const n = Number(s);
-    return Number.isFinite(n) ? n : 0;
-}
-const copNumber = z.preprocess(parseCop, z.number().nonnegative());
+// parseCopAmount (parse-cop.ts) desambigua decimal vs miles para formato CO/US
+// y devuelve entero de pesos.
+const copNumber = z.preprocess(parseCopAmount, z.number().nonnegative());
 const geminiApiKey = defineSecret('GEMINI_API_KEY');
 const groqApiKey = defineSecret('GROQ_API_KEY');
 const cerebrasApiKey = defineSecret('CEREBRAS_API_KEY');
@@ -109,7 +98,7 @@ const COLILLA_PROMPT = 'Este documento es un desprendible/colilla de liquidació
     'Si algún campo no se puede leer con seguridad, déjalo vacío (string vacío o 0). NO inventes datos.';
 const PROPINAS_PROMPT = 'Este documento es una tabla con las propinas a pagar a los empleados de un local ' +
     '(columnas típicas: nombre del empleado y valor a pagar). ' +
-    'Extrae una fila por empleado con employeeName y amount (solo el número, sin separadores ni símbolos). ' +
+    'Extrae una fila por empleado con employeeName y amount (el valor TAL CUAL aparece, con sus separadores y símbolo si los tiene; no conviertas). ' +
     'NO incluyas la fila de total ni filas vacías. Si hay un total explícito, devuélvelo en "total". ' +
     'NO inventes empleados ni valores.';
 // Singleton router (sobrevive entre invocaciones warm).

@@ -29,6 +29,22 @@ describe('parseAmountCO', () => {
     expect(parseAmountCO('1234,56')).toBe(1234.56)
   })
 
+  it('factura CO con centavos (no inflar a millones)', () => {
+    expect(parseAmountCO('10.200,40')).toBe(10200.4)
+  })
+
+  it('factura CO con símbolo y centavos en cero', () => {
+    expect(parseAmountCO('$1.197.773,00')).toBe(1197773)
+  })
+
+  it('punto único como miles (grupo de 3)', () => {
+    expect(parseAmountCO('1.500')).toBe(1500)
+  })
+
+  it('dígitos planos sin separadores', () => {
+    expect(parseAmountCO('1197773')).toBe(1197773)
+  })
+
   it('punto decimal simple (no grupo de 3)', () => {
     expect(parseAmountCO('1234.5')).toBe(1234.5)
   })
