@@ -22,7 +22,13 @@ import { db } from './config'
 // repiten entre locales, así que se mantienen en una sola lista. Todos los
 // consumidores (UI, helpers paginados, prefetch, Cloud Functions vía
 // `functions/src/firestore.ts`) pasan por estos chokepoints.
-const ROOT_COLLECTIONS = new Set(['suppliers'])
+//
+// `noveltyTypes`: catálogo de tipos de novedad de Horarios (Cumpleaños, Descanso,
+// Incapacidad…). Es el mismo catálogo para todos los locales, así que se globaliza
+// igual que `suppliers`: el Owner lo define una vez y todas las companies lo ven.
+// Las novedades aplicadas a la grilla (`novelties`) SÍ siguen scopeadas por company
+// (guardan snapshot de typeName+color, no hacen lookup por typeId).
+const ROOT_COLLECTIONS = new Set(['suppliers', 'noveltyTypes'])
 
 export function companyCollection(companyId: string, collectionName: string) {
   if (ROOT_COLLECTIONS.has(collectionName)) {

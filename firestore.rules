@@ -27,6 +27,14 @@ service cloud.firestore {
       allow read, write: if request.auth != null;
     }
 
+    // Catálogo de tipos de novedad de Horarios compartido entre todas las
+    // companies. Vive en la raíz (no bajo companies/) porque el catálogo es el
+    // mismo para todos los locales — el Owner lo define una vez. Las novedades
+    // aplicadas a la grilla siguen scopeadas bajo companies/{id}/novelties.
+    match /noveltyTypes/{typeId} {
+      allow read, write: if request.auth != null;
+    }
+
     // LLM rate-limits: solo Admin SDK desde Cloud Functions
     match /system/llm-rate-limits/{document=**} {
       allow read, write: if false;
