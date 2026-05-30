@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react'
-import { Copy, Send, Settings2, Plus, AlertTriangle, Clock, Tag, Lock } from 'lucide-react'
+import { Copy, Send, Settings2, Plus, AlertTriangle, Clock, Tag, Lock, Check } from 'lucide-react'
 import {
   DndContext,
   DragOverlay,
@@ -46,6 +46,7 @@ import {
   buildScheduleSheet,
   WEEKDAY_LABELS,
 } from './schedule-utils'
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 import { CellForm } from './cell-form'
 import { TemplateManager } from './template-manager'
 import { NoveltyTypeManager } from './novelty-type-manager'
@@ -83,6 +84,11 @@ export function ScheduleView({ allowedDepartments }: { allowedDepartments?: stri
   const [templatesOpen, setTemplatesOpen] = useState(false)
   const [noveltyTypesOpen, setNoveltyTypesOpen] = useState(false)
   const [busy, setBusy] = useState(false)
+  // Copiar semana → replicar a semanas seleccionadas.
+  const [copyOpen, setCopyOpen] = useState(false)
+  const [targets, setTargets] = useState<Set<string>>(new Set())
+  const [weekInfo, setWeekInfo] = useState<Record<string, { hasData: boolean; isPublished: boolean }>>({})
+  const [loadingWeeks, setLoadingWeeks] = useState(false)
 
   const weekKey = weekKeyOf(monday)
   const dates = useMemo(() => weekDates(monday), [monday])
@@ -191,25 +197,73 @@ export function ScheduleView({ allowedDepartments }: { allowedDepartments?: stri
   // Publicar congela la semana: la grilla pasa a solo-lectura hasta despublicar.
   const editable = canEdit && !isPublished
 
-  async function copyPrevWeek() {
-    if (!selectedCompany || busy || isPublished) return
+  // Las próximas 8 semanas como posibles destinos para replicar el horario actual.
+  const targetWeeks = useMemo(
+    () => Array.from({ length: 8 }, (_, i) => {
+      const m = addWeeks(monday, i + 1)
+      return { monday: m, weekKey: weekKeyOf(m), label: weekLabel(m) }
+    }),
+    [monday],
+  )
+  // ¿Hay algo en la semana visible para copiar? (sin filtrar por departamento)
+  const canCopy = allShifts.length > 0 || allNovelties.length > 0
+  // Semanas marcadas que sí se pueden escribir (excluye las publicadas).
+  const selectedValidCount = targetWeeks.filter(
+    (w) => targets.has(w.weekKey) && !weekInfo[w.weekKey]?.isPublished,
+  ).length
+
+  // Al abrir el popover, releva el estado de cada semana destino (tiene datos / publicada).
+  async function openCopy() {
+    if (!selectedCompany) return
+    setTargets(new Set())
+    setWeekInfo({})
+    setCopyOpen(true)
+    setLoadingWeeks(true)
+    try {
+      const entries = await Promise.all(targetWeeks.map(async (w) => {
+        const [s, n, wk] = await Promise.all([
+          scheduleService.getShiftsByWeek(selectedCompany.id, w.weekKey),
+          scheduleService.getNoveltiesByWeek(selectedCompany.id, w.weekKey),
+          scheduleService.getWeek(selectedCompany.id, w.weekKey),
+        ])
+        return [w.weekKey, { hasData: s.length > 0 || n.length > 0, isPublished: wk.status === 'published' }] as const
+      }))
+      setWeekInfo(Object.fromEntries(entries))
+    } finally {
+      setLoadingWeeks(false)
+    }
+  }
+
+  function toggleTarget(weekKey: string) {
+    setTargets((prev) => {
+      const next = new Set(prev)
+      if (next.has(weekKey)) next.delete(weekKey)
+      else next.add(weekKey)
+      return next
+    })
+  }
+
+  // Replica la semana visible (todos los departamentos) a las semanas marcadas;
+  // reemplaza por completo el contenido previo de cada destino.
+  async function replicate() {
+    if (!selectedCompany || busy) return
+    const chosen = targetWeeks.filter((w) => targets.has(w.weekKey) && !weekInfo[w.weekKey]?.isPublished)
+    if (chosen.length === 0) return
     setBusy(true)
     try {
-      const prevMonday = addWeeks(monday, -1)
-      const prevWeekKey = weekKeyOf(prevMonday)
-      const [prevShifts, prevNovelties] = await Promise.all([
-        scheduleService.getShiftsByWeek(selectedCompany.id, prevWeekKey),
-        scheduleService.getNoveltiesByWeek(selectedCompany.id, prevWeekKey),
-      ])
-      if (prevShifts.length === 0 && prevNovelties.length === 0) return
-      const prevDates = weekDates(prevMonday)
-      const dateMap: Record<string, string> = {}
-      prevDates.forEach((d, i) => { dateMap[d] = dates[i] })
-      await Promise.all([
-        scheduleService.copyWeek(selectedCompany.id, prevShifts, weekKey, dateMap),
-        scheduleService.copyNovelties(selectedCompany.id, prevNovelties, weekKey, dateMap),
-      ])
-      await Promise.all([refetchShifts(), refetchNovelties()])
+      for (const w of chosen) {
+        const destDates = weekDates(w.monday)
+        const dateMap: Record<string, string> = {}
+        dates.forEach((d, i) => { dateMap[d] = destDates[i] })
+        await scheduleService.clearWeek(selectedCompany.id, w.weekKey)
+        await Promise.all([
+          scheduleService.copyWeek(selectedCompany.id, allShifts, w.weekKey, dateMap),
+          scheduleService.copyNovelties(selectedCompany.id, allNovelties, w.weekKey, dateMap),
+        ])
+        queryClient.invalidateQueries({ queryKey: ['firestore', selectedCompany.id, 'shifts', w.weekKey] })
+        queryClient.invalidateQueries({ queryKey: ['firestore', selectedCompany.id, 'novelties', w.weekKey] })
+      }
+      setCopyOpen(false)
     } finally {
       setBusy(false)
     }
@@ -250,22 +304,71 @@ export function ScheduleView({ allowedDepartments }: { allowedDepartments?: stri
         />
         {canEdit && (
           <>
-            <button
-              type="button"
-              onClick={copyPrevWeek}
-              disabled={busy || isPublished || shifts.length > 0 || novelties.length > 0}
-              title={
-                isPublished
-                  ? 'La semana está publicada; despublícala para editar'
-                  : shifts.length > 0 || novelties.length > 0
-                    ? 'La semana ya tiene turnos o novedades'
-                    : 'Copiar la semana anterior'
-              }
-              className="flex items-center gap-2 px-3.5 py-2 rounded-lg border border-input-border bg-input-bg text-body text-graphite hover:bg-bone transition-all duration-200 disabled:opacity-50"
-            >
-              <Copy size={15} strokeWidth={1.5} />
-              Copiar semana
-            </button>
+            <Popover open={copyOpen} onOpenChange={(o: boolean) => (o ? openCopy() : setCopyOpen(false))}>
+              <PopoverTrigger
+                type="button"
+                disabled={busy || !canCopy}
+                title={canCopy ? 'Copiar esta semana a otras semanas' : 'No hay horario para copiar'}
+                className="flex items-center gap-2 px-3.5 py-2 rounded-lg border border-input-border bg-input-bg text-body text-graphite hover:bg-bone transition-all duration-200 disabled:opacity-50"
+              >
+                <Copy size={15} strokeWidth={1.5} />
+                Copiar semana
+              </PopoverTrigger>
+              <PopoverContent className="w-72 p-0">
+                <div className="px-3 py-2.5 border-b border-border/60">
+                  <p className="text-body font-semibold text-graphite">Copiar a otras semanas</p>
+                  <p className="text-caption text-mid-gray">Marca a cuáles replicar este horario.</p>
+                </div>
+                <div className="max-h-72 overflow-y-auto p-1.5">
+                  {loadingWeeks ? (
+                    <p className="px-2 py-3 text-caption text-mid-gray">Cargando semanas…</p>
+                  ) : (
+                    targetWeeks.map((w) => {
+                      const info = weekInfo[w.weekKey]
+                      const published = info?.isPublished
+                      const selected = targets.has(w.weekKey)
+                      return (
+                        <button
+                          key={w.weekKey}
+                          type="button"
+                          disabled={published}
+                          onClick={() => toggleTarget(w.weekKey)}
+                          className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-left hover:bg-bone transition-colors duration-150 disabled:opacity-50 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                        >
+                          <span
+                            className={
+                              selected
+                                ? 'flex items-center justify-center w-4 h-4 rounded border bg-graphite border-graphite text-bone'
+                                : 'flex items-center justify-center w-4 h-4 rounded border border-input-border'
+                            }
+                          >
+                            {selected && <Check size={11} strokeWidth={2.5} />}
+                          </span>
+                          <span className="flex-1 min-w-0">
+                            <span className="block text-body text-graphite truncate">{w.label}</span>
+                            {published ? (
+                              <span className="text-caption text-mid-gray">Publicada — no editable</span>
+                            ) : info?.hasData ? (
+                              <span className="text-caption text-warning-text">Tiene horario — se reemplazará</span>
+                            ) : null}
+                          </span>
+                        </button>
+                      )
+                    })
+                  )}
+                </div>
+                <div className="px-3 py-2.5 border-t border-border/60">
+                  <button
+                    type="button"
+                    onClick={replicate}
+                    disabled={busy || selectedValidCount === 0}
+                    className="w-full flex items-center justify-center gap-2 px-3.5 py-2 rounded-lg bg-graphite text-bone text-body hover:opacity-90 transition-all duration-200 disabled:opacity-50"
+                  >
+                    {busy ? 'Replicando…' : selectedValidCount > 0 ? `Replicar (${selectedValidCount})` : 'Replicar'}
+                  </button>
+                </div>
+              </PopoverContent>
+            </Popover>
             <button
               type="button"
               onClick={() => setTemplatesOpen(true)}

@@ -38,6 +38,18 @@ export const scheduleService = {
 
   removeShift: (companyId: string, id: string) => removeDocument(companyId, SHIFTS, id),
 
+  /** Borra todos los turnos y novedades de una semana (usado al reemplazar al replicar). */
+  clearWeek: async (companyId: string, weekKey: string): Promise<void> => {
+    const [shifts, novelties] = await Promise.all([
+      fetchCollection<Shift>(companyId, SHIFTS, where('weekKey', '==', weekKey)),
+      fetchCollection<Novelty>(companyId, NOVELTIES, where('weekKey', '==', weekKey)),
+    ])
+    await Promise.all([
+      ...shifts.map((s) => removeDocument(companyId, SHIFTS, s.id)),
+      ...novelties.map((n) => removeDocument(companyId, NOVELTIES, n.id)),
+    ])
+  },
+
   /** Clona los turnos de `fromWeekKey` a `toWeekKey` (con sus fechas trasladadas +7 días). */
   copyWeek: async (
     companyId: string,
