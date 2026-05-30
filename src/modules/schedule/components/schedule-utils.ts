@@ -128,16 +128,33 @@ export function shiftsOverlap(a: Shift, b: Shift): boolean {
   return aStart < bEnd && bStart < aEnd
 }
 
-/** Agrupa empleados por departamento, ordenados; sin depto → "Sin departamento". */
-export function groupByDepartment(employees: Employee[]): { department: string; employees: Employee[] }[] {
+/**
+ * Agrupa empleados por departamento; sin depto → "Sin departamento".
+ * Si se pasa `order`, las secciones siguen ese orden (case-insensitive) y los
+ * departamentos fuera de la lista van al final, alfabéticos entre sí. Sin
+ * `order` el orden es alfabético (comportamiento por defecto en App1).
+ */
+export function groupByDepartment(
+  employees: Employee[],
+  order?: string[],
+): { department: string; employees: Employee[] }[] {
   const map = new Map<string, Employee[]>()
   for (const e of employees) {
     const dep = e.department?.trim() || 'Sin departamento'
     if (!map.has(dep)) map.set(dep, [])
     map.get(dep)!.push(e)
   }
+  const rank = (d: string) => {
+    if (!order) return -1
+    const i = order.findIndex((o) => o.toLowerCase() === d.toLowerCase())
+    return i === -1 ? Infinity : i
+  }
   return [...map.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
+    .sort(([a], [b]) => {
+      const ra = rank(a)
+      const rb = rank(b)
+      return ra !== rb ? ra - rb : a.localeCompare(b)
+    })
     .map(([department, list]) => ({
       department,
       employees: list.sort((a, b) => a.name.localeCompare(b.name)),

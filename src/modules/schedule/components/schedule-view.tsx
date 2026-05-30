@@ -149,7 +149,7 @@ export function ScheduleView({ allowedDepartments }: { allowedDepartments?: stri
     [allNovelties, visibleEmpIds, allowedDepartments],
   )
 
-  const groups = useMemo(() => groupByDepartment(employees), [employees])
+  const groups = useMemo(() => groupByDepartment(employees, allowedDepartments), [employees, allowedDepartments])
 
   // Índice empId|date → turnos, para pintar cada celda en O(1).
   const byCell = useMemo(() => {

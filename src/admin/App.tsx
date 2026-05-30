@@ -20,8 +20,9 @@ import { ClosingList } from '@/modules/closings/routes'
 import { DiscountsPage } from '@/modules/discounts/routes'
 
 // Departamentos que manejan horarios: la grilla de Horarios en App2 sólo
-// muestra empleados de estos. Referencia estable para no invalidar memos.
-const SCHEDULE_DEPARTMENTS = ['Cocina', 'Servicio']
+// muestra empleados de estos, y en este orden (Administración va junto a
+// Servicio, no alfabético). Referencia estable para no invalidar memos.
+const SCHEDULE_DEPARTMENTS = ['Cocina', 'Servicio', 'Administración']
 
 function Loading() {
   return (
