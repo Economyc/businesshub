@@ -1,7 +1,8 @@
 // Helper de OCR sobre Google Cloud Vision API.
-// Se usa como fallback cuando ningún vision LLM puede leer una imagen
+// Se usa como fallback cuando ningún vision LLM puede leer el archivo
 // (típicamente porque Gemini está sin créditos y Groq Scout no soporta
-// el tipo de contenido). El texto extraído se pasa luego a un proveedor
+// el tipo de contenido). Cubre imágenes (ocrImageBase64) y PDFs escaneados
+// (ocrPdfBase64). El texto extraído se pasa luego a un proveedor
 // text-only (Cerebras / Groq Llama 70b) para extracción estructurada.
 //
 // Auth: usa ADC del runtime de Cloud Functions — la SA del proyecto ya
@@ -30,5 +31,30 @@ export async function ocrImageBase64(fileBase64) {
     });
     const text = result.fullTextAnnotation?.text ?? '';
     return text.trim();
+}
+/**
+ * Ejecuta OCR sobre un PDF en base64 (inline, hasta las primeras 5 páginas) y
+ * devuelve el texto detectado concatenado por página. Usa batchAnnotateFiles
+ * porque documentTextDetection no acepta PDFs inline. Solo se invoca como
+ * fallback cuando pdf-parse no extrajo texto (PDF escaneado / solo imágenes).
+ * Lanza si la API responde con error.
+ */
+export async function ocrPdfBase64(fileBase64) {
+    const c = getClient();
+    const [result] = await c.batchAnnotateFiles({
+        requests: [
+            {
+                inputConfig: { content: fileBase64, mimeType: 'application/pdf' },
+                features: [{ type: 'DOCUMENT_TEXT_DETECTION' }],
+                // Sin `pages`: Vision procesa las primeras 5 páginas por defecto,
+                // suficiente para facturas genéricas.
+            },
+        ],
+    });
+    const pages = result.responses?.[0]?.responses ?? [];
+    return pages
+        .map((p) => p.fullTextAnnotation?.text ?? '')
+        .join('\n')
+        .trim();
 }
 //# sourceMappingURL=cloud-vision-ocr.js.map

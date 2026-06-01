@@ -5,7 +5,9 @@
 //     * Groq Scout sólo se usa para imágenes (no soporta PDFs nativos) y
 //       recibe el contenido como { type: 'image' } con data URL base64.
 //   Fase 2 — Si el archivo es PDF y la fase 1 falló:
-//     * pdf-parse extrae texto → Cerebras / Groq-llama70b lo procesan.
+//     * pdf-parse extrae texto embebido → Cerebras / Groq-llama70b lo procesan.
+//     * Si pdf-parse no devuelve texto (PDF escaneado), Cloud Vision PDF OCR
+//       extrae texto como último recurso → text-only providers.
 //   Fase 3 — Si el archivo es imagen y la fase 1 falló:
 //     * Google Cloud Vision OCR extrae texto → text-only providers
 //       (Cerebras / Groq-llama70b) lo procesan.
@@ -23,7 +25,7 @@ import {
   isCreditDepletedError,
   parseRetryAfter,
 } from './llm-router.js'
-import { ocrImageBase64 } from './cloud-vision-ocr.js'
+import { ocrImageBase64, ocrPdfBase64 } from './cloud-vision-ocr.js'
 import { recordUsage, providerToField } from './ai-usage-stats.js'
 
 interface ExtractParams<T> {
@@ -255,39 +257,79 @@ export async function extractWithFallback<T>(
   }
 
   // ── Fase 2: PDF → texto → text-only providers ─────────────────────
+  // Orden: pdf-parse (local, gratis) y, solo si no hay texto extraíble
+  // (PDF escaneado / solo imágenes), Cloud Vision PDF OCR como último recurso.
   if (isPdf) {
-    let pdfText: string
+    // 2a — texto embebido vía pdf-parse. La mayoría de facturas genéricas son
+    // PDFs con texto, así que esto las resuelve sin tocar Cloud Vision.
+    let pdfText = ''
     try {
       // Import dinámico para no penalizar cold start cuando solo es imagen.
       const { PDFParse } = await import('pdf-parse')
       const buffer = Buffer.from(fileBase64, 'base64')
       const parser = new PDFParse({ data: new Uint8Array(buffer) })
-      const result = await parser.getText()
-      await parser.destroy()
-      pdfText = (result.text ?? '').trim()
+      try {
+        const result = await parser.getText()
+        pdfText = (result.text ?? '').trim()
+      } finally {
+        // Liberar el parser aunque getText() lance (PDF corrupto/cifrado).
+        await parser.destroy()
+      }
     } catch (err) {
       const errMsg = (err as Error).message ?? String(err)
       attempts.push({ provider: 'pdf-parse', error: errMsg })
+      // No lanzamos: caemos a Cloud Vision OCR abajo.
+    }
+
+    if (pdfText) {
+      // Truncar texto muy largo para no exceder context windows pequeños (Cerebras 8B = 8K tokens).
+      const truncated = pdfText.length > 20_000 ? pdfText.slice(0, 20_000) + '\n[...truncado]' : pdfText
+      const success = await tryTextOnlyProviders(
+        router,
+        schema,
+        prompt,
+        truncated,
+        'pdf-parse',
+        maxTextAttempts,
+        attempts,
+      )
+      if (success) {
+        return { object: success.object, provider: success.provider, fallbackUsed: true }
+      }
+      // El texto ya estaba; insistir con OCR no aporta. Fallamos.
+      trackFailure()
       throw new ExtractionFailedError(attempts)
     }
 
-    if (!pdfText) {
+    // 2b — PDF sin texto extraíble (escaneado). SOLO aquí usamos Cloud Vision
+    // OCR de PDF, porque es lo único que queda.
+    void recordUsage('cloudVisionOcr')
+    let ocrText: string
+    try {
+      ocrText = await ocrPdfBase64(fileBase64)
+    } catch (err) {
+      const errMsg = (err as Error).message ?? String(err)
+      attempts.push({ provider: 'cloud-vision-ocr', error: errMsg })
+      trackFailure()
+      throw new ExtractionFailedError(attempts)
+    }
+
+    if (!ocrText) {
       attempts.push({
-        provider: 'pdf-parse',
-        error: 'PDF sin texto extraíble (probablemente escaneado o solo imágenes)',
+        provider: 'cloud-vision-ocr',
+        error: 'PDF sin texto detectable por OCR',
       })
       trackFailure()
       throw new ExtractionFailedError(attempts)
     }
 
-    // Truncar texto muy largo para no exceder context windows pequeños (Cerebras 8B = 8K tokens).
-    const truncated = pdfText.length > 20_000 ? pdfText.slice(0, 20_000) + '\n[...truncado]' : pdfText
+    const truncated = ocrText.length > 20_000 ? ocrText.slice(0, 20_000) + '\n[...truncado]' : ocrText
     const success = await tryTextOnlyProviders(
       router,
       schema,
       prompt,
       truncated,
-      'pdf-parse',
+      'vision-ocr',
       maxTextAttempts,
       attempts,
     )
