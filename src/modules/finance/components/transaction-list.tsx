@@ -343,7 +343,7 @@ export function TransactionList() {
             icon={Plus}
             items={[
               { label: 'Factura / cuenta de cobro', icon: FileText, onClick: () => { setDocDialogKind('invoice'); setDocDialogOpen(true) } },
-              { label: 'Compra (al contado)', icon: ShoppingBag, onClick: () => { setDocDialogKind('purchase'); setDocDialogOpen(true) } },
+              { label: 'Compras', icon: ShoppingBag, onClick: () => { setDocDialogKind('purchase'); setDocDialogOpen(true) } },
               { label: 'Comprobante de pago', icon: Receipt, onClick: () => setPaymentDialogOpen(true) },
               { label: 'Gasto compartido entre locales', icon: Split, onClick: () => setSplitDialogOpen(true) },
               { separator: true },

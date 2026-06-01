@@ -15,6 +15,7 @@ export interface VirtualInvoiceData {
   amount: number
   category: string
   notes?: string
+  docType?: 'Factura' | 'Compra' // default 'Factura'
 }
 
 function formatDateLong(iso: string): string {
@@ -29,18 +30,21 @@ export async function generateVirtualInvoicePDF(data: VirtualInvoiceData): Promi
   const JsPDF = await loadJsPDF()
   const doc = new JsPDF({ unit: 'mm', format: 'a4' })
 
+  const docType = data.docType ?? 'Factura'
+  const label = docType.toUpperCase()
+
   const pageW = doc.internal.pageSize.getWidth()
   const pageH = doc.internal.pageSize.getHeight()
   const margin = 18
 
-  // Watermark diagonal "FACTURA VIRTUAL" — semi-transparente, gris claro.
+  // Watermark diagonal "<TIPO> VIRTUAL" — semi-transparente, gris claro.
   doc.saveGraphicsState()
   // @ts-expect-error setGState typings incompletos
   doc.setGState(new doc.GState({ opacity: 0.08 }))
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(80)
   doc.setTextColor(120, 120, 120)
-  doc.text('FACTURA VIRTUAL', pageW / 2, pageH / 2, {
+  doc.text(`${label} VIRTUAL`, pageW / 2, pageH / 2, {
     align: 'center',
     angle: 35,
   })
@@ -50,12 +54,12 @@ export async function generateVirtualInvoicePDF(data: VirtualInvoiceData): Promi
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(20)
   doc.setTextColor(40, 40, 40)
-  doc.text('FACTURA VIRTUAL', margin, margin + 4)
+  doc.text(`${label} VIRTUAL`, margin, margin + 4)
 
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(9)
   doc.setTextColor(120, 120, 120)
-  doc.text('Documento generado por BusinessHub para reemplazar factura sin archivo físico.', margin, margin + 11)
+  doc.text('Documento generado por BusinessHub para reemplazar el documento sin archivo físico.', margin, margin + 11)
   doc.text(`Empresa: ${data.companyName}`, margin, margin + 16)
 
   // Línea divisora
@@ -81,7 +85,7 @@ export async function generateVirtualInvoicePDF(data: VirtualInvoiceData): Promi
   }
 
   field('Proveedor', data.supplierName, margin, y)
-  field('Número de factura', data.docNumber, colX, y)
+  field(`Número de ${docType.toLowerCase()}`, data.docNumber, colX, y)
   y += 16
 
   field('Fecha', formatDateLong(data.date), margin, y)
@@ -127,7 +131,9 @@ export async function generateVirtualInvoicePDF(data: VirtualInvoiceData): Promi
   doc.setFontSize(8)
   doc.setTextColor(160, 160, 160)
   doc.text(
-    `Generado el ${new Date().toLocaleString('es-CO')} — placeholder hasta cruzar con comprobante de pago`,
+    docType === 'Compra'
+      ? `Generado el ${new Date().toLocaleString('es-CO')} — placeholder generado por BusinessHub`
+      : `Generado el ${new Date().toLocaleString('es-CO')} — placeholder hasta cruzar con comprobante de pago`,
     margin,
     pageH - margin,
   )
