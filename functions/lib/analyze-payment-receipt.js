@@ -140,6 +140,9 @@ export const analyzePaymentReceipt = onCall({
             prompt,
             fileBase64: data.fileBase64,
             mimeType: data.mimeType,
+            // Sin proveedor, monto ni fecha no hay nada útil: escalar a OCR (PDF)
+            // o marcar fallo en vez de devolver un comprobante vacío.
+            isResultEmpty: (o) => !o.supplierName.trim() && !o.amountRaw.trim() && !o.date.trim(),
         });
         extracted = result.object;
         provider = result.provider;

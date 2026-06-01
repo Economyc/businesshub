@@ -11,6 +11,14 @@ interface ExtractParams<T> {
     maxVisionAttempts?: number;
     /** Máximo de proveedores text-only a intentar (PDF text o image OCR). Default 3. */
     maxTextAttempts?: number;
+    /**
+     * Predicado opcional: ¿la extracción salió "vacía" (sin datos útiles)?
+     * Si se provee y un PDF leído con pdf-parse da un resultado vacío, el helper
+     * escala a Cloud Vision OCR (texto mejor maquetado) y reintenta, en vez de
+     * devolver el vacío. También se usa al final para lanzar (en vez de devolver
+     * vacío) y que el caller muestre el aviso de fallo. Default: nunca vacío.
+     */
+    isResultEmpty?: (obj: T) => boolean;
 }
 interface ExtractResult<T> {
     object: T;

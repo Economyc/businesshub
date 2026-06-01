@@ -117,7 +117,7 @@ async function tryTextOnlyProviders(router, schema, prompt, textBody, textSource
  * Lanza ExtractionFailedError si todos los proveedores fallan.
  */
 export async function extractWithFallback(params) {
-    const { router, schema, prompt, fileBase64, mimeType, maxVisionAttempts = 3, maxTextAttempts = 3, } = params;
+    const { router, schema, prompt, fileBase64, mimeType, maxVisionAttempts = 3, maxTextAttempts = 3, isResultEmpty = () => false, } = params;
     const isPdf = mimeType === 'application/pdf';
     const isImage = mimeType.startsWith('image/');
     const attempts = [];
@@ -178,8 +178,11 @@ export async function extractWithFallback(params) {
         }
     }
     // ── Fase 2: PDF → texto → text-only providers ─────────────────────
-    // Orden: pdf-parse (local, gratis) y, solo si no hay texto extraíble
-    // (PDF escaneado / solo imágenes), Cloud Vision PDF OCR como último recurso.
+    // Orden: pdf-parse (local, gratis) primero; si su texto no alcanza para
+    // extraer datos (PDF escaneado, o texto mal maquetado por columnas que
+    // confunde al modelo), escalamos a Cloud Vision OCR (texto mejor ordenado)
+    // y reintentamos. Cloud Vision SOLO se usa cuando pdf-parse no dio resultado
+    // útil — así no se gasta OCR cuando no hace falta.
     if (isPdf) {
         // 2a — texto embebido vía pdf-parse. La mayoría de facturas genéricas son
         // PDFs con texto, así que esto las resuelve sin tocar Cloud Vision.
@@ -207,15 +210,21 @@ export async function extractWithFallback(params) {
             // Truncar texto muy largo para no exceder context windows pequeños (Cerebras 8B = 8K tokens).
             const truncated = pdfText.length > 20_000 ? pdfText.slice(0, 20_000) + '\n[...truncado]' : pdfText;
             const success = await tryTextOnlyProviders(router, schema, prompt, truncated, 'pdf-parse', maxTextAttempts, attempts);
-            if (success) {
+            if (success && !isResultEmpty(success.object)) {
                 return { object: success.object, provider: success.provider, fallbackUsed: true };
             }
-            // El texto ya estaba; insistir con OCR no aporta. Fallamos.
-            trackFailure();
-            throw new ExtractionFailedError(attempts);
+            // pdf-parse dio texto pero el modelo no extrajo datos (texto pobre o mal
+            // maquetado). Escalamos a Cloud Vision OCR para reintentar con texto mejor.
+            if (success) {
+                attempts.push({
+                    provider: 'pdf-parse',
+                    error: 'extracción vacía (texto mal maquetado), escalando a Cloud Vision OCR',
+                });
+                console.warn('[extractWithFallback] pdf-parse dio extracción vacía, escalando a Cloud Vision OCR');
+            }
         }
-        // 2b — PDF sin texto extraíble (escaneado). SOLO aquí usamos Cloud Vision
-        // OCR de PDF, porque es lo único que queda.
+        // 2b — Cloud Vision OCR: PDF escaneado (pdf-parse vacío) o texto pobre
+        // (extracción vacía). Da texto mejor maquetado → reintento.
         void recordUsage('cloudVisionOcr');
         let ocrText;
         try {
@@ -237,8 +246,12 @@ export async function extractWithFallback(params) {
         }
         const truncated = ocrText.length > 20_000 ? ocrText.slice(0, 20_000) + '\n[...truncado]' : ocrText;
         const success = await tryTextOnlyProviders(router, schema, prompt, truncated, 'vision-ocr', maxTextAttempts, attempts);
-        if (success) {
+        if (success && !isResultEmpty(success.object)) {
             return { object: success.object, provider: success.provider, fallbackUsed: true };
+        }
+        // Ni con OCR salieron datos → fallo real (el caller muestra el aviso).
+        if (success) {
+            attempts.push({ provider: 'vision-ocr', error: 'extracción vacía aun con OCR' });
         }
         trackFailure();
         throw new ExtractionFailedError(attempts);

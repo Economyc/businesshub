@@ -166,6 +166,9 @@ export const analyzeInvoiceDocument = onCall({
             prompt,
             fileBase64: data.fileBase64,
             mimeType: data.mimeType,
+            // Sin proveedor, número, fecha ni monto no hay nada útil: escalar a OCR
+            // (PDF) o marcar fallo. category se autopropone, no cuenta como dato.
+            isResultEmpty: (o) => !o.supplierName.trim() && !o.docNumber.trim() && !o.date.trim() && !o.amountRaw.trim(),
         });
         extracted = result.object;
         provider = result.provider;
