@@ -59,12 +59,16 @@ export type RecipeType = 'product' | 'preparation'
 export interface Recipe extends BaseEntity {
   /** Presente en recetas de producto vendible; ausente en preparaciones internas. */
   posProductKey?: PosProductKey
+  /** Nombre de la preparación (type='preparation'). Las recetas de producto usan posProductKey.name. */
+  name?: string
   type: RecipeType
   /** Porciones que rinde una preparación (salsa que rinde N). Solo type='preparation'. */
   yieldQty?: number
   components: RecipeComponent[]
   active: boolean
 }
+
+export type RecipeFormData = Omit<Recipe, 'id' | 'createdAt' | 'updatedAt'>
 
 // ---- Movimientos del ledger (usados desde Fase 4/5) ----
 

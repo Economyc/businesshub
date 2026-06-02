@@ -7,6 +7,7 @@ import { UnderlineButtonTabs } from '@/core/ui/underline-tabs'
 import { usePermissions } from '@/core/hooks/use-permissions'
 import { TAB_IDS } from '@/core/config/access-registry'
 import { ItemsTab } from './items-tab'
+import { RecipesTab } from './recipes-tab'
 import { PlaceholderTab } from './placeholder-tab'
 
 type TabValue = 'stock' | 'recipes' | 'ingredients' | 'count' | 'entries' | 'waste'
@@ -55,6 +56,8 @@ export function InventoryPage() {
 
       {active === 'ingredients' ? (
         <ItemsTab />
+      ) : active === 'recipes' ? (
+        <RecipesTab />
       ) : (
         <PlaceholderTab icon={activeDef?.icon ?? Package} label={activeDef?.label ?? ''} />
       )}
