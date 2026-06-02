@@ -1,4 +1,4 @@
-import { CalendarDays, ClipboardList, Percent, Users, type LucideIcon } from 'lucide-react'
+import { CalendarDays, ClipboardList, Percent, Users, Package, type LucideIcon } from 'lucide-react'
 
 export interface AdminNavItem {
   label: string
@@ -15,4 +15,5 @@ export const ADMIN_NAV: AdminNavItem[] = [
   { label: 'Equipo', path: '/talent', pageId: 'talent', icon: Users },
   { label: 'Cierres de Caja', path: '/cierres', pageId: 'closings', icon: ClipboardList },
   { label: 'Descuentos', path: '/descuentos', pageId: 'discounts', icon: Percent },
+  { label: 'Inventarios', path: '/inventario', pageId: 'inventory', icon: Package },
 ]

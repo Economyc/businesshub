@@ -18,6 +18,7 @@ import { ScheduleView } from '@/modules/schedule/routes'
 import { EmployeeList, EmployeeProfile } from '@/modules/talent/routes'
 import { ClosingList } from '@/modules/closings/routes'
 import { DiscountsPage } from '@/modules/discounts/routes'
+import { InventoryPage } from '@/modules/inventory/routes'
 
 // Departamentos que manejan horarios: la grilla de Horarios en App2 sólo
 // muestra empleados de estos, y en este orden (Administración va junto a
@@ -67,6 +68,10 @@ export default function App() {
                   <Route element={<PermissionRoute pageId="talent" />}>
                     <Route path="/talent" element={<Suspense fallback={<Loading />}><EmployeeList /></Suspense>} />
                     <Route path="/talent/:id" element={<Suspense fallback={<Loading />}><EmployeeProfile /></Suspense>} />
+                  </Route>
+
+                  <Route element={<PermissionRoute pageId="inventory" />}>
+                    <Route path="/inventario" element={<Suspense fallback={<Loading />}><InventoryPage /></Suspense>} />
                   </Route>
 
                   {/* Cierres y Descuentos requieren DateRangeProvider (igual que en App1). */}

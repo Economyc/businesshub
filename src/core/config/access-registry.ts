@@ -21,6 +21,7 @@ import {
   KeyRound,
   CalendarDays,
   CreditCard,
+  Package,
 } from 'lucide-react'
 import type {
   ModuleKey,
@@ -192,6 +193,24 @@ export const ACCESS_REGISTRY: AccessModule[] = [
       // para NO aparecer en el sidebar de App1, pero sí en la matriz de Roles
       // para poder concederlo a los puestos que arman horarios.
       { id: 'schedule', label: 'Horarios', path: '/horarios', icon: CalendarDays, actions: [...ALL_ACTIONS] },
+      // Inventarios vive solo en App2 (herramienta operativa de local). Igual que
+      // Horarios: sin `nav` (no aparece en sidebar de App1) pero sí en la matriz
+      // de Roles. El sidebar de App2 lo monta vía `ADMIN_NAV` (src/admin/nav.ts).
+      {
+        id: 'inventory',
+        label: 'Inventarios',
+        path: '/inventario',
+        icon: Package,
+        actions: [...ALL_ACTIONS],
+        tabs: [
+          { id: 'inventory.stock', label: 'Stock' },
+          { id: 'inventory.recipes', label: 'Recetas' },
+          { id: 'inventory.ingredients', label: 'Insumos' },
+          { id: 'inventory.count', label: 'Conteo' },
+          { id: 'inventory.entries', label: 'Entradas' },
+          { id: 'inventory.waste', label: 'Mermas' },
+        ],
+      },
     ],
   },
   {
@@ -251,6 +270,12 @@ export const TAB_IDS = {
   posCatalogo: 'pos-sync.catalogo',
   posAnuladas: 'pos-sync.anuladas',
   posCache: 'pos-sync.cache',
+  inventoryStock: 'inventory.stock',
+  inventoryRecipes: 'inventory.recipes',
+  inventoryIngredients: 'inventory.ingredients',
+  inventoryCount: 'inventory.count',
+  inventoryEntries: 'inventory.entries',
+  inventoryWaste: 'inventory.waste',
 } as const
 
 // ---- Helpers ----
