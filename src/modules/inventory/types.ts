@@ -4,6 +4,11 @@ import type { BaseEntity } from '@/core/types'
 // Unidad en la que se cuenta y consume el insumo (la "unidad de stock").
 export type StockUnit = 'g' | 'ml' | 'unidad'
 
+// Unidad en la que se COMPRA el insumo. Catálogo cerrado (ver domain/purchase-units).
+// Las métricas convierten con factor fijo a la unidad de stock; 'caja' es un empaque
+// cuyo contenido se pregunta (unidades por caja).
+export type PurchaseUnit = 'gramos' | 'kilogramos' | 'libra' | 'mililitros' | 'litros' | 'caja' | 'unidad'
+
 // Insumo / materia prima. Se compra en una unidad (caja, kg, bolsa) y se consume
 // en otra (g, ml, unidad) → `purchaseToStockFactor` convierte compra → stock.
 // El stock NO se guarda aquí: es una proyección (ver domain/compute-stock).
@@ -11,8 +16,8 @@ export interface InventoryItem extends BaseEntity {
   name: string
   category: string
   stockUnit: StockUnit
-  /** Unidad en la que se compra (etiqueta libre: "caja", "kg", "bolsa 5kg"). */
-  purchaseUnit: string
+  /** Unidad en la que se compra (catálogo cerrado). */
+  purchaseUnit: PurchaseUnit
   /** Cuántas unidades de stock entran en 1 unidad de compra (ej: 1 caja = 5000 g → 5000). */
   purchaseToStockFactor: number
   /** Costo por unidad de compra (COP). Opcional al inicio; necesario para variance en $. */

@@ -4,15 +4,20 @@ import { X } from 'lucide-react'
 import { SelectInput } from '@/core/ui/select-input'
 import { CurrencyInput } from '@/core/ui/currency-input'
 import { modalVariants } from '@/core/animations/variants'
+import { formatCurrency } from '@/core/utils/format'
 import { useSuppliers } from '@/modules/suppliers/hooks'
 import { useInventoryItemMutations } from '../hooks/use-inventory-items'
-import { toStock } from '../domain/units'
-import type { InventoryItem, InventoryItemFormData, StockUnit } from '../types'
+import { costPerStockUnit } from '../domain/units'
+import { PURCHASE_UNITS, getPurchaseUnit, stockUnitLabel } from '../domain/purchase-units'
+import type { InventoryItem, InventoryItemFormData, PurchaseUnit, StockUnit } from '../types'
 
 const inputClass =
   'w-full px-3 py-2.5 rounded-lg border border-input-border bg-input-bg text-body text-graphite placeholder:text-mid-gray/60 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200'
+const readonlyClass =
+  'w-full px-3 py-2.5 rounded-lg border border-border/60 bg-bone text-body text-mid-gray outline-none'
 const labelClass = 'block text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1'
 
+const PURCHASE_UNIT_OPTIONS = PURCHASE_UNITS.map((u) => ({ value: u.value, label: u.label }))
 const STOCK_UNIT_OPTIONS = [
   { value: 'g', label: 'Gramos (g)' },
   { value: 'ml', label: 'Mililitros (ml)' },
@@ -29,9 +34,9 @@ interface ItemFormProps {
 interface FormState {
   name: string
   category: string
+  purchaseUnit: PurchaseUnit
   stockUnit: StockUnit
-  purchaseUnit: string
-  purchaseToStockFactor: string
+  factor: string
   unitCost: string
   parLevel: string
   reorderQty: string
@@ -42,9 +47,9 @@ interface FormState {
 const EMPTY: FormState = {
   name: '',
   category: '',
-  stockUnit: 'g',
-  purchaseUnit: '',
-  purchaseToStockFactor: '',
+  purchaseUnit: 'unidad',
+  stockUnit: 'unidad',
+  factor: '1',
   unitCost: '',
   parLevel: '',
   reorderQty: '',
@@ -56,9 +61,9 @@ function fromItem(item: InventoryItem): FormState {
   return {
     name: item.name ?? '',
     category: item.category ?? '',
-    stockUnit: item.stockUnit ?? 'g',
-    purchaseUnit: item.purchaseUnit ?? '',
-    purchaseToStockFactor: item.purchaseToStockFactor != null ? String(item.purchaseToStockFactor) : '',
+    purchaseUnit: (item.purchaseUnit as PurchaseUnit) ?? 'unidad',
+    stockUnit: item.stockUnit ?? 'unidad',
+    factor: item.purchaseToStockFactor != null ? String(item.purchaseToStockFactor) : '',
     unitCost: item.unitCost != null ? String(item.unitCost) : '',
     parLevel: item.parLevel != null ? String(item.parLevel) : '',
     reorderQty: item.reorderQty != null ? String(item.reorderQty) : '',
@@ -96,8 +101,27 @@ export function ItemForm({ open, onClose, item }: ItemFormProps) {
     setField(e.target.name as keyof FormState, e.target.value as FormState[keyof FormState])
   }
 
-  const factorNum = Number(form.purchaseToStockFactor)
+  // Al cambiar la unidad de compra, autocompletamos la unidad de stock y el factor.
+  // Para empaques (caja) limpiamos el factor para que se pregunte "unidades por caja".
+  function changePurchaseUnit(value: string) {
+    const def = getPurchaseUnit(value)
+    setForm((prev) => ({
+      ...prev,
+      purchaseUnit: value as PurchaseUnit,
+      stockUnit: def?.stockUnit ?? prev.stockUnit,
+      factor: def && def.factor != null ? String(def.factor) : '',
+    }))
+  }
+
+  const def = getPurchaseUnit(form.purchaseUnit)
+  const isPackaging = def?.isPackaging ?? false
+  const factorNum = Number(form.factor)
+  const unitCostNum = Number(form.unitCost)
+  const perUnitCost = costPerStockUnit(unitCostNum, factorNum)
   const pending = create.isPending || update.isPending
+
+  const packagingLabel =
+    form.stockUnit === 'unidad' ? 'Unidades por caja' : `${stockUnitLabel(form.stockUnit)} por caja`
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -107,10 +131,10 @@ export function ItemForm({ open, onClose, item }: ItemFormProps) {
       name: form.name.trim(),
       category: form.category.trim(),
       stockUnit: form.stockUnit,
-      purchaseUnit: form.purchaseUnit.trim(),
+      purchaseUnit: form.purchaseUnit,
       purchaseToStockFactor: factorNum > 0 ? factorNum : 1,
       active: form.active === 'true',
-      ...(form.unitCost ? { unitCost: Number(form.unitCost) } : {}),
+      ...(form.unitCost ? { unitCost: unitCostNum } : {}),
       ...(form.parLevel ? { parLevel: Number(form.parLevel) } : {}),
       ...(form.reorderQty ? { reorderQty: Number(form.reorderQty) } : {}),
       ...(form.supplierId ? { supplierId: form.supplierId } : {}),
@@ -175,13 +199,11 @@ export function ItemForm({ open, onClose, item }: ItemFormProps) {
                   </div>
 
                   <div>
-                    <label className={labelClass}>Categoría</label>
-                    <input
-                      name="category"
-                      value={form.category}
-                      onChange={handleChange}
-                      placeholder="Ej: Cárnicos, Lácteos, Bebidas"
-                      className={inputClass}
+                    <label className={labelClass}>Unidad de compra</label>
+                    <SelectInput
+                      value={form.purchaseUnit}
+                      onChange={changePurchaseUnit}
+                      options={PURCHASE_UNIT_OPTIONS}
                     />
                   </div>
                   <div>
@@ -194,37 +216,30 @@ export function ItemForm({ open, onClose, item }: ItemFormProps) {
                   </div>
 
                   <div>
-                    <label className={labelClass}>Unidad de compra</label>
-                    <input
-                      name="purchaseUnit"
-                      value={form.purchaseUnit}
-                      onChange={handleChange}
-                      placeholder="Ej: caja, kg, bolsa 5kg"
-                      className={inputClass}
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClass}>Factor compra → stock</label>
-                    <input
-                      name="purchaseToStockFactor"
-                      type="number"
-                      min="0"
-                      step="any"
-                      value={form.purchaseToStockFactor}
-                      onChange={handleChange}
-                      required
-                      placeholder="Ej: 5000"
-                      className={inputClass}
-                    />
-                    {form.purchaseUnit && factorNum > 0 && (
-                      <p className="text-caption text-mid-gray mt-1">
-                        1 {form.purchaseUnit} = {toStock(1, factorNum).toLocaleString('es-CO')} {form.stockUnit}
-                      </p>
+                    <label className={labelClass}>{isPackaging ? packagingLabel : 'Equivalencia'}</label>
+                    {isPackaging ? (
+                      <input
+                        name="factor"
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={form.factor}
+                        onChange={handleChange}
+                        required
+                        placeholder="Ej: 12, 24"
+                        className={inputClass}
+                      />
+                    ) : (
+                      <input
+                        value={`1 ${def?.label ?? form.purchaseUnit} = ${factorNum.toLocaleString('es-CO')} ${form.stockUnit}`}
+                        readOnly
+                        tabIndex={-1}
+                        className={readonlyClass}
+                      />
                     )}
                   </div>
-
                   <div>
-                    <label className={labelClass}>Costo por unidad de compra (opcional)</label>
+                    <label className={labelClass}>Costo de compra</label>
                     <CurrencyInput
                       name="unitCost"
                       value={form.unitCost}
@@ -233,8 +248,18 @@ export function ItemForm({ open, onClose, item }: ItemFormProps) {
                       className={inputClass}
                     />
                   </div>
+
                   <div>
-                    <label className={labelClass}>Proveedor (opcional)</label>
+                    <label className={labelClass}>Costo por {form.stockUnit}</label>
+                    <input
+                      value={perUnitCost > 0 ? `${formatCurrency(perUnitCost)} / ${form.stockUnit}` : '—'}
+                      readOnly
+                      tabIndex={-1}
+                      className={readonlyClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Proveedor</label>
                     <SelectInput
                       value={form.supplierId}
                       onChange={(v) => setField('supplierId', v)}
@@ -244,32 +269,15 @@ export function ItemForm({ open, onClose, item }: ItemFormProps) {
                   </div>
 
                   <div>
-                    <label className={labelClass}>Stock mínimo / par ({form.stockUnit}, opcional)</label>
+                    <label className={labelClass}>Categoría</label>
                     <input
-                      name="parLevel"
-                      type="number"
-                      min="0"
-                      step="any"
-                      value={form.parLevel}
+                      name="category"
+                      value={form.category}
                       onChange={handleChange}
-                      placeholder="Ej: 2000"
+                      placeholder="Ej: Cárnicos, Bebidas"
                       className={inputClass}
                     />
                   </div>
-                  <div>
-                    <label className={labelClass}>Cantidad a pedir (unidades de compra, opcional)</label>
-                    <input
-                      name="reorderQty"
-                      type="number"
-                      min="0"
-                      step="any"
-                      value={form.reorderQty}
-                      onChange={handleChange}
-                      placeholder="Ej: 3"
-                      className={inputClass}
-                    />
-                  </div>
-
                   <div>
                     <label className={labelClass}>Estado</label>
                     <SelectInput
@@ -279,6 +287,33 @@ export function ItemForm({ open, onClose, item }: ItemFormProps) {
                         { value: 'true', label: 'Activo' },
                         { value: 'false', label: 'Inactivo' },
                       ]}
+                    />
+                  </div>
+
+                  <div>
+                    <label className={labelClass}>Stock mínimo</label>
+                    <input
+                      name="parLevel"
+                      type="number"
+                      min="0"
+                      step="any"
+                      value={form.parLevel}
+                      onChange={handleChange}
+                      placeholder={`En ${form.stockUnit}`}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Cantidad a pedir</label>
+                    <input
+                      name="reorderQty"
+                      type="number"
+                      min="0"
+                      step="any"
+                      value={form.reorderQty}
+                      onChange={handleChange}
+                      placeholder={`En ${def?.label.toLowerCase() ?? 'compra'}`}
+                      className={inputClass}
                     />
                   </div>
                 </div>

@@ -9,6 +9,7 @@ import { formatCurrency } from '@/core/utils/format'
 import { usePermissions } from '@/core/hooks/use-permissions'
 import { useCompany } from '@/core/hooks/use-company'
 import { useInventoryItems, useInventoryItemMutations } from '../hooks/use-inventory-items'
+import { labelForPurchaseUnit } from '../domain/purchase-units'
 import { ItemForm } from './item-form'
 import type { InventoryItem } from '../types'
 
@@ -81,7 +82,7 @@ export function ItemsTab() {
       width: '1.2fr',
       render: (i) => (
         <span>
-          {i.purchaseUnit || '—'}
+          {i.purchaseUnit ? labelForPurchaseUnit(i.purchaseUnit) : '—'}
           {i.purchaseToStockFactor ? <span className="text-mid-gray"> · ×{i.purchaseToStockFactor.toLocaleString('es-CO')}</span> : null}
         </span>
       ),

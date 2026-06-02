@@ -22,3 +22,13 @@ export function purchaseUnitsToCover(targetStock: number, factor: number): numbe
   if (factor <= 0 || targetStock <= 0) return 0
   return Math.ceil(targetStock / factor)
 }
+
+/**
+ * Costo por unidad de STOCK = costo de la unidad de compra / factor.
+ * Ej: caja de 12 latas a $24.000 → factor 12 → $2.000 por lata.
+ * Devuelve 0 cuando no se puede calcular (sin costo o factor inválido).
+ */
+export function costPerStockUnit(purchaseCost: number, factor: number): number {
+  if (factor <= 0 || purchaseCost <= 0) return 0
+  return purchaseCost / factor
+}

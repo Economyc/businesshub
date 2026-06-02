@@ -1,4 +1,4 @@
-import { toStock, toPurchase, purchaseUnitsToCover } from './units'
+import { toStock, toPurchase, purchaseUnitsToCover, costPerStockUnit } from './units'
 
 describe('toStock', () => {
   it('multiplica compra por factor', () => {
@@ -42,5 +42,22 @@ describe('purchaseUnitsToCover', () => {
     expect(purchaseUnitsToCover(0, 5000)).toBe(0)
     expect(purchaseUnitsToCover(-5, 5000)).toBe(0)
     expect(purchaseUnitsToCover(100, 0)).toBe(0)
+  })
+})
+
+describe('costPerStockUnit', () => {
+  it('calcula el costo por lata de una caja', () => {
+    // caja de 12 latas a $24.000 → $2.000 por lata
+    expect(costPerStockUnit(24000, 12)).toBe(2000)
+  })
+
+  it('calcula el costo por gramo de un kilo', () => {
+    expect(costPerStockUnit(20000, 1000)).toBe(20)
+  })
+
+  it('devuelve 0 si no hay costo o el factor es inválido', () => {
+    expect(costPerStockUnit(0, 12)).toBe(0)
+    expect(costPerStockUnit(24000, 0)).toBe(0)
+    expect(costPerStockUnit(24000, -1)).toBe(0)
   })
 })
