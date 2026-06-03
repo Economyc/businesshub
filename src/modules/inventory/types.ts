@@ -84,6 +84,8 @@ export interface InventoryCount extends BaseEntity {
   status: 'draft' | 'final'
 }
 
+export type InventoryCountFormData = Omit<InventoryCount, 'id' | 'createdAt' | 'updatedAt'>
+
 export interface InventoryReceiptLine {
   itemId: string
   qty: number

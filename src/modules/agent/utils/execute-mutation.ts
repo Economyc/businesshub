@@ -478,6 +478,8 @@ export async function executeMutation(
         gastos: Number(args.gastos) || 0,
         cajaMenor: Number(args.cajaMenor) || 0,
         entregaEfectivo: Number(args.entregaEfectivo) || 0,
+        totalFaltante: Number(args.totalFaltante) || 0,
+        totalSobrante: Number(args.totalSobrante) || 0,
         responsable: String(args.responsable),
       }
       const id = await closingService.create(companyId, data)

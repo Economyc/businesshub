@@ -26,6 +26,8 @@ const emptyForm = {
   gastos: '',
   cajaMenor: '',
   entregaEfectivo: '',
+  totalFaltante: '',
+  totalSobrante: '',
   responsable: '',
 }
 
@@ -41,6 +43,8 @@ function closingToForm(c: Closing) {
     gastos: c.gastos ? String(c.gastos) : '',
     cajaMenor: c.cajaMenor ? String(c.cajaMenor) : '',
     entregaEfectivo: c.entregaEfectivo ? String(c.entregaEfectivo) : '',
+    totalFaltante: c.totalFaltante ? String(c.totalFaltante) : '',
+    totalSobrante: c.totalSobrante ? String(c.totalSobrante) : '',
     responsable: c.responsable ?? '',
   }
 }
@@ -91,6 +95,8 @@ export function ClosingForm({ onSaved, editing, onCancelEdit }: ClosingFormProps
       gastos: Number(form.gastos || 0),
       cajaMenor: Number(form.cajaMenor || 0),
       entregaEfectivo: Number(form.entregaEfectivo || 0),
+      totalFaltante: Number(form.totalFaltante || 0),
+      totalSobrante: Number(form.totalSobrante || 0),
       responsable: form.responsable,
     }
     if (editing) {
@@ -188,6 +194,8 @@ export function ClosingForm({ onSaved, editing, onCancelEdit }: ClosingFormProps
           <div className="col-span-2">
             {currencyField('Entrega de Efectivo', 'entregaEfectivo')}
           </div>
+          {currencyField('Total Faltante', 'totalFaltante')}
+          {currencyField('Total Sobrante', 'totalSobrante')}
         </div>
       </div>
 

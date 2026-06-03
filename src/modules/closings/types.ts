@@ -12,6 +12,8 @@ export interface Closing extends BaseEntity {
   gastos: number
   cajaMenor: number
   entregaEfectivo: number
+  totalFaltante: number
+  totalSobrante: number
   responsable: string
 }
 

@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { ClipboardList, List, FilePlus, Trash2, SquarePen, UserCircle, CalendarRange, TrendingUp, Wallet, CreditCard, QrCode, Bike, Coins, Receipt, CalendarCheck, HandCoins } from 'lucide-react'
+import { ClipboardList, List, FilePlus, Trash2, SquarePen, UserCircle, CalendarRange, TrendingUp, Wallet, CreditCard, QrCode, Bike, Coins, Receipt, CalendarCheck, HandCoins, CheckCircle2, AlertCircle } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { PageTransition } from '@/core/ui/page-transition'
 import { UnderlineButtonTabs } from '@/core/ui/underline-tabs'
@@ -38,6 +38,38 @@ function formatShortDate(dateStr: string): string {
   return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short' }).toUpperCase()
 }
 
+// Cuadre: el cierre cuadra si efectivo + datafono - ap == ventaTotal (tolerancia ~0)
+function isReconciled(c: Closing): boolean {
+  const esperado = (c.efectivo ?? 0) + (c.datafono ?? 0) - (c.ap ?? 0)
+  return Math.abs(esperado - (c.ventaTotal ?? 0)) < 1
+}
+
+function ReconcileIcon({ closing }: { closing: Closing }) {
+  const ok = isReconciled(closing)
+  return (
+    <HoverHint label={ok ? 'Cuadra' : 'Descuadre'}>
+      <span className="inline-flex">
+        {ok ? (
+          <CheckCircle2 size={16} strokeWidth={1.5} className="text-positive-text" />
+        ) : (
+          <AlertCircle size={16} strokeWidth={1.5} className="text-negative-text" />
+        )}
+      </span>
+    </HoverHint>
+  )
+}
+
+const reconcileColumn = {
+  key: 'cuadre',
+  header: 'Cuadre',
+  width: '70px',
+  render: (c: Closing) => (
+    <div className="flex justify-center">
+      <ReconcileIcon closing={c} />
+    </div>
+  ),
+}
+
 function ClosingCard({ closing, onEdit, onDelete, onClick, canEdit }: { closing: Closing; onEdit: () => void; onDelete: () => void; onClick: () => void; canEdit: boolean }) {
   return (
     <article
@@ -68,6 +100,7 @@ function ClosingCard({ closing, onEdit, onDelete, onClick, canEdit }: { closing:
           <span className="bg-dark-graphite text-white text-[10px] font-bold px-2 py-0.5 rounded">
             {formatShortDate(closing.date)}
           </span>
+          <ReconcileIcon closing={closing} />
         </div>
         <h3 className="text-[14px] font-bold text-dark-graphite flex items-center gap-1.5">
           <UserCircle size={16} className="text-mid-gray" />
@@ -214,6 +247,7 @@ function AccumulatedTab({ canEdit, onEdit, onDelete, onRowClick }: AccumulatedTa
       hideOnMobile: true,
       render: (c: Closing) => formatCurrency(c.entregaEfectivo ?? 0),
     },
+    reconcileColumn,
     {
       key: 'responsable',
       header: 'Responsable',
@@ -397,6 +431,7 @@ export function ClosingList({ accumulatedOwnerOnly = false }: { accumulatedOwner
       hideOnMobile: true,
       render: (c: Closing) => formatCurrency(c.propinas ?? 0),
     },
+    reconcileColumn,
     {
       key: 'responsable',
       header: 'Responsable',

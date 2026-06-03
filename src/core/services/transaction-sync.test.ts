@@ -85,6 +85,8 @@ describe('syncClosingTransactions', () => {
     gastos: 30000,
     cajaMenor: 0,
     entregaEfectivo: 0,
+    totalFaltante: 0,
+    totalSobrante: 0,
     responsable: 'Juan',
     ventaTotal: 730000,
   }

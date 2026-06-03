@@ -129,6 +129,12 @@ export function ClosingReceipt({ closing, companyName, onClose }: ClosingReceipt
                 <ReceiptLine label="Propinas" amount={closing.propinas ?? 0} />
                 <ReceiptLine label="Gastos" amount={closing.gastos ?? 0} />
                 <ReceiptLine label="Caja Menor" amount={closing.cajaMenor ?? 0} />
+                {(closing.totalFaltante ?? 0) > 0 && (
+                  <ReceiptLine label="Faltante" amount={closing.totalFaltante} />
+                )}
+                {(closing.totalSobrante ?? 0) > 0 && (
+                  <ReceiptLine label="Sobrante" amount={closing.totalSobrante} />
+                )}
               </div>
 
               <div className="flex justify-end my-1">

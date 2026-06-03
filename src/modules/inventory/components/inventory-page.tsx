@@ -8,6 +8,8 @@ import { usePermissions } from '@/core/hooks/use-permissions'
 import { TAB_IDS } from '@/core/config/access-registry'
 import { ItemsTab } from './items-tab'
 import { RecipesTab } from './recipes-tab'
+import { StockTab } from './stock-tab'
+import { CountTab } from './count-tab'
 import { PlaceholderTab } from './placeholder-tab'
 
 type TabValue = 'stock' | 'recipes' | 'ingredients' | 'count' | 'entries' | 'waste'
@@ -58,6 +60,10 @@ export function InventoryPage() {
         <ItemsTab />
       ) : active === 'recipes' ? (
         <RecipesTab />
+      ) : active === 'stock' ? (
+        <StockTab onNavigate={setActive} />
+      ) : active === 'count' ? (
+        <CountTab />
       ) : (
         <PlaceholderTab icon={activeDef?.icon ?? Package} label={activeDef?.label ?? ''} />
       )}
