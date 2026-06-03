@@ -597,6 +597,15 @@ function cashDate(t: Transaction): Date | null {
   return (t.paidDate ?? t.date)?.toDate?.() ?? null
 }
 
+// Id real del payee, o null si es un tercero externo/custom. Los externos se
+// guardan con un id centinela COMPARTIDO ('external' o '' según el flujo) y se
+// distinguen entre sí por nombre, no por id — agrupar por ese id colapsaría a
+// todos los externos en un solo "proveedor".
+function realPayeeId(t: Transaction): string | null {
+  const id = t.payeeRef?.id
+  return id && id !== 'external' ? id : null
+}
+
 function pctChange(curr: number, prev: number): number {
   if (prev === 0) return curr === 0 ? 0 : 100
   return ((curr - prev) / prev) * 100
@@ -681,14 +690,19 @@ export function useExpenseAnalysis(startDate: Date, endDate: Date) {
       key: t.category || 'Sin categoría',
       label: t.category || 'Sin categoría',
     }))
-    const bySupplier = buildExpenseGroups(current, previous, (t) => ({
-      key: t.payeeRef?.id ?? '∅',
-      label: t.payeeRef?.name ?? 'Sin proveedor',
-    }))
+    const bySupplier = buildExpenseGroups(current, previous, (t) => {
+      const p = t.payeeRef
+      if (!p) return { key: '∅', label: 'Sin proveedor' }
+      const realId = realPayeeId(t)
+      if (realId) return { key: `id:${realId}`, label: p.name }
+      // Externos/custom: agrupar por nombre normalizado, no por el id centinela.
+      const norm = (p.name || '').trim().toLowerCase()
+      return norm ? { key: `name:${norm}`, label: p.name } : { key: '∅', label: 'Sin proveedor' }
+    })
     const bySupplierCategory = buildExpenseGroups(current, previous, (t) => {
-      const cat = t.payeeRef?.id
-        ? (supplierCat.get(t.payeeRef.id) ?? 'Sin categoría')
-        : 'Sin proveedor'
+      if (!t.payeeRef) return { key: 'Sin proveedor', label: 'Sin proveedor' }
+      const realId = realPayeeId(t)
+      const cat = realId ? (supplierCat.get(realId) ?? 'Sin categoría') : 'Sin categoría'
       return { key: cat, label: cat }
     })
 
