@@ -358,12 +358,28 @@ function buildSection(label: string, txs: Transaction[]): IncomeStatementSection
 }
 
 export function useIncomeStatement(startDate: Date, endDate: Date) {
-  // Solo el rango — Firestore filtra antes de mandar.
-  const { data: periodTxs, loading } = useTransactionsInRange(startDate, endDate)
+  // Traemos todo hasta endDate (como Cash Flow) porque los gastos se ubican por
+  // fecha de PAGO (paidDate), no de emisión: una factura emitida antes del
+  // período pero pagada dentro de él debe contar, y el filtro Firestore por
+  // `date` la dejaría fuera.
+  const { data: periodTxs, loading } = useTransactionsUntil(endDate)
 
   const statement = useMemo<IncomeStatementData>(() => {
-    const incomeTxs = periodTxs.filter((t) => t.type === 'income')
-    const expenseTxs = periodTxs.filter((t) => t.type === 'expense')
+    const inRange = (d?: Date | null) => !!d && d >= startDate && d <= endDate
+
+    // Ingresos: criterio de causación por fecha de emisión (sin cambios).
+    const incomeTxs = periodTxs.filter(
+      (t) => t.type === 'income' && inRange(t.date?.toDate?.()),
+    )
+    // Gastos: criterio de caja — solo lo efectivamente pagado, ubicado por
+    // fecha de pago (fallback a `date` para data legacy sin paidDate). Las
+    // cuentas por pagar (pending/overdue) quedan excluidas hasta liquidarse.
+    const expenseTxs = periodTxs.filter(
+      (t) =>
+        t.type === 'expense' &&
+        t.status === 'paid' &&
+        inRange((t.paidDate ?? t.date)?.toDate?.()),
+    )
 
     // Classify income
     const revenueTxs: Transaction[] = []
@@ -411,9 +427,9 @@ export function useIncomeStatement(startDate: Date, endDate: Date) {
       otherExpenses,
       netProfit,
       netMargin,
-      transactionCount: periodTxs.length,
+      transactionCount: incomeTxs.length + expenseTxs.length,
     }
-  }, [periodTxs])
+  }, [periodTxs, startDate.getTime(), endDate.getTime()])
 
   return { statement, loading }
 }
