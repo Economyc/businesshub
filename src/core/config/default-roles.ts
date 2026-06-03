@@ -36,6 +36,7 @@ const FINANCE_PAGES = [
   'finance.bank',
   'finance.cashflow',
   'finance.income',
+  'finance.analysis',
   'finance.budget',
 ]
 

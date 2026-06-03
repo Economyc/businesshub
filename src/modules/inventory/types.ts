@@ -29,6 +29,17 @@ export interface InventoryItem extends BaseEntity {
   /** Proveedor preferido — id en la colección raíz `suppliers`. */
   supplierId?: string
   active: boolean
+  /** Bitácora de cambios de costo (auto-actualizados al registrar una Entrada con costo distinto). */
+  costHistory?: ItemCostChange[]
+}
+
+/** Registro de un cambio de `unitCost` de un insumo (Fase 4: lo dispara una Entrada). */
+export interface ItemCostChange {
+  at: Timestamp
+  previousCost: number
+  newCost: number
+  /** Entrada que originó el cambio, si aplica. */
+  receiptId?: string
 }
 
 export type InventoryItemFormData = Omit<InventoryItem, 'id' | 'createdAt' | 'updatedAt'>
@@ -99,6 +110,8 @@ export interface InventoryReceipt extends BaseEntity {
   lines: InventoryReceiptLine[]
 }
 
+export type InventoryReceiptFormData = Omit<InventoryReceipt, 'id' | 'createdAt' | 'updatedAt'>
+
 export type AdjustmentType = 'merma' | 'daño' | 'cortesía' | 'traslado' | 'corrección'
 
 export interface InventoryAdjustmentLine {
@@ -114,3 +127,5 @@ export interface InventoryAdjustment extends BaseEntity {
   lines: InventoryAdjustmentLine[]
   by: string
 }
+
+export type InventoryAdjustmentFormData = Omit<InventoryAdjustment, 'id' | 'createdAt' | 'updatedAt'>

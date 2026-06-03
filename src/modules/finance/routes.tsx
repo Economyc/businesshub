@@ -8,3 +8,4 @@ export const IncomeStatementView = lazy(() => import('./components/income-statem
 export const BudgetView = lazy(() => import('./components/budget-view').then(m => ({ default: m.BudgetView })))
 export const PayrollView = lazy(() => import('./components/payroll-view').then(m => ({ default: m.PayrollView })))
 export const BankImportView = lazy(() => import('./components/bank-import-view').then(m => ({ default: m.BankImportView })))
+export const ExpenseAnalysisView = lazy(() => import('./components/expense-analysis-view').then(m => ({ default: m.ExpenseAnalysisView })))

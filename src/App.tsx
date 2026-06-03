@@ -10,7 +10,7 @@ import { LoginPage } from '@/core/ui/login-page'
 import { PosDashboard } from '@/modules/analytics/routes'
 import { EmployeeList, EmployeeProfile } from '@/modules/talent/routes'
 import { SupplierList, SupplierDetail } from '@/modules/suppliers/routes'
-import { TransactionList, ImportView, CashFlowView, IncomeStatementView, BudgetView, PayrollView, BankImportView } from '@/modules/finance/routes'
+import { TransactionList, ImportView, CashFlowView, IncomeStatementView, BudgetView, PayrollView, BankImportView, ExpenseAnalysisView } from '@/modules/finance/routes'
 import { PartnerList } from '@/modules/partners/routes'
 import { ClosingList } from '@/modules/closings/routes'
 import { DiscountsPage } from '@/modules/discounts/routes'
@@ -125,6 +125,9 @@ export default function App() {
                 </Route>
                 <Route element={<PermissionRoute pageId="finance.income" />}>
                   <Route path="/finance/income-statement" element={<Suspense fallback={<Loading />}><IncomeStatementView /></Suspense>} />
+                </Route>
+                <Route element={<PermissionRoute pageId="finance.analysis" />}>
+                  <Route path="/finance/analysis" element={<Suspense fallback={<Loading />}><ExpenseAnalysisView /></Suspense>} />
                 </Route>
                 <Route element={<PermissionRoute pageId="finance.budget" />}>
                   <Route path="/finance/budget" element={<Suspense fallback={<Loading />}><BudgetView /></Suspense>} />

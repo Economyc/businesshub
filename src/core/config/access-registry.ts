@@ -22,6 +22,7 @@ import {
   CalendarDays,
   CreditCard,
   Package,
+  PieChart,
 } from 'lucide-react'
 import type {
   ModuleKey,
@@ -121,6 +122,7 @@ export const ACCESS_REGISTRY: AccessModule[] = [
             'finance.bank',
             'finance.cashflow',
             'finance.income',
+            'finance.analysis',
             'finance.budget',
           ],
         },
@@ -142,7 +144,8 @@ export const ACCESS_REGISTRY: AccessModule[] = [
       { id: 'finance.bank', label: 'Extracto Bancario', path: '/finance/bank', icon: Landmark, actions: [...ALL_ACTIONS], nav: { group: 'finance', order: 3 } },
       { id: 'finance.cashflow', label: 'Flujo de Caja', path: '/finance/cash-flow', icon: Wallet, actions: ['read'], nav: { group: 'finance', order: 4 } },
       { id: 'finance.income', label: 'Estado de Resultados', path: '/finance/income-statement', icon: FileText, actions: ['read'], nav: { group: 'finance', order: 5 } },
-      { id: 'finance.budget', label: 'Presupuesto', path: '/finance/budget', icon: Target, actions: [...ALL_ACTIONS], nav: { group: 'finance', order: 6 } },
+      { id: 'finance.analysis', label: 'Análisis Finanzas', path: '/finance/analysis', icon: PieChart, actions: ['read'], nav: { group: 'finance', order: 6 } },
+      { id: 'finance.budget', label: 'Presupuesto', path: '/finance/budget', icon: Target, actions: [...ALL_ACTIONS], nav: { group: 'finance', order: 7 } },
       {
         id: 'closings',
         label: 'Cierres de Caja',
@@ -326,6 +329,7 @@ const PAGE_LEGACY_MODULE: Record<string, ModuleKey> = {
   'finance.bank': 'finance',
   'finance.cashflow': 'finance',
   'finance.income': 'finance',
+  'finance.analysis': 'finance',
   'finance.budget': 'finance',
   closings: 'closings',
   discounts: 'closings',

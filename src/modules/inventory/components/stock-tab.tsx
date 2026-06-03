@@ -10,8 +10,11 @@ import { getTodayStr } from '@/modules/pos-sync/cache-service'
 import { useInventoryItems } from '../hooks/use-inventory-items'
 import { useRecipes } from '../hooks/use-recipes'
 import { useCounts } from '../hooks/use-counts'
+import { useReceipts } from '../hooks/use-receipts'
+import { useAdjustments } from '../hooks/use-adjustments'
 import { computeStock, type ItemQtyMap } from '../domain/compute-stock'
 import { computeConsumption, type ConsumptionSaleLine } from '../domain/compute-consumption'
+import { aggregateReceipts, aggregateAdjustments, type FactorByItem } from '../domain/aggregate-movements'
 import { explodeRecipe } from '../domain/explode-recipe'
 import type { Recipe } from '../types'
 
@@ -46,6 +49,8 @@ export function StockTab({ onNavigate }: StockTabProps) {
   const { data: items, loading: itemsLoading } = useInventoryItems()
   const { data: recipes, loading: recLoading } = useRecipes()
   const { data: counts, loading: countsLoading } = useCounts()
+  const { data: receipts } = useReceipts()
+  const { data: adjustments } = useAdjustments()
 
   // Último conteo final = ancla de la proyección.
   const lastFinalCount = useMemo(() => {
@@ -129,9 +134,29 @@ export function StockTab({ onNavigate }: StockTabProps) {
     return map
   }, [lastFinalCount])
 
+  // Entradas y mermas posteriores al conteo ancla. Las entradas se convierten de
+  // unidad de compra a stock con el factor de cada insumo.
+  const factorByItem = useMemo<FactorByItem>(() => {
+    const map: FactorByItem = {}
+    for (const it of items) map[it.id] = it.purchaseToStockFactor
+    return map
+  }, [items])
+
+  const sinceMillis = lastFinalCount ? lastFinalCount.countedAt.toMillis() : 0
+
+  const receiptsMap = useMemo<ItemQtyMap>(
+    () => aggregateReceipts(receipts, factorByItem, sinceMillis),
+    [receipts, factorByItem, sinceMillis],
+  )
+
+  const adjustmentsMap = useMemo<ItemQtyMap>(
+    () => aggregateAdjustments(adjustments, sinceMillis),
+    [adjustments, sinceMillis],
+  )
+
   const stock = useMemo(
-    () => computeStock({ anchor, consumption }),
-    [anchor, consumption],
+    () => computeStock({ anchor, receipts: receiptsMap, adjustments: adjustmentsMap, consumption }),
+    [anchor, receiptsMap, adjustmentsMap, consumption],
   )
 
   const rows = useMemo<StockRow[]>(() => {

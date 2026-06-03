@@ -22,6 +22,20 @@ export const chartColors = {
 } as const
 
 /**
+ * Paleta categórica para series cualitativas (donut/pie por categoría, proveedor, etc.).
+ * Cicla por las familias funcionales + neutros; todas son CSS vars, así que
+ * reaccionan a dark mode. Usar `chartColors.muted` para el bucket "Otros".
+ */
+export const chartCategorical = [
+  "var(--app-info-text)",
+  "var(--app-positive-text)",
+  "var(--app-warning-text)",
+  "var(--app-negative-text)",
+  "var(--app-graphite)",
+  "var(--app-mid-gray)",
+] as const
+
+/**
  * Para librerías que no aceptan CSS vars (ej. Chart.js con fills), resuelve a hex/color computado.
  * Usar sólo cuando la librería lo requiera; preferir `chartColors` directo.
  */

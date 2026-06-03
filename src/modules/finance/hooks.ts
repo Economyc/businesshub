@@ -9,6 +9,7 @@ import { fetchCollection } from '@/core/firebase/helpers'
 import { budgetService } from './services'
 import { generatePendingTransactions } from './recurring-generator'
 import type { Transaction, RecurringTransaction, BudgetItem } from './types'
+import type { Supplier } from '@/modules/suppliers/types'
 
 export function useTransactions() {
   return useCollection<Transaction>('transactions')
@@ -546,5 +547,183 @@ export function useBudgetComparison(startDate: Date, endDate: Date) {
     saveBudget: save,
     refetchBudget: refetch,
   }
+}
+
+// ── Análisis Finanzas ───────────────────────────────────────────────────────
+// Desglose de gastos del período para tomar decisiones: cuánto se fue por
+// categoría de gasto, por proveedor y por categoría de proveedor, con ranking
+// (% del total), comparación contra el período anterior y tendencia mensual.
+// Criterio de CAJA (igual que el Estado de Resultados): solo gastos pagados,
+// ubicados por fecha de pago (paidDate ?? date). Las cuentas por pagar
+// pendientes quedan fuera hasta liquidarse.
+
+export interface ExpenseGroup {
+  key: string
+  label: string
+  total: number
+  prevTotal: number
+  /** % del total de gasto del período. */
+  share: number
+  /** Variación % vs el mismo rubro en el período anterior. */
+  deltaPct: number
+  transactions: Transaction[]
+}
+
+export interface ExpenseTrendPoint {
+  /** Clave ordenable YYYY-MM. */
+  month: string
+  /** Etiqueta legible (ej. "Ene"). */
+  monthLabel: string
+  total: number
+}
+
+export interface ExpenseAnalysisData {
+  total: number
+  totalPrev: number
+  totalDeltaPct: number
+  /** Compras a proveedores + insumos (costo de ventas). */
+  supplierSpend: number
+  supplierSpendPrev: number
+  /** Resto de egresos (nómina, fijos, impuestos, etc.). */
+  otherSpend: number
+  byCategory: ExpenseGroup[]
+  bySupplier: ExpenseGroup[]
+  bySupplierCategory: ExpenseGroup[]
+  monthlyTrend: ExpenseTrendPoint[]
+  transactionCount: number
+}
+
+function cashDate(t: Transaction): Date | null {
+  return (t.paidDate ?? t.date)?.toDate?.() ?? null
+}
+
+function pctChange(curr: number, prev: number): number {
+  if (prev === 0) return curr === 0 ? 0 : 100
+  return ((curr - prev) / prev) * 100
+}
+
+// Un gasto cuenta como "proveedor/insumo" si tiene proveedor asociado o si su
+// categoría cae en costo de ventas (reusa la clasificación del P&L).
+function isSupplierSpend(t: Transaction): boolean {
+  return t.payeeRef?.type === 'supplier' || classifyExpense(t.category) === 'cost_of_sales'
+}
+
+function buildExpenseGroups(
+  current: Transaction[],
+  previous: Transaction[],
+  keyFn: (t: Transaction) => { key: string; label: string },
+): ExpenseGroup[] {
+  const currMap = new Map<string, { label: string; total: number; transactions: Transaction[] }>()
+  for (const t of current) {
+    const { key, label } = keyFn(t)
+    if (!currMap.has(key)) currMap.set(key, { label, total: 0, transactions: [] })
+    const g = currMap.get(key)!
+    g.total += t.amount
+    g.transactions.push(t)
+  }
+
+  const prevMap = new Map<string, number>()
+  for (const t of previous) {
+    const { key } = keyFn(t)
+    prevMap.set(key, (prevMap.get(key) ?? 0) + t.amount)
+  }
+
+  const periodTotal = current.reduce((s, t) => s + t.amount, 0)
+
+  return Array.from(currMap.entries())
+    .map(([key, g]) => {
+      const prevTotal = prevMap.get(key) ?? 0
+      return {
+        key,
+        label: g.label,
+        total: g.total,
+        prevTotal,
+        share: periodTotal > 0 ? (g.total / periodTotal) * 100 : 0,
+        deltaPct: pctChange(g.total, prevTotal),
+        transactions: g.transactions.slice().sort((a, b) => b.amount - a.amount),
+      }
+    })
+    .sort((a, b) => b.total - a.total)
+}
+
+export function useExpenseAnalysis(startDate: Date, endDate: Date) {
+  // Igual que el Estado de Resultados: traemos todo hasta endDate porque los
+  // gastos se ubican por fecha de pago y el período anterior queda antes del
+  // startDate, así que un filtro por rango los dejaría fuera.
+  const { data: allTxs, loading: txLoading } = useTransactionsUntil(endDate)
+  const { data: suppliers, loading: supLoading } = useCollection<Supplier>('suppliers')
+
+  const data = useMemo<ExpenseAnalysisData>(() => {
+    const supplierCat = new Map<string, string>()
+    for (const s of suppliers) {
+      supplierCat.set(s.id, s.category?.trim() || 'Sin categoría')
+    }
+
+    // Período anterior: misma longitud, inmediatamente antes del inicio.
+    const periodMs = endDate.getTime() - startDate.getTime()
+    const prevEnd = new Date(startDate.getTime() - 1)
+    const prevStart = new Date(startDate.getTime() - periodMs - 1)
+
+    const paidExpenses = allTxs.filter((t) => t.type === 'expense' && t.status === 'paid')
+    const within = (d: Date | null, a: Date, b: Date) => !!d && d >= a && d <= b
+
+    const current = paidExpenses.filter((t) => within(cashDate(t), startDate, endDate))
+    const previous = paidExpenses.filter((t) => within(cashDate(t), prevStart, prevEnd))
+
+    const total = current.reduce((s, t) => s + t.amount, 0)
+    const totalPrev = previous.reduce((s, t) => s + t.amount, 0)
+
+    const supplierSpend = current.filter(isSupplierSpend).reduce((s, t) => s + t.amount, 0)
+    const supplierSpendPrev = previous.filter(isSupplierSpend).reduce((s, t) => s + t.amount, 0)
+    const otherSpend = total - supplierSpend
+
+    const byCategory = buildExpenseGroups(current, previous, (t) => ({
+      key: t.category || 'Sin categoría',
+      label: t.category || 'Sin categoría',
+    }))
+    const bySupplier = buildExpenseGroups(current, previous, (t) => ({
+      key: t.payeeRef?.id ?? '∅',
+      label: t.payeeRef?.name ?? 'Sin proveedor',
+    }))
+    const bySupplierCategory = buildExpenseGroups(current, previous, (t) => {
+      const cat = t.payeeRef?.id
+        ? (supplierCat.get(t.payeeRef.id) ?? 'Sin categoría')
+        : 'Sin proveedor'
+      return { key: cat, label: cat }
+    })
+
+    const monthMap = new Map<string, number>()
+    for (const t of current) {
+      const d = cashDate(t)
+      if (!d) continue
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+      monthMap.set(key, (monthMap.get(key) ?? 0) + t.amount)
+    }
+    const monthlyTrend: ExpenseTrendPoint[] = Array.from(monthMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([month, monthTotal]) => {
+        const [y, m] = month.split('-')
+        const label = new Date(Number(y), Number(m) - 1, 1).toLocaleDateString('es-CO', {
+          month: 'short',
+        })
+        return { month, monthLabel: label.charAt(0).toUpperCase() + label.slice(1), total: monthTotal }
+      })
+
+    return {
+      total,
+      totalPrev,
+      totalDeltaPct: pctChange(total, totalPrev),
+      supplierSpend,
+      supplierSpendPrev,
+      otherSpend,
+      byCategory,
+      bySupplier,
+      bySupplierCategory,
+      monthlyTrend,
+      transactionCount: current.length,
+    }
+  }, [allTxs, suppliers, startDate.getTime(), endDate.getTime()])
+
+  return { data, loading: txLoading || supLoading }
 }
 

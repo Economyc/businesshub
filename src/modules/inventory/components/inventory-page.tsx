@@ -10,6 +10,8 @@ import { ItemsTab } from './items-tab'
 import { RecipesTab } from './recipes-tab'
 import { StockTab } from './stock-tab'
 import { CountTab } from './count-tab'
+import { EntriesTab } from './entries-tab'
+import { WasteTab } from './waste-tab'
 import { PlaceholderTab } from './placeholder-tab'
 
 type TabValue = 'stock' | 'recipes' | 'ingredients' | 'count' | 'entries' | 'waste'
@@ -64,6 +66,10 @@ export function InventoryPage() {
         <StockTab onNavigate={setActive} />
       ) : active === 'count' ? (
         <CountTab />
+      ) : active === 'entries' ? (
+        <EntriesTab />
+      ) : active === 'waste' ? (
+        <WasteTab />
       ) : (
         <PlaceholderTab icon={activeDef?.icon ?? Package} label={activeDef?.label ?? ''} />
       )}
