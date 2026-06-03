@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Plus, Package, SquarePen, Trash2 } from 'lucide-react'
+import { Plus, Package, SquarePen, Trash2, Tags } from 'lucide-react'
 import { SearchInput } from '@/core/ui/search-input'
 import { DataTable, type Column } from '@/core/ui/data-table'
 import { EmptyState } from '@/core/ui/empty-state'
@@ -11,6 +11,7 @@ import { useCompany } from '@/core/hooks/use-company'
 import { useInventoryItems, useInventoryItemMutations } from '../hooks/use-inventory-items'
 import { labelForPurchaseUnit } from '../domain/purchase-units'
 import { ItemForm } from './item-form'
+import { CategoryManager } from './category-manager'
 import type { InventoryItem } from '../types'
 
 function StateChip({ active }: { active: boolean }) {
@@ -27,7 +28,7 @@ function StateChip({ active }: { active: boolean }) {
 
 export function ItemsTab() {
   const { selectedCompany } = useCompany()
-  const { can } = usePermissions()
+  const { can, isOwner } = usePermissions()
   const canCreate = can('inventory', 'create')
   const canUpdate = can('inventory', 'update')
   const canDelete = can('inventory', 'delete')
@@ -37,6 +38,7 @@ export function ItemsTab() {
 
   const [search, setSearch] = useState('')
   const [showForm, setShowForm] = useState(false)
+  const [showCategories, setShowCategories] = useState(false)
   const [editing, setEditing] = useState<InventoryItem | null>(null)
   const [toDelete, setToDelete] = useState<InventoryItem | null>(null)
 
@@ -136,6 +138,15 @@ export function ItemsTab() {
         <div className="flex-1">
           <SearchInput value={search} onChange={setSearch} placeholder="Buscar insumo o categoría..." />
         </div>
+        {isOwner && (
+          <button
+            onClick={() => setShowCategories(true)}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone shrink-0"
+          >
+            <Tags size={16} strokeWidth={1.5} />
+            Categorías
+          </button>
+        )}
         {canCreate && (
           <button
             onClick={openCreate}
@@ -164,6 +175,8 @@ export function ItemsTab() {
       )}
 
       <ItemForm open={showForm} onClose={() => setShowForm(false)} item={editing} />
+
+      {isOwner && <CategoryManager open={showCategories} onClose={() => setShowCategories(false)} />}
 
       <ConfirmDialog
         open={!!toDelete}

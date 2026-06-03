@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X } from 'lucide-react'
+import { X, Settings2 } from 'lucide-react'
 import { SelectInput } from '@/core/ui/select-input'
 import { CurrencyInput } from '@/core/ui/currency-input'
 import { modalVariants } from '@/core/animations/variants'
 import { formatCurrency } from '@/core/utils/format'
+import { usePermissions } from '@/core/hooks/use-permissions'
 import { useSuppliers } from '@/modules/suppliers/hooks'
 import { useInventoryItemMutations } from '../hooks/use-inventory-items'
+import { useInventoryCategories } from '../hooks/use-inventory-categories'
+import { CategoryManager } from './category-manager'
 import { costPerStockUnit } from '../domain/units'
 import { PURCHASE_UNITS, getPurchaseUnit, stockUnitLabel } from '../domain/purchase-units'
 import type { InventoryItem, InventoryItemFormData, PurchaseUnit, StockUnit } from '../types'
@@ -75,7 +78,10 @@ function fromItem(item: InventoryItem): FormState {
 export function ItemForm({ open, onClose, item }: ItemFormProps) {
   const { create, update } = useInventoryItemMutations()
   const { data: suppliers } = useSuppliers()
+  const { data: categories } = useInventoryCategories()
+  const { isOwner } = usePermissions()
   const [form, setForm] = useState<FormState>(EMPTY)
+  const [showCategories, setShowCategories] = useState(false)
 
   const isEdit = !!item
 
@@ -153,7 +159,15 @@ export function ItemForm({ open, onClose, item }: ItemFormProps) {
     ...suppliers.map((s) => ({ value: s.id, label: s.name })),
   ]
 
+  const categoryOptions = [
+    { value: '', label: 'Sin categoría' },
+    ...[...categories]
+      .sort((a, b) => a.name.localeCompare(b.name, 'es'))
+      .map((c) => ({ value: c.name, label: c.name })),
+  ]
+
   return (
+    <>
     <AnimatePresence>
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -269,13 +283,24 @@ export function ItemForm({ open, onClose, item }: ItemFormProps) {
                   </div>
 
                   <div>
-                    <label className={labelClass}>Categoría</label>
-                    <input
-                      name="category"
+                    <div className="flex items-center justify-between mb-1">
+                      <label className={labelClass + ' mb-0'}>Categoría</label>
+                      {isOwner && (
+                        <button
+                          type="button"
+                          onClick={() => setShowCategories(true)}
+                          className="inline-flex items-center gap-1 text-caption text-mid-gray hover:text-graphite transition-colors"
+                        >
+                          <Settings2 size={13} strokeWidth={1.5} />
+                          Gestionar
+                        </button>
+                      )}
+                    </div>
+                    <SelectInput
                       value={form.category}
-                      onChange={handleChange}
-                      placeholder="Ej: Cárnicos, Bebidas"
-                      className={inputClass}
+                      onChange={(v) => setField('category', v)}
+                      options={categoryOptions}
+                      placeholder="Sin categoría"
                     />
                   </div>
                   <div>
@@ -340,5 +365,7 @@ export function ItemForm({ open, onClose, item }: ItemFormProps) {
         </div>
       )}
     </AnimatePresence>
+    {isOwner && <CategoryManager open={showCategories} onClose={() => setShowCategories(false)} />}
+    </>
   )
 }

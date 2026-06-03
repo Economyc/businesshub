@@ -33,6 +33,13 @@ export interface InventoryItem extends BaseEntity {
   costHistory?: ItemCostChange[]
 }
 
+/** Categoría de insumo. Catálogo editable per-company (lo gestiona el Owner). */
+export interface InventoryCategory extends BaseEntity {
+  name: string
+}
+
+export type InventoryCategoryFormData = Omit<InventoryCategory, 'id' | 'createdAt' | 'updatedAt'>
+
 /** Registro de un cambio de `unitCost` de un insumo (Fase 4: lo dispara una Entrada). */
 export interface ItemCostChange {
   at: Timestamp
