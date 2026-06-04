@@ -19,6 +19,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https'
 import { FieldValue, Timestamp } from 'firebase-admin/firestore'
 import { db } from './firestore.js'
+import { CALLABLE_CORS_ORIGINS } from './cors-origins.js'
 import { fetchDominio, fetchAllPagesForLocal } from './pos-client.js'
 import {
   addDays,
@@ -94,13 +95,7 @@ export const posRebuildMonth = onCall<RebuildData>(
     timeoutSeconds: 3600,
     memory: '1GiB',
     secrets: TENANT_SECRETS,
-    cors: [
-      'https://businesshub.myvnc.com',
-      'http://134.65.233.213',
-      'http://localhost:5173',
-      /empresas-bf\.web\.app$/,
-      /empresas-bf\.firebaseapp\.com$/,
-    ],
+    cors: CALLABLE_CORS_ORIGINS,
   },
   async (req) => {
     if (!req.auth) {
