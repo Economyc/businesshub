@@ -1,5 +1,5 @@
-import { useMemo } from 'react'
-import { Boxes, ClipboardCheck, AlertCircle, BookOpen } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Boxes, ClipboardCheck, AlertCircle, BookOpen, ChefHat, Package } from 'lucide-react'
 import { DataTable, type Column } from '@/core/ui/data-table'
 import { EmptyState } from '@/core/ui/empty-state'
 import { TableSkeleton } from '@/core/ui/skeleton'
@@ -16,7 +16,15 @@ import { computeStock, type ItemQtyMap } from '../domain/compute-stock'
 import { computeConsumption, type ConsumptionSaleLine } from '../domain/compute-consumption'
 import { aggregateReceipts, aggregateAdjustments, type FactorByItem } from '../domain/aggregate-movements'
 import { explodeRecipe } from '../domain/explode-recipe'
+import {
+  computeProductAvailability,
+  computePreparationAvailability,
+} from '../domain/compute-availability'
+import { StockProductsTable } from './stock-products-table'
+import { StockPreparationsTable } from './stock-preparations-table'
 import type { Recipe } from '../types'
+
+type StockSection = 'products' | 'preparations' | 'items'
 
 interface StockTabProps {
   /** Navega a otro tab del módulo (Conteo / Recetas) desde los CTA. */
@@ -44,6 +52,7 @@ function formatYMD(d: Date): string {
 }
 
 export function StockTab({ onNavigate }: StockTabProps) {
+  const [section, setSection] = useState<StockSection>('products')
   const { localIds } = useCompanyLocalIds()
   const localId = localIds[0]
   const { data: items, loading: itemsLoading } = useInventoryItems()
@@ -157,6 +166,24 @@ export function StockTab({ onNavigate }: StockTabProps) {
   const stock = useMemo(
     () => computeStock({ anchor, receipts: receiptsMap, adjustments: adjustmentsMap, consumption }),
     [anchor, receiptsMap, adjustmentsMap, consumption],
+  )
+
+  // Nombre de insumo por id — para mostrar el "cuello de botella" en Productos/Preparaciones.
+  const itemNameById = useMemo(() => {
+    const map: Record<string, string> = {}
+    for (const it of items) map[it.id] = it.name
+    return map
+  }, [items])
+
+  // Disponibilidad de producción (cuello de botella real) sobre el stock proyectado.
+  const productRows = useMemo(
+    () => computeProductAvailability({ recipes, preparationsById, stock }),
+    [recipes, preparationsById, stock],
+  )
+
+  const prepRows = useMemo(
+    () => computePreparationAvailability({ recipes, preparationsById, stock }),
+    [recipes, preparationsById, stock],
   )
 
   const rows = useMemo<StockRow[]>(() => {
@@ -275,6 +302,18 @@ export function StockTab({ onNavigate }: StockTabProps) {
     )
   }
 
+  const sectionButton = (value: StockSection, label: string, Icon: typeof Boxes) => (
+    <button
+      onClick={() => setSection(value)}
+      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-caption font-medium transition-colors ${
+        section === value ? 'bg-bone text-dark-graphite' : 'text-mid-gray hover:text-graphite'
+      }`}
+    >
+      <Icon size={14} strokeWidth={1.5} />
+      {label}
+    </button>
+  )
+
   return (
     <div className="space-y-4">
       <p className="text-body text-mid-gray">
@@ -284,6 +323,12 @@ export function StockTab({ onNavigate }: StockTabProps) {
         </span>{' '}
         menos el consumo de las ventas hasta hoy.
       </p>
+
+      <div className="inline-flex rounded-lg border border-border/60 p-0.5 gap-0.5">
+        {sectionButton('products', 'Productos', BookOpen)}
+        {sectionButton('preparations', 'Preparaciones', ChefHat)}
+        {sectionButton('items', 'Insumos', Package)}
+      </div>
 
       {(posError || rateLimited) && (
         <div className="flex items-start gap-2 rounded-lg bg-warning-bg px-4 py-3 text-body text-warning-text">
@@ -298,6 +343,10 @@ export function StockTab({ onNavigate }: StockTabProps) {
 
       {loading && rows.length === 0 ? (
         <TableSkeleton rows={6} columns={5} />
+      ) : section === 'products' ? (
+        <StockProductsTable rows={productRows} itemNameById={itemNameById} onNavigate={onNavigate} />
+      ) : section === 'preparations' ? (
+        <StockPreparationsTable rows={prepRows} itemNameById={itemNameById} onNavigate={onNavigate} />
       ) : rows.length === 0 ? (
         <EmptyState
           icon={Boxes}
@@ -308,7 +357,7 @@ export function StockTab({ onNavigate }: StockTabProps) {
         <DataTable columns={columns} data={rows} />
       )}
 
-      {unmapped.length > 0 && (
+      {unmapped.length > 0 && section !== 'preparations' && (
         <div className="rounded-lg border border-border/60 p-4 space-y-3">
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center rounded-full px-2 py-0.5 text-caption font-medium bg-warning-bg text-warning-text">
