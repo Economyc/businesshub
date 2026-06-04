@@ -6,6 +6,7 @@ import { orderBy, where, Timestamp } from 'firebase/firestore'
 import { useCompany } from '@/core/hooks/use-company'
 import { queryClient } from '@/core/query/query-client'
 import { fetchCollection } from '@/core/firebase/helpers'
+import { parseCategory } from '@/core/utils/categories'
 import { budgetService } from './services'
 import { generatePendingTransactions } from './recurring-generator'
 import type { Transaction, RecurringTransaction, BudgetItem } from './types'
@@ -686,10 +687,10 @@ export function useExpenseAnalysis(startDate: Date, endDate: Date) {
     const supplierSpendPrev = previous.filter(isSupplierSpend).reduce((s, t) => s + t.amount, 0)
     const otherSpend = total - supplierSpend
 
-    const byCategory = buildExpenseGroups(current, previous, (t) => ({
-      key: t.category || 'Sin categoría',
-      label: t.category || 'Sin categoría',
-    }))
+    const byCategory = buildExpenseGroups(current, previous, (t) => {
+      const parent = parseCategory(t.category || 'Sin categoría').category || 'Sin categoría'
+      return { key: parent, label: parent }
+    })
     const bySupplier = buildExpenseGroups(current, previous, (t) => {
       const p = t.payeeRef
       if (!p) return { key: '∅', label: 'Sin proveedor' }
