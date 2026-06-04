@@ -568,6 +568,8 @@ export interface ExpenseGroup {
   /** Variación % vs el mismo rubro en el período anterior. */
   deltaPct: number
   transactions: Transaction[]
+  /** Desglose por subcategoría (solo se llena para byCategory). */
+  subgroups?: ExpenseGroup[]
 }
 
 export interface ExpenseTrendPoint {
@@ -691,6 +693,21 @@ export function useExpenseAnalysis(startDate: Date, endDate: Date) {
       const parent = parseCategory(t.category || 'Sin categoría').category || 'Sin categoría'
       return { key: parent, label: parent }
     })
+    // Desglose por subcategoría dentro de cada madre. Particionamos el período
+    // anterior por madre para conservar prevTotal/deltaPct correctos.
+    const prevByParent = new Map<string, Transaction[]>()
+    for (const t of previous) {
+      const parent = parseCategory(t.category || 'Sin categoría').category || 'Sin categoría'
+      const arr = prevByParent.get(parent) ?? []
+      arr.push(t)
+      prevByParent.set(parent, arr)
+    }
+    for (const g of byCategory) {
+      g.subgroups = buildExpenseGroups(g.transactions, prevByParent.get(g.key) ?? [], (t) => {
+        const sub = parseCategory(t.category || '').subcategory || 'Sin subcategoría'
+        return { key: sub, label: sub }
+      })
+    }
     const bySupplier = buildExpenseGroups(current, previous, (t) => {
       const p = t.payeeRef
       if (!p) return { key: '∅', label: 'Sin proveedor' }

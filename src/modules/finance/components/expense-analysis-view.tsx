@@ -73,14 +73,19 @@ function DeltaBadge({ group }: { group: ExpenseGroup }) {
   )
 }
 
-function RankRow({ group, color }: { group: ExpenseGroup; color: string }) {
+function RankRow({ group, color, depth = 0 }: { group: ExpenseGroup; color: string; depth?: number }) {
   const [open, setOpen] = useState(false)
+  // Solo anidamos cuando hay más de una subcategoría real; si la madre no tiene
+  // subcategorías (todo cae en "Sin subcategoría") expandimos directo a las
+  // transacciones, sin un dropdown intermedio redundante.
+  const hasSubgroups = (group.subgroups?.length ?? 0) > 1
+  const isSub = depth > 0
 
   return (
     <div className="border-b border-border/40 last:border-0">
       <button
         onClick={() => setOpen(!open)}
-        className="w-full px-4 py-3 hover:bg-bone/40 transition-colors duration-150 rounded-lg text-left"
+        className={`w-full ${isSub ? 'px-3 py-2.5' : 'px-4 py-3'} hover:bg-bone/40 transition-colors duration-150 rounded-lg text-left`}
       >
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
@@ -90,7 +95,7 @@ function RankRow({ group, color }: { group: ExpenseGroup; color: string }) {
               <ChevronRight size={14} strokeWidth={1.5} className="text-mid-gray shrink-0" />
             )}
             <span
-              className="size-2 rounded-full shrink-0"
+              className={`rounded-full shrink-0 ${isSub ? 'size-1.5 opacity-60' : 'size-2'}`}
               style={{ backgroundColor: color }}
             />
             <span className="text-body text-graphite truncate">{group.label}</span>
@@ -106,15 +111,17 @@ function RankRow({ group, color }: { group: ExpenseGroup; color: string }) {
           <div className="flex-1 h-1.5 rounded-full bg-bone overflow-hidden">
             <div
               className="h-full rounded-full"
-              style={{ width: `${group.share}%`, backgroundColor: color }}
+              style={{ width: `${group.share}%`, backgroundColor: color, opacity: isSub ? 0.6 : 1 }}
             />
           </div>
           <span className="text-caption text-mid-gray w-9 text-right shrink-0">
             {group.share.toFixed(0)}%
           </span>
-          <span className="w-12 text-right shrink-0">
-            <DeltaBadge group={group} />
-          </span>
+          {!isSub && (
+            <span className="w-12 text-right shrink-0">
+              <DeltaBadge group={group} />
+            </span>
+          )}
         </div>
       </button>
       <AnimatePresence>
@@ -126,22 +133,30 @@ function RankRow({ group, color }: { group: ExpenseGroup; color: string }) {
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="pl-12 pr-4 pb-2">
-              {group.transactions.slice(0, 50).map((t) => (
-                <div
-                  key={t.id}
-                  className="flex items-center justify-between py-1.5 text-caption"
-                >
-                  <span className="text-mid-gray truncate mr-3">{t.concept}</span>
-                  <span className="text-graphite shrink-0">{formatCurrency(t.amount)}</span>
-                </div>
-              ))}
-              {group.transactions.length > 50 && (
-                <div className="py-1.5 text-caption text-mid-gray">
-                  +{group.transactions.length - 50} movimientos más
-                </div>
-              )}
-            </div>
+            {hasSubgroups ? (
+              <div className="pl-5 pr-1 pb-1">
+                {group.subgroups!.map((sg) => (
+                  <RankRow key={sg.key} group={sg} color={color} depth={depth + 1} />
+                ))}
+              </div>
+            ) : (
+              <div className="pl-12 pr-4 pb-2">
+                {group.transactions.slice(0, 50).map((t) => (
+                  <div
+                    key={t.id}
+                    className="flex items-center justify-between py-1.5 text-caption"
+                  >
+                    <span className="text-mid-gray truncate mr-3">{t.concept}</span>
+                    <span className="text-graphite shrink-0">{formatCurrency(t.amount)}</span>
+                  </div>
+                ))}
+                {group.transactions.length > 50 && (
+                  <div className="py-1.5 text-caption text-mid-gray">
+                    +{group.transactions.length - 50} movimientos más
+                  </div>
+                )}
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
