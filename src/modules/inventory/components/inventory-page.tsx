@@ -37,11 +37,11 @@ export function InventoryPage() {
 
   const tabs = useMemo(() => TABS.filter((t) => canAccessTab(t.tabId)), [canAccessTab])
 
-  // Fase 1: Insumos es lo único operativo, así que arranca ahí si está permitido;
-  // si no, cae al primer tab accesible.
+  // Stock es la vista principal del módulo (fuente de la verdad del inventario);
+  // arranca ahí si está permitido, si no cae al primer tab accesible.
   const [active, setActive] = useState<TabValue>(() => {
-    const preferred = tabs.find((t) => t.value === 'ingredients')
-    return (preferred ?? tabs[0])?.value ?? 'ingredients'
+    const preferred = tabs.find((t) => t.value === 'stock')
+    return (preferred ?? tabs[0])?.value ?? 'stock'
   })
 
   const activeDef = TABS.find((t) => t.value === active)

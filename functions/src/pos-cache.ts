@@ -183,6 +183,12 @@ export async function saveVentasToCacheServer(
           `[PosReconcile] skip overwrite for ${companyId}/${key}: new=${newCount} < prev=${prevCount}`,
         )
         skippedPartial++
+        // El fetch fue exitoso (no rate-limit); solo conservamos el payload
+        // previo por ser más completo. Aun así marcamos el día como
+        // sincronizado para que la cobertura del cliente no lo clasifique como
+        // hueco permanente (evita un loop de reconcile si el meta quedó
+        // desfasado de los docs de ventas).
+        if (stampEmpty) monthPayload[key] = now
         continue
       }
 

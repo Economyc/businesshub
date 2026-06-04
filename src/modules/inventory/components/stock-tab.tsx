@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react'
-import { Boxes, ClipboardCheck, AlertCircle, BookOpen, ChefHat, Package } from 'lucide-react'
+import { Boxes, ClipboardCheck, AlertCircle, BookOpen, ChefHat, Package, RefreshCw } from 'lucide-react'
 import { DataTable, type Column } from '@/core/ui/data-table'
 import { EmptyState } from '@/core/ui/empty-state'
 import { TableSkeleton } from '@/core/ui/skeleton'
 import { formatCurrency } from '@/core/utils/format'
-import { usePosVentas } from '@/modules/pos-sync/hooks'
+import { useStockSync } from '@/modules/pos-sync/hooks'
 import { useCompanyLocalIds } from '@/modules/pos-sync/company-mapping'
 import { getTodayStr } from '@/modules/pos-sync/cache-service'
 import { useInventoryItems } from '../hooks/use-inventory-items'
@@ -72,14 +72,19 @@ export function StockTab({ onNavigate }: StockTabProps) {
   const startDate = hasAnchor ? formatYMD(lastFinalCount.countedAt.toDate()) : ''
   const endDate = getTodayStr()
 
-  // usePosVentas se llama SIEMPRE (regla de hooks); se desactiva con enabled/startDate.
+  // El Stock NO consulta el POS en vivo (eso rate-limitea por concurrencia de
+  // token). Lee el consumo del cache consolidado y deja que el server lo llene
+  // (useStockSync). Se llama SIEMPRE (regla de hooks); se desactiva con enabled.
   const {
     ventas,
-    isPending: posPending,
-    error: posError,
-    rateLimited,
-  } = usePosVentas({
-    localIds: localId != null ? [localId] : [],
+    loading: posPending,
+    syncing,
+    missingDays,
+    lastSyncedAt,
+    failedPersistently,
+    syncNow,
+  } = useStockSync({
+    localId: localId ?? null,
     startDate,
     endDate,
     enabled: hasAnchor,
@@ -330,16 +335,38 @@ export function StockTab({ onNavigate }: StockTabProps) {
         {sectionButton('items', 'Insumos', Package)}
       </div>
 
-      {(posError || rateLimited) && (
-        <div className="flex items-start gap-2 rounded-lg bg-warning-bg px-4 py-3 text-body text-warning-text">
-          <AlertCircle size={16} strokeWidth={1.5} className="shrink-0 mt-0.5" />
+      {/* Estado de sincronización del consumo POS (cache consolidado, sin
+          tocar el POS en vivo → nunca rate-limitea). */}
+      {syncing ? (
+        <div className="flex items-center gap-2 rounded-lg bg-info-bg px-4 py-3 text-body text-info-text">
+          <RefreshCw size={16} strokeWidth={1.5} className="shrink-0 animate-spin" />
           <span>
-            {rateLimited
-              ? 'El POS limitó las consultas; el consumo puede estar incompleto.'
-              : `No se pudieron cargar todas las ventas: ${posError}. El stock mostrado es parcial.`}
+            Sincronizando ventas del POS…
+            {missingDays > 0 && ` (faltan ${missingDays} ${missingDays === 1 ? 'día' : 'días'})`}
           </span>
         </div>
-      )}
+      ) : missingDays > 0 ? (
+        <div className="flex items-center gap-2 rounded-lg bg-warning-bg px-4 py-3 text-body text-warning-text">
+          <AlertCircle size={16} strokeWidth={1.5} className="shrink-0" />
+          <span className="flex-1">
+            {failedPersistently
+              ? `No se pudieron sincronizar ${missingDays} ${missingDays === 1 ? 'día' : 'días'} de ventas.`
+              : `Faltan ${missingDays} ${missingDays === 1 ? 'día' : 'días'} de ventas por sincronizar.`}
+          </span>
+          <button
+            onClick={syncNow}
+            className="shrink-0 inline-flex items-center gap-1.5 text-body font-medium hover:underline"
+          >
+            <RefreshCw size={14} strokeWidth={1.5} />
+            Sincronizar ahora
+          </button>
+        </div>
+      ) : lastSyncedAt ? (
+        <p className="text-caption text-mid-gray">
+          Ventas actualizadas a las{' '}
+          {lastSyncedAt.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+        </p>
+      ) : null}
 
       {loading && rows.length === 0 ? (
         <TableSkeleton rows={6} columns={5} />

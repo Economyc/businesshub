@@ -123,6 +123,99 @@ export async function getCachedVentas(
   return { ventas, freshKeys, staleKeys }
 }
 
+export interface CacheCoverage {
+  /** Días en el rango [startDate, endDate]. */
+  total: number
+  /** Días con stamp en el meta (sincronizados). */
+  covered: number
+  /** Días sin stamp (faltan por sincronizar), ordenados. */
+  missingDates: string[]
+  /** Timestamp más reciente de sincronización dentro del rango. */
+  lastSyncedAt: Date | null
+  /** true si todos los días del rango están stampados. */
+  complete: boolean
+}
+
+// Pura (testeable sin Firestore): dado el set de días stampados en el meta
+// (`${date}_${localId}` → millis de sincronización), calcula la cobertura para
+// UN local y rango. Un día está cubierto si su key existe — independiente de si
+// tuvo ventas (un domingo con 0 ventas igual cuenta como cubierto si se stampó).
+export function computeCacheCoverage(
+  stampedDays: Record<string, number>,
+  localId: number,
+  startDate: string,
+  endDate: string,
+): CacheCoverage {
+  const lidStr = String(localId)
+  const byDate = new Map<string, number>()
+  for (const [key, millis] of Object.entries(stampedDays)) {
+    // key = `${date}_${localId}`; date es YYYY-MM-DD (sin '_'), así que el
+    // último '_' separa la fecha del localId.
+    const sep = key.lastIndexOf('_')
+    if (sep < 0) continue
+    const date = key.slice(0, sep)
+    const lid = key.slice(sep + 1)
+    if (lid !== lidStr) continue
+    if (date < startDate || date > endDate) continue
+    byDate.set(date, millis)
+  }
+
+  const missingDates: string[] = []
+  let total = 0
+  let lastSyncedMs = 0
+  const cursor = new Date(startDate + 'T12:00:00')
+  const end = new Date(endDate + 'T12:00:00')
+  while (cursor <= end) {
+    const y = cursor.getFullYear()
+    const m = String(cursor.getMonth() + 1).padStart(2, '0')
+    const d = String(cursor.getDate()).padStart(2, '0')
+    const date = `${y}-${m}-${d}`
+    total++
+    const ms = byDate.get(date)
+    if (ms !== undefined) {
+      if (ms > lastSyncedMs) lastSyncedMs = ms
+    } else {
+      missingDates.push(date)
+    }
+    cursor.setDate(cursor.getDate() + 1)
+  }
+
+  return {
+    total,
+    covered: total - missingDates.length,
+    missingDates,
+    lastSyncedAt: lastSyncedMs > 0 ? new Date(lastSyncedMs) : null,
+    complete: missingDates.length === 0,
+  }
+}
+
+// Cobertura del cache para el rango [startDate, endDate] de UN local. Lo usa el
+// Stock para saber si el consumo del POS está completo SIN tocar el POS en vivo
+// (cero rate-limit). HOY cuenta como cubierto una vez que un reconcile que
+// incluye el día en curso lo stampa.
+export async function getCacheCoverage(
+  companyId: string,
+  localId: number,
+  startDate: string,
+  endDate: string,
+): Promise<CacheCoverage> {
+  const months = monthsInRange(startDate, endDate)
+  const metaSnaps = await Promise.all(
+    months.map((month) => getDoc(doc(db, 'companies', companyId, META_COLLECTION, month))),
+  )
+
+  const stampedDays: Record<string, number> = {}
+  for (const metaSnap of metaSnaps) {
+    if (!metaSnap.exists()) continue
+    const metaData = metaSnap.data() as MetaDoc
+    for (const [key, ts] of Object.entries(metaData.days ?? {})) {
+      stampedDays[key] = ts?.toMillis?.() ?? 0
+    }
+  }
+
+  return computeCacheCoverage(stampedDays, localId, startDate, endDate)
+}
+
 // Threshold below which a new fetch is considered a "partial response" relative
 // to the cached version and we refuse to overwrite the existing cache.
 // Bajamos de 0.7 → 0.5: el POS puede legítimamente devolver menos ventas si

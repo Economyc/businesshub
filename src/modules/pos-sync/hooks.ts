@@ -3,7 +3,7 @@ import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-quer
 import { doc, getDoc, Timestamp } from 'firebase/firestore'
 import { db } from '@/core/firebase/config'
 import { useCompany } from '@/core/hooks/use-company'
-import { posService, PosRateLimitError } from './services'
+import { posService, PosRateLimitError, triggerServerReconcile } from './services'
 import {
   getCachedVentas,
   saveVentasToCache,
@@ -12,6 +12,8 @@ import {
   enumerateDates,
   getTodayStr,
   isLikelyPartialResponse,
+  getCacheCoverage,
+  type CacheCoverage,
 } from './cache-service'
 import type { PosLocal, PosVenta, PosProducto } from './types'
 
@@ -716,4 +718,260 @@ export function usePosCatalogo() {
   )
 
   return { productos, loading, isRefreshing, error, fromCache, lastUpdated, fetch, refresh }
+}
+
+// ── Stock: lectura confiable del consumo POS sin rate-limit ──────────────────
+//
+// El Stock del inventario NUNCA llama al POS en vivo (eso rate-limitea por
+// concurrencia de token). Lee el consumo desde el cache consolidado de
+// Firestore (readCacheOnly) y delega el llenado del cache al servidor
+// (posReconcileOnDemand, serializado por tenant). Estos hooks orquestan esa
+// lectura + auto-reparación.
+
+const COVERAGE_STALE_MS = 30_000
+// Refresco del día en curso: re-disparar el reconcile como mucho cada 15 min
+// para traer las ventas que entraron durante el día (acotado para no hacer loop).
+const STOCK_TODAY_REFRESH_MS = 15 * 60 * 1000
+
+/** Cobertura del cache de ventas para [startDate, endDate] de un local. */
+export function usePosCacheCoverage({
+  localId,
+  startDate,
+  endDate,
+  enabled = true,
+}: {
+  localId: number | null
+  startDate: string
+  endDate: string
+  enabled?: boolean
+}) {
+  const { selectedCompany } = useCompany()
+  const companyId = selectedCompany?.id
+  const queryEnabled =
+    enabled && !!companyId && localId != null && !!startDate && !!endDate
+
+  const query = useQuery<CacheCoverage>({
+    queryKey: ['pos-cache-coverage', companyId, localId, startDate, endDate],
+    enabled: queryEnabled,
+    staleTime: COVERAGE_STALE_MS,
+    gcTime: GC_TIME_MS,
+    queryFn: () => getCacheCoverage(companyId!, localId!, startDate, endDate),
+  })
+
+  return {
+    coverage: query.data ?? null,
+    loading: query.isFetching,
+    refetch: query.refetch,
+  }
+}
+
+export interface StockSyncState {
+  ventas: PosVenta[]
+  loading: boolean
+  coverage: CacheCoverage | null
+  /** Un reconcile (propio o del server) está corriendo. */
+  syncing: boolean
+  /** Días del rango sin sincronizar. */
+  missingDays: number
+  /** Última sincronización dentro del rango. */
+  lastSyncedAt: Date | null
+  /** El último intento de sincronización falló (CORS/red/500). */
+  failedPersistently: boolean
+  /** Reintento manual ("Sincronizar ahora"). */
+  syncNow: () => void
+}
+
+/**
+ * Lee el consumo POS para el Stock desde el cache (cero rate-limit) y, si el
+ * rango [startDate, endDate] tiene huecos, dispara el reconcile server-side una
+ * vez y espera a que termine (poll del flag inProgress). Adapta el patrón de
+ * auto-reconcile del Home (src/modules/home/hooks.ts) a un solo rango.
+ */
+export function useStockSync({
+  localId,
+  startDate,
+  endDate,
+  enabled = true,
+}: {
+  localId: number | null
+  startDate: string
+  endDate: string
+  enabled?: boolean
+}): StockSyncState {
+  const { selectedCompany } = useCompany()
+  const companyId = selectedCompany?.id
+  const active = enabled && localId != null
+
+  const {
+    ventas,
+    isPending: ventasPending,
+    refetch: ventasRefetch,
+  } = usePosVentas({
+    localIds: localId != null ? [localId] : [],
+    startDate,
+    endDate,
+    enabled: active,
+    readCacheOnly: true,
+  })
+
+  const {
+    coverage,
+    loading: coverageLoading,
+    refetch: coverageRefetch,
+  } = usePosCacheCoverage({ localId, startDate, endDate, enabled: active })
+
+  const RECONCILE_FAILURE_COOLDOWN_MS = 5 * 60 * 1000
+  const reconcileFiredRef = useRef<string | null>(null)
+  const firingRef = useRef(false)
+  const lastFiredAtRef = useRef(0)
+  const failedAtRef = useRef<Map<string, number>>(new Map())
+  const [syncing, setSyncing] = useState(false)
+  const [failedPersistently, setFailedPersistently] = useState(false)
+  const [forceTick, setForceTick] = useState(0)
+
+  const refetchAll = useCallback(async () => {
+    await Promise.all([ventasRefetch(), coverageRefetch()])
+  }, [ventasRefetch, coverageRefetch])
+
+  const fireReconcile = useCallback(
+    async (days: number, fireKey: string) => {
+      if (!companyId) return
+      firingRef.current = true
+      lastFiredAtRef.current = Date.now()
+      setSyncing(true)
+      setFailedPersistently(false)
+      try {
+        await triggerServerReconcile(companyId, days)
+        reconcileFiredRef.current = fireKey
+        failedAtRef.current.delete(fireKey)
+        await refetchAll()
+      } catch (err) {
+        failedAtRef.current.set(fireKey, Date.now())
+        setFailedPersistently(true)
+        // eslint-disable-next-line no-console
+        console.warn('[stock-sync] reconcile falló', err)
+      } finally {
+        firingRef.current = false
+        setSyncing(false)
+      }
+    },
+    [companyId, refetchAll],
+  )
+
+  // Fire-once: dispara reconcile cuando faltan días en [conteo, hoy], o refresca
+  // el día en curso si su última sincronización es vieja. Anclado a fireKey +
+  // cooldown de fallo para no entrar en loop.
+  useEffect(() => {
+    if (!active || !companyId || localId == null) return
+    if (!coverage) return
+    if (firingRef.current) return
+
+    const today = getTodayStr()
+    const fireKey = `${companyId}_${localId}_${startDate}_${endDate}`
+
+    const failedAt = failedAtRef.current.get(fireKey)
+    if (failedAt && Date.now() - failedAt < RECONCILE_FAILURE_COOLDOWN_MS) return
+
+    const historicalMissing = coverage.missingDates.filter((d) => d < today).length
+    const todayMissing = endDate >= today && coverage.missingDates.includes(today)
+    const needsFill = historicalMissing > 0 || todayMissing
+    const todayStale =
+      endDate >= today &&
+      !todayMissing &&
+      (!coverage.lastSyncedAt ||
+        Date.now() - coverage.lastSyncedAt.getTime() > STOCK_TODAY_REFRESH_MS)
+
+    const alreadyFired = reconcileFiredRef.current === fireKey && forceTick === 0
+
+    if (needsFill) {
+      if (alreadyFired) return
+    } else if (todayStale) {
+      // Refresco del día en curso: como mucho una vez cada 15 min.
+      if (Date.now() - lastFiredAtRef.current < STOCK_TODAY_REFRESH_MS && forceTick === 0) return
+    } else {
+      return // cache completo y hoy fresco → nada que hacer
+    }
+
+    const msPerDay = 1000 * 60 * 60 * 24
+    const startMs = new Date(startDate + 'T12:00:00').getTime()
+    const todayMs = new Date(today + 'T12:00:00').getTime()
+    const days = Math.min(Math.max(Math.round((todayMs - startMs) / msPerDay) + 1, 1), 365)
+    void fireReconcile(days, fireKey)
+  }, [active, companyId, localId, coverage, startDate, endDate, forceTick, fireReconcile])
+
+  const syncNow = useCallback(() => {
+    if (firingRef.current || localId == null || !companyId) return
+    const fireKey = `${companyId}_${localId}_${startDate}_${endDate}`
+    failedAtRef.current.delete(fireKey)
+    reconcileFiredRef.current = null
+    lastFiredAtRef.current = 0
+    setForceTick((t) => t + 1)
+  }, [companyId, localId, startDate, endDate])
+
+  // Poll del flag inProgress del server: al detectar que un reconcile terminó
+  // (true→false), refrescar ventas + cobertura. getDoc (no onSnapshot) por
+  // adblockers que bloquean el canal long-poll de Firestore.
+  const POLL_INTERVALS = [30_000, 60_000, 120_000, 300_000] as const
+  const INACTIVE_THRESHOLD = 3
+  const inactiveCyclesRef = useRef(0)
+  const prevInProgressRef = useRef(false)
+
+  useEffect(() => {
+    inactiveCyclesRef.current = 0
+    prevInProgressRef.current = false
+  }, [companyId])
+
+  const metaQuery = useQuery({
+    // Key propia (no compartir con el poll del Home) para que el refetchInterval
+    // adaptativo de cada uno no se pise.
+    queryKey: ['pos-reconcile-meta-stock', companyId],
+    enabled: !!companyId,
+    queryFn: async () => {
+      const ref = doc(db, 'companies', companyId!, 'settings', 'pos-reconcile-meta')
+      const snap = await getDoc(ref)
+      if (!snap.exists()) return { inProgress: false, startedMs: 0 }
+      const data = snap.data() as { inProgress?: boolean; startedAt?: Timestamp }
+      return { inProgress: !!data.inProgress, startedMs: data.startedAt?.toMillis?.() ?? 0 }
+    },
+    refetchInterval: () => {
+      if (firingRef.current) return POLL_INTERVALS[0]
+      const step = Math.min(
+        Math.floor(inactiveCyclesRef.current / INACTIVE_THRESHOLD),
+        POLL_INTERVALS.length - 1,
+      )
+      return POLL_INTERVALS[step]
+    },
+    refetchIntervalInBackground: false,
+    retry: 0,
+    staleTime: 0,
+    gcTime: 60_000,
+  })
+
+  useEffect(() => {
+    const meta = metaQuery.data
+    if (!meta) return
+    const stuck = meta.startedMs > 0 && Date.now() - meta.startedMs > RECONCILE_STUCK_MS
+    const serverActive = meta.inProgress && !stuck
+    setSyncing((prev) => (firingRef.current ? prev : serverActive))
+    if (prevInProgressRef.current && !serverActive) {
+      void refetchAll()
+    }
+    if (serverActive || prevInProgressRef.current) {
+      inactiveCyclesRef.current = 0
+    } else {
+      inactiveCyclesRef.current += 1
+    }
+    prevInProgressRef.current = serverActive
+  }, [metaQuery.data, metaQuery.dataUpdatedAt, refetchAll])
+
+  return {
+    ventas,
+    loading: ventasPending || coverageLoading,
+    coverage,
+    syncing,
+    missingDays: coverage?.missingDates.length ?? 0,
+    lastSyncedAt: coverage?.lastSyncedAt ?? null,
+    failedPersistently,
+    syncNow,
+  }
 }
