@@ -373,14 +373,12 @@ export function useIncomeStatement(startDate: Date, endDate: Date) {
     const incomeTxs = periodTxs.filter(
       (t) => t.type === 'income' && inRange(t.date?.toDate?.()),
     )
-    // Gastos: criterio de caja — solo lo efectivamente pagado, ubicado por
-    // fecha de pago (fallback a `date` para data legacy sin paidDate). Las
-    // cuentas por pagar (pending/overdue) quedan excluidas hasta liquidarse.
+    // Gastos: solo lo efectivamente pagado (las cuentas por pagar quedan
+    // excluidas hasta liquidarse), ubicado por fecha de reconocimiento: nómina y
+    // propinas por su mes devengado (accrualDate), el resto por fecha de pago
+    // (paidDate ?? date). Ver recognitionDate.
     const expenseTxs = periodTxs.filter(
-      (t) =>
-        t.type === 'expense' &&
-        t.status === 'paid' &&
-        inRange((t.paidDate ?? t.date)?.toDate?.()),
+      (t) => t.type === 'expense' && t.status === 'paid' && inRange(recognitionDate(t)),
     )
 
     // Classify income
@@ -596,8 +594,13 @@ export interface ExpenseAnalysisData {
   transactionCount: number
 }
 
-function cashDate(t: Transaction): Date | null {
-  return (t.paidDate ?? t.date)?.toDate?.() ?? null
+// Fecha con la que un gasto se reconoce en los reportes contables (Estado de
+// Resultados y Análisis de Gastos). Nómina y propinas traen accrualDate (mes
+// devengado) y se ubican ahí; el resto de gastos cae a paidDate ?? date,
+// idéntico al comportamiento previo. NO se usa en Flujo de Caja, que mide la
+// salida real de plata por fecha de pago.
+function recognitionDate(t: Transaction): Date | null {
+  return (t.accrualDate ?? t.paidDate ?? t.date)?.toDate?.() ?? null
 }
 
 // Id real del payee, o null si es un tercero externo/custom. Los externos se
@@ -679,8 +682,8 @@ export function useExpenseAnalysis(startDate: Date, endDate: Date) {
     const paidExpenses = allTxs.filter((t) => t.type === 'expense' && t.status === 'paid')
     const within = (d: Date | null, a: Date, b: Date) => !!d && d >= a && d <= b
 
-    const current = paidExpenses.filter((t) => within(cashDate(t), startDate, endDate))
-    const previous = paidExpenses.filter((t) => within(cashDate(t), prevStart, prevEnd))
+    const current = paidExpenses.filter((t) => within(recognitionDate(t), startDate, endDate))
+    const previous = paidExpenses.filter((t) => within(recognitionDate(t), prevStart, prevEnd))
 
     const total = current.reduce((s, t) => s + t.amount, 0)
     const totalPrev = previous.reduce((s, t) => s + t.amount, 0)
@@ -726,7 +729,7 @@ export function useExpenseAnalysis(startDate: Date, endDate: Date) {
 
     const monthMap = new Map<string, number>()
     for (const t of current) {
-      const d = cashDate(t)
+      const d = recognitionDate(t)
       if (!d) continue
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
       monthMap.set(key, (monthMap.get(key) ?? 0) + t.amount)

@@ -69,6 +69,9 @@ export interface TipRowState {
 
 // ── Documentos resumen en Firestore ──
 
+/** Quincena devengada: primera (Q1), segunda (Q2) o mes completo (full). */
+export type Fortnight = 'Q1' | 'Q2' | 'full'
+
 export interface PayrollBatchLine {
   employeeId: string
   employeeName: string
@@ -86,6 +89,10 @@ export interface PayrollBatchDoc {
   periodKey: string
   periodLabel: string
   paidDate: Timestamp
+  // Período devengado estructurado. periodLabel se autogenera a partir de estos.
+  // Opcionales por retrocompatibilidad con lotes previos a la migración.
+  accrualMonth?: string // 'YYYY-MM'
+  fortnight?: Fortnight
   lines: PayrollBatchLine[]
   totalPosted: number
   createdAt: Timestamp
@@ -102,6 +109,9 @@ export interface TipDistributionDoc {
   periodKey: string
   periodLabel: string
   paidDate: Timestamp
+  // Período devengado estructurado (ver PayrollBatchDoc).
+  accrualMonth?: string // 'YYYY-MM'
+  fortnight?: Fortnight
   lines: TipLine[]
   total: number
   transactionId: string

@@ -26,7 +26,9 @@ import type {
   PayrollBatchDoc,
   TipLine,
   TipDistributionDoc,
+  Fortnight,
 } from './types-payroll'
+import { accrualLabel, accrualTimestamp } from './utils/accrual-period'
 
 const PAYROLL_BATCHES = 'payroll-batches'
 const TIP_DISTRIBUTIONS = 'tip-distributions'
@@ -233,8 +235,10 @@ async function uploadColillaToDrive(
 }
 
 export interface RegisterPayrollParams {
-  periodKey: string
-  periodLabel: string
+  /** Mes devengado 'YYYY-MM'. */
+  accrualMonth: string
+  fortnight: Fortnight
+  /** Fecha de pago real (cuándo salió la plata). */
   paidDate: Date
   rows: PayrollRowState[]
 }
@@ -249,7 +253,11 @@ export async function registerPayrollBatch(
   params: RegisterPayrollParams,
 ): Promise<RegisterPayrollResult> {
   if (!companyId) throw new Error('No hay empresa activa seleccionada.')
-  const { periodKey, periodLabel, paidDate, rows } = params
+  const { accrualMonth, fortnight, paidDate, rows } = params
+  // Un único lote por quincena devengada: re-registrar la misma quincena
+  // reemplaza al anterior, aunque cambie la fecha de pago.
+  const periodKey = `${accrualMonth}_${fortnight}`
+  const periodLabel = accrualLabel(accrualMonth, fortnight)
   const groupId = `${companyId}_payroll_${periodKey}`
   const included = rows.filter((r) => r.include && r.employeeId && r.amountToPost > 0)
 
@@ -257,6 +265,7 @@ export async function registerPayrollBatch(
   await deleteBySplitGroup(companyId, groupId)
 
   const dateTs = Timestamp.fromDate(paidDate)
+  const accrualTs = accrualTimestamp(accrualMonth, fortnight)
   const lines: PayrollBatchLine[] = []
   const failed: RegisterPayrollResult['failed'] = []
 
@@ -276,6 +285,7 @@ export async function registerPayrollBatch(
         date: dateTs,
         status: 'paid',
         paidDate: dateTs,
+        accrualDate: accrualTs,
         payeeRef: { type: 'employee', id: row.employeeId, name: row.employeeName },
         splitGroupId: groupId,
         sourceDocument,
@@ -315,6 +325,8 @@ export async function registerPayrollBatch(
     periodKey,
     periodLabel,
     paidDate: dateTs,
+    accrualMonth,
+    fortnight,
     lines,
     totalPosted: lines.reduce((s, l) => s + l.amountPosted, 0),
     createdAt: now,
@@ -327,8 +339,10 @@ export async function registerPayrollBatch(
 }
 
 export interface RegisterTipsParams {
-  periodKey: string
-  periodLabel: string
+  /** Mes devengado 'YYYY-MM'. */
+  accrualMonth: string
+  fortnight: Fortnight
+  /** Fecha de pago real (cuándo salió la plata). */
   paidDate: Date
   rows: TipRowState[]
 }
@@ -338,11 +352,14 @@ export async function registerTipDistribution(
   params: RegisterTipsParams,
 ): Promise<{ total: number }> {
   if (!companyId) throw new Error('No hay empresa activa seleccionada.')
-  const { periodKey, periodLabel, paidDate, rows } = params
+  const { accrualMonth, fortnight, paidDate, rows } = params
+  const periodKey = `${accrualMonth}_${fortnight}`
+  const periodLabel = accrualLabel(accrualMonth, fortnight)
   const groupId = `${companyId}_tips_${periodKey}`
   const included = rows.filter((r) => r.include && r.amount > 0)
   const total = included.reduce((s, r) => s + r.amount, 0)
   const dateTs = Timestamp.fromDate(paidDate)
+  const accrualTs = accrualTimestamp(accrualMonth, fortnight)
 
   // Idempotencia: reemplazar el gasto previo del mismo lote.
   await deleteBySplitGroup(companyId, groupId)
@@ -358,6 +375,7 @@ export async function registerTipDistribution(
       date: dateTs,
       status: 'paid',
       paidDate: dateTs,
+      accrualDate: accrualTs,
       splitGroupId: groupId,
       notes: `Distribución de propinas a ${included.length} empleados.`,
     })
@@ -373,6 +391,8 @@ export async function registerTipDistribution(
     periodKey,
     periodLabel,
     paidDate: dateTs,
+    accrualMonth,
+    fortnight,
     lines,
     total,
     transactionId,

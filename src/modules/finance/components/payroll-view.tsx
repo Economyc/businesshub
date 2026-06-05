@@ -42,7 +42,9 @@ import type {
   TipRowState,
   PayrollBatchDoc,
   TipDistributionDoc,
+  Fortnight,
 } from '../types-payroll'
+import { accrualLabel } from '../utils/accrual-period'
 
 const MAX_SIZE = 10 * 1024 * 1024
 const COLILLA_ACCEPT = '.pdf,.jpg,.jpeg,.png,.webp,.heic,.heif'
@@ -70,16 +72,6 @@ function parseISO(iso: string): Date {
   return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12, 0, 0)
 }
 
-function slugPeriod(label: string, fallbackISO: string): string {
-  const s = (label || '')
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '')
-  return s || fallbackISO
-}
-
 function monthKeyOf(ts: Timestamp): string {
   const d = ts.toDate()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
@@ -95,6 +87,24 @@ function fmtMonthLabel(key: string): string {
   const s = new Date(y, m - 1, 1).toLocaleDateString('es-CO', { month: 'long', year: 'numeric' })
   return s.charAt(0).toUpperCase() + s.slice(1)
 }
+
+/** Opciones de mes contable: 1 mes adelante + ~14 hacia atrás desde hoy. */
+function monthOptions(): { value: string; label: string }[] {
+  const now = new Date()
+  const opts: { value: string; label: string }[] = []
+  for (let i = 1; i >= -14; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    opts.push({ value: key, label: fmtMonthLabel(key) })
+  }
+  return opts
+}
+
+const FORTNIGHT_OPTIONS: { value: Fortnight; label: string }[] = [
+  { value: 'Q1', label: 'Primera quincena (Q1)' },
+  { value: 'Q2', label: 'Segunda quincena (Q2)' },
+  { value: 'full', label: 'Mes completo' },
+]
 
 function fmtDay(ts: Timestamp): string {
   return ts.toDate().toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
@@ -121,9 +131,11 @@ export function PayrollView() {
       setTab(payrollTabs[0].value as Tab)
     }
   }, [payrollTabs, tab])
-  const [periodLabel, setPeriodLabel] = useState('')
+  const [accrualMonth, setAccrualMonth] = useState(currentMonthKey())
+  const [fortnight, setFortnight] = useState<Fortnight>('Q2')
   const [paidDate, setPaidDate] = useState(todayISO())
   const [dateConfirmed, setDateConfirmed] = useState(false)
+  const monthOpts = useMemo(() => monthOptions(), [])
 
   // Si cambia la fecha de pago, re-exigir confirmación del aviso.
   useEffect(() => {
@@ -141,11 +153,10 @@ export function PayrollView() {
     [employees],
   )
 
-  // La clave del periodo SIEMPRE incluye la fecha de pago: así dos lotes con la
-  // misma etiqueta pero distinta fecha NO colisionan (registrar reemplaza solo
-  // el lote del mismo periodo+fecha exactos).
-  const periodKey = `${slugPeriod(periodLabel, 'p')}__${paidDate}`
-  const effectiveLabel = periodLabel.trim() || `Quincena ${paidDate}`
+  // Etiqueta legible derivada del período devengado (mes + quincena). El lote se
+  // identifica por mes+quincena dentro del service: registrar reemplaza el lote
+  // previo de la misma quincena, aunque cambie la fecha de pago.
+  const effectiveLabel = accrualLabel(accrualMonth, fortnight)
 
   return (
     <PageTransition>
@@ -168,34 +179,45 @@ export function PayrollView() {
 
       {/* Periodo (solo al registrar) */}
       {tab !== 'historial' && (
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-        <div>
-          <label className="block text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1">
-            Etiqueta del periodo
-          </label>
-          <input
-            value={periodLabel}
-            onChange={(e) => setPeriodLabel(e.target.value)}
-            placeholder="Ej: Q1 mayo 2026"
-            className="w-full px-3 py-2.5 rounded-lg border border-input-border bg-input-bg text-body text-graphite placeholder:text-mid-gray/60 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all"
-          />
+      <div className="mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1">
+              Mes contable (devengo)
+            </label>
+            <SelectInput value={accrualMonth} onChange={setAccrualMonth} options={monthOpts} />
+          </div>
+          <div>
+            <label className="block text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1">
+              Quincena
+            </label>
+            <SelectInput
+              value={fortnight}
+              onChange={(v) => setFortnight(v as Fortnight)}
+              options={FORTNIGHT_OPTIONS}
+            />
+          </div>
+          <div>
+            <label className="block text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1">
+              Fecha de pago
+            </label>
+            <DateInput value={paidDate} onChange={setPaidDate} />
+            {isDateTooOld(paidDate) && (
+              <div className="mt-2">
+                <StaleDateWarning
+                  dateISO={paidDate}
+                  fieldLabel="fecha del pago"
+                  confirmed={dateConfirmed}
+                  onConfirmChange={setDateConfirmed}
+                />
+              </div>
+            )}
+          </div>
         </div>
-        <div>
-          <label className="block text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1">
-            Fecha de pago
-          </label>
-          <DateInput value={paidDate} onChange={setPaidDate} />
-          {isDateTooOld(paidDate) && (
-            <div className="mt-2">
-              <StaleDateWarning
-                dateISO={paidDate}
-                fieldLabel="fecha del pago"
-                confirmed={dateConfirmed}
-                onConfirmChange={setDateConfirmed}
-              />
-            </div>
-          )}
-        </div>
+        <p className="text-caption text-mid-gray mt-2">
+          Se registrará como <span className="font-medium text-graphite">{effectiveLabel}</span> —
+          cuenta contablemente en {fmtMonthLabel(accrualMonth)}, sin importar la fecha de pago.
+        </p>
       </div>
       )}
 
@@ -222,7 +244,8 @@ export function PayrollView() {
           employeeOptions={employeeOptions}
           canEdit={canEdit}
           dateBlocked={dateBlocked}
-          periodKey={periodKey}
+          accrualMonth={accrualMonth}
+          fortnight={fortnight}
           periodLabel={effectiveLabel}
           paidDate={parseISO(paidDate)}
         />
@@ -233,7 +256,8 @@ export function PayrollView() {
           employeeOptions={employeeOptions}
           canEdit={canEdit}
           dateBlocked={dateBlocked}
-          periodKey={periodKey}
+          accrualMonth={accrualMonth}
+          fortnight={fortnight}
           periodLabel={effectiveLabel}
           paidDate={parseISO(paidDate)}
         />
@@ -250,7 +274,9 @@ interface TabProps {
   employeeOptions: { value: string; label: string }[]
   canEdit: boolean
   dateBlocked: boolean
-  periodKey: string
+  accrualMonth: string
+  fortnight: Fortnight
+  /** Etiqueta legible derivada (para mostrar). */
   periodLabel: string
   paidDate: Date
 }
@@ -333,7 +359,8 @@ function NominaTab({
   employeeOptions,
   canEdit,
   dateBlocked,
-  periodKey,
+  accrualMonth,
+  fortnight,
   periodLabel,
   paidDate,
 }: TabProps) {
@@ -433,7 +460,7 @@ function NominaTab({
     setSubmitting(true)
     setError(null)
     try {
-      const res = await registerPayrollBatch(companyId, { periodKey, periodLabel, paidDate, rows })
+      const res = await registerPayrollBatch(companyId, { accrualMonth, fortnight, paidDate, rows })
       setResult(res)
       if (res.failed.length === 0) setRows([])
     } catch (e) {
@@ -583,7 +610,7 @@ function NominaTab({
                 <span className="font-medium">{formatCurrency(totalToPost, 0)}</span>
               </p>
               <p className="text-caption text-mid-gray mt-1">
-                Periodo: {periodLabel} · registrar reemplaza un lote previo del mismo periodo y fecha
+                Periodo: {periodLabel} · registrar reemplaza el lote previo de la misma quincena
               </p>
             </div>
             <button
@@ -625,7 +652,8 @@ function PropinasTab({
   employeeOptions,
   canEdit,
   dateBlocked,
-  periodKey,
+  accrualMonth,
+  fortnight,
   periodLabel,
   paidDate,
 }: TabProps) {
@@ -686,7 +714,7 @@ function PropinasTab({
     setSubmitting(true)
     setError(null)
     try {
-      await registerTipDistribution(companyId, { periodKey, periodLabel, paidDate, rows })
+      await registerTipDistribution(companyId, { accrualMonth, fortnight, paidDate, rows })
       setDone(true)
       setRows([])
       setFile(null)
@@ -872,6 +900,12 @@ interface EmpAgg {
 
 const HIST_GRID = '1.7fr 0.5fr 1fr 1fr 1fr 0.3fr'
 
+// Mes contable del lote: el devengado si existe (lotes nuevos), con fallback al
+// mes de la fecha de pago para lotes previos a la migración.
+function batchMonth(b: { accrualMonth?: string; paidDate?: Timestamp }): string | null {
+  return b.accrualMonth ?? (b.paidDate ? monthKeyOf(b.paidDate) : null)
+}
+
 function HistorialTab() {
   const { data: batches, loading: lb } = useCollection<PayrollBatchDoc>('payroll-batches')
   const { data: tips, loading: lt } = useCollection<TipDistributionDoc>('tip-distributions')
@@ -879,8 +913,14 @@ function HistorialTab() {
 
   const months = useMemo(() => {
     const set = new Set<string>()
-    for (const b of batches) if (b.paidDate) set.add(monthKeyOf(b.paidDate))
-    for (const t of tips) if (t.paidDate) set.add(monthKeyOf(t.paidDate))
+    for (const b of batches) {
+      const k = batchMonth(b)
+      if (k) set.add(k)
+    }
+    for (const t of tips) {
+      const k = batchMonth(t)
+      if (k) set.add(k)
+    }
     set.add(currentMonthKey())
     return Array.from(set).sort().reverse()
   }, [batches, tips])
@@ -908,7 +948,7 @@ function HistorialTab() {
       return e
     }
     for (const b of batches) {
-      if (!b.paidDate || monthKeyOf(b.paidDate) !== month) continue
+      if (batchMonth(b) !== month) continue
       for (const ln of b.lines ?? []) {
         const e = ensure(ln.employeeId || ln.employeeName, ln.employeeName)
         e.salary += ln.amountPosted || 0
@@ -923,7 +963,7 @@ function HistorialTab() {
       }
     }
     for (const t of tips) {
-      if (!t.paidDate || monthKeyOf(t.paidDate) !== month) continue
+      if (batchMonth(t) !== month) continue
       for (const ln of t.lines ?? []) {
         const e = ensure(ln.employeeId || ln.employeeName, ln.employeeName)
         e.tips += ln.amount || 0

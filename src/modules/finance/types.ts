@@ -59,6 +59,11 @@ export interface Transaction extends BaseEntity {
   // originales (sourceDocument/paymentProof) se conservan.
   combinedDocument?: PayableFile
   paidDate?: Timestamp
+  // Fecha de devengo contable. Solo la pueblan nómina y propinas: se reconocen
+  // en el mes en que se devengaron (p.ej. Q2 mayo), no en el de pago (p.ej. 1
+  // jun). El resto de gastos la dejan undefined → se ubican por paidDate ?? date
+  // como siempre. Ver utils/accrual-period.ts y recognitionDate en hooks.ts.
+  accrualDate?: Timestamp
   priority?: TransactionPriority
   // Método de pago elegido al montar la compra de contado o al cruzar el pago
   // de una factura. Texto libre tomado del catálogo por empresa (settings/
