@@ -93,6 +93,7 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
     amount: '',
     type: 'income' as 'income' | 'expense',
     date: '',
+    dueDate: '',
     status: 'pending' as 'paid' | 'pending' | 'overdue',
     notes: '',
   })
@@ -154,7 +155,7 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
   useEffect(() => {
     if (!open) {
       // Reset on close
-      setForm({ concept: '', category: '', amount: '', type: 'income', date: '', status: 'pending', notes: '' })
+      setForm({ concept: '', category: '', amount: '', type: 'income', date: '', dueDate: '', status: 'pending', notes: '' })
       setIsLinked(false)
       setIsRecurring(false)
       setIsSplit(false)
@@ -198,6 +199,7 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
         amount: String(tx.amount),
         type: tx.type,
         date: toDateString(tx.date),
+        dueDate: toDateString(tx.dueDate),
         status: tx.status,
         notes: tx.notes ?? '',
       })
@@ -243,6 +245,7 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
   const setAmount = useCallback((raw: string) => setForm((prev) => ({ ...prev, amount: raw })), [])
   const setType = useCallback((v: string) => setForm((prev) => ({ ...prev, type: v as 'income' | 'expense' })), [])
   const setDate = useCallback((v: string) => setForm((prev) => ({ ...prev, date: v })), [])
+  const setDueDate = useCallback((v: string) => setForm((prev) => ({ ...prev, dueDate: v })), [])
   const setStatus = useCallback((v: string) => setForm((prev) => ({ ...prev, status: v as 'paid' | 'pending' | 'overdue' })), [])
   const handlePayeeTypeChange = useCallback((v: string) => {
     setPayeeType(v as PayeeType | '')
@@ -330,6 +333,9 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
       notes: form.notes.trim(),
       ...(payeeRef ? { payeeRef } : {}),
       ...(attachments.documentKind && priority ? { priority } : {}),
+      ...(attachments.documentKind === 'invoice' && form.dueDate
+        ? { dueDate: Timestamp.fromDate(new Date(form.dueDate + 'T12:00:00')) }
+        : {}),
     }
     if (transactionId) {
       await saveMutation.mutateAsync({ _id: transactionId, payload })
@@ -498,6 +504,18 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
                         required
                       />
                     </div>
+                    {attachments.documentKind === 'invoice' && (
+                      <div>
+                        <label className={labelClass}>Fecha límite</label>
+                        <DateInput
+                          value={form.dueDate}
+                          onChange={setDueDate}
+                        />
+                        {form.dueDate && form.date && form.dueDate < form.date && (
+                          <p className="text-caption text-warning-text mt-1">La fecha límite es anterior a la de emisión.</p>
+                        )}
+                      </div>
+                    )}
                     {!transactionId && isDateTooOld(form.date) && (
                       <div className="md:col-span-2">
                         <StaleDateWarning

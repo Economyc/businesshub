@@ -64,6 +64,11 @@ export interface Transaction extends BaseEntity {
   // jun). El resto de gastos la dejan undefined → se ubican por paidDate ?? date
   // como siempre. Ver utils/accrual-period.ts y recognitionDate en hooks.ts.
   accrualDate?: Timestamp
+  // Fecha límite de pago. Solo se puebla para documentKind='invoice' (facturas
+  // a crédito). La alerta de vencimiento se calcula en runtime comparando esta
+  // fecha con hoy (ver utils/due-status.ts) — no se muta status en Firestore.
+  // Sin dueDate => sin alerta (data legacy intacta, no requiere migración).
+  dueDate?: Timestamp
   priority?: TransactionPriority
   // Método de pago elegido al montar la compra de contado o al cruzar el pago
   // de una factura. Texto libre tomado del catálogo por empresa (settings/

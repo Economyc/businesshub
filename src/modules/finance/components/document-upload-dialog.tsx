@@ -20,6 +20,7 @@ import { generateVirtualInvoicePDF } from '../utils/generate-virtual-invoice-pdf
 import { AiUsageBanner, type AiUsageSnapshot } from './ai-usage-banner'
 import { StaleDateWarning } from './stale-date-warning'
 import { isDateTooOld } from '../utils/date-validation'
+import { addDaysISO } from '../utils/due-status'
 import type { DocumentKind, PayableFile, TransactionPriority } from '../types'
 import type { Supplier } from '@/modules/suppliers/types'
 
@@ -106,6 +107,8 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
   const [priority, setPriority] = useState<TransactionPriority>('waiting')
   const [paymentMethod, setPaymentMethod] = useState('')
   const [dateConfirmed, setDateConfirmed] = useState(false)
+  const [dueDate, setDueDate] = useState('')
+  const [dueDateTouched, setDueDateTouched] = useState(false)
 
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -147,6 +150,8 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
       setPriority('waiting')
       setPaymentMethod('')
       setDateConfirmed(false)
+      setDueDate('')
+      setDueDateTouched(false)
       setError(null)
       setStep('idle')
       setSubmitting(false)
@@ -172,6 +177,16 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
   useEffect(() => {
     setDateConfirmed(false)
   }, [date])
+
+  // Pre-llenar la fecha límite = emisión + plazo por defecto de la empresa. Solo
+  // para facturas a crédito y mientras el usuario no la haya tocado a mano. Si la
+  // empresa no tiene plazo configurado, queda vacía (se pone a mano si se quiere).
+  useEffect(() => {
+    if (kind !== 'invoice') { setDueDate(''); return }
+    if (dueDateTouched) return
+    const term = selectedCompany?.defaultPaymentTermDays
+    setDueDate(term != null ? addDaysISO(date, term) : '')
+  }, [date, kind, dueDateTouched, selectedCompany?.defaultPaymentTermDays])
 
   const runDocumentAnalysis = useCallback(async (f: File) => {
     if (!companyId) return
@@ -419,6 +434,7 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
         sourceDocument,
         ...(combinedDocument ? { combinedDocument } : {}),
         ...(kind === 'invoice' ? { priority } : {}),
+        ...(kind === 'invoice' && dueDate ? { dueDate: Timestamp.fromDate(parseLocalDate(dueDate)) } : {}),
         ...(kind === 'purchase' ? { paidDate: dateTs } : {}),
         ...(kind === 'purchase' ? { paymentMethod } : {}),
       })
@@ -657,6 +673,15 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
                 <label className="block text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1">Fecha</label>
                 <DateInput value={date} onChange={setDate} />
               </div>
+              {kind === 'invoice' && (
+                <div>
+                  <label className="block text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1">Fecha límite de pago</label>
+                  <DateInput value={dueDate} onChange={(v) => { setDueDate(v); setDueDateTouched(true) }} />
+                  {dueDate && dueDate < date && (
+                    <p className="text-caption text-warning-text mt-1">La fecha límite es anterior a la de emisión.</p>
+                  )}
+                </div>
+              )}
               {isDateTooOld(date) && (
                 <div className="sm:col-span-2">
                   <StaleDateWarning

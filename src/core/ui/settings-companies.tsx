@@ -25,6 +25,7 @@ interface CompanyForm {
   logoThumb: string
   driveRootFolderId: string
   driveDiscountsFolderId: string
+  defaultPaymentTermDays: string
 }
 
 type DriveValidationState =
@@ -93,6 +94,7 @@ export function SettingsCompanies() {
         logoThumb: company.logoThumb ?? '',
         driveRootFolderId: company.driveRootFolderId ?? '',
         driveDiscountsFolderId: company.driveDiscountsFolderId ?? '',
+        defaultPaymentTermDays: company.defaultPaymentTermDays != null ? String(company.defaultPaymentTermDays) : '',
       })
       setSavedId(null)
       setConfirmDelete(false)
@@ -151,6 +153,9 @@ export function SettingsCompanies() {
         logoThumb: form.logoThumb,
         driveRootFolderId: form.driveRootFolderId.trim() || undefined,
         driveDiscountsFolderId: form.driveDiscountsFolderId.trim() || undefined,
+        defaultPaymentTermDays: form.defaultPaymentTermDays.trim() === ''
+          ? undefined
+          : Math.max(0, Math.round(Number(form.defaultPaymentTermDays))),
       })
       setSavedId(form.id)
       setTimeout(() => {
@@ -364,6 +369,22 @@ export function SettingsCompanies() {
                               onChange={(url, thumb) => { setForm({ ...form, logo: url, logoThumb: thumb ?? '' }); setSavedId(null) }}
                             />
                           </div>
+                          <div>
+                            <label className={labelClass}>Plazo de pago por defecto (días)</label>
+                            <input
+                              type="number"
+                              min="0"
+                              inputMode="numeric"
+                              value={form.defaultPaymentTermDays}
+                              onChange={(e) => updateForm('defaultPaymentTermDays', e.target.value)}
+                              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSave() } }}
+                              placeholder="Ej. 30"
+                              className={inputClass}
+                            />
+                            <p className="text-caption text-mid-gray mt-1">
+                              Pre-llena la fecha límite de las facturas (emisión + días). Déjalo vacío para ponerla a mano.
+                            </p>
+                          </div>
                         </div>
 
                         {/* Carpetas de Drive — la conexión vive arriba, una sola por usuario */}
@@ -506,7 +527,7 @@ export function SettingsCompanies() {
             toggleExpand(newCompany)
           } else {
             setExpandedId(newId)
-            setForm({ id: newId, name: '', location: '', color: '', logo: '', logoThumb: '', driveRootFolderId: '', driveDiscountsFolderId: '' })
+            setForm({ id: newId, name: '', location: '', color: '', logo: '', logoThumb: '', driveRootFolderId: '', driveDiscountsFolderId: '', defaultPaymentTermDays: '' })
           }
           setConfirmDelete(false)
           setSavedId(null)

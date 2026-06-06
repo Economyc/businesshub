@@ -23,6 +23,8 @@ import { usePermissions } from '@/core/hooks/use-permissions'
 import { useCompany } from '@/core/hooks/use-company'
 import { useSuppliers } from '@/modules/suppliers/hooks'
 import { formatDate } from '../utils/accounting-export'
+import { getDueInfo, dueLabel } from '../utils/due-status'
+import { Badge } from '@/components/ui/badge'
 import { useInvoicesPending, useInvoicesAndPurchasesPaid, useRecurringGenerator } from '../hooks'
 import { useDateRange } from '../context/date-range-context'
 import { InvoicesSummary } from './invoices-summary'
@@ -54,6 +56,20 @@ function PriorityPill({ priority }: { priority?: Transaction['priority'] }) {
     >
       {isImmediate ? 'Inmediato' : 'Espera'}
     </span>
+  )
+}
+
+// Celda "Vence": badge ámbar (por vencer) / rojo (vencida) según dueDate vs hoy.
+// Si no aplica (pagada, sin fecha, o vence lejos) muestra la fecha en gris.
+function DueCell({ t }: { t: Transaction }) {
+  const info = getDueInfo(t)
+  if (!info || info.level === 'ok') {
+    return <span className="text-mid-gray">{t.dueDate ? formatDate(t.dueDate) : '—'}</span>
+  }
+  return (
+    <Badge variant={info.level === 'overdue' ? 'negative' : 'warning'}>
+      {dueLabel(info)}
+    </Badge>
   )
 }
 
@@ -301,6 +317,13 @@ export function TransactionList() {
       render: (t) => <span className="text-mid-gray">{formatDate(t.date)}</span>,
     },
     {
+      key: 'dueDate',
+      header: 'Vence',
+      width: '0.9fr',
+      hideOnMobile: true,
+      render: (t) => <DueCell t={t} />,
+    },
+    {
       key: 'amount',
       header: 'Valor',
       width: '1fr',
@@ -453,6 +476,7 @@ export function TransactionList() {
           columns={columns}
           data={filtered}
           onRowClick={handleRowClick}
+          rowClassName={(t) => getDueInfo(t)?.level === 'overdue' ? 'bg-negative-bg/30' : ''}
         />
       )}
 

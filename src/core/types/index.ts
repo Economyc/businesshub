@@ -15,6 +15,10 @@ export interface Company {
   // Override manual del "dueño de Drive": uid cuyo token se usa para todas las
   // subidas de esta empresa. Si no está, se usa el primer miembro con rol owner.
   driveOwnerUid?: string
+  // Plazo de pago por defecto en días. Pre-llena dueDate = fecha emisión + N al
+  // crear facturas a crédito. Configurable por empresa en Ajustes. undefined =>
+  // sin pre-llenado (el usuario pone la fecha límite a mano si quiere).
+  defaultPaymentTermDays?: number
   createdAt: Timestamp
 }
 

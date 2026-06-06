@@ -1,5 +1,6 @@
 import { useRef, type ReactNode } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
+import { cn } from '@/lib/utils'
 
 export interface Column<T> {
   key: string
@@ -16,13 +17,15 @@ interface DataTableProps<T> {
   columns: Column<T>[]
   data: T[]
   onRowClick?: (item: T) => void
+  /** Clases extra por fila (desktop y mobile). Útil para resaltar estados. */
+  rowClassName?: (item: T) => string
 }
 
 const ROW_HEIGHT = 57
 const CARD_HEIGHT = 88
 const OVERSCAN = 5
 
-export function DataTable<T extends { id: string }>({ columns, data, onRowClick }: DataTableProps<T>) {
+export function DataTable<T extends { id: string }>({ columns, data, onRowClick, rowClassName }: DataTableProps<T>) {
   const gridCols = columns.map((c) => {
     if (!c.width) return '1fr'
     if (c.width.endsWith('fr')) return c.width
@@ -84,7 +87,11 @@ export function DataTable<T extends { id: string }>({ columns, data, onRowClick 
                 <div
                   key={item.id}
                   onClick={() => onRowClick?.(item)}
-                  className={`grid items-center px-[18px] py-0 text-body text-graphite hover:bg-bone transition-colors duration-150 ${onRowClick ? 'cursor-pointer' : ''}`}
+                  className={cn(
+                    'grid items-center px-[18px] py-0 text-body text-graphite hover:bg-bone transition-colors duration-150',
+                    onRowClick && 'cursor-pointer',
+                    rowClassName?.(item),
+                  )}
                   style={{
                     gridTemplateColumns: gridCols,
                     borderBottom: virtualRow.index < data.length - 1 ? '1px solid #e5e4e0' : 'none',
@@ -130,7 +137,11 @@ export function DataTable<T extends { id: string }>({ columns, data, onRowClick 
               <div
                 key={item.id}
                 onClick={() => onRowClick?.(item)}
-                className={`bg-surface rounded-xl card-elevated p-4 text-body text-graphite active:bg-bone/50 transition-colors ${onRowClick ? 'cursor-pointer' : ''}`}
+                className={cn(
+                  'bg-surface rounded-xl card-elevated p-4 text-body text-graphite active:bg-bone/50 transition-colors',
+                  onRowClick && 'cursor-pointer',
+                  rowClassName?.(item),
+                )}
                 style={{
                   position: 'absolute',
                   top: 0,
