@@ -229,9 +229,15 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
 
       // Pre-llenar campos. Si la AI no devolvió algo, no sobreescribir
       // lo que el usuario ya pudo haber tecleado.
+      // La categoría por defecto del proveedor matcheado manda (es la que el
+      // usuario curó). La que detecta la AI del documento solo se usa de
+      // respaldo si el proveedor no tiene categoría por defecto.
+      let resolvedCategory = x.category || ''
       if (res.data.supplierMatch) {
         setSupplierId(res.data.supplierMatch.id)
         setCustomSupplier('')
+        const matched = suppliers.find((s) => s.id === res.data.supplierMatch!.id)
+        if (matched?.category) resolvedCategory = matched.category
       } else if (x.supplierName) {
         setSupplierId(CUSTOM)
         setCustomSupplier(x.supplierName)
@@ -239,7 +245,7 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
       if (x.docNumber) setDocNumber(x.docNumber)
       if (x.date && /^\d{4}-\d{2}-\d{2}$/.test(x.date)) setDate(x.date)
       if (x.amount > 0) setAmount(String(x.amount))
-      if (x.category) setCategory(x.category)
+      if (resolvedCategory) setCategory(resolvedCategory)
       if (x.notes) setNotes(x.notes)
 
       // aiFilled solo si al menos un campo se llenó
@@ -252,7 +258,7 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
     } finally {
       setAnalyzing(false)
     }
-  }, [companyId, kind])
+  }, [companyId, kind, suppliers])
 
   const processFile = useCallback((f: File) => {
     setError(null)
