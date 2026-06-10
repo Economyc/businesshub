@@ -134,7 +134,7 @@ export function createTelegramTools(opts: {
       parameters: z.object({
         concept: z.string().describe('Concepto o descripción de la transacción'),
         category: z.string().describe('Categoría de la transacción'),
-        amount: z.number().describe('Monto de la transacción'),
+        amount: z.coerce.number().describe('Monto de la transacción'),
         type: z.enum(['income', 'expense']).describe('Tipo: income (ingreso) o expense (gasto)'),
         date: z.string().describe('Fecha de la transacción (YYYY-MM-DD)'),
         status: z
@@ -171,7 +171,7 @@ export function createTelegramTools(opts: {
         supplierName: z.string().describe('Nombre del proveedor tal como aparece en el documento.'),
         docNumber: z.string().describe('Número de factura o de compra (ej. "8821").'),
         date: z.string().describe('Fecha del documento en formato YYYY-MM-DD.'),
-        amount: z.number().describe('Valor total del documento (sin separadores de miles).'),
+        amount: z.coerce.number().describe('Valor total del documento (sin separadores de miles).'),
         category: z.string().describe('Categoría de gasto sugerida (ej. "Suministros", "Servicios").'),
         notes: z.string().optional().describe('Notas adicionales si el documento incluye contexto relevante.'),
         priority: z
@@ -198,7 +198,7 @@ export function createTelegramTools(opts: {
       parameters: z.object({
         id: z.string().describe('ID de la transacción (factura pendiente) a marcar como pagada'),
         concept: z.string().describe('Concepto/descripción de la factura (para la confirmación)'),
-        amount: z.number().describe('Monto de la factura (para la confirmación)'),
+        amount: z.coerce.number().describe('Monto de la factura (para la confirmación)'),
         supplierName: z.string().optional().describe('Nombre del proveedor (para la confirmación)'),
         paidDate: z
           .string()
@@ -217,7 +217,7 @@ export function createTelegramTools(opts: {
         supplierName: z.string().describe('Nombre del proveedor (para el nombre del archivo del comprobante).'),
         docNumber: z.string().describe('Número de factura asociado.'),
         paidDate: z.string().describe('Fecha real del pago en formato YYYY-MM-DD.'),
-        amount: z.number().describe('Monto del pago (para la confirmación).'),
+        amount: z.coerce.number().describe('Monto del pago (para la confirmación).'),
         targetCompanyName: TARGET_COMPANY_PARAM,
       }),
     }),

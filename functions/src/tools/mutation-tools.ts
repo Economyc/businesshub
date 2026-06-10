@@ -96,7 +96,7 @@ export function createMutationTools() {
       parameters: z.object({
         concept: z.string().describe('Concepto o descripción de la transacción'),
         category: z.string().describe('Categoría de la transacción'),
-        amount: z.number().describe('Monto de la transacción'),
+        amount: z.coerce.number().describe('Monto de la transacción'),
         type: z.enum(['income', 'expense']).describe('Tipo: income (ingreso) o expense (gasto)'),
         date: z.string().describe('Fecha de la transacción (YYYY-MM-DD)'),
         status: z.enum(['paid', 'pending']).optional().default('paid').describe('Estado: paid o pending. Usar pending cuando hay payee.'),
@@ -131,7 +131,7 @@ export function createMutationTools() {
       parameters: z.object({
         concept: z.string().describe('Concepto del gasto compartido'),
         category: z.string().describe('Categoría del gasto'),
-        totalAmount: z.number().describe('Monto total del gasto antes de dividir'),
+        totalAmount: z.coerce.number().describe('Monto total del gasto antes de dividir'),
         date: z.string().describe('Fecha (YYYY-MM-DD)'),
         payeeType: z
           .enum(['partner', 'employee', 'supplier', 'external'])
@@ -172,7 +172,7 @@ export function createMutationTools() {
         id: z.string().describe('ID de la transacción a actualizar'),
         concept: z.string().optional().describe('Nuevo concepto'),
         category: z.string().optional().describe('Nueva categoría'),
-        amount: z.number().optional().describe('Nuevo monto'),
+        amount: z.coerce.number().optional().describe('Nuevo monto'),
         type: z.enum(['income', 'expense']).optional().describe('Nuevo tipo'),
         date: z.string().optional().describe('Nueva fecha (YYYY-MM-DD)'),
         status: z.enum(['paid', 'pending']).optional().describe('Nuevo estado'),
@@ -209,7 +209,7 @@ export function createMutationTools() {
       parameters: z.object({
         id: z.string().describe('ID de la transacción (factura pendiente) a marcar como pagada'),
         concept: z.string().describe('Concepto/descripción de la factura (para mostrar en la confirmación)'),
-        amount: z.number().describe('Monto de la factura (para confirmación)'),
+        amount: z.coerce.number().describe('Monto de la factura (para confirmación)'),
         supplierName: z.string().optional().describe('Nombre del proveedor (para confirmación)'),
         paidDate: z
           .string()
@@ -230,7 +230,7 @@ export function createMutationTools() {
             z.object({
               id: z.string().describe('ID de la transacción'),
               concept: z.string().describe('Concepto o etiqueta para mostrar al usuario'),
-              amount: z.number().optional().describe('Monto (opcional, para mostrar)'),
+              amount: z.coerce.number().optional().describe('Monto (opcional, para mostrar)'),
             }),
           )
           .min(1)

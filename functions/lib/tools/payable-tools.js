@@ -33,7 +33,7 @@ export function createPayableTools(companyId) {
                 supplierName: z.string().describe('Nombre del proveedor tal como aparece en el documento.'),
                 docNumber: z.string().describe('Número de factura o de compra (ej. "8821").'),
                 date: z.string().describe('Fecha del documento en formato YYYY-MM-DD.'),
-                amount: z.number().describe('Valor total del documento (sin separadores de miles).'),
+                amount: z.coerce.number().describe('Valor total del documento (sin separadores de miles).'),
                 category: z.string().describe('Categoría de gasto sugerida (ej. "Suministros", "Servicios").'),
                 notes: z.string().optional().describe('Notas adicionales si el documento incluye contexto relevante.'),
                 priority: z
@@ -58,7 +58,7 @@ export function createPayableTools(companyId) {
                 'Usar después de extraer datos de un comprobante de pago para encontrar la factura que cruza.',
             parameters: z.object({
                 supplierName: z.string().describe('Nombre del proveedor extraído del comprobante.'),
-                amount: z.number().describe('Monto del pago en pesos.'),
+                amount: z.coerce.number().describe('Monto del pago en pesos.'),
                 amountTolerance: z
                     .number()
                     .optional()
@@ -108,7 +108,7 @@ export function createPayableTools(companyId) {
                 supplierName: z.string().describe('Nombre del proveedor (para construir el nombre del archivo del comprobante).'),
                 docNumber: z.string().describe('Número de factura asociado (mismo que aparece en la factura original).'),
                 paidDate: z.string().describe('Fecha real del pago en formato YYYY-MM-DD.'),
-                amount: z.number().describe('Monto del pago (para mostrar al usuario en la confirmación).'),
+                amount: z.coerce.number().describe('Monto del pago (para mostrar al usuario en la confirmación).'),
             }),
         }),
     };
