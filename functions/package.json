@@ -25,6 +25,7 @@
     "firebase-admin": "^13.0.0",
     "firebase-functions": "^7.2.5",
     "googleapis": "^171.4.0",
+    "grammy": "^1.43.0",
     "langfuse": "^3.38.20",
     "langfuse-vercel": "^3.38.20",
     "pdf-lib": "^1.17.1",

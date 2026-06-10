@@ -18,4 +18,5 @@ export { analyzePaymentReceipt } from './analyze-payment-receipt.js';
 export { analyzeInvoiceDocument } from './analyze-invoice-document.js';
 export { analyzePayrollDocument } from './analyze-payroll-document.js';
 export { reconcileBankStatement } from './bank-reconcile.js';
+export { telegramBot, telegramLinkStart } from './telegram/index.js';
 //# sourceMappingURL=index.js.map

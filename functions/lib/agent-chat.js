@@ -5,20 +5,21 @@ import { getAgentSystemPrompt } from './system-prompt.js';
 import { createAgentTools } from './tools/index.js';
 import { LLMRouter, isRateLimitError, parseRetryAfter, messagesContainImages } from './llm-router.js';
 import { getLangfuseClient, flushLangfuse } from './observability/langfuse.js';
-const geminiApiKey = defineSecret('GEMINI_API_KEY');
-const cerebrasApiKey = defineSecret('CEREBRAS_API_KEY');
-const langfusePublicKey = defineSecret('LANGFUSE_PUBLIC_KEY');
-const langfuseSecretKey = defineSecret('LANGFUSE_SECRET_KEY');
-const langfuseBaseUrl = defineSecret('LANGFUSE_BASE_URL');
+// Exportados para reuso por telegram/ (mismo agente, otro canal).
+export const geminiApiKey = defineSecret('GEMINI_API_KEY');
+export const groqApiKey = defineSecret('GROQ_API_KEY');
+export const cerebrasApiKey = defineSecret('CEREBRAS_API_KEY');
+export const langfusePublicKey = defineSecret('LANGFUSE_PUBLIC_KEY');
+export const langfuseSecretKey = defineSecret('LANGFUSE_SECRET_KEY');
+export const langfuseBaseUrl = defineSecret('LANGFUSE_BASE_URL');
 // Singleton router (persists across warm invocations of the Cloud Function)
 let router = null;
 function getRouter() {
     if (!router) {
         router = new LLMRouter()
             .addGemini(geminiApiKey.value())
+            .addGroq(groqApiKey.value())
             .addCerebras(cerebrasApiKey.value());
-        // Groq can be added later when key is available
-        // .addGroq(groqApiKey.value())
     }
     return router;
 }
@@ -100,6 +101,7 @@ export const agentChat = onRequest({
     memory: '512MiB',
     secrets: [
         geminiApiKey,
+        groqApiKey,
         cerebrasApiKey,
         langfusePublicKey,
         langfuseSecretKey,

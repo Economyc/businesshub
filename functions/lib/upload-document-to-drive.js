@@ -4,11 +4,9 @@ import { ensureFolderPath, uploadFile, validateRootFolderAccess, buildAuthUrl, e
 import { assertCompanyMember } from './utils/company-access.js';
 import { MESES_ES, sanitizeForFileName, parseDate, extFromMime, SUBFOLDER_LOOSE, looseSubfolderFor } from './utils/doc-naming.js';
 const SECRETS = [driveClientId, driveClientSecret];
-export const uploadDocumentToDrive = onCall({ region: 'us-central1', memory: '512MiB', timeoutSeconds: 60, secrets: SECRETS }, async (request) => {
-    if (!request.auth) {
-        throw new HttpsError('unauthenticated', 'Login requerido');
-    }
-    const data = request.data;
+// Cuerpo compartido del upload. Lo usan el callable (web) y el bot de
+// Telegram (server-side, sin request.auth — el uid viene del link verificado).
+export async function uploadCompanyDocument(actorUid, data) {
     if (!data?.companyId)
         throw new HttpsError('invalid-argument', 'companyId requerido');
     if (!data.docType || !['Factura', 'Pago', 'Compra'].includes(data.docType)) {
@@ -22,7 +20,7 @@ export const uploadDocumentToDrive = onCall({ region: 'us-central1', memory: '51
         throw new HttpsError('invalid-argument', 'fileBase64 requerido');
     if (!data.mimeType)
         throw new HttpsError('invalid-argument', 'mimeType requerido');
-    await assertCompanyMember(request.auth.uid, data.companyId);
+    await assertCompanyMember(actorUid, data.companyId);
     const companySnap = await db.collection('companies').doc(data.companyId).get();
     if (!companySnap.exists)
         throw new HttpsError('not-found', 'Empresa no encontrada');
@@ -30,7 +28,7 @@ export const uploadDocumentToDrive = onCall({ region: 'us-central1', memory: '51
     if (!company.driveRootFolderId) {
         throw new HttpsError('failed-precondition', 'La empresa no tiene Drive configurado. Ve a Ajustes y conecta Drive.');
     }
-    const driveUid = await resolveDriveUid(data.companyId, request.auth.uid);
+    const driveUid = await resolveDriveUid(data.companyId, actorUid);
     const userAuth = await getUserDriveAuth(driveUid);
     if (!userAuth?.refreshToken) {
         throw new HttpsError('failed-precondition', 'El Drive de la empresa no está conectado. El propietario debe conectarlo en Ajustes → Compañías.');
@@ -62,6 +60,12 @@ export const uploadDocumentToDrive = onCall({ region: 'us-central1', memory: '51
         }
         throw err;
     }
+}
+export const uploadDocumentToDrive = onCall({ region: 'us-central1', memory: '512MiB', timeoutSeconds: 60, secrets: SECRETS }, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Login requerido');
+    }
+    return uploadCompanyDocument(request.auth.uid, request.data);
 });
 export const validateDriveFolder = onCall({ region: 'us-central1', memory: '256MiB', timeoutSeconds: 30, secrets: SECRETS }, async (request) => {
     if (!request.auth)

@@ -1,5 +1,5 @@
 import { useState, useEffect, Fragment } from 'react'
-import { Plus, MapPin, Trash2, Check, ChevronRight, X, AlertCircle, Cloud, CloudOff, LogOut } from 'lucide-react'
+import { Plus, MapPin, Trash2, Check, ChevronRight, X, AlertCircle, Cloud, CloudOff, LogOut, Send } from 'lucide-react'
 import { httpsCallable } from 'firebase/functions'
 import { cn } from '@/lib/utils'
 import { PageTransition } from '@/core/ui/page-transition'
@@ -38,6 +38,12 @@ type DriveAuthState =
   | { kind: 'loading' }
   | { kind: 'disconnected' }
   | { kind: 'connected'; email: string | null }
+  | { kind: 'error'; error: string }
+
+type TelegramLinkState =
+  | { kind: 'idle' }
+  | { kind: 'loading' }
+  | { kind: 'ready'; url: string }
   | { kind: 'error'; error: string }
 
 export function SettingsCompanies() {
@@ -176,6 +182,24 @@ export function SettingsCompanies() {
     setForm(null)
   }
 
+  const [telegramLink, setTelegramLink] = useState<TelegramLinkState>({ kind: 'idle' })
+
+  async function handleTelegramLink() {
+    setTelegramLink({ kind: 'loading' })
+    try {
+      const fns = await getAppFunctions()
+      const fn = httpsCallable<Record<string, never>, { url: string; expiresInMinutes: number }>(
+        fns,
+        'telegramLinkStart',
+      )
+      const res = await fn({})
+      setTelegramLink({ kind: 'ready', url: res.data.url })
+      window.open(res.data.url, '_blank', 'noopener')
+    } catch (err) {
+      setTelegramLink({ kind: 'error', error: (err as Error).message ?? 'Error de red' })
+    }
+  }
+
 
   return (
     <PageTransition>
@@ -236,6 +260,44 @@ export function SettingsCompanies() {
                   Reintentar
                 </button>
               </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Vinculación del bot de Telegram — enlace de un solo uso (15 min) */}
+      <div className="mb-4 p-4 rounded-xl bg-surface card-elevated">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div className="min-w-0">
+            <div className="text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1">Telegram</div>
+            <p className="text-body text-mid-gray">
+              Vincula tu cuenta para operar BusinessHub desde el bot de Telegram (crear facturas, cuentas por cobrar, consultas).
+            </p>
+          </div>
+          <div className="shrink-0">
+            {telegramLink.kind === 'ready' ? (
+              <a
+                href={telegramLink.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-body font-medium text-graphite bg-positive-bg border border-border/60 hover:bg-bone/70 transition-colors"
+              >
+                <Check size={14} strokeWidth={2.5} className="text-positive" />
+                Abrir en Telegram
+              </a>
+            ) : (
+              <button
+                type="button"
+                onClick={() => void handleTelegramLink()}
+                disabled={telegramLink.kind === 'loading'}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-body font-medium text-graphite bg-bone border border-border/60 hover:bg-bone/70 transition-colors disabled:opacity-50"
+              >
+                <Send size={14} strokeWidth={1.5} />
+                {telegramLink.kind === 'loading' ? 'Generando enlace…' : 'Conectar Telegram'}
+              </button>
+            )}
+            {telegramLink.kind === 'error' && (
+              <p className="mt-2 text-caption text-negative-text">{telegramLink.error}</p>
             )}
           </div>
         </div>

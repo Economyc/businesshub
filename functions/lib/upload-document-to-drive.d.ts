@@ -1,3 +1,19 @@
+import { type DocType } from './utils/doc-naming.js';
+export interface UploadInput {
+    companyId: string;
+    docType: DocType;
+    supplierName: string;
+    docNumber: string;
+    date: string | number;
+    fileBase64: string;
+    fileName: string;
+    mimeType: string;
+}
+export declare function uploadCompanyDocument(actorUid: string, data: UploadInput): Promise<{
+    driveFileId: string;
+    webViewLink: string;
+    fileName: string;
+}>;
 export declare const uploadDocumentToDrive: import("firebase-functions/v2/https").CallableFunction<any, Promise<{
     driveFileId: string;
     webViewLink: string;

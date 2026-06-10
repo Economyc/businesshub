@@ -42,7 +42,7 @@ const DEFAULT_COOLDOWNS: Record<string, number> = {
   gemini: 60_000,
   'groq-scout': 30_000,
   'groq-llama70b': 30_000,
-  'cerebras-llama8b': 60_000,
+  'cerebras-gptoss': 60_000,
 }
 
 function rateLimitDocRef(providerName: string) {
@@ -102,12 +102,14 @@ export class LLMRouter {
   addCerebras(apiKey: string) {
     if (!apiKey) return this
     const cerebras = createCerebras({ apiKey })
+    // Cerebras retiró llama-3.1-8b de su catálogo (2026-06); gpt-oss-120b es
+    // el modelo de texto vigente en su free tier.
     this.providers.push({
-      name: 'cerebras-llama8b',
-      createModel: () => cerebras('llama-3.1-8b'),
+      name: 'cerebras-gptoss',
+      createModel: () => cerebras('gpt-oss-120b'),
       supportsVision: false,
       supportsPdfNative: false,
-      defaultCooldownMs: DEFAULT_COOLDOWNS['cerebras-llama8b'],
+      defaultCooldownMs: DEFAULT_COOLDOWNS['cerebras-gptoss'],
     })
     return this
   }

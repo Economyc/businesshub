@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guía: activar el bot de Telegram de BusinessHub</title>
+<style>
+  :root {
+    --graphite: #2d2d2d;
+    --mid: #6b6b6b;
+    --bone: #f5f4f1;
+    --border: #e5e4e0;
+    --green: #1e8a4a;
+    --green-bg: #e8f5ee;
+    --amber-bg: #fdf3e0;
+    --amber: #9a6b15;
+    --blue: #2563eb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--bone);
+    color: var(--graphite);
+    margin: 0;
+    line-height: 1.6;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 40px 20px 80px; }
+  header { text-align: center; margin-bottom: 12px; }
+  header .emoji { font-size: 48px; }
+  h1 { font-size: 26px; font-weight: 600; margin: 8px 0 4px; }
+  .subtitle { color: var(--mid); font-size: 15px; margin: 0 0 32px; text-align: center; }
+  .card {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px 28px;
+    margin-bottom: 20px;
+  }
+  .step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    background: var(--graphite);
+    color: white;
+    font-weight: 600;
+    font-size: 15px;
+    margin-right: 10px;
+    flex-shrink: 0;
+  }
+  .step-title { display: flex; align-items: center; font-size: 18px; font-weight: 600; margin: 0 0 12px; }
+  .who {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 3px 10px;
+    border-radius: 999px;
+    margin-left: auto;
+  }
+  .who.tu { background: var(--amber-bg); color: var(--amber); }
+  .who.claude { background: var(--green-bg); color: var(--green); }
+  ol.sub { padding-left: 22px; margin: 10px 0; }
+  ol.sub li { margin-bottom: 8px; }
+  code, .cmd {
+    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    font-size: 13px;
+  }
+  code { background: var(--bone); border: 1px solid var(--border); border-radius: 5px; padding: 1px 6px; }
+  .cmd {
+    display: block;
+    background: #1f1f1f;
+    color: #e8e8e8;
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin: 10px 0;
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .tip {
+    background: var(--green-bg);
+    border: 1px solid #cde8d8;
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 14px;
+    margin: 12px 0;
+  }
+  .warn {
+    background: var(--amber-bg);
+    border: 1px solid #f0e0c0;
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 14px;
+    margin: 12px 0;
+  }
+  .chat {
+    background: var(--bone);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin: 10px 0;
+    font-size: 14px;
+  }
+  .chat .yo { color: var(--blue); font-weight: 600; }
+  .chat .bot { color: var(--green); font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; margin: 10px 0; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  th { color: var(--mid); font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .footer { text-align: center; color: var(--mid); font-size: 13px; margin-top: 40px; }
+  .check { color: var(--green); font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="emoji">🤖💬</div>
+    <h1>Activar el bot de Telegram de BusinessHub</h1>
+  </header>
+  <p class="subtitle">
+    El código ya está listo. Solo faltan estos pasos para encenderlo.<br>
+    Cada paso dice quién lo hace: <strong style="color:var(--amber)">TÚ</strong> o <strong style="color:var(--green)">CLAUDE</strong> (la sesión de Claude Code).
+  </p>
+
+  <!-- PASO 1 -->
+  <div class="card">
+    <div class="step-title"><span class="step-num">1</span> Crear el bot en Telegram <span class="who tu">Tú · 3 min</span></div>
+    <p>Telegram regala los bots — esto no cuesta nada. Se crea hablándole a un bot oficial llamado <strong>BotFather</strong>:</p>
+    <ol class="sub">
+      <li>Abre Telegram (celular o computador) y busca <code>@BotFather</code> (tiene chulo azul de verificado).</li>
+      <li>Escríbele: <code>/newbot</code></li>
+      <li>Te pregunta el <strong>nombre</strong> del bot (el que se ve en el chat). Ejemplo: <code>BusinessHub</code></li>
+      <li>Te pregunta el <strong>username</strong> (debe terminar en <code>bot</code> y estar libre). Ejemplo: <code>businesshub_seb_bot</code></li>
+      <li>BotFather te responde con un mensaje que incluye el <strong>token</strong>: una clave larga tipo<br>
+        <code>123456789:AAHfK9x2...</code> — <strong>ese token es la llave del bot, cópialo</strong>.</li>
+    </ol>
+    <div class="warn">⚠️ El token es como una contraseña: no lo publiques ni lo subas a GitHub. Solo pásaselo a Claude en el chat o úsalo en el comando del paso 2.</div>
+    <p>Opcional pero recomendado, ahí mismo en BotFather:</p>
+    <ol class="sub">
+      <li><code>/setjoingroups</code> → elige tu bot → <strong>Disable</strong> (para que nadie lo meta a grupos).</li>
+    </ol>
+  </div>
+
+  <!-- PASO 2 -->
+  <div class="card">
+    <div class="step-title"><span class="step-num">2</span> Entregar el token <span class="who tu">Tú · 1 min</span></div>
+    <p><strong>Opción fácil (recomendada):</strong> pega el token en el chat de Claude Code y dile "este es el token del bot". Claude hace todo el resto (pasos 3 y 4) automáticamente.</p>
+    <p><strong>Opción manual:</strong> si prefieres hacerlo tú, guarda el token como secreto en Google Cloud:</p>
+    <div class="cmd">echo -n "AQUI_VA_EL_TOKEN" | gcloud secrets create TELEGRAM_BOT_TOKEN --data-file=- --project=empresas-bf</div>
+    <div class="tip">✅ El otro secreto que se necesita (<code>TELEGRAM_WEBHOOK_SECRET</code>) ya quedó creado — no tienes que hacer nada con él.</div>
+  </div>
+
+  <!-- PASO 3 -->
+  <div class="card">
+    <div class="step-title"><span class="step-num">3</span> Publicar las funciones <span class="who claude">Claude · 5 min</span></div>
+    <p>Esto sube el bot a la nube de Google (gratis para tu volumen de uso). Lo hace Claude, pero por si algún día lo necesitas a mano, son estos dos comandos desde la carpeta <code>functions/</code>:</p>
+    <div class="cmd">npm run build
+
+gcloud functions deploy telegramBot \
+  --gen2 --project=empresas-bf --region=us-central1 \
+  --runtime=nodejs20 --source=. --entry-point=telegramBot \
+  --trigger-http --allow-unauthenticated \
+  --memory=512Mi --timeout=300s --max-instances=1 --concurrency=1 \
+  --set-secrets="TELEGRAM_BOT_TOKEN=TELEGRAM_BOT_TOKEN:latest,TELEGRAM_WEBHOOK_SECRET=TELEGRAM_WEBHOOK_SECRET:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,CEREBRAS_API_KEY=CEREBRAS_API_KEY:latest,LANGFUSE_PUBLIC_KEY=LANGFUSE_PUBLIC_KEY:latest,LANGFUSE_SECRET_KEY=LANGFUSE_SECRET_KEY:latest,LANGFUSE_BASE_URL=LANGFUSE_BASE_URL:latest,DRIVE_OAUTH_CLIENT_ID=DRIVE_OAUTH_CLIENT_ID:latest,DRIVE_OAUTH_CLIENT_SECRET=DRIVE_OAUTH_CLIENT_SECRET:latest"
+
+gcloud functions deploy telegramLinkStart \
+  --gen2 --project=empresas-bf --region=us-central1 \
+  --runtime=nodejs20 --source=. --entry-point=telegramLinkStart \
+  --trigger-http --allow-unauthenticated \
+  --memory=256Mi --timeout=15s \
+  --set-secrets="TELEGRAM_BOT_TOKEN=TELEGRAM_BOT_TOKEN:latest"</div>
+  </div>
+
+  <!-- PASO 4 -->
+  <div class="card">
+    <div class="step-title"><span class="step-num">4</span> Conectar Telegram con la nube (webhook) <span class="who claude">Claude · 1 min</span></div>
+    <p>Es decirle a Telegram: "cuando alguien le escriba a mi bot, avísale a esta dirección". Un solo comando, una sola vez:</p>
+    <div class="cmd">curl -X POST "https://api.telegram.org/bot&lt;TOKEN&gt;/setWebhook" \
+  -d "url=https://telegrambot-xfyucmyk7q-uc.a.run.app" \
+  -d "secret_token=&lt;TELEGRAM_WEBHOOK_SECRET&gt;" \
+  -d 'allowed_updates=["message","callback_query"]' \
+  -d "drop_pending_updates=true"</div>
+    <p style="font-size:14px;color:var(--mid)">La URL exacta sale del deploy del paso 3; el secret se consulta con<br><code>gcloud secrets versions access latest --secret=TELEGRAM_WEBHOOK_SECRET --project=empresas-bf</code></p>
+  </div>
+
+  <!-- PASO 5 -->
+  <div class="card">
+    <div class="step-title"><span class="step-num">5</span> Vincular tu cuenta <span class="who tu">Tú · 1 min</span></div>
+    <p>El bot es privado: solo responde a cuentas vinculadas. Para vincular la tuya:</p>
+    <ol class="sub">
+      <li>Entra a <strong>BusinessHub</strong> (businesshub.myvnc.com) → <strong>Ajustes → Compañías</strong>.</li>
+      <li>Verás una tarjeta nueva que dice <strong>Telegram</strong>. Dale clic a <strong>"Conectar Telegram"</strong>.</li>
+      <li>Se abre Telegram con tu bot y un botón <strong>INICIAR</strong> (o <strong>START</strong>). Dale clic.</li>
+      <li>El bot te responde <span class="check">"Cuenta vinculada ✅"</span> con la lista de tus empresas. ¡Listo!</li>
+    </ol>
+    <div class="warn">⏱️ El enlace de vinculación dura 15 minutos y sirve una sola vez. Si se vence, genera otro con el mismo botón.</div>
+  </div>
+
+  <!-- PASO 6 -->
+  <div class="card">
+    <div class="step-title"><span class="step-num">6</span> ¡A usarlo! <span class="who tu">Tú</span></div>
+    <p>Háblale al bot como le hablarías a un asistente. Ejemplos reales:</p>
+    <div class="chat">
+      <p><span class="yo">Tú:</span> ¿Cuánto tengo vencido en Blue Manila?</p>
+      <p><span class="bot">Bot:</span> Tienes 3 facturas vencidas por $2.450.000: …</p>
+    </div>
+    <div class="chat">
+      <p><span class="yo">Tú:</span> Crea una cuenta por cobrar de 350 mil a Distribuidora Norte en Filipo</p>
+      <p><span class="bot">Bot:</span> 💰 Crear cuenta por cobrar en Filipo — Monto: $350.000 … <strong>[✅ Confirmar] [❌ Cancelar]</strong></p>
+      <p style="color:var(--mid)">Tocas ✅ y queda creada en Firestore. Nada se guarda sin tu confirmación.</p>
+    </div>
+    <div class="chat">
+      <p><span class="yo">Tú:</span> 📸 <em>(mandas la foto de una factura con el texto "monta esta factura en Blue Manila")</em></p>
+      <p><span class="bot">Bot:</span> 🧾 Crear factura (CxP) en Blue Manila — Proveedor: … N°: … Monto: … Archivo: adjunto → se sube a Drive <strong>[✅ Confirmar]</strong></p>
+    </div>
+    <p>Comandos útiles dentro del chat:</p>
+    <table>
+      <tr><th>Comando</th><th>Qué hace</th></tr>
+      <tr><td><code>/empresa</code></td><td>Muestra tus empresas y cuál está activa</td></tr>
+      <tr><td><code>/empresa Filipo</code></td><td>Cambia la empresa activa</td></tr>
+      <tr><td><code>/reset</code></td><td>Borra la memoria de la conversación y empieza de cero</td></tr>
+    </table>
+  </div>
+
+  <!-- PROBLEMAS -->
+  <div class="card">
+    <div class="step-title"><span class="step-num">?</span> Si algo falla</div>
+    <table>
+      <tr><th>Síntoma</th><th>Qué significa / qué hacer</th></tr>
+      <tr><td>El bot no responde nada</td><td>El webhook no quedó registrado (paso 4) o el deploy falló. Pídele a Claude que revise con <code>getWebhookInfo</code>.</td></tr>
+      <tr><td>"Este bot es privado…"</td><td>Tu chat no está vinculado. Repite el paso 5.</td></tr>
+      <tr><td>"Los modelos de AI están saturados"</td><td>Los proveedores gratuitos llegaron a su límite del minuto. Espera 1 minuto y reintenta.</td></tr>
+      <tr><td>"El Drive de la empresa se desconectó"</td><td>Lo mismo que en la web: reconectar Drive en Ajustes → Compañías.</td></tr>
+      <tr><td>"Esa operación ya fue procesada o expiró"</td><td>Tocaste un botón viejo. Pide la operación de nuevo.</td></tr>
+    </table>
+    <div class="tip">💡 Todo el flujo cuesta <strong>$0/mes</strong> para tu volumen: el Bot API de Telegram es gratis, las Cloud Functions están dentro de la capa gratuita de Google y el bot usa los mismos modelos gratuitos (Gemini Flash) del agente de la web.</div>
+  </div>
+
+  <p class="footer">BusinessHub · Guía del bot de Telegram · Junio 2026</p>
+
+</div>
+</body>
+</html>

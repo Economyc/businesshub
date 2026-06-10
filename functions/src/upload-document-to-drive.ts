@@ -22,7 +22,7 @@ import { MESES_ES, sanitizeForFileName, parseDate, extFromMime, SUBFOLDER_LOOSE,
 // Estructura: {Company.driveRootFolderId} / {YYYY} / {MesEs} / {filename}
 // Nombre: "{Proveedor} - {docType} {docNumber} - {Mes DD YYYY}.{ext}"
 
-interface UploadInput {
+export interface UploadInput {
   companyId: string
   docType: DocType
   supplierName: string
@@ -35,78 +35,86 @@ interface UploadInput {
 
 const SECRETS = [driveClientId, driveClientSecret]
 
+// Cuerpo compartido del upload. Lo usan el callable (web) y el bot de
+// Telegram (server-side, sin request.auth — el uid viene del link verificado).
+export async function uploadCompanyDocument(
+  actorUid: string,
+  data: UploadInput,
+): Promise<{ driveFileId: string; webViewLink: string; fileName: string }> {
+  if (!data?.companyId) throw new HttpsError('invalid-argument', 'companyId requerido')
+  if (!data.docType || !['Factura', 'Pago', 'Compra'].includes(data.docType)) {
+    throw new HttpsError('invalid-argument', 'docType debe ser Factura, Pago o Compra')
+  }
+  if (!data.supplierName?.trim()) throw new HttpsError('invalid-argument', 'supplierName requerido')
+  if (!data.docNumber?.trim()) throw new HttpsError('invalid-argument', 'docNumber requerido')
+  if (!data.fileBase64) throw new HttpsError('invalid-argument', 'fileBase64 requerido')
+  if (!data.mimeType) throw new HttpsError('invalid-argument', 'mimeType requerido')
+
+  await assertCompanyMember(actorUid, data.companyId)
+
+  const companySnap = await db.collection('companies').doc(data.companyId).get()
+  if (!companySnap.exists) throw new HttpsError('not-found', 'Empresa no encontrada')
+  const company = companySnap.data() as { name?: string; driveRootFolderId?: string }
+  if (!company.driveRootFolderId) {
+    throw new HttpsError(
+      'failed-precondition',
+      'La empresa no tiene Drive configurado. Ve a Ajustes y conecta Drive.',
+    )
+  }
+
+  const driveUid = await resolveDriveUid(data.companyId, actorUid)
+  const userAuth = await getUserDriveAuth(driveUid)
+  if (!userAuth?.refreshToken) {
+    throw new HttpsError(
+      'failed-precondition',
+      'El Drive de la empresa no está conectado. El propietario debe conectarlo en Ajustes → Compañías.',
+    )
+  }
+
+  const date = parseDate(data.date ?? Date.now())
+  const year = String(date.getFullYear())
+  const month = MESES_ES[date.getMonth()]
+  const dd = String(date.getDate()).padStart(2, '0')
+  const ext = extFromMime(data.mimeType, data.fileName)
+
+  const supplier = sanitizeForFileName(data.supplierName)
+  const docNumber = sanitizeForFileName(data.docNumber)
+  const fileName = `${supplier} - ${data.docType} ${docNumber} - ${month} ${dd} ${year}.${ext}`
+
+  try {
+    const looseSub = looseSubfolderFor(data.docType)
+    const targetFolderId = await ensureFolderPath(driveUid, data.companyId, company.driveRootFolderId, [year, month, SUBFOLDER_LOOSE, looseSub])
+    const uploaded = await uploadFile(driveUid, targetFolderId, fileName, data.mimeType, data.fileBase64)
+
+    return {
+      driveFileId: uploaded.driveFileId,
+      webViewLink: uploaded.webViewLink,
+      fileName: uploaded.fileName,
+    }
+  } catch (err) {
+    if (err instanceof DriveTokenExpiredError) {
+      throw new HttpsError(
+        'failed-precondition',
+        'El Drive de la empresa se desconectó (la sesión de Google caducó). El propietario debe reconectarlo en Ajustes → Compañías.',
+      )
+    }
+    if (err instanceof DriveScopeError) {
+      throw new HttpsError(
+        'failed-precondition',
+        'Al reconectar Drive no se concedió el permiso completo. El propietario debe volver a Ajustes → Compañías, Desconectar y Conectar Drive, y marcar TODAS las casillas de permiso de Google Drive en la pantalla de Google.',
+      )
+    }
+    throw err
+  }
+}
+
 export const uploadDocumentToDrive = onCall(
   { region: 'us-central1', memory: '512MiB', timeoutSeconds: 60, secrets: SECRETS },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Login requerido')
     }
-    const data = request.data as UploadInput
-    if (!data?.companyId) throw new HttpsError('invalid-argument', 'companyId requerido')
-    if (!data.docType || !['Factura', 'Pago', 'Compra'].includes(data.docType)) {
-      throw new HttpsError('invalid-argument', 'docType debe ser Factura, Pago o Compra')
-    }
-    if (!data.supplierName?.trim()) throw new HttpsError('invalid-argument', 'supplierName requerido')
-    if (!data.docNumber?.trim()) throw new HttpsError('invalid-argument', 'docNumber requerido')
-    if (!data.fileBase64) throw new HttpsError('invalid-argument', 'fileBase64 requerido')
-    if (!data.mimeType) throw new HttpsError('invalid-argument', 'mimeType requerido')
-
-    await assertCompanyMember(request.auth.uid, data.companyId)
-
-    const companySnap = await db.collection('companies').doc(data.companyId).get()
-    if (!companySnap.exists) throw new HttpsError('not-found', 'Empresa no encontrada')
-    const company = companySnap.data() as { name?: string; driveRootFolderId?: string }
-    if (!company.driveRootFolderId) {
-      throw new HttpsError(
-        'failed-precondition',
-        'La empresa no tiene Drive configurado. Ve a Ajustes y conecta Drive.',
-      )
-    }
-
-    const driveUid = await resolveDriveUid(data.companyId, request.auth.uid)
-    const userAuth = await getUserDriveAuth(driveUid)
-    if (!userAuth?.refreshToken) {
-      throw new HttpsError(
-        'failed-precondition',
-        'El Drive de la empresa no está conectado. El propietario debe conectarlo en Ajustes → Compañías.',
-      )
-    }
-
-    const date = parseDate(data.date ?? Date.now())
-    const year = String(date.getFullYear())
-    const month = MESES_ES[date.getMonth()]
-    const dd = String(date.getDate()).padStart(2, '0')
-    const ext = extFromMime(data.mimeType, data.fileName)
-
-    const supplier = sanitizeForFileName(data.supplierName)
-    const docNumber = sanitizeForFileName(data.docNumber)
-    const fileName = `${supplier} - ${data.docType} ${docNumber} - ${month} ${dd} ${year}.${ext}`
-
-    try {
-      const looseSub = looseSubfolderFor(data.docType)
-      const targetFolderId = await ensureFolderPath(driveUid, data.companyId, company.driveRootFolderId, [year, month, SUBFOLDER_LOOSE, looseSub])
-      const uploaded = await uploadFile(driveUid, targetFolderId, fileName, data.mimeType, data.fileBase64)
-
-      return {
-        driveFileId: uploaded.driveFileId,
-        webViewLink: uploaded.webViewLink,
-        fileName: uploaded.fileName,
-      }
-    } catch (err) {
-      if (err instanceof DriveTokenExpiredError) {
-        throw new HttpsError(
-          'failed-precondition',
-          'El Drive de la empresa se desconectó (la sesión de Google caducó). El propietario debe reconectarlo en Ajustes → Compañías.',
-        )
-      }
-      if (err instanceof DriveScopeError) {
-        throw new HttpsError(
-          'failed-precondition',
-          'Al reconectar Drive no se concedió el permiso completo. El propietario debe volver a Ajustes → Compañías, Desconectar y Conectar Drive, y marcar TODAS las casillas de permiso de Google Drive en la pantalla de Google.',
-        )
-      }
-      throw err
-    }
+    return uploadCompanyDocument(request.auth.uid, request.data as UploadInput)
   },
 )
 
