@@ -404,6 +404,7 @@ export function ScheduleView({ allowedDepartments }: { allowedDepartments?: stri
               metrics,
               weekTotal,
               shifts,
+              novelties,
             })
           }
         />

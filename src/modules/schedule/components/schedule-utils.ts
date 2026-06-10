@@ -170,8 +170,9 @@ export function formatHours(h: number): string {
  * Construye el `SheetSpec[]` para exportar el horario a Excel replicando la
  * grilla (empleados × días). Una fila por empleado más una fila de total
  * semanal al final. Cada celda de día = rango(s) del turno, o el nombre de la
- * novedad si la celda es un día de novedad (igual que la vista). Función pura
- * para mantenerla testeable y fuera del componente.
+ * novedad si la celda es un día de novedad (igual que la vista). Incluye una
+ * segunda hoja "Novedades" con el detalle de las novedades de la semana.
+ * Función pura para mantenerla testeable y fuera del componente.
  */
 export function buildScheduleSheet(args: {
   weekName: string
@@ -182,8 +183,9 @@ export function buildScheduleSheet(args: {
   metrics: ReadonlyMap<string, { hours: number }>
   weekTotal: number
   shifts: Shift[]
+  novelties: Novelty[]
 }): SheetSpec[] {
-  const { weekName, dates, groups, byCell, noveltyByCell, metrics, weekTotal, shifts } = args
+  const { weekName, dates, groups, byCell, noveltyByCell, metrics, weekTotal, shifts, novelties } = args
 
   const dayKeys = dates.map((_, i) => `d${i}`)
   const fields: FieldDef[] = [
@@ -233,5 +235,48 @@ export function buildScheduleSheet(args: {
   })
   data.push(totalRow)
 
-  return [{ name: weekName, data, fields }]
+  // Hoja "Novedades": lista plana de las novedades de la semana. Se incluye
+  // siempre (solo encabezados si no hay) para que el archivo tenga estructura
+  // estable. Novedades de empleados fuera de los grupos visibles se omiten,
+  // igual que en la grilla.
+  const empById = new Map<string, { name: string; identification: string; department: string }>()
+  for (const group of groups) {
+    for (const emp of group.employees) {
+      empById.set(emp.id, {
+        name: emp.name,
+        identification: emp.identification ?? '',
+        department: group.department,
+      })
+    }
+  }
+
+  const noveltyFields: FieldDef[] = [
+    { key: 'fecha', header: 'Fecha', type: 'string' },
+    { key: 'empleado', header: 'Empleado', type: 'string' },
+    { key: 'documento', header: 'Documento', type: 'string' },
+    { key: 'departamento', header: 'Departamento', type: 'string' },
+    { key: 'novedad', header: 'Novedad', type: 'string' },
+    { key: 'notas', header: 'Notas', type: 'string' },
+  ]
+
+  const noveltyData = novelties
+    .filter((n) => empById.has(n.employeeId))
+    .map((n) => {
+      const emp = empById.get(n.employeeId)!
+      const day = parseDateStr(n.date)
+      return {
+        fecha: `${n.date} (${WEEKDAY_LABELS[(day.getDay() + 6) % 7]})`,
+        empleado: emp.name,
+        documento: emp.identification,
+        departamento: emp.department,
+        novedad: n.typeName,
+        notas: n.notes ?? '',
+      }
+    })
+    .sort((a, b) => a.fecha.localeCompare(b.fecha) || a.empleado.localeCompare(b.empleado))
+
+  return [
+    { name: weekName, data, fields },
+    { name: 'Novedades', data: noveltyData, fields: noveltyFields },
+  ]
 }
