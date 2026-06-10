@@ -27,5 +27,7 @@ export declare function runAgentTurn(opts: {
     userId: string;
     chatId: number;
     needsPdfNative?: boolean;
+    /** Contexto adicional para el system prompt (ej. catálogo de categorías). */
+    extraSystemContext?: string;
 }): Promise<AgentTurnResult>;
 //# sourceMappingURL=agent-runner.d.ts.map

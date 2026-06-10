@@ -73,6 +73,36 @@ async function loadUserMemory(uid: string): Promise<UserAgentMemory | null> {
   }
 }
 
+/**
+ * Catálogo global de categorías (settings/categories, mismo doc que usa la
+ * web) inyectado al system prompt para que el agente no invente categorías.
+ */
+async function loadCategoriesBlock(): Promise<string> {
+  try {
+    const snap = await db.collection('settings').doc('categories').get()
+    const items = (snap.data()?.categories ?? []) as Array<{
+      name?: string
+      subcategories?: string[]
+    }>
+    if (items.length === 0) return ''
+    const lines = items
+      .filter((c) => c.name)
+      .map((c) =>
+        c.subcategories && c.subcategories.length > 0
+          ? `- ${c.name} (subcategorías: ${c.subcategories.join(', ')})`
+          : `- ${c.name}`,
+      )
+    return [
+      '## Categorías disponibles',
+      'Para el campo category usa EXACTAMENTE una de estas, en formato "Categoría" o "Categoría > Subcategoría":',
+      ...lines,
+      'Si ninguna calza bien, usa "Otros" y sugiere en tu texto crear una nueva desde la web.',
+    ].join('\n')
+  } catch {
+    return ''
+  }
+}
+
 /** sendChatAction expira a los ~5s; lo repetimos mientras corre el LLM. */
 function startTyping(ctx: Context): () => void {
   const send = () => ctx.api.sendChatAction(ctx.chat!.id, 'typing').catch(() => {})
@@ -136,7 +166,12 @@ async function discardStalePending(
           type: 'tool-result',
           toolCallId: claim.mutation.toolCallId,
           toolName: claim.mutation.toolName,
-          result: { success: false, message: 'El usuario no confirmó; la operación quedó descartada.' },
+          result: {
+            success: false,
+            message:
+              'El usuario respondió en vez de confirmar; esta propuesta quedó descartada. ' +
+              'Si su nuevo mensaje corrige datos, vuelve a invocar la misma herramienta con todos los campos aplicando las correcciones.',
+          },
         },
       ],
     } as CoreMessage,
@@ -218,7 +253,10 @@ async function deliverAgentResult(
   const keyboard = new InlineKeyboard()
     .text('✅ Confirmar', `cf:${pendingId}`)
     .text('❌ Cancelar', `cx:${pendingId}`)
-  const sent = await ctx.reply(cardText, { reply_markup: keyboard })
+  const cardWithHint =
+    cardText +
+    '\n\n✏️ ¿Algo está mal? Respóndeme con la corrección (ej. "el monto es 39.500" o "la categoría es Suministros > Insumos") y te muestro la tarjeta corregida.'
+  const sent = await ctx.reply(cardWithHint, { reply_markup: keyboard })
   await setPendingMessageId(pendingId, sent.message_id)
   await updateChatState(tc.chatId, { pendingMutationId: pendingId })
   await saveHistory(tc.chatId, newHistory)
@@ -419,7 +457,10 @@ export function createTelegramBot(cfg: BotConfig): Bot<BotContext> {
       try {
         const state = await loadChatState(chatId)
         const activeCompanyId = state.activeCompanyId ?? mutation.companyId
-        const userMemory = await loadUserMemory(uid)
+        const [userMemory, categoriesBlock] = await Promise.all([
+          loadUserMemory(uid),
+          loadCategoriesBlock(),
+        ])
         const tools = createTelegramTools({ activeCompanyId, companies, chatId })
         const turn = await runAgentTurn({
           messages: historyWithResult,
@@ -432,6 +473,7 @@ export function createTelegramBot(cfg: BotConfig): Bot<BotContext> {
           cerebrasKey: cfg.cerebrasKey,
           userId: uid,
           chatId,
+          extraSystemContext: categoriesBlock,
         })
         await deliverAgentResult(ctx, turn, historyWithResult, {
           chatId,
@@ -490,11 +532,12 @@ export function createTelegramBot(cfg: BotConfig): Bot<BotContext> {
 
     const stopTyping = startTyping(ctx)
     try {
-      const [companies, state, rawHistory, userMemory] = await Promise.all([
+      const [companies, state, rawHistory, userMemory, categoriesBlock] = await Promise.all([
         loadUserCompanies(uid),
         loadChatState(chatId),
         loadHistory(chatId),
         loadUserMemory(uid),
+        loadCategoriesBlock(),
       ])
       if (companies.length === 0) {
         await ctx.reply('Tu usuario no tiene empresas activas en BusinessHub.')
@@ -550,6 +593,7 @@ export function createTelegramBot(cfg: BotConfig): Bot<BotContext> {
         userId: uid,
         chatId,
         needsPdfNative,
+        extraSystemContext: categoriesBlock,
       })
 
       const effectiveAttachment = fileId

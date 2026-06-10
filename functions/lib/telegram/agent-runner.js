@@ -17,7 +17,9 @@ Estás respondiendo por Telegram (chat móvil), no en la web. Reglas del canal:
 - Las herramientas de ESCRITURA (createTransaction, createPayableDocument, quickMarkInvoiceAsPaid, markInvoiceAsPaid) requieren que el usuario confirme con un botón. Cuando invoques una, NO digas que ya quedó hecho — el sistema muestra el resumen con botones de confirmación.
 - Invoca UNA SOLA herramienta de escritura por mensaje del usuario. Si pide varias cosas, hazlas de a una.
 - Las herramientas de lectura aceptan un parámetro companyName opcional para consultar otro local sin cambiar el activo.
-- Si el usuario manda una foto de factura, extrae los campos (proveedor, número, fecha, monto, categoría) y llama createPayableDocument.`;
+- Si el usuario manda una foto de factura, extrae los campos (proveedor, número, fecha, monto, categoría) y llama createPayableDocument.
+- En fotos de facturas/recibos: busca el número del documento con cuidado — aparece como "Factura", "No.", "NRO", "TRX" o el consecutivo del ticket. Solo si de verdad no es legible, usa la fecha compacta como número (ej. "20260610") y acláralo en tu respuesta para que el usuario lo corrija si quiere.
+- CORRECCIONES: si el usuario responde a una operación propuesta corrigiendo datos (monto, categoría, número, fecha, proveedor) en vez de confirmarla, vuelve a invocar la MISMA herramienta con todos los campos, aplicando solo las correcciones. El archivo adjunto sigue disponible — NO le pidas reenviarlo.`;
 let router = null;
 function getRouter(geminiKey, groqKey, cerebrasKey) {
     if (!router) {
@@ -36,7 +38,9 @@ export async function runAgentTurn(opts) {
         companies: opts.companies,
         activeCompanyId: opts.activeCompanyId,
         userMemory: opts.userMemory,
-    }) + TELEGRAM_PROMPT_ADDENDUM;
+    }) +
+        TELEGRAM_PROMPT_ADDENDUM +
+        (opts.extraSystemContext ? `\n\n${opts.extraSystemContext}` : '');
     const lf = getLangfuseClient();
     const trace = lf?.trace({
         name: 'telegram-agent',
