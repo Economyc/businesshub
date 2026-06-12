@@ -10,6 +10,7 @@ import { SelectInput } from '@/core/ui/select-input'
 import { DateInput } from '@/core/ui/date-input'
 import { modalVariants } from '@/core/animations/variants'
 import { getAppFunctions } from '@/core/firebase/config'
+import { fileToBase64 } from '@/core/utils/file'
 import { useCompany } from '@/core/hooks/use-company'
 import { useCollection } from '@/core/hooks/use-firestore'
 import { usePaymentMethods } from '@/modules/payment-methods/hooks'
@@ -57,19 +58,6 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => {
-      const result = reader.result as string
-      const base64 = result.split(',')[1] ?? ''
-      resolve(base64)
-    }
-    reader.onerror = () => reject(reader.error)
-    reader.readAsDataURL(file)
-  })
-}
-
 function todayLocalISO(): string {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -97,6 +85,10 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
   const [kind, setKind] = useState<DocumentKind>(defaultKind)
   const [mode, setMode] = useState<UploadMode>('file')
   const [file, setFile] = useState<File | null>(null)
+  // Base64 leído apenas se selecciona el archivo. El submit usa este string y
+  // nunca relee el File: el handle del File expira (NotReadableError) si pasan
+  // minutos entre selección y confirmación.
+  const [fileBase64, setFileBase64] = useState<string | null>(null)
   const [supplierId, setSupplierId] = useState('')
   const [customSupplier, setCustomSupplier] = useState('')
   const [docNumber, setDocNumber] = useState('')
@@ -140,6 +132,7 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
       setKind(defaultKind)
       setMode('file')
       setFile(null)
+      setFileBase64(null)
       setSupplierId('')
       setCustomSupplier('')
       setDocNumber('')
@@ -188,13 +181,12 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
     setDueDate(term != null ? addDaysISO(date, term) : '')
   }, [date, kind, dueDateTouched, selectedCompany?.defaultPaymentTermDays])
 
-  const runDocumentAnalysis = useCallback(async (f: File) => {
+  const runDocumentAnalysis = useCallback(async (f: File, base64: string) => {
     if (!companyId) return
     setAnalyzing(true)
     setAiFilled(false)
     setAiFailed(false)
     try {
-      const base64 = await fileToBase64(f)
       const fns = await getAppFunctions()
       const analyze = httpsCallable<
         { companyId: string; fileBase64: string; mimeType: string; kind: DocumentKind },
@@ -260,7 +252,7 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
     }
   }, [companyId, kind, suppliers])
 
-  const processFile = useCallback((f: File) => {
+  const processFile = useCallback(async (f: File) => {
     setError(null)
     if (f.size > MAX_SIZE) {
       setError('El archivo excede el límite de 10 MB.')
@@ -270,13 +262,23 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
       setError('Formato no soportado. Usa PDF, JPG, PNG, WebP, HEIC o HEIF.')
       return
     }
+    // Leer el archivo YA, con el handle fresco. Si falla aquí, reintentar
+    // cuesta un clic; si releyéramos al confirmar, fallaría minutos después.
+    let base64: string
+    try {
+      base64 = await fileToBase64(f)
+    } catch (err) {
+      setError((err as Error).message ?? 'No se pudo leer el archivo.')
+      return
+    }
     setFile(f)
-    void runDocumentAnalysis(f)
+    setFileBase64(base64)
+    void runDocumentAnalysis(f, base64)
   }, [runDocumentAnalysis])
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]
-    if (f) processFile(f)
+    if (f) void processFile(f)
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
@@ -298,13 +300,13 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
     setIsDragging(false)
     dragCounter.current = 0
     const f = e.dataTransfer.files?.[0]
-    if (f) processFile(f)
+    if (f) void processFile(f)
   }, [processFile])
 
   function canSubmit(): boolean {
     const hasSupplier = isCustom ? !!customSupplier.trim() : !!supplierId
     const isVirtual = mode === 'virtual'
-    const hasFile = isVirtual ? true : !!file
+    const hasFile = isVirtual ? true : !!file && !!fileBase64
     const dateOk = !isDateTooOld(date) || dateConfirmed
     // El método de pago es obligatorio en compras (status='paid'); en facturas
     // se asigna al cruzar el pago, así que no se exige aquí.
@@ -315,7 +317,7 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
   async function handleSubmit() {
     if (!canSubmit() || !companyId) return
     const isVirtual = mode === 'virtual'
-    if (!isVirtual && !file) return
+    if (!isVirtual && (!file || !fileBase64)) return
 
     setSubmitting(true)
     setError(null)
@@ -325,11 +327,11 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
       //    - virtual: generamos PDF en cliente con jspdf, mimeType pdf
       setStep('uploading')
       const docType: 'Factura' | 'Compra' = kind === 'invoice' ? 'Factura' : 'Compra'
-      let fileBase64: string
+      let uploadBase64: string
       let fileName: string
       let mimeType: string
       if (isVirtual) {
-        fileBase64 = await generateVirtualInvoicePDF({
+        uploadBase64 = await generateVirtualInvoicePDF({
           companyName: selectedCompany?.name ?? 'Empresa',
           supplierName,
           docNumber: docNumber.trim(),
@@ -342,7 +344,9 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
         fileName = `${docType} virtual - ${supplierName} ${docNumber.trim()}.pdf`
         mimeType = 'application/pdf'
       } else {
-        fileBase64 = await fileToBase64(file!)
+        // Reusar el base64 leído al seleccionar — releer el File aquí falla
+        // con NotReadableError si el handle expiró mientras el usuario revisaba.
+        uploadBase64 = fileBase64!
         fileName = file!.name
         mimeType = file!.type
       }
@@ -368,7 +372,7 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
         supplierName,
         docNumber: docNumber.trim(),
         date,
-        fileBase64,
+        fileBase64: uploadBase64,
         fileName,
         mimeType,
       })
@@ -541,7 +545,7 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
               </button>
               <button
                 type="button"
-                onClick={() => { setMode('virtual'); setFile(null) }}
+                onClick={() => { setMode('virtual'); setFile(null); setFileBase64(null) }}
                 disabled={submitting}
                 className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-body font-medium transition-colors ${
                   mode === 'virtual' ? 'bg-surface text-graphite card-elevated' : 'text-mid-gray hover:text-graphite'
@@ -601,7 +605,7 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
                   </div>
                   <button
                     type="button"
-                    onClick={(e) => { e.stopPropagation(); setFile(null); setAiFilled(false); setAiFailed(false); setUsage(null); setAiProvider(undefined) }}
+                    onClick={(e) => { e.stopPropagation(); setFile(null); setFileBase64(null); setAiFilled(false); setAiFailed(false); setUsage(null); setAiProvider(undefined) }}
                     disabled={submitting || analyzing}
                     className="p-1.5 rounded-lg text-mid-gray hover:text-graphite hover:bg-bone transition-colors disabled:opacity-50"
                   >

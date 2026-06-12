@@ -11,6 +11,7 @@ import { StaleDateWarning } from './stale-date-warning'
 import { isDateTooOld } from '../utils/date-validation'
 import { modalVariants } from '@/core/animations/variants'
 import { getAppFunctions } from '@/core/firebase/config'
+import { fileToBase64 } from '@/core/utils/file'
 import { useCompany } from '@/core/hooks/use-company'
 import { useCollection } from '@/core/hooks/use-firestore'
 import { queryClient } from '@/core/query/query-client'
@@ -48,19 +49,6 @@ function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
-
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => {
-      const result = reader.result as string
-      const base64 = result.split(',')[1] ?? ''
-      resolve(base64)
-    }
-    reader.onerror = () => reject(reader.error)
-    reader.readAsDataURL(file)
-  })
 }
 
 interface SplitExpenseDialogProps {
@@ -122,6 +110,9 @@ export function SplitExpenseDialog({ open, onClose, onSaved }: SplitExpenseDialo
 
   const [docNumber, setDocNumber] = useState('')
   const [file, setFile] = useState<File | null>(null)
+  // Base64 leído al seleccionar; el submit lo reusa para no releer el File
+  // (el handle expira con el tiempo → NotReadableError).
+  const [fileBase64, setFileBase64] = useState<string | null>(null)
   const [fileError, setFileError] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -153,6 +144,7 @@ export function SplitExpenseDialog({ open, onClose, onSaved }: SplitExpenseDialo
     setDateConfirmed(false)
     setDocNumber('')
     setFile(null)
+    setFileBase64(null)
     setFileError(null)
     setIsDragging(false)
     dragCounter.current = 0
@@ -223,7 +215,7 @@ export function SplitExpenseDialog({ open, onClose, onSaved }: SplitExpenseDialo
     setShares((prev) => ({ ...prev, [id]: v }))
   }, [])
 
-  const processFile = useCallback((f: File) => {
+  const processFile = useCallback(async (f: File) => {
     setFileError(null)
     if (f.size > MAX_FILE_SIZE) {
       setFileError('El archivo excede el límite de 10 MB.')
@@ -233,12 +225,21 @@ export function SplitExpenseDialog({ open, onClose, onSaved }: SplitExpenseDialo
       setFileError('Formato no soportado. Usa PDF, JPG, PNG, WebP, HEIC o HEIF.')
       return
     }
+    // Leer el archivo YA, con el handle fresco; el submit reusa este base64.
+    let base64: string
+    try {
+      base64 = await fileToBase64(f)
+    } catch (err) {
+      setFileError((err as Error).message ?? 'No se pudo leer el archivo.')
+      return
+    }
     setFile(f)
+    setFileBase64(base64)
   }, [])
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]
-    if (f) processFile(f)
+    if (f) void processFile(f)
     if (fileInputRef.current) fileInputRef.current.value = ''
   }, [processFile])
 
@@ -260,7 +261,7 @@ export function SplitExpenseDialog({ open, onClose, onSaved }: SplitExpenseDialo
     setIsDragging(false)
     dragCounter.current = 0
     const f = e.dataTransfer.files?.[0]
-    if (f) processFile(f)
+    if (f) void processFile(f)
   }, [processFile])
 
   const conceptOk = concept.trim().length > 0
@@ -347,9 +348,10 @@ export function SplitExpenseDialog({ open, onClose, onSaved }: SplitExpenseDialo
         // sin tocar Firestore (los archivos ya subidos quedan huérfanos en
         // Drive, asumido como costo aceptable).
         let sourceDocuments: Record<string, PayableFile> | undefined
-        if (file) {
+        if (file && fileBase64) {
           setUploadStep('uploading')
-          const fileBase64 = await fileToBase64(file)
+          // Reusamos el base64 leído al seleccionar — releer el File aquí
+          // puede dar NotReadableError si el handle expiró.
           const fileName = file.name
           const mimeType = file.type
           const supplierName = payeeRef?.name?.trim() || 'Sin proveedor'
@@ -692,7 +694,7 @@ export function SplitExpenseDialog({ open, onClose, onSaved }: SplitExpenseDialo
                           </div>
                           <button
                             type="button"
-                            onClick={(e) => { e.stopPropagation(); setFile(null); setFileError(null) }}
+                            onClick={(e) => { e.stopPropagation(); setFile(null); setFileBase64(null); setFileError(null) }}
                             disabled={submitting}
                             className="p-1.5 rounded-lg text-mid-gray hover:text-graphite hover:bg-bone transition-colors disabled:opacity-50"
                           >

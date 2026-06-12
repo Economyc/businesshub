@@ -8,6 +8,7 @@ import { SelectInput } from '@/core/ui/select-input'
 import { DateInput } from '@/core/ui/date-input'
 import { modalVariants } from '@/core/animations/variants'
 import { getAppFunctions } from '@/core/firebase/config'
+import { fileToBase64 } from '@/core/utils/file'
 import { useCompany } from '@/core/hooks/use-company'
 import { usePaymentMethods } from '@/modules/payment-methods/hooks'
 import { getPaymentMethodIcon } from '@/modules/payment-methods/icons'
@@ -78,19 +79,6 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => {
-      const result = reader.result as string
-      const base64 = result.split(',')[1] ?? ''
-      resolve(base64)
-    }
-    reader.onerror = () => reject(reader.error)
-    reader.readAsDataURL(file)
-  })
-}
-
 function todayLocalISO(): string {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -135,6 +123,9 @@ export function PaymentUploadDialog({ open, onClose, onSaved, pendingInvoices }:
   const [isDragging, setIsDragging] = useState(false)
 
   const [file, setFile] = useState<File | null>(null)
+  // Base64 leído al seleccionar; el submit lo reusa para no releer el File
+  // (el handle expira con el tiempo → NotReadableError).
+  const [fileBase64, setFileBase64] = useState<string | null>(null)
   const [paidDate, setPaidDate] = useState(todayLocalISO())
   const [selectedInvoiceId, setSelectedInvoiceId] = useState('')
   const [showAllCandidates, setShowAllCandidates] = useState(false)
@@ -153,6 +144,7 @@ export function PaymentUploadDialog({ open, onClose, onSaved, pendingInvoices }:
   useEffect(() => {
     if (open) {
       setFile(null)
+      setFileBase64(null)
       setPaidDate(todayLocalISO())
       setSelectedInvoiceId('')
       setShowAllCandidates(false)
@@ -177,13 +169,12 @@ export function PaymentUploadDialog({ open, onClose, onSaved, pendingInvoices }:
     return () => document.removeEventListener('keydown', onKey)
   }, [open, onClose, submitting, analyzing])
 
-  const runAnalysis = useCallback(async (f: File) => {
+  const runAnalysis = useCallback(async (f: File, base64: string) => {
     if (!companyId) return
     setAnalyzing(true)
     setAnalyzeError(null)
     setAnalysis(null)
     try {
-      const base64 = await fileToBase64(f)
       const fns = await getAppFunctions()
       const analyze = httpsCallable<
         { companyId: string; fileBase64: string; mimeType: string },
@@ -208,7 +199,7 @@ export function PaymentUploadDialog({ open, onClose, onSaved, pendingInvoices }:
     }
   }, [companyId])
 
-  const processFile = useCallback((f: File) => {
+  const processFile = useCallback(async (f: File) => {
     setError(null)
     if (f.size > MAX_SIZE) {
       setError('El archivo excede el límite de 10 MB.')
@@ -218,13 +209,22 @@ export function PaymentUploadDialog({ open, onClose, onSaved, pendingInvoices }:
       setError('Formato no soportado. Usa PDF, JPG, PNG, WebP, HEIC o HEIF.')
       return
     }
+    // Leer el archivo YA, con el handle fresco; el submit reusa este base64.
+    let base64: string
+    try {
+      base64 = await fileToBase64(f)
+    } catch (err) {
+      setError((err as Error).message ?? 'No se pudo leer el archivo.')
+      return
+    }
     setFile(f)
-    runAnalysis(f)
+    setFileBase64(base64)
+    void runAnalysis(f, base64)
   }, [runAnalysis])
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]
-    if (f) processFile(f)
+    if (f) void processFile(f)
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
@@ -246,7 +246,7 @@ export function PaymentUploadDialog({ open, onClose, onSaved, pendingInvoices }:
     setIsDragging(false)
     dragCounter.current = 0
     const f = e.dataTransfer.files?.[0]
-    if (f) processFile(f)
+    if (f) void processFile(f)
   }, [processFile])
 
   // Lista de facturas pendientes para el dropdown. El prop pendingInvoices es
@@ -297,7 +297,7 @@ export function PaymentUploadDialog({ open, onClose, onSaved, pendingInvoices }:
   }, [paidDate])
 
   function canSubmit(): boolean {
-    if (submitting || !file || !selectedInvoiceId || !paidDate) return false
+    if (submitting || !file || !fileBase64 || !selectedInvoiceId || !paidDate) return false
     if (needsDocNumber && !docNumberInput.trim()) return false
     if (isDateTooOld(paidDate) && !dateConfirmed) return false
     if (!paymentMethod) return false
@@ -305,13 +305,14 @@ export function PaymentUploadDialog({ open, onClose, onSaved, pendingInvoices }:
   }
 
   async function handleSubmit() {
-    if (!canSubmit() || !file || !companyId || !selectedInvoice) return
+    if (!canSubmit() || !file || !fileBase64 || !companyId || !selectedInvoice) return
     setSubmitting(true)
     setError(null)
     try {
-      // 1) Subir comprobante a Drive (docType='Pago').
+      // 1) Subir comprobante a Drive (docType='Pago'). Reusamos el base64
+      // leído al seleccionar — releer el File aquí puede dar NotReadableError.
       setStep('uploading')
-      const base64 = await fileToBase64(file)
+      const base64 = fileBase64
       const fns = await getAppFunctions()
       const upload = httpsCallable<
         {
@@ -493,7 +494,7 @@ export function PaymentUploadDialog({ open, onClose, onSaved, pendingInvoices }:
                   </div>
                   <button
                     type="button"
-                    onClick={(e) => { e.stopPropagation(); setFile(null); setAnalysis(null); setSelectedInvoiceId('') }}
+                    onClick={(e) => { e.stopPropagation(); setFile(null); setFileBase64(null); setAnalysis(null); setSelectedInvoiceId('') }}
                     disabled={submitting || analyzing}
                     className="p-1.5 rounded-lg text-mid-gray hover:text-graphite hover:bg-bone transition-colors disabled:opacity-50"
                   >

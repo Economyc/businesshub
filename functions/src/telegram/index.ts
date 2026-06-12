@@ -56,28 +56,64 @@ function secretTokenMatches(header: unknown): boolean {
   return timingSafeEqual(expected, received)
 }
 
-/** Dedupe por update_id: create() falla si ya existe → reintento de Telegram. */
-async function isDuplicateUpdate(updateId: number): Promise<boolean> {
+// El original no puede seguir vivo después del timeout de la función: pasado
+// este umbral, un update aún en 'processing' significa que el proceso murió
+// (OOM, timeout) sin marcar 'done' y es seguro reprocesarlo.
+const PROCESSING_TIMEOUT_MS = 300_000
+
+type UpdateClaim = 'new' | 'duplicate' | 'retry-in-flight' | 'retry-after-crash'
+
+function updateRef(updateId: number) {
+  return db.collection('telegramUpdates').doc(String(updateId))
+}
+
+/**
+ * Dedupe por update_id con recuperación de crashes. create() falla si el doc
+ * ya existe (reintento de Telegram); en ese caso el status decide:
+ *  - 'done'       → el original terminó (con o sin error reportado al chat).
+ *  - 'processing' → o el original sigue corriendo (joven) o murió sin marcar
+ *                   'done' (viejo, ej. OOM) y hay que reprocesar.
+ */
+async function claimUpdate(updateId: number): Promise<UpdateClaim> {
   try {
-    await db
-      .collection('telegramUpdates')
-      .doc(String(updateId))
-      .create({
-        receivedAt: FieldValue.serverTimestamp(),
-        expiresAt: Timestamp.fromMillis(Date.now() + 24 * 60 * 60 * 1000),
-      })
-    return false
+    await updateRef(updateId).create({
+      status: 'processing',
+      receivedAt: Timestamp.now(),
+      expiresAt: Timestamp.fromMillis(Date.now() + 24 * 60 * 60 * 1000),
+    })
+    return 'new'
   } catch (err) {
     const code = (err as { code?: number | string }).code
-    if (code === 6 || code === 'already-exists' /* ALREADY_EXISTS */) return true
-    throw err
+    if (code !== 6 && code !== 'already-exists' /* ALREADY_EXISTS */) throw err
   }
+
+  const snap = await updateRef(updateId).get()
+  const data = snap.data() as { status?: string; receivedAt?: Timestamp } | undefined
+  // Docs de antes de este cambio no tienen status: tratarlos como terminados.
+  if (!data || data.status === 'done' || !data.status) return 'duplicate'
+
+  const ageMs = Date.now() - (data.receivedAt?.toMillis() ?? 0)
+  if (ageMs < PROCESSING_TIMEOUT_MS) return 'retry-in-flight'
+
+  await updateRef(updateId).set(
+    { status: 'processing', receivedAt: Timestamp.now() },
+    { merge: true },
+  )
+  return 'retry-after-crash'
+}
+
+async function markUpdateDone(updateId: number): Promise<void> {
+  await updateRef(updateId)
+    .set({ status: 'done', doneAt: FieldValue.serverTimestamp() }, { merge: true })
+    .catch(() => {})
 }
 
 export const telegramBot = onRequest(
   {
     timeoutSeconds: 300,
-    memory: '512MiB',
+    // 512MiB hacía OOM procesando fotos (bundle base + buffer + base64 + LLM).
+    // OJO: gcloud ignora este valor — pasar --memory=1Gi en el deploy.
+    memory: '1GiB',
     maxInstances: 1,
     concurrency: 1,
     secrets: [
@@ -110,18 +146,31 @@ export const telegramBot = onRequest(
     }
 
     try {
-      if (await isDuplicateUpdate(update.update_id)) {
-        // Reintento de Telegram (el original sigue procesándose) → 200 y listo.
+      const claim = await claimUpdate(update.update_id)
+      if (claim === 'duplicate') {
+        // El original ya terminó → 200 y listo.
         res.status(200).json({ ok: true, duplicate: true })
         return
       }
+      if (claim === 'retry-in-flight') {
+        // El original puede seguir corriendo. 500 para que Telegram siga
+        // reintentando: si el original termina, el próximo retry verá 'done';
+        // si murió (OOM/timeout), pasado el umbral se reprocesa.
+        res.status(500).json({ ok: false, retry: true })
+        return
+      }
+      if (claim === 'retry-after-crash') {
+        console.warn(`[telegramBot] reprocesando update ${update.update_id} tras crash del original`)
+      }
       const bot = await getBot()
       await bot.handleUpdate(update as never)
+      await markUpdateDone(update.update_id)
       res.status(200).json({ ok: true })
     } catch (err) {
       console.error('[telegramBot] update failed:', err)
-      // 200 igualmente: el update ya quedó marcado en el dedupe y un retry de
-      // Telegram no lo reprocesaría. El usuario ya recibió el error por chat.
+      // 'done' + 200: los errores que llegan aquí ya se reportaron al chat
+      // (catch del handler en bot.ts); un retry de Telegram no aportaría nada.
+      await markUpdateDone(update.update_id)
       res.status(200).json({ ok: false })
     }
   },
