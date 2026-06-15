@@ -41,6 +41,8 @@ const REASON_OPTIONS = [
   { value: 'Influencer', label: 'Influencer' },
   { value: 'Prueba', label: 'Prueba' },
   { value: 'Empleado', label: 'Empleado' },
+  { value: 'Cumpleaños', label: 'Cumpleaños' },
+  { value: 'Cortesia Cliente', label: 'Cortesia Cliente' },
 ]
 
 const MAX_PHOTO_SIZE = 10 * 1024 * 1024

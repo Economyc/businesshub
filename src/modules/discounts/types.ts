@@ -2,7 +2,7 @@ import type { Timestamp } from 'firebase/firestore'
 import type { BaseEntity } from '@/core/types'
 
 export type DiscountType = 'partial' | 'full'
-export type DiscountReason = 'Socio' | 'Bono' | 'Influencer' | 'Prueba' | 'Empleado'
+export type DiscountReason = 'Socio' | 'Bono' | 'Influencer' | 'Prueba' | 'Empleado' | 'Cumpleaños' | 'Cortesia Cliente'
 
 export interface DiscountPhoto {
   driveFileId: string
