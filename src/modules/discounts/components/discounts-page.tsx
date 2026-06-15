@@ -280,7 +280,7 @@ export function DiscountsPage() {
       !submitting &&
       !!form.date &&
       !!form.type &&
-      Number(form.amount) > 0 &&
+      (form.type === 'full' ? Number(form.amount) >= 0 : Number(form.amount) > 0) &&
       !!form.reason &&
       !!form.authorizedBy.trim() &&
       hasPhoto
