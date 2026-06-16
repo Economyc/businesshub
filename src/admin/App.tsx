@@ -12,6 +12,7 @@ import { ErrorBoundary } from '@/core/ui/error-boundary'
 import { Skeleton } from '@/core/ui/skeleton'
 import { DateRangeProvider } from '@/modules/finance/context/date-range-context'
 import { AdminLayout } from './layout'
+import { DefaultRedirect } from './default-redirect'
 // Módulos: Horarios es nuevo; Cierres y Descuentos se reutilizan tal cual de App1
 // (mismo monorepo, mismo Firebase). No se copia código.
 import { ScheduleView } from '@/modules/schedule/routes'
@@ -57,7 +58,7 @@ export default function App() {
               <Routes>
                 <Route path="/login" element={<LoginPage />} />
                 <Route element={<Protected />}>
-                  <Route index element={<Navigate to="/horarios" replace />} />
+                  <Route index element={<DefaultRedirect />} />
 
                   <Route element={<PermissionRoute pageId="schedule" />}>
                     <Route path="/horarios" element={<Suspense fallback={<Loading />}><ScheduleView allowedDepartments={SCHEDULE_DEPARTMENTS} /></Suspense>} />
@@ -83,9 +84,11 @@ export default function App() {
                       <Route path="/descuentos" element={<Suspense fallback={<Loading />}><DiscountsPage /></Suspense>} />
                     </Route>
                   </Route>
-                </Route>
 
-                <Route path="*" element={<Navigate to="/horarios" replace />} />
+                  {/* Rutas inexistentes (logueado) → redirect inteligente.
+                      Sin sesión, Protected redirige antes a /login. */}
+                  <Route path="*" element={<DefaultRedirect />} />
+                </Route>
               </Routes>
             </TooltipProvider>
           </CompanyProvider>
