@@ -109,11 +109,25 @@ export function useProjectedStock(): UseProjectedStockResult {
     return map
   }, [recipes])
 
-  // Ventas POS → líneas de consumo (filtra anuladas, parsea strings).
+  // Momento exacto del conteo ancla. Solo descontamos ventas POSTERIORES a este
+  // instante: lo contado ya refleja las ventas previas del día (contar 10 cocas a
+  // las 5pm ya incluye lo vendido en la mañana). Sin esto se descontaban dos veces
+  // y el stock daba negativo el mismo día del conteo.
+  const anchorMillis = lastFinalCount ? lastFinalCount.countedAt.toMillis() : 0
+
+  // Ventas POS → líneas de consumo (filtra anuladas, descarta las previas al
+  // conteo, parsea strings).
   const saleLines = useMemo<ConsumptionSaleLine[]>(() => {
     const lines: ConsumptionSaleLine[] = []
     for (const v of ventas) {
       if (v.estado_txt?.toLowerCase() === 'comprobante anulado') continue
+      // v.fecha viene como 'YYYY-MM-DD HH:mm:ss' en hora local (Colombia, igual que
+      // el navegador). Las ventas en el mismo momento o anteriores al conteo ya
+      // están reflejadas en lo contado → no se descuentan.
+      if (anchorMillis) {
+        const ventaMs = new Date(v.fecha.replace(' ', 'T')).getTime()
+        if (Number.isFinite(ventaMs) && ventaMs <= anchorMillis) continue
+      }
       for (const it of v.detalle ?? []) {
         lines.push({
           presentationId: String(it.id_producto),
@@ -124,7 +138,7 @@ export function useProjectedStock(): UseProjectedStockResult {
       }
     }
     return lines
-  }, [ventas])
+  }, [ventas, anchorMillis])
 
   const { consumption, unmapped } = useMemo(
     () => computeConsumption({ saleLines, recipeByPresentation, preparationsById }),
