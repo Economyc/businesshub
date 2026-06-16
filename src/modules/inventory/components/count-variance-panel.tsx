@@ -116,6 +116,16 @@ export function CountVariancePanel({ open, onClose, count }: CountVariancePanelP
             diff: r.diff,
             diffValue: r.diffValue,
           }))
+        // Inventario completo (todas las filas) para el PDF + CSV adjuntos.
+        const allLines = variance.rows.map((r) => ({
+          name: r.name,
+          unit: r.unit,
+          category: r.category,
+          expected: r.expected,
+          counted: r.counted,
+          diff: r.diff,
+          diffValue: r.diffValue,
+        }))
         try {
           const res = await notifyCountDiff({
             companyId: selectedCompany.id,
@@ -124,6 +134,7 @@ export function CountVariancePanel({ open, onClose, count }: CountVariancePanelP
             companyName: selectedCompany.name,
             currency: 'COP',
             lines: diffLines,
+            allLines,
             totals: variance.totals,
           })
           setTelegram(res.ok ? 'sent' : res.reason === 'not-linked' ? 'not-linked' : 'failed')

@@ -11,6 +11,17 @@ export interface CountDiffLine {
   diffValue: number | null
 }
 
+/** Una línea del inventario completo (todas las activas, con o sin diferencia). */
+export interface CountAllLine {
+  name: string
+  unit: string
+  category: string
+  expected: number
+  counted: number
+  diff: number
+  diffValue: number | null
+}
+
 export interface NotifyCountDiffInput {
   companyId: string
   /** 'YYYY-MM-DD' del conteo. */
@@ -20,6 +31,8 @@ export interface NotifyCountDiffInput {
   currency?: string
   /** Solo las líneas con diferencia (faltante/sobrante). */
   lines: CountDiffLine[]
+  /** Inventario completo (todas las activas). Habilita PDF + CSV adjuntos. */
+  allLines?: CountAllLine[]
   totals: {
     shortageValue: number
     overageValue: number
