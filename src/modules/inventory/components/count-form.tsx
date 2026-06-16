@@ -7,7 +7,7 @@ import { SearchInput } from '@/core/ui/search-input'
 import { modalVariants } from '@/core/animations/variants'
 import { useAuth } from '@/core/hooks/use-auth'
 import { useInventoryItems } from '../hooks/use-inventory-items'
-import { useCountMutations } from '../hooks/use-counts'
+import { useCounts, useCountMutations } from '../hooks/use-counts'
 import { getTodayStr } from '@/modules/pos-sync/cache-service'
 import type { InventoryCount, InventoryCountFormData, InventoryCountLine } from '../types'
 
@@ -17,7 +17,7 @@ const labelClass = 'block text-caption uppercase tracking-wider font-semibold te
 
 const STATUS_OPTIONS = [
   { value: 'final', label: 'Final (ancla el stock)' },
-  { value: 'draft', label: 'Borrador (en progreso)' },
+  { value: 'draft', label: 'Borrador (revisar diferencias)' },
 ]
 
 interface CountFormProps {
@@ -39,7 +39,13 @@ function tsToDateInput(ts: Timestamp): string {
 export function CountForm({ open, onClose, count }: CountFormProps) {
   const { user } = useAuth()
   const { data: items } = useInventoryItems()
+  const { data: counts } = useCounts()
   const { create, update } = useCountMutations()
+
+  // Si ya hay un conteo final (ancla), los nuevos nacen como borrador para revisar
+  // diferencias antes de anclar. El primer conteo de la empresa nace final directo
+  // (sino el stock quedaría sin ancla).
+  const hasFinalAnchor = useMemo(() => counts.some((c) => c.status === 'final'), [counts])
 
   const [countedAt, setCountedAt] = useState(getTodayStr())
   const [status, setStatus] = useState<'draft' | 'final'>('final')
@@ -65,10 +71,10 @@ export function CountForm({ open, onClose, count }: CountFormProps) {
       setQtyByItem(map)
     } else {
       setCountedAt(getTodayStr())
-      setStatus('final')
+      setStatus(hasFinalAnchor ? 'draft' : 'final')
       setQtyByItem({})
     }
-  }, [open, count])
+  }, [open, count, hasFinalAnchor])
 
   useEffect(() => {
     if (!open) return

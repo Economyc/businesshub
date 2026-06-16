@@ -4,17 +4,7 @@ import { DataTable, type Column } from '@/core/ui/data-table'
 import { EmptyState } from '@/core/ui/empty-state'
 import { TableSkeleton } from '@/core/ui/skeleton'
 import { formatCurrency } from '@/core/utils/format'
-import { useStockSync } from '@/modules/pos-sync/hooks'
-import { useCompanyLocalIds } from '@/modules/pos-sync/company-mapping'
-import { getTodayStr } from '@/modules/pos-sync/cache-service'
-import { useInventoryItems } from '../hooks/use-inventory-items'
-import { useRecipes } from '../hooks/use-recipes'
-import { useCounts } from '../hooks/use-counts'
-import { useReceipts } from '../hooks/use-receipts'
-import { useAdjustments } from '../hooks/use-adjustments'
-import { computeStock, type ItemQtyMap } from '../domain/compute-stock'
-import { computeConsumption, type ConsumptionSaleLine } from '../domain/compute-consumption'
-import { aggregateReceipts, aggregateAdjustments, type FactorByItem } from '../domain/aggregate-movements'
+import { useProjectedStock } from '../hooks/use-projected-stock'
 import { explodeRecipe } from '../domain/explode-recipe'
 import {
   computeProductAvailability,
@@ -43,58 +33,24 @@ interface StockRow {
   servings?: number
 }
 
-/** Formatea un Date a 'YYYY-MM-DD' en hora local (mismo formato que getTodayStr). */
-function formatYMD(d: Date): string {
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
-}
-
 export function StockTab({ onNavigate }: StockTabProps) {
   const [section, setSection] = useState<StockSection>('products')
-  const { localIds } = useCompanyLocalIds()
-  const localId = localIds[0]
-  const { data: items, loading: itemsLoading } = useInventoryItems()
-  const { data: recipes, loading: recLoading } = useRecipes()
-  const { data: counts, loading: countsLoading } = useCounts()
-  const { data: receipts } = useReceipts()
-  const { data: adjustments } = useAdjustments()
-
-  // Último conteo final = ancla de la proyección.
-  const lastFinalCount = useMemo(() => {
-    const finals = counts.filter((c) => c.status === 'final')
-    if (finals.length === 0) return null
-    return [...finals].sort((a, b) => b.countedAt.toMillis() - a.countedAt.toMillis())[0]
-  }, [counts])
-
-  const hasAnchor = lastFinalCount != null && localId != null
-  const startDate = hasAnchor ? formatYMD(lastFinalCount.countedAt.toDate()) : ''
-  const endDate = getTodayStr()
-
-  // El Stock NO consulta el POS en vivo (eso rate-limitea por concurrencia de
-  // token). Lee el consumo del cache consolidado y deja que el server lo llene
-  // (useStockSync). Se llama SIEMPRE (regla de hooks); se desactiva con enabled.
   const {
-    ventas,
-    loading: posPending,
+    stock,
+    anchor,
+    lastFinalCount,
+    items,
+    recipes,
+    preparationsById,
+    unmapped,
+    localId,
+    loading: projLoading,
     syncing,
     missingDays,
     lastSyncedAt,
     failedPersistently,
     syncNow,
-  } = useStockSync({
-    localId: localId ?? null,
-    startDate,
-    endDate,
-    enabled: hasAnchor,
-  })
-
-  const preparationsById = useMemo(() => {
-    const map: Record<string, Recipe> = {}
-    for (const r of recipes) if (r.type === 'preparation') map[r.id] = r
-    return map
-  }, [recipes])
+  } = useProjectedStock()
 
   const recipeByPresentation = useMemo(() => {
     const map = new Map<string, Recipe>()
@@ -119,59 +75,6 @@ export function StockTab({ onNavigate }: StockTabProps) {
     }
     return map
   }, [recipeByPresentation, preparationsById])
-
-  // Ventas POS → líneas de consumo (filtra anuladas, parsea strings).
-  const saleLines = useMemo<ConsumptionSaleLine[]>(() => {
-    const lines: ConsumptionSaleLine[] = []
-    for (const v of ventas) {
-      if (v.estado_txt?.toLowerCase() === 'comprobante anulado') continue
-      for (const it of v.detalle ?? []) {
-        lines.push({
-          presentationId: String(it.id_producto),
-          productName: it.nombre_producto ?? '',
-          qty: Number(it.cantidad_vendida) || 0,
-          lineRevenue: Number(it.venta_total) || 0,
-        })
-      }
-    }
-    return lines
-  }, [ventas])
-
-  const { consumption, unmapped } = useMemo(
-    () => computeConsumption({ saleLines, recipeByPresentation, preparationsById }),
-    [saleLines, recipeByPresentation, preparationsById],
-  )
-
-  const anchor = useMemo<ItemQtyMap>(() => {
-    const map: ItemQtyMap = {}
-    if (lastFinalCount) for (const line of lastFinalCount.lines) map[line.itemId] = line.qty
-    return map
-  }, [lastFinalCount])
-
-  // Entradas y mermas posteriores al conteo ancla. Las entradas se convierten de
-  // unidad de compra a stock con el factor de cada insumo.
-  const factorByItem = useMemo<FactorByItem>(() => {
-    const map: FactorByItem = {}
-    for (const it of items) map[it.id] = it.purchaseToStockFactor
-    return map
-  }, [items])
-
-  const sinceMillis = lastFinalCount ? lastFinalCount.countedAt.toMillis() : 0
-
-  const receiptsMap = useMemo<ItemQtyMap>(
-    () => aggregateReceipts(receipts, factorByItem, sinceMillis),
-    [receipts, factorByItem, sinceMillis],
-  )
-
-  const adjustmentsMap = useMemo<ItemQtyMap>(
-    () => aggregateAdjustments(adjustments, sinceMillis),
-    [adjustments, sinceMillis],
-  )
-
-  const stock = useMemo(
-    () => computeStock({ anchor, receipts: receiptsMap, adjustments: adjustmentsMap, consumption }),
-    [anchor, receiptsMap, adjustmentsMap, consumption],
-  )
 
   // Nombre de insumo por id — para mostrar el "cuello de botella" en Productos/Preparaciones.
   const itemNameById = useMemo(() => {
@@ -274,7 +177,7 @@ export function StockTab({ onNavigate }: StockTabProps) {
     },
   ]
 
-  const loading = itemsLoading || recLoading || countsLoading || (hasAnchor && posPending)
+  const loading = projLoading
 
   if (localId == null) {
     return (

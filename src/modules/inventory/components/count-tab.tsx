@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Plus, ClipboardCheck, SquarePen, Trash2 } from 'lucide-react'
+import { Plus, ClipboardCheck, SquarePen, Trash2, Scale } from 'lucide-react'
 import { DataTable, type Column } from '@/core/ui/data-table'
 import { EmptyState } from '@/core/ui/empty-state'
 import { TableSkeleton } from '@/core/ui/skeleton'
@@ -10,6 +10,7 @@ import { useInventoryItems } from '../hooks/use-inventory-items'
 import { useCounts, useCountMutations } from '../hooks/use-counts'
 import { costPerStockUnit } from '../domain/units'
 import { CountForm } from './count-form'
+import { CountVariancePanel } from './count-variance-panel'
 import type { InventoryCount, InventoryItem } from '../types'
 
 function StatusChip({ status }: { status: 'draft' | 'final' }) {
@@ -36,6 +37,7 @@ export function CountTab() {
 
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<InventoryCount | null>(null)
+  const [reviewing, setReviewing] = useState<InventoryCount | null>(null)
   const [toDelete, setToDelete] = useState<InventoryCount | null>(null)
 
   const itemsById = useMemo(() => {
@@ -108,10 +110,20 @@ export function CountTab() {
     {
       key: 'actions',
       header: '',
-      width: '88px',
+      width: '120px',
       hideOnMobile: true,
       render: (c) => (
         <div className="flex items-center gap-1">
+          {c.status === 'draft' && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setReviewing(c) }}
+              className="w-8 h-8 rounded-full flex items-center justify-center text-mid-gray hover:bg-bone hover:text-graphite transition-colors"
+              aria-label="Revisar diferencias"
+              title="Revisar diferencias"
+            >
+              <Scale size={15} strokeWidth={1.5} />
+            </button>
+          )}
           {canUpdate && (
             <button
               onClick={(e) => { e.stopPropagation(); openEdit(c) }}
@@ -165,6 +177,10 @@ export function CountTab() {
       )}
 
       <CountForm open={showForm} onClose={() => setShowForm(false)} count={editing} />
+
+      {reviewing && (
+        <CountVariancePanel open onClose={() => setReviewing(null)} count={reviewing} />
+      )}
 
       <ConfirmDialog
         open={!!toDelete}
