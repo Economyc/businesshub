@@ -70,7 +70,13 @@ export function useProjectedStock(): UseProjectedStockResult {
   const lastFinalCount = useMemo(() => {
     const finals = counts.filter((c) => c.status === 'final')
     if (finals.length === 0) return null
-    return [...finals].sort((a, b) => b.countedAt.toMillis() - a.countedAt.toMillis())[0]
+    // Más reciente por countedAt; si empatan (conteos del mismo día), desempata el
+    // creado más tarde para que el ancla sea el último conteo físico.
+    return [...finals].sort((a, b) => {
+      const d = b.countedAt.toMillis() - a.countedAt.toMillis()
+      if (d !== 0) return d
+      return (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0)
+    })[0]
   }, [counts])
 
   const hasAnchor = lastFinalCount != null && localId != null

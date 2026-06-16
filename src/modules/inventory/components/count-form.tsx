@@ -100,13 +100,29 @@ export function CountForm({ open, onClose, count }: CountFormProps) {
     if (pending) return
 
     // Solo insumos con qty > 0. Un insumo ausente = "no contado" → computeStock lo
-    // trata como anchor 0 vía `?? 0`. T12:00:00 evita corrimiento de día por timezone.
+    // trata como anchor 0 vía `?? 0`.
     const lines: InventoryCountLine[] = activeItems
       .map((i) => ({ itemId: i.id, qty: Number(qtyByItem[i.id]) }))
       .filter((l) => Number.isFinite(l.qty) && l.qty > 0)
 
+    // countedAt es el CORTE de consumo: solo se descuentan ventas POSTERIORES a este
+    // instante (lo contado ya refleja lo vendido hasta ese momento). Por eso NO se fija
+    // a mediodía: un conteo hecho a las 8pm con corte a mediodía descuenta dos veces las
+    // ventas de la tarde y el stock cae a 0 el mismo día del conteo.
+    //  - Hoy            → hora real del conteo (now).
+    //  - Fecha pasada   → cierre de ese día (23:59:59); todo lo de ese día ya contado.
+    //  - Edición s/cambiar la fecha → conservar el instante original (no mover el ancla).
+    let countedAtTs: Timestamp
+    if (isEdit && count && tsToDateInput(count.countedAt) === countedAt) {
+      countedAtTs = count.countedAt
+    } else if (countedAt === getTodayStr()) {
+      countedAtTs = Timestamp.now()
+    } else {
+      countedAtTs = Timestamp.fromDate(new Date(`${countedAt}T23:59:59`))
+    }
+
     const data: InventoryCountFormData = {
-      countedAt: Timestamp.fromDate(new Date(`${countedAt}T12:00:00`)),
+      countedAt: countedAtTs,
       countedBy: user?.email ?? '',
       lines,
       status,
