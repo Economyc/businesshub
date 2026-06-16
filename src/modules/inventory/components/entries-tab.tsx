@@ -155,7 +155,40 @@ export function EntriesTab() {
           description='Registra la primera compra recibida con el botón "Nueva entrada" para subir el stock.'
         />
       ) : (
-        <DataTable columns={columns} data={sorted} onRowClick={canUpdate ? openEdit : undefined} />
+        <DataTable
+          columns={columns}
+          data={sorted}
+          onRowClick={canUpdate ? openEdit : undefined}
+          mobileCardHeight={canUpdate || canDelete ? 140 : undefined}
+          mobileActions={
+            canUpdate || canDelete
+              ? (r) => (
+                  <>
+                    {canUpdate && (
+                      <button
+                        type="button"
+                        onClick={() => openEdit(r)}
+                        className="inline-flex items-center gap-1.5 h-10 px-3 rounded-lg border border-input-border text-graphite text-caption font-medium active:bg-bone transition-colors"
+                      >
+                        <SquarePen size={16} strokeWidth={1.5} />
+                        Editar
+                      </button>
+                    )}
+                    {canDelete && (
+                      <button
+                        type="button"
+                        onClick={() => setToDelete(r)}
+                        className="w-10 h-10 rounded-lg flex items-center justify-center text-mid-gray border border-input-border active:bg-negative-bg active:text-negative-text transition-colors"
+                        aria-label="Eliminar"
+                      >
+                        <Trash2 size={16} strokeWidth={1.5} />
+                      </button>
+                    )}
+                  </>
+                )
+              : undefined
+          }
+        />
       )}
 
       <EntryForm open={showForm} onClose={() => setShowForm(false)} receipt={editing} />

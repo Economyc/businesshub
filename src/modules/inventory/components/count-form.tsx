@@ -152,9 +152,9 @@ export function CountForm({ open, onClose, count }: CountFormProps) {
             initial="initial"
             animate="animate"
             exit="exit"
-            className="relative bg-surface-elevated rounded-xl shadow-lg w-full max-w-2xl mx-4 border border-border max-h-[90vh] flex flex-col"
+            className="relative bg-surface-elevated border border-border flex flex-col w-full h-[100dvh] max-h-[100dvh] rounded-none mx-0 sm:h-auto sm:max-h-[90vh] sm:rounded-xl sm:shadow-lg sm:max-w-2xl sm:mx-4"
           >
-            <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-border shrink-0">
+            <div className="flex items-center justify-between px-4 pt-4 pb-3 sm:px-6 sm:pt-5 sm:pb-4 border-b border-border shrink-0">
               <h2 className="text-subheading font-semibold text-dark-graphite">
                 {isEdit ? 'Editar conteo' : 'Nuevo conteo'}
               </h2>
@@ -167,8 +167,8 @@ export function CountForm({ open, onClose, count }: CountFormProps) {
             </div>
 
             <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
-              <div className="p-6 overflow-y-auto flex-1 space-y-5">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="flex flex-col flex-1 overflow-hidden p-4 sm:p-6 gap-4 sm:gap-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 shrink-0">
                   <div>
                     <label className={labelClass}>Fecha del conteo</label>
                     <input
@@ -190,13 +190,13 @@ export function CountForm({ open, onClose, count }: CountFormProps) {
                   </div>
                 </div>
 
-                <div>
-                  <div className="flex items-center justify-between mb-2">
+                <div className="flex flex-col flex-1 min-h-0">
+                  <div className="flex items-center justify-between mb-2 shrink-0">
                     <label className={labelClass + ' mb-0'}>Insumos contados</label>
                     <span className="text-caption text-mid-gray">{countedLines} con cantidad</span>
                   </div>
                   {activeItems.length > 6 && (
-                    <div className="mb-3">
+                    <div className="mb-3 shrink-0">
                       <SearchInput value={search} onChange={setSearch} placeholder="Buscar insumo..." />
                     </div>
                   )}
@@ -205,9 +205,9 @@ export function CountForm({ open, onClose, count }: CountFormProps) {
                       No hay insumos activos. Crea insumos en la pestaña Insumos antes de hacer un conteo.
                     </p>
                   ) : (
-                    <div className="rounded-lg border border-border/60 divide-y divide-border/60 max-h-[40vh] overflow-y-auto">
+                    <div className="flex-1 min-h-0 overflow-y-auto rounded-lg border border-border/60 divide-y divide-border/60">
                       {filteredItems.map((i) => (
-                        <div key={i.id} className="flex items-center gap-3 px-3 py-2">
+                        <label key={i.id} className="flex items-center gap-3 px-3 py-2.5 active:bg-bone/60 transition-colors cursor-text">
                           <div className="min-w-0 flex-1">
                             <div className="text-body text-dark-graphite truncate">{i.name}</div>
                             {i.category && <div className="text-caption text-mid-gray truncate">{i.category}</div>}
@@ -221,29 +221,29 @@ export function CountForm({ open, onClose, count }: CountFormProps) {
                               value={qtyByItem[i.id] ?? ''}
                               onChange={(e) => setQtyByItem((prev) => ({ ...prev, [i.id]: e.target.value }))}
                               placeholder="0"
-                              className="w-24 px-3 py-2 rounded-lg border border-input-border bg-input-bg text-body text-graphite text-right placeholder:text-mid-gray/60 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200"
+                              className="w-24 px-3 py-2.5 rounded-lg border border-input-border bg-input-bg text-body text-graphite text-right placeholder:text-mid-gray/60 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200"
                             />
                             <span className="text-caption text-mid-gray w-12 shrink-0">{i.stockUnit}</span>
                           </div>
-                        </div>
+                        </label>
                       ))}
                     </div>
                   )}
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 px-6 py-4 border-t border-border shrink-0">
+              <div className="flex flex-col sm:flex-row sm:justify-end gap-2 sm:gap-3 px-4 sm:px-6 py-4 border-t border-border shrink-0">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-5 py-2.5 rounded-lg border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-lg border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={pending || activeItems.length === 0}
-                  className="px-5 py-2.5 rounded-lg btn-primary text-body font-medium transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-lg btn-primary text-body font-medium transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {pending ? 'Guardando...' : isEdit ? 'Guardar cambios' : 'Guardar conteo'}
                 </button>

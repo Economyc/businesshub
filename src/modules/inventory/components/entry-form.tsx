@@ -205,9 +205,9 @@ export function EntryForm({ open, onClose, receipt }: EntryFormProps) {
             initial="initial"
             animate="animate"
             exit="exit"
-            className="relative bg-surface-elevated rounded-xl shadow-lg w-full max-w-3xl mx-4 border border-border max-h-[90vh] flex flex-col"
+            className="relative bg-surface-elevated border border-border flex flex-col w-full h-[100dvh] max-h-[100dvh] rounded-none mx-0 sm:h-auto sm:max-h-[90vh] sm:rounded-xl sm:shadow-lg sm:max-w-3xl sm:mx-4"
           >
-            <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-border shrink-0">
+            <div className="flex items-center justify-between px-4 pt-4 pb-3 sm:px-6 sm:pt-5 sm:pb-4 border-b border-border shrink-0">
               <h2 className="text-subheading font-semibold text-dark-graphite">
                 {isEdit ? 'Editar entrada' : 'Nueva entrada'}
               </h2>
@@ -220,7 +220,7 @@ export function EntryForm({ open, onClose, receipt }: EntryFormProps) {
             </div>
 
             <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
-              <div className="p-6 overflow-y-auto flex-1 space-y-5">
+              <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-5">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
                     <label className={labelClass}>Fecha de recepción</label>
@@ -254,17 +254,7 @@ export function EntryForm({ open, onClose, receipt }: EntryFormProps) {
                 </div>
 
                 <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className={labelClass + ' mb-0'}>Insumos recibidos</label>
-                    <button
-                      type="button"
-                      onClick={addRow}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-input-border text-graphite text-caption font-medium hover:bg-bone transition-colors"
-                    >
-                      <Plus size={14} strokeWidth={1.5} />
-                      Agregar insumo
-                    </button>
-                  </div>
+                  <label className={labelClass + ' mb-2'}>Insumos recibidos</label>
 
                   {activeItems.length === 0 ? (
                     <p className="text-body text-mid-gray py-4 text-center">
@@ -285,9 +275,11 @@ export function EntryForm({ open, onClose, receipt }: EntryFormProps) {
                         const prevCost = item?.unitCost ?? 0
                         const costChanged = !!item && enteredCost > 0 && enteredCost !== prevCost
                         return (
-                          <div key={idx} className="rounded-lg border border-border/60 p-2">
-                            <div className="grid grid-cols-12 gap-2 items-center">
-                              <div className="col-span-5">
+                          <div key={idx} className="rounded-lg border border-border/60 p-2 sm:p-2">
+                            {/* En mobile la línea se apila: producto a lo ancho arriba, luego
+                                cantidad + costo lado a lado. En sm:+ vuelve a una sola fila. */}
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                              <div className="sm:flex-1 sm:min-w-0">
                                 <SelectInput
                                   value={row.itemId}
                                   onChange={(v) => setRow(idx, { itemId: v })}
@@ -295,8 +287,8 @@ export function EntryForm({ open, onClose, receipt }: EntryFormProps) {
                                   placeholder="Insumo..."
                                 />
                               </div>
-                              <div className="col-span-3">
-                                <div className="relative">
+                              <div className="flex items-center gap-2">
+                                <div className="relative flex-1 sm:w-32 sm:flex-none">
                                   <input
                                     type="number"
                                     min="0"
@@ -311,23 +303,22 @@ export function EntryForm({ open, onClose, receipt }: EntryFormProps) {
                                     {unitHint}
                                   </span>
                                 </div>
-                              </div>
-                              <div className="col-span-3">
-                                <CurrencyInput
-                                  value={row.unitCost}
-                                  onChange={(raw) => setRow(idx, { unitCost: raw })}
-                                  placeholder="Costo"
-                                  className={inputClass}
-                                />
-                              </div>
-                              <div className="col-span-1 flex justify-center">
+                                <div className="flex-1 sm:w-36 sm:flex-none">
+                                  <CurrencyInput
+                                    value={row.unitCost}
+                                    onChange={(raw) => setRow(idx, { unitCost: raw })}
+                                    placeholder="Costo"
+                                    className={inputClass}
+                                  />
+                                </div>
                                 <button
                                   type="button"
                                   onClick={() => removeRow(idx)}
-                                  className="w-8 h-8 rounded-full flex items-center justify-center text-mid-gray hover:bg-negative-bg hover:text-negative-text transition-colors"
+                                  disabled={rows.length === 1}
+                                  className="shrink-0 w-10 h-10 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-mid-gray hover:bg-negative-bg hover:text-negative-text transition-colors disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-mid-gray"
                                   aria-label="Quitar insumo"
                                 >
-                                  <Trash2 size={15} strokeWidth={1.5} />
+                                  <Trash2 size={16} strokeWidth={1.5} />
                                 </button>
                               </div>
                             </div>
@@ -339,6 +330,15 @@ export function EntryForm({ open, onClose, receipt }: EntryFormProps) {
                           </div>
                         )
                       })}
+
+                      <button
+                        type="button"
+                        onClick={addRow}
+                        className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg border border-dashed border-input-border text-graphite text-body font-medium hover:bg-bone transition-colors"
+                      >
+                        <Plus size={16} strokeWidth={1.5} />
+                        Agregar insumo
+                      </button>
                     </div>
                   )}
                 </div>
@@ -351,18 +351,18 @@ export function EntryForm({ open, onClose, receipt }: EntryFormProps) {
                 )}
               </div>
 
-              <div className="flex justify-end gap-3 px-6 py-4 border-t border-border shrink-0">
+              <div className="flex flex-col sm:flex-row sm:justify-end gap-2 sm:gap-3 px-4 sm:px-6 py-4 border-t border-border shrink-0">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-5 py-2.5 rounded-lg border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-lg border border-input-border text-graphite text-body font-medium transition-all duration-200 hover:bg-bone"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={pending || activeItems.length === 0}
-                  className="px-5 py-2.5 rounded-lg btn-primary text-body font-medium transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-lg btn-primary text-body font-medium transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {pending ? 'Guardando...' : isEdit ? 'Guardar cambios' : 'Guardar entrada'}
                 </button>

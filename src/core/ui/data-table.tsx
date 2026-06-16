@@ -19,13 +19,21 @@ interface DataTableProps<T> {
   onRowClick?: (item: T) => void
   /** Clases extra por fila (desktop y mobile). Útil para resaltar estados. */
   rowClassName?: (item: T) => string
+  /**
+   * Acciones mostradas dentro de cada card en mobile (en desktop suelen ir como
+   * columna `actions` con `hideOnMobile`). Sin esto, las acciones quedan
+   * inalcanzables en teléfono. Subir `mobileCardHeight` al usarlo.
+   */
+  mobileActions?: (item: T) => ReactNode
+  /** Alto fijo de la card en mobile (px). Default 88. Subir si hay `mobileActions`. */
+  mobileCardHeight?: number
 }
 
 const ROW_HEIGHT = 57
 const CARD_HEIGHT = 88
 const OVERSCAN = 5
 
-export function DataTable<T extends { id: string }>({ columns, data, onRowClick, rowClassName }: DataTableProps<T>) {
+export function DataTable<T extends { id: string }>({ columns, data, onRowClick, rowClassName, mobileActions, mobileCardHeight }: DataTableProps<T>) {
   const gridCols = columns.map((c) => {
     if (!c.width) return '1fr'
     if (c.width.endsWith('fr')) return c.width
@@ -48,7 +56,7 @@ export function DataTable<T extends { id: string }>({ columns, data, onRowClick,
   const mobileVirtualizer = useVirtualizer({
     count: data.length,
     getScrollElement: () => mobileScrollRef.current,
-    estimateSize: () => CARD_HEIGHT,
+    estimateSize: () => mobileCardHeight ?? CARD_HEIGHT,
     overscan: OVERSCAN,
     gap: 8,
   })
@@ -167,6 +175,16 @@ export function DataTable<T extends { id: string }>({ columns, data, onRowClick,
                     </div>
                   ))}
                 </div>
+                {/* Acciones (mobile): el tap en la card sigue disparando onRowClick;
+                    este bloque corta la propagación para que los botones no lo activen. */}
+                {mobileActions && (
+                  <div
+                    className="flex items-center justify-end gap-1 mt-3 pt-3 border-t border-border/60"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {mobileActions(item)}
+                  </div>
+                )}
               </div>
             )
           })}

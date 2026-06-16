@@ -173,7 +173,46 @@ export function CountTab() {
           description='Crea el primer conteo físico con el botón "Nuevo conteo" para anclar el cálculo de stock.'
         />
       ) : (
-        <DataTable columns={columns} data={sorted} onRowClick={canUpdate ? openEdit : undefined} />
+        <DataTable
+          columns={columns}
+          data={sorted}
+          onRowClick={canUpdate ? openEdit : undefined}
+          mobileCardHeight={152}
+          mobileActions={(c) => (
+            <>
+              {c.status === 'draft' && (
+                <button
+                  type="button"
+                  onClick={() => setReviewing(c)}
+                  className="inline-flex items-center gap-1.5 h-10 px-3 rounded-lg border border-input-border text-graphite text-caption font-medium active:bg-bone transition-colors"
+                >
+                  <Scale size={16} strokeWidth={1.5} />
+                  Revisar
+                </button>
+              )}
+              {canUpdate && (
+                <button
+                  type="button"
+                  onClick={() => openEdit(c)}
+                  className="w-10 h-10 rounded-lg flex items-center justify-center text-mid-gray border border-input-border active:bg-bone transition-colors"
+                  aria-label="Editar"
+                >
+                  <SquarePen size={16} strokeWidth={1.5} />
+                </button>
+              )}
+              {canDelete && (
+                <button
+                  type="button"
+                  onClick={() => setToDelete(c)}
+                  className="w-10 h-10 rounded-lg flex items-center justify-center text-mid-gray border border-input-border active:bg-negative-bg active:text-negative-text transition-colors"
+                  aria-label="Eliminar"
+                >
+                  <Trash2 size={16} strokeWidth={1.5} />
+                </button>
+              )}
+            </>
+          )}
+        />
       )}
 
       <CountForm open={showForm} onClose={() => setShowForm(false)} count={editing} />
