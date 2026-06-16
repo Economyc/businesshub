@@ -177,7 +177,7 @@ export function CountTab() {
           columns={columns}
           data={sorted}
           onRowClick={canUpdate ? openEdit : undefined}
-          mobileCardHeight={152}
+          mobileCardHeight={184}
           mobileActions={(c) => (
             <>
               {c.status === 'draft' && (

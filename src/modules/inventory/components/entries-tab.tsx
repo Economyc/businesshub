@@ -159,7 +159,7 @@ export function EntriesTab() {
           columns={columns}
           data={sorted}
           onRowClick={canUpdate ? openEdit : undefined}
-          mobileCardHeight={canUpdate || canDelete ? 140 : undefined}
+          mobileCardHeight={canUpdate || canDelete ? 168 : undefined}
           mobileActions={
             canUpdate || canDelete
               ? (r) => (
