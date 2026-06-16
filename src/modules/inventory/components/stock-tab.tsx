@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Boxes, ClipboardCheck, AlertCircle, BookOpen, ChefHat, Package, RefreshCw } from 'lucide-react'
 import { DataTable, type Column } from '@/core/ui/data-table'
 import { EmptyState } from '@/core/ui/empty-state'
+import { SearchInput } from '@/core/ui/search-input'
 import { TableSkeleton } from '@/core/ui/skeleton'
 import { formatCurrency } from '@/core/utils/format'
 import { useProjectedStock } from '../hooks/use-projected-stock'
@@ -35,6 +36,7 @@ interface StockRow {
 
 export function StockTab({ onNavigate }: StockTabProps) {
   const [section, setSection] = useState<StockSection>('products')
+  const [productSearch, setProductSearch] = useState('')
   const {
     stock,
     anchor,
@@ -88,6 +90,13 @@ export function StockTab({ onNavigate }: StockTabProps) {
     () => computeProductAvailability({ recipes, preparationsById, stock }),
     [recipes, preparationsById, stock],
   )
+
+  // Productos filtrados por el texto de búsqueda (solo afecta la sección Productos).
+  const filteredProductRows = useMemo(() => {
+    const q = productSearch.trim().toLowerCase()
+    if (!q) return productRows
+    return productRows.filter((r) => (r.name ?? '').toLowerCase().includes(q))
+  }, [productRows, productSearch])
 
   const prepRows = useMemo(
     () => computePreparationAvailability({ recipes, preparationsById, stock }),
@@ -271,10 +280,14 @@ export function StockTab({ onNavigate }: StockTabProps) {
         </p>
       ) : null}
 
+      {section === 'products' && (
+        <SearchInput value={productSearch} onChange={setProductSearch} placeholder="Buscar producto..." />
+      )}
+
       {loading && rows.length === 0 ? (
         <TableSkeleton rows={6} columns={5} />
       ) : section === 'products' ? (
-        <StockProductsTable rows={productRows} itemNameById={itemNameById} onNavigate={onNavigate} />
+        <StockProductsTable rows={filteredProductRows} itemNameById={itemNameById} onNavigate={onNavigate} />
       ) : section === 'preparations' ? (
         <StockPreparationsTable rows={prepRows} itemNameById={itemNameById} onNavigate={onNavigate} />
       ) : rows.length === 0 ? (
