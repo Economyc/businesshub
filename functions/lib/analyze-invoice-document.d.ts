@@ -33,6 +33,11 @@ export declare const analyzeInvoiceDocument: import("firebase-functions/v2/https
         name: string;
         score: number;
     } | undefined;
+    customerMatch: {
+        id: string;
+        name: string;
+        score: number;
+    } | undefined;
     categoryExists: boolean;
     extractionFailed: boolean;
     provider: string;

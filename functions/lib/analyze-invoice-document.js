@@ -121,15 +121,17 @@ export const analyzeInvoiceDocument = onCall({
         throw new HttpsError('invalid-argument', 'fileBase64 requerido');
     if (!data.mimeType)
         throw new HttpsError('invalid-argument', 'mimeType requerido');
-    if (data.kind !== 'invoice' && data.kind !== 'purchase') {
-        throw new HttpsError('invalid-argument', 'kind debe ser invoice o purchase');
+    if (data.kind !== 'invoice' && data.kind !== 'purchase' && data.kind !== 'receivable') {
+        throw new HttpsError('invalid-argument', 'kind debe ser invoice, purchase o receivable');
     }
     await assertCompanyMember(request.auth.uid, data.companyId);
-    // Cargar categorías y proveedores para que el modelo escoja del catálogo.
-    // `suppliers` es colección raíz compartida entre companies (ver firestore.ts).
-    const [settingsSnap, suppliersSnap] = await Promise.all([
+    const isReceivable = data.kind === 'receivable';
+    // Cargar categorías + catálogo de contraparte para que el modelo escoja de él.
+    // En CxC la contraparte es el cliente (`customers`); en CxP el proveedor
+    // (`suppliers`). Ambas son colecciones raíz compartidas (ver firestore.ts).
+    const [settingsSnap, partiesSnap] = await Promise.all([
         db.collection('companies').doc(data.companyId).collection('settings').doc('categories').get(),
-        db.collection('suppliers').get(),
+        db.collection(isReceivable ? 'customers' : 'suppliers').get(),
     ]);
     const categoryItems = (() => {
         if (!settingsSnap.exists)
@@ -137,18 +139,25 @@ export const analyzeInvoiceDocument = onCall({
         const raw = settingsSnap.data();
         return (raw?.items ?? []).map((c) => c?.name ?? '').filter(Boolean);
     })();
-    const suppliers = suppliersSnap.docs.map((d) => {
+    const parties = partiesSnap.docs.map((d) => {
         const t = d.data();
         return { id: d.id, name: t?.name ?? '' };
     });
     const docKindLabel = data.kind === 'invoice'
         ? 'factura o cuenta de cobro (cuenta por pagar)'
-        : 'compra al contado (recibo, factura POS)';
+        : data.kind === 'purchase'
+            ? 'compra al contado (recibo, factura POS)'
+            : 'cuenta de cobro o factura de venta emitida a un cliente (cuenta por cobrar)';
     const categoryHint = categoryItems.length > 0
         ? `Categorías existentes en la empresa (devuelve una de estas si calza, exacta): ${categoryItems.join(', ')}.`
         : 'No hay categorías registradas todavía — propone una en español capitalizada.';
+    // El campo supplierName transporta la contraparte: en CxP el proveedor que
+    // EMITE el documento; en CxC el cliente que nos DEBE (destinatario del cobro).
+    const partyInstruction = isReceivable
+        ? 'supplierName: razón social o nombre del CLIENTE al que se le emite la cuenta de cobro (quien nos debe), no el emisor.'
+        : 'supplierName: razón social o nombre comercial del proveedor que EMITE el documento (no el cliente).';
     const prompt = `Este documento es una ${docKindLabel}. Extrae los campos del formulario:\n` +
-        `- supplierName: razón social o nombre comercial del proveedor que EMITE el documento (no el cliente).\n` +
+        `- ${partyInstruction}\n` +
         `- docNumber: solo el número/código de la factura, recibo o cuenta de cobro.\n` +
         `- date: fecha de emisión en YYYY-MM-DD.\n` +
         `- amountRaw: el total a pagar TAL CUAL aparece impreso, con sus separadores y símbolo (ej. "$1.197.773,00" o "10.200,40"). No conviertas ni quites separadores.\n` +
@@ -184,16 +193,19 @@ export const analyzeInvoiceDocument = onCall({
             console.error('[analyzeInvoiceDocument] unexpected error:', err);
         }
     }
-    // Match de proveedor contra el catálogo registrado.
-    let supplierMatch;
+    // Match de la contraparte contra el catálogo registrado (proveedor o cliente).
+    let partyMatch;
     if (extracted.supplierName) {
-        const scored = suppliers
+        const scored = parties
             .map((s) => ({ ...s, score: similarSupplier(extracted.supplierName, s.name) }))
             .sort((a, b) => b.score - a.score);
         if (scored.length > 0 && scored[0].score >= 0.5) {
-            supplierMatch = scored[0];
+            partyMatch = scored[0];
         }
     }
+    // supplierMatch para CxP (compat App1); customerMatch para CxC (Ecore).
+    const supplierMatch = isReceivable ? undefined : partyMatch;
+    const customerMatch = isReceivable ? partyMatch : undefined;
     const categoryExists = categoryItems.includes(extracted.category);
     // Parseo determinista del monto (formato CO). El modelo solo transcribe el
     // literal en amountRaw; aquí lo convertimos a entero de pesos.
@@ -213,6 +225,7 @@ export const analyzeInvoiceDocument = onCall({
     return {
         extracted: clientExtracted,
         supplierMatch,
+        customerMatch,
         categoryExists,
         extractionFailed,
         provider,
