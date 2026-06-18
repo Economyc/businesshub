@@ -35,7 +35,10 @@ export function useInvoicesPending() {
         companyId!,
         'transactions',
         where('documentKind', '==', 'invoice'),
-        where('status', 'in', ['pending', 'overdue']),
+        // 'partial' lo introduce la app Ecore (abonos parciales). Lo incluimos
+        // aquí para que una factura abonada parcialmente siga visible en Por
+        // Pagar de App1 (compat colección compartida). App1 lo trata como pendiente.
+        where('status', 'in', ['pending', 'overdue', 'partial']),
         orderBy('date', 'desc'),
       ),
     enabled: !!companyId,
