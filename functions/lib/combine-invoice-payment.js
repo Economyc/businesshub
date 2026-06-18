@@ -17,8 +17,6 @@ export const combineInvoicePaymentToDrive = onCall({ region: 'us-central1', memo
     const data = request.data;
     if (!data?.companyId)
         throw new HttpsError('invalid-argument', 'companyId requerido');
-    if (!data.sourceFileId)
-        throw new HttpsError('invalid-argument', 'sourceFileId requerido');
     if (!data.supplierName?.trim())
         throw new HttpsError('invalid-argument', 'supplierName requerido');
     if (!data.docNumber?.trim())
@@ -42,11 +40,15 @@ export const combineInvoicePaymentToDrive = onCall({ region: 'us-central1', memo
     const fileName = `${baseName}.pdf`;
     // Normaliza comprobantes: acepta el singular (compat App1) o el arreglo.
     const proofIds = (data.proofFileIds?.length ? data.proofFileIds : data.proofFileId ? [data.proofFileId] : []).filter((id) => !!id);
+    if (!data.sourceFileId && proofIds.length === 0) {
+        throw new HttpsError('invalid-argument', 'Se requiere la factura o al menos un comprobante');
+    }
     try {
-        // Factura primero, comprobantes después (en orden). Sin comprobantes
-        // (compra de contado) envolvemos solo el documento fuente como PDF.
+        // Factura primero, comprobantes después (en orden). Sin factura (caso
+        // Ecore: cargada a mano) el consolidado es carátula + comprobantes; sin
+        // comprobantes (compra de contado) envolvemos solo el documento fuente.
         const parts = await Promise.all([
-            downloadFile(driveUid, data.sourceFileId),
+            ...(data.sourceFileId ? [downloadFile(driveUid, data.sourceFileId)] : []),
             ...proofIds.map((id) => downloadFile(driveUid, id)),
         ]);
         // Carátula-resumen solo si el cliente pasó los abonos.

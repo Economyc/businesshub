@@ -28,7 +28,9 @@ import { buildCombinedPdf } from './utils/build-combined-pdf.js'
 
 interface CombineInput {
   companyId: string
-  sourceFileId: string
+  // Factura en Drive. OPCIONAL: las facturas de Ecore se cargan a mano (sin PDF
+  // fuente); en ese caso el consolidado se arma solo con carátula + comprobantes.
+  sourceFileId?: string
   // Comprobantes: `proofFileId` singular (compat App1) o `proofFileIds` (N abonos).
   proofFileId?: string
   proofFileIds?: string[]
@@ -57,7 +59,6 @@ export const combineInvoicePaymentToDrive = onCall(
     }
     const data = request.data as CombineInput
     if (!data?.companyId) throw new HttpsError('invalid-argument', 'companyId requerido')
-    if (!data.sourceFileId) throw new HttpsError('invalid-argument', 'sourceFileId requerido')
     if (!data.supplierName?.trim()) throw new HttpsError('invalid-argument', 'supplierName requerido')
     if (!data.docNumber?.trim()) throw new HttpsError('invalid-argument', 'docNumber requerido')
 
@@ -92,11 +93,16 @@ export const combineInvoicePaymentToDrive = onCall(
       data.proofFileIds?.length ? data.proofFileIds : data.proofFileId ? [data.proofFileId] : []
     ).filter((id): id is string => !!id)
 
+    if (!data.sourceFileId && proofIds.length === 0) {
+      throw new HttpsError('invalid-argument', 'Se requiere la factura o al menos un comprobante')
+    }
+
     try {
-      // Factura primero, comprobantes después (en orden). Sin comprobantes
-      // (compra de contado) envolvemos solo el documento fuente como PDF.
+      // Factura primero, comprobantes después (en orden). Sin factura (caso
+      // Ecore: cargada a mano) el consolidado es carátula + comprobantes; sin
+      // comprobantes (compra de contado) envolvemos solo el documento fuente.
       const parts = await Promise.all([
-        downloadFile(driveUid, data.sourceFileId),
+        ...(data.sourceFileId ? [downloadFile(driveUid, data.sourceFileId)] : []),
         ...proofIds.map((id) => downloadFile(driveUid, id)),
       ])
 
