@@ -16,10 +16,12 @@ import { buildDocLocation, parseDate, SUBFOLDER_CONSOLIDATED, type DocType } fro
 import { buildCombinedPdf } from './utils/build-combined-pdf.js'
 
 // Genera el PDF consolidado para la contadora y lo sube a
-// {root}/{YYYY}/{MesEs}/PDFs consolidados. Dos modos:
-//   - Factura + comprobante (proofFileId presente): combina ambos en un PDF.
+// {root}/{YYYY}/{MesEs}/PDFs consolidados. Modos:
+//   - Factura + comprobante(s): combina factura + 1..N comprobantes en un PDF.
+//     `proofFileId` (singular, compat) o `proofFileIds` (N abonos). Si se pasan
+//     `payments`, antepone una carátula-resumen (fecha, monto, % acumulado, saldo).
 //     Nombre: "{Proveedor} - Factura+Pago {docNumber} - {Mes DD YYYY}.pdf"
-//   - Compra de contado (sin proofFileId, docType 'Compra'): envuelve el único
+//   - Compra de contado (sin comprobantes, docType 'Compra'): envuelve el único
 //     documento como PDF, porque ya es un documento final.
 //     Nombre: "{Proveedor} - Compra {docNumber} - {Mes DD YYYY}.pdf"
 // No borra los originales — el consolidado queda como archivo adicional.
@@ -27,11 +29,22 @@ import { buildCombinedPdf } from './utils/build-combined-pdf.js'
 interface CombineInput {
   companyId: string
   sourceFileId: string
+  // Comprobantes: `proofFileId` singular (compat App1) o `proofFileIds` (N abonos).
   proofFileId?: string
+  proofFileIds?: string[]
   supplierName: string
   docNumber: string
   date: string | number
   docType?: DocType
+  // Carátula-resumen opcional (un abono por elemento, en orden cronológico).
+  payments?: { date: string | number; amount: number }[]
+  invoiceTotal?: number
+}
+
+function fmtDate(d: Date): string {
+  const dd = String(d.getDate()).padStart(2, '0')
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  return `${dd}/${mm}/${d.getFullYear()}`
 }
 
 const SECRETS = [driveClientId, driveClientSecret]
@@ -74,17 +87,34 @@ export const combineInvoicePaymentToDrive = onCall(
     const { year, month, baseName } = buildDocLocation(data.supplierName, docType, data.docNumber, date)
     const fileName = `${baseName}.pdf`
 
-    try {
-      // Factura primero, comprobante después. Sin proofFileId (compra de
-      // contado) envolvemos solo el documento fuente como PDF.
-      const parts = data.proofFileId
-        ? await Promise.all([
-            downloadFile(driveUid, data.sourceFileId),
-            downloadFile(driveUid, data.proofFileId),
-          ])
-        : [await downloadFile(driveUid, data.sourceFileId)]
+    // Normaliza comprobantes: acepta el singular (compat App1) o el arreglo.
+    const proofIds = (
+      data.proofFileIds?.length ? data.proofFileIds : data.proofFileId ? [data.proofFileId] : []
+    ).filter((id): id is string => !!id)
 
-      const pdf = await buildCombinedPdf(parts)
+    try {
+      // Factura primero, comprobantes después (en orden). Sin comprobantes
+      // (compra de contado) envolvemos solo el documento fuente como PDF.
+      const parts = await Promise.all([
+        downloadFile(driveUid, data.sourceFileId),
+        ...proofIds.map((id) => downloadFile(driveUid, id)),
+      ])
+
+      // Carátula-resumen solo si el cliente pasó los abonos.
+      const cover = data.payments?.length
+        ? {
+            supplierName: data.supplierName,
+            docType,
+            docNumber: data.docNumber,
+            invoiceTotal: data.invoiceTotal,
+            payments: data.payments.map((p) => ({
+              date: fmtDate(parseDate(p.date)),
+              amount: p.amount,
+            })),
+          }
+        : undefined
+
+      const pdf = await buildCombinedPdf(parts, cover)
       const pdfBase64 = pdf.toString('base64')
 
       const targetFolderId = await ensureFolderPath(driveUid, data.companyId, company.driveRootFolderId, [year, month, SUBFOLDER_CONSOLIDATED])

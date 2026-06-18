@@ -4,6 +4,11 @@ import { ensureFolderPath, uploadFile, downloadFile, resolveDriveUid, getUserDri
 import { assertCompanyMember } from './utils/company-access.js';
 import { buildDocLocation, parseDate, SUBFOLDER_CONSOLIDATED } from './utils/doc-naming.js';
 import { buildCombinedPdf } from './utils/build-combined-pdf.js';
+function fmtDate(d) {
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    return `${dd}/${mm}/${d.getFullYear()}`;
+}
 const SECRETS = [driveClientId, driveClientSecret];
 export const combineInvoicePaymentToDrive = onCall({ region: 'us-central1', memory: '1GiB', timeoutSeconds: 120, secrets: SECRETS }, async (request) => {
     if (!request.auth) {
@@ -35,16 +40,29 @@ export const combineInvoicePaymentToDrive = onCall({ region: 'us-central1', memo
     const docType = data.docType ?? 'Factura+Pago';
     const { year, month, baseName } = buildDocLocation(data.supplierName, docType, data.docNumber, date);
     const fileName = `${baseName}.pdf`;
+    // Normaliza comprobantes: acepta el singular (compat App1) o el arreglo.
+    const proofIds = (data.proofFileIds?.length ? data.proofFileIds : data.proofFileId ? [data.proofFileId] : []).filter((id) => !!id);
     try {
-        // Factura primero, comprobante después. Sin proofFileId (compra de
-        // contado) envolvemos solo el documento fuente como PDF.
-        const parts = data.proofFileId
-            ? await Promise.all([
-                downloadFile(driveUid, data.sourceFileId),
-                downloadFile(driveUid, data.proofFileId),
-            ])
-            : [await downloadFile(driveUid, data.sourceFileId)];
-        const pdf = await buildCombinedPdf(parts);
+        // Factura primero, comprobantes después (en orden). Sin comprobantes
+        // (compra de contado) envolvemos solo el documento fuente como PDF.
+        const parts = await Promise.all([
+            downloadFile(driveUid, data.sourceFileId),
+            ...proofIds.map((id) => downloadFile(driveUid, id)),
+        ]);
+        // Carátula-resumen solo si el cliente pasó los abonos.
+        const cover = data.payments?.length
+            ? {
+                supplierName: data.supplierName,
+                docType,
+                docNumber: data.docNumber,
+                invoiceTotal: data.invoiceTotal,
+                payments: data.payments.map((p) => ({
+                    date: fmtDate(parseDate(p.date)),
+                    amount: p.amount,
+                })),
+            }
+            : undefined;
+        const pdf = await buildCombinedPdf(parts, cover);
         const pdfBase64 = pdf.toString('base64');
         const targetFolderId = await ensureFolderPath(driveUid, data.companyId, company.driveRootFolderId, [year, month, SUBFOLDER_CONSOLIDATED]);
         const uploaded = await uploadFile(driveUid, targetFolderId, fileName, 'application/pdf', pdfBase64);
