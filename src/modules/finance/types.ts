@@ -74,6 +74,11 @@ export interface Transaction extends BaseEntity {
   // de una factura. Texto libre tomado del catálogo por empresa (settings/
   // paymentMethods). Se vuelca a la columna "Metodo Pago" del Sheet.
   paymentMethod?: string
+  // Préstamo entre locales creado por la app Ecore: liga la CxC de un local con
+  // la CxP del otro. NEUTRAL al estado de resultados — se excluye del P&L
+  // (useIncomeStatement) para no inflar ingresos/gastos con plata que solo se
+  // movió entre locales del mismo grupo. Las demás vistas lo tratan normal.
+  interLocalGroupId?: string
 }
 
 export type RecurrenceFrequency = 'daily' | 'weekly' | 'monthly' | 'yearly'

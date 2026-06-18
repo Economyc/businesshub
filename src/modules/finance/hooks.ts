@@ -372,16 +372,19 @@ export function useIncomeStatement(startDate: Date, endDate: Date) {
   const statement = useMemo<IncomeStatementData>(() => {
     const inRange = (d?: Date | null) => !!d && d >= startDate && d <= endDate
 
+    // Préstamos entre locales (Ecore) son neutrales al P&L: mueven plata entre
+    // locales del grupo, no son ingreso ni gasto real. Se excluyen de ambos lados.
+    const isInterLocal = (t: Transaction) => !!t.interLocalGroupId
     // Ingresos: criterio de causación por fecha de emisión (sin cambios).
     const incomeTxs = periodTxs.filter(
-      (t) => t.type === 'income' && inRange(t.date?.toDate?.()),
+      (t) => t.type === 'income' && !isInterLocal(t) && inRange(t.date?.toDate?.()),
     )
     // Gastos: solo lo efectivamente pagado (las cuentas por pagar quedan
     // excluidas hasta liquidarse), ubicado por fecha de reconocimiento: nómina y
     // propinas por su mes devengado (accrualDate), el resto por fecha de pago
     // (paidDate ?? date). Ver recognitionDate.
     const expenseTxs = periodTxs.filter(
-      (t) => t.type === 'expense' && t.status === 'paid' && inRange(recognitionDate(t)),
+      (t) => t.type === 'expense' && !isInterLocal(t) && t.status === 'paid' && inRange(recognitionDate(t)),
     )
 
     // Classify income
