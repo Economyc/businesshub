@@ -14,7 +14,7 @@
 import { db, fetchCollection } from '../firestore.js';
 import { ensureFolderPath, uploadOrReplaceFile, resolveDriveUid, getUserDriveAuth, } from '../services/drive-oauth.js';
 import { MESES_ES, SUBFOLDER_TRACKING } from '../utils/doc-naming.js';
-import { ACCOUNTING_FIELDS, buildAccountingRows, } from './accounting-rows.js';
+import { ACCOUNTING_FIELDS, PAYABLE_FIELDS, RECEIVABLE_FIELDS, INTERLOCAL_FIELDS, TRANSFER_FIELDS, PAYMENT_FIELDS, BALANCE_FIELDS, buildAccountingRows, buildPayableRows, buildInterLocalRows, buildTransferRows, buildPaymentRows, buildBalanceRows, } from './accounting-rows.js';
 import { buildWorkbookBase64 } from './build-workbook.js';
 import { inMonthBogota, isCurrentMonthBogota } from './month.js';
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
@@ -36,28 +36,60 @@ export async function regenerateInvoiceSheet(companyId, year, monthIndex) {
     const userAuth = await getUserDriveAuth(driveUid);
     if (!userAuth?.refreshToken)
         return { skipped: true, reason: 'drive-not-connected' };
-    // 3) Datos: transacciones (subcolección) + suppliers (colección raíz)
-    const [txsRaw, suppliersRaw] = await Promise.all([
+    // 3) Datos: transacciones + suppliers (raíz) + traslados + cuentas (Ecore)
+    const [txsRaw, suppliersRaw, transfersRaw, accountsRaw] = await Promise.all([
         fetchCollection(companyId, 'transactions'),
         fetchCollection(companyId, 'suppliers'),
+        fetchCollection(companyId, 'transfers'),
+        fetchCollection(companyId, 'accounts'),
     ]);
     const txs = txsRaw;
+    const transfers = transfersRaw;
+    const accounts = accountsRaw;
     const suppliersById = new Map();
     for (const s of suppliersRaw) {
         const id = s.id;
         if (id)
             suppliersById.set(id, s.identification ?? '');
     }
-    // 4) Pagadas del mes (anclado por paidDate ?? date, hora Bogotá)
+    const accountsById = new Map();
+    for (const a of accounts)
+        accountsById.set(a.id, a);
+    // 3b) Abonos: subcolección payments de las tx gestionadas por Ecore
+    //     (paidAmount denormalizado y estado pagado/parcial). Necesario para las
+    //     pestañas Abonos y Saldos.
+    const managedTxs = txs.filter((t) => t.paidAmount != null && (t.status === 'paid' || t.status === 'partial'));
+    const managed = await Promise.all(managedTxs.map(async (tx) => {
+        const snap = await db
+            .collection('companies')
+            .doc(companyId)
+            .collection('transactions')
+            .doc(tx.id)
+            .collection('payments')
+            .get();
+        const payments = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        return { tx, payments };
+    }));
+    // 4) Pagadas del mes (anclado por paidDate ?? date, hora Bogotá).
+    //    interLocal se excluye: sólo aparece en su pestaña (neutralidad F4).
     const paid = txs.filter((t) => t.status === 'paid' &&
+        !t.interLocalGroupId &&
         (t.documentKind === 'invoice' || t.documentKind === 'purchase') &&
         inMonthBogota(t.paidDate ?? t.date, year, monthIndex));
     // 5) Pendientes: snapshot de toda la deuda abierta, solo en el mes actual
     const isCurrent = isCurrentMonthBogota(year, monthIndex);
     const pending = isCurrent
         ? txs.filter((t) => t.documentKind === 'invoice' &&
-            (t.status === 'pending' || t.status === 'overdue'))
+            !t.interLocalGroupId &&
+            (t.status === 'pending' || t.status === 'overdue' || t.status === 'partial'))
         : [];
+    // 5b) Modelo Ecore: deuda abierta por Pagar/Cobrar + entre locales.
+    const openStatuses = (t) => t.status === 'pending' || t.status === 'overdue' || t.status === 'partial';
+    const payables = txs.filter((t) => t.type === 'expense' && t.documentKind === 'invoice' && !t.interLocalGroupId && openStatuses(t));
+    const receivables = txs.filter((t) => t.type === 'income' && t.documentKind === 'receivable' && !t.interLocalGroupId && openStatuses(t));
+    const interLocal = txs
+        .filter((t) => !!t.interLocalGroupId)
+        .sort((a, b) => (b.date?.toMillis?.() ?? 0) - (a.date?.toMillis?.() ?? 0));
     // 6) Pestañas (Pendientes primero, solo en el mes actual)
     const sheets = [];
     if (isCurrent) {
@@ -72,6 +104,18 @@ export async function regenerateInvoiceSheet(companyId, year, monthIndex) {
         data: buildAccountingRows(paid, suppliersById),
         fields: ACCOUNTING_FIELDS,
     });
+    // 6b) Pestañas del modelo Ecore (se omiten las vacías para no ensuciar la hoja
+    //     de empresas que sólo usan App1).
+    const pushIf = (name, data, fields) => {
+        if (data.length > 0)
+            sheets.push({ name, data, fields });
+    };
+    pushIf('Por Pagar', buildPayableRows(payables, suppliersById), PAYABLE_FIELDS);
+    pushIf('Por Cobrar', buildPayableRows(receivables, suppliersById), RECEIVABLE_FIELDS);
+    pushIf('Entre Locales', buildInterLocalRows(interLocal), INTERLOCAL_FIELDS);
+    pushIf('Abonos', buildPaymentRows(managed, accountsById), PAYMENT_FIELDS);
+    pushIf('Traslados', buildTransferRows(transfers, accountsById), TRANSFER_FIELDS);
+    pushIf('Saldos', buildBalanceRows(accounts, txs, managed, transfers), BALANCE_FIELDS);
     // 7) Workbook + subida (reemplaza por nombre, convierte a Google Sheet nativo)
     const fileBase64 = await buildWorkbookBase64(sheets);
     const month = MESES_ES[monthIndex];

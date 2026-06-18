@@ -66,7 +66,7 @@ export async function buildWorkbookBase64(sheets) {
         s.fields.forEach((f, i) => {
             const col = ws.getColumn(i + 1);
             col.width = Math.max(f.header.length + 2, 14);
-            if (f.key === 'valor')
+            if (f.type === 'number')
                 col.numFmt = '#,##0';
         });
         // Filtros sobre el rango de la tabla (look de tabla real).

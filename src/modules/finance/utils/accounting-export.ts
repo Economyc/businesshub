@@ -2,6 +2,12 @@
 // su orden replican el archivo de ejemplo (facturas_pagadas_*.xlsx). Se usa
 // tanto para la descarga local (.xlsx/.csv) como para el Google Sheet mensual
 // que se sube a Drive.
+//
+// DRIFT F6 (server-only): el Google Sheet que genera `functions/src/invoice-sheet`
+// añade pestañas del modelo Ecore (Por Pagar / Por Cobrar / Traslados / Saldos /
+// Entre Locales / Abonos) que NO se replican en este export local de App1. El
+// export local sigue siendo solo Pendientes/Pagadas. Si se quiere paridad en la
+// descarga local, portar los builders de `functions/.../accounting-rows.ts`.
 import type { FieldDef } from '@/core/utils/data-transfer'
 import { parseCategory } from '@/core/utils/categories'
 import type { Transaction } from '../types'
