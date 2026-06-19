@@ -18,6 +18,7 @@ export {
 export { uploadDiscountPhotoToDrive } from './upload-discount-photo.js'
 export { combineInvoicePaymentToDrive } from './combine-invoice-payment.js'
 export { deleteTransactionWithAttachments } from './delete-transaction.js'
+export { deleteTransferWithAttachments } from './delete-transfer.js'
 export { saveInvoiceSheetToDrive } from './save-invoice-sheet.js'
 export { saveTransferSheetToDrive } from './save-transfer-sheet.js'
 export { markSheetJobDirty } from './sheet-jobs-trigger.js'
