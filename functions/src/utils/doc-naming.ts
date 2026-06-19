@@ -20,13 +20,15 @@ export const SUBFOLDER_LOOSE = 'Facturas y pagos sueltos' // facturas/comprobant
 export const LOOSE_SUB_INVOICES = 'Facturas' // docType 'Factura'
 export const LOOSE_SUB_PURCHASES = 'Compras' // docType 'Compra'
 export const LOOSE_SUB_PAYMENTS = 'Pagos' // docType 'Pago'
+export const LOOSE_SUB_TRANSFERS = 'Traslados' // docType 'Traslado'
 
-export type DocType = 'Factura' | 'Pago' | 'Compra' | 'Factura+Pago'
+export type DocType = 'Factura' | 'Pago' | 'Compra' | 'Factura+Pago' | 'Traslado'
 
 // Mapea el tipo de documento a su subcarpeta dentro de SUBFOLDER_LOOSE.
 export function looseSubfolderFor(docType: DocType): string {
   if (docType === 'Pago') return LOOSE_SUB_PAYMENTS
   if (docType === 'Compra') return LOOSE_SUB_PURCHASES
+  if (docType === 'Traslado') return LOOSE_SUB_TRANSFERS
   return LOOSE_SUB_INVOICES // 'Factura' (y cualquier otro de origen)
 }
 

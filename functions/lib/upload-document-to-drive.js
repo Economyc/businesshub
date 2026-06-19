@@ -9,8 +9,8 @@ const SECRETS = [driveClientId, driveClientSecret];
 export async function uploadCompanyDocument(actorUid, data) {
     if (!data?.companyId)
         throw new HttpsError('invalid-argument', 'companyId requerido');
-    if (!data.docType || !['Factura', 'Pago', 'Compra'].includes(data.docType)) {
-        throw new HttpsError('invalid-argument', 'docType debe ser Factura, Pago o Compra');
+    if (!data.docType || !['Factura', 'Pago', 'Compra', 'Traslado'].includes(data.docType)) {
+        throw new HttpsError('invalid-argument', 'docType debe ser Factura, Pago, Compra o Traslado');
     }
     if (!data.supplierName?.trim())
         throw new HttpsError('invalid-argument', 'supplierName requerido');

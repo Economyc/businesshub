@@ -114,7 +114,10 @@ export async function regenerateInvoiceSheet(companyId, year, monthIndex) {
     pushIf('Por Cobrar', buildPayableRows(receivables, suppliersById), RECEIVABLE_FIELDS);
     pushIf('Entre Locales', buildInterLocalRows(interLocal), INTERLOCAL_FIELDS);
     pushIf('Abonos', buildPaymentRows(managed, accountsById), PAYMENT_FIELDS);
-    pushIf('Traslados', buildTransferRows(transfers, accountsById), TRANSFER_FIELDS);
+    // Traslados: solo los del mes de la hoja (igual que Pagadas). Saldos sí usa
+    // todos los traslados — los saldos son acumulados de todo el histórico.
+    const monthTransfers = transfers.filter((tr) => inMonthBogota(tr.date, year, monthIndex));
+    pushIf('Traslados', buildTransferRows(monthTransfers, accountsById), TRANSFER_FIELDS);
     pushIf('Saldos', buildBalanceRows(accounts, txs, managed, transfers), BALANCE_FIELDS);
     // 7) Workbook + subida (reemplaza por nombre, convierte a Google Sheet nativo)
     const fileBase64 = await buildWorkbookBase64(sheets);
