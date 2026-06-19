@@ -27,16 +27,13 @@ import {
   INTERLOCAL_FIELDS,
   TRANSFER_FIELDS,
   PAYMENT_FIELDS,
-  BALANCE_FIELDS,
   buildAccountingRows,
   buildPayableRows,
   buildInterLocalRows,
   buildTransferRows,
   buildPaymentRows,
-  buildBalanceRows,
   type AdminTx,
   type AdminTransfer,
-  type AdminAccount,
   type AdminPayment,
   type ManagedTx,
 } from './accounting-rows.js'
@@ -69,27 +66,23 @@ export async function regenerateInvoiceSheet(
   const userAuth = await getUserDriveAuth(driveUid)
   if (!userAuth?.refreshToken) return { skipped: true, reason: 'drive-not-connected' }
 
-  // 3) Datos: transacciones + suppliers (raíz) + traslados + cuentas (Ecore)
-  const [txsRaw, suppliersRaw, transfersRaw, accountsRaw] = await Promise.all([
+  // 3) Datos: transacciones + suppliers (raíz) + traslados (Ecore)
+  const [txsRaw, suppliersRaw, transfersRaw] = await Promise.all([
     fetchCollection(companyId, 'transactions'),
     fetchCollection(companyId, 'suppliers'),
     fetchCollection(companyId, 'transfers'),
-    fetchCollection(companyId, 'accounts'),
   ])
   const txs = txsRaw as unknown as AdminTx[]
   const transfers = transfersRaw as unknown as AdminTransfer[]
-  const accounts = accountsRaw as unknown as AdminAccount[]
   const suppliersById = new Map<string, string>()
   for (const s of suppliersRaw) {
     const id = s.id as string
     if (id) suppliersById.set(id, (s.identification as string) ?? '')
   }
-  const accountsById = new Map<string, AdminAccount>()
-  for (const a of accounts) accountsById.set(a.id, a)
 
   // 3b) Abonos: subcolección payments de las tx gestionadas por Ecore
-  //     (paidAmount denormalizado y estado pagado/parcial). Necesario para las
-  //     pestañas Abonos y Saldos.
+  //     (paidAmount denormalizado y estado pagado/parcial). Necesario para la
+  //     pestaña Abonos.
   const managedTxs = txs.filter(
     (t) => t.paidAmount != null && (t.status === 'paid' || t.status === 'partial'),
   )
@@ -164,12 +157,10 @@ export async function regenerateInvoiceSheet(
   pushIf('Por Pagar', buildPayableRows(payables, suppliersById), PAYABLE_FIELDS)
   pushIf('Por Cobrar', buildPayableRows(receivables, suppliersById), RECEIVABLE_FIELDS)
   pushIf('Entre Locales', buildInterLocalRows(interLocal), INTERLOCAL_FIELDS)
-  pushIf('Abonos', buildPaymentRows(managed, accountsById), PAYMENT_FIELDS)
-  // Traslados: solo los del mes de la hoja (igual que Pagadas). Saldos sí usa
-  // todos los traslados — los saldos son acumulados de todo el histórico.
+  pushIf('Abonos', buildPaymentRows(managed), PAYMENT_FIELDS)
+  // Traslados: solo los del mes de la hoja (igual que Pagadas).
   const monthTransfers = transfers.filter((tr) => inMonthBogota(tr.date, year, monthIndex))
-  pushIf('Traslados', buildTransferRows(monthTransfers, accountsById), TRANSFER_FIELDS)
-  pushIf('Saldos', buildBalanceRows(accounts, txs, managed, transfers), BALANCE_FIELDS)
+  pushIf('Traslados', buildTransferRows(monthTransfers), TRANSFER_FIELDS)
 
   // 7) Workbook + subida (reemplaza por nombre, convierte a Google Sheet nativo)
   const fileBase64 = await buildWorkbookBase64(sheets)

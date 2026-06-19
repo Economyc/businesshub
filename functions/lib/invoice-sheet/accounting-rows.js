@@ -91,7 +91,7 @@ export function buildAccountingRows(txs, suppliersById, startIndex = 1) {
 }
 // ───────────────────────────────────────────────────────────────────────────
 // F6 — Pestañas del modelo Ecore (Por Pagar / Por Cobrar / Entre Locales /
-// Abonos / Traslados / Saldos). Filas planas; el layout lo da build-workbook.
+// Abonos / Traslados). Filas planas; el layout lo da build-workbook.
 // ───────────────────────────────────────────────────────────────────────────
 // Por Pagar / Por Cobrar comparten estructura; solo cambia el header del tercero.
 function payableFields(terceroHeader) {
@@ -173,14 +173,14 @@ export const TRANSFER_FIELDS = [
     { key: 'referencia', header: 'Referencia', type: 'string' },
     { key: 'notas', header: 'Notas', type: 'string' },
 ];
-export function buildTransferRows(transfers, accountsById) {
+export function buildTransferRows(transfers) {
     return transfers
         .slice()
         .sort((a, b) => (b.date?.toMillis?.() ?? 0) - (a.date?.toMillis?.() ?? 0))
         .map((tr) => ({
         fecha: formatDate(tr.date),
-        origen: accountsById.get(tr.fromAccountId ?? '')?.name ?? tr.fromAccountId ?? '',
-        destino: accountsById.get(tr.toAccountId ?? '')?.name ?? tr.toAccountId ?? '',
+        origen: tr.fromMethod ?? '',
+        destino: tr.toMethod ?? '',
         valor: tr.amount ?? 0,
         referencia: tr.reference ?? '',
         notas: tr.notes ?? '',
@@ -193,12 +193,11 @@ export const PAYMENT_FIELDS = [
     { key: 'valor', header: 'Monto', type: 'number' },
     { key: 'acumulado', header: '% Acumulado', type: 'string' },
     { key: 'saldo', header: 'Saldo', type: 'number' },
-    { key: 'cuenta', header: 'Cuenta', type: 'string' },
     { key: 'metodo', header: 'Método', type: 'string' },
 ];
 // Aplana los abonos de las tx gestionadas. Por factura: ordena por fecha y lleva
 // suma corriente para % acumulado y saldo restante tras cada abono.
-export function buildPaymentRows(groups, accountsById) {
+export function buildPaymentRows(groups) {
     const rows = [];
     for (const { tx, payments } of groups) {
         const amount = tx.amount ?? 0;
@@ -216,64 +215,10 @@ export function buildPaymentRows(groups, accountsById) {
                 valor: p.amount ?? 0,
                 acumulado: amount > 0 ? `${Math.round((running / amount) * 100)}%` : '—',
                 saldo: Math.max(amount - running, 0),
-                cuenta: accountsById.get(p.accountId ?? '')?.name ?? '',
                 metodo: p.method ?? '',
             });
         }
     }
     return rows;
-}
-export const BALANCE_FIELDS = [
-    { key: 'cuenta', header: 'Cuenta', type: 'string' },
-    { key: 'tipoCuenta', header: 'Tipo', type: 'string' },
-    { key: 'valor', header: 'Saldo', type: 'number' },
-];
-const ACCOUNT_TYPE_LABEL = {
-    bank: 'Banco',
-    cash: 'Efectivo',
-    wallet: 'Billetera',
-    card: 'Tarjeta',
-};
-// Réplica server-side de computeAccountBalances (Ecore accounts-service.ts):
-// openingBalance + Σ(abonos·signo) + traslados entrantes − salientes.
-// Legacy (sin abonos, paid, con accountId) suma el monto completo.
-export function buildBalanceRows(accounts, txs, managed, transfers) {
-    const balances = new Map();
-    for (const a of accounts)
-        balances.set(a.id, a.openingBalance ?? 0);
-    // Tx legacy: un solo pago, sin subcolección payments.
-    for (const t of txs) {
-        if (t.paidAmount != null || t.status !== 'paid' || !t.accountId)
-            continue;
-        if (!balances.has(t.accountId))
-            continue;
-        const sign = t.type === 'income' ? 1 : -1;
-        balances.set(t.accountId, (balances.get(t.accountId) ?? 0) + sign * (t.amount ?? 0));
-    }
-    // Tx gestionadas por Ecore: cada abono mueve su cuenta.
-    for (const { tx, payments } of managed) {
-        const sign = tx.type === 'income' ? 1 : -1;
-        for (const p of payments) {
-            if (!p.accountId || !balances.has(p.accountId))
-                continue;
-            balances.set(p.accountId, (balances.get(p.accountId) ?? 0) + sign * (p.amount ?? 0));
-        }
-    }
-    // Traslados: mueven saldo entre cuentas.
-    for (const tr of transfers) {
-        const amount = tr.amount ?? 0;
-        if (tr.fromAccountId && balances.has(tr.fromAccountId))
-            balances.set(tr.fromAccountId, (balances.get(tr.fromAccountId) ?? 0) - amount);
-        if (tr.toAccountId && balances.has(tr.toAccountId))
-            balances.set(tr.toAccountId, (balances.get(tr.toAccountId) ?? 0) + amount);
-    }
-    return accounts
-        .slice()
-        .sort((a, b) => (a.name ?? '').localeCompare(b.name ?? '', 'es'))
-        .map((a) => ({
-        cuenta: a.name ?? a.id,
-        tipoCuenta: ACCOUNT_TYPE_LABEL[a.type ?? ''] ?? '',
-        valor: balances.get(a.id) ?? 0,
-    }));
 }
 //# sourceMappingURL=accounting-rows.js.map
