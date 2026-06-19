@@ -25,15 +25,12 @@ import {
   PAYABLE_FIELDS,
   RECEIVABLE_FIELDS,
   INTERLOCAL_FIELDS,
-  TRANSFER_FIELDS,
   PAYMENT_FIELDS,
   buildAccountingRows,
   buildPayableRows,
   buildInterLocalRows,
-  buildTransferRows,
   buildPaymentRows,
   type AdminTx,
-  type AdminTransfer,
   type AdminPayment,
   type ManagedTx,
 } from './accounting-rows.js'
@@ -66,14 +63,13 @@ export async function regenerateInvoiceSheet(
   const userAuth = await getUserDriveAuth(driveUid)
   if (!userAuth?.refreshToken) return { skipped: true, reason: 'drive-not-connected' }
 
-  // 3) Datos: transacciones + suppliers (raíz) + traslados (Ecore)
-  const [txsRaw, suppliersRaw, transfersRaw] = await Promise.all([
+  // 3) Datos: transacciones + suppliers (raíz). Los traslados viven en su propia
+  //    hoja (Seguimiento traslados, ver regenerate-transfers.ts), no aquí.
+  const [txsRaw, suppliersRaw] = await Promise.all([
     fetchCollection(companyId, 'transactions'),
     fetchCollection(companyId, 'suppliers'),
-    fetchCollection(companyId, 'transfers'),
   ])
   const txs = txsRaw as unknown as AdminTx[]
-  const transfers = transfersRaw as unknown as AdminTransfer[]
   const suppliersById = new Map<string, string>()
   for (const s of suppliersRaw) {
     const id = s.id as string
@@ -158,9 +154,6 @@ export async function regenerateInvoiceSheet(
   pushIf('Por Cobrar', buildPayableRows(receivables, suppliersById), RECEIVABLE_FIELDS)
   pushIf('Entre Locales', buildInterLocalRows(interLocal), INTERLOCAL_FIELDS)
   pushIf('Abonos', buildPaymentRows(managed), PAYMENT_FIELDS)
-  // Traslados: solo los del mes de la hoja (igual que Pagadas).
-  const monthTransfers = transfers.filter((tr) => inMonthBogota(tr.date, year, monthIndex))
-  pushIf('Traslados', buildTransferRows(monthTransfers), TRANSFER_FIELDS)
 
   // 7) Workbook + subida (reemplaza por nombre, convierte a Google Sheet nativo)
   const fileBase64 = await buildWorkbookBase64(sheets)

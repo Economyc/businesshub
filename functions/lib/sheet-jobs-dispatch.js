@@ -13,6 +13,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { db } from './firestore.js';
 import { driveClientId, driveClientSecret } from './services/drive-oauth.js';
 import { regenerateInvoiceSheet } from './invoice-sheet/regenerate.js';
+import { regenerateTransferSheet } from './invoice-sheet/regenerate-transfers.js';
 export const dispatchSheetJobs = onSchedule({
     schedule: 'every 10 minutes',
     timeZone: 'America/Bogota',
@@ -46,10 +47,21 @@ export const dispatchSheetJobs = onSchedule({
         try {
             // Limpia el flag antes de procesar (ver clear-then-process arriba).
             await doc.ref.set({ dirty: false, processedAt: FieldValue.serverTimestamp() }, { merge: true });
+            // Mismo flag dirty para ambas hojas (facturas + traslados). Idempotentes
+            // vía uploadOrReplaceFile. La de traslados se omite si el mes no tiene
+            // traslados ('no-transfers').
             const result = await regenerateInvoiceSheet(companyId, year, monthIndex);
             if ('skipped' in result) {
                 skipped++;
-                console.log(`[sheet-jobs] ${companyId}/${doc.id} omitido: ${result.reason}`);
+                console.log(`[sheet-jobs] ${companyId}/${doc.id} facturas omitido: ${result.reason}`);
+            }
+            else {
+                ok++;
+            }
+            const trResult = await regenerateTransferSheet(companyId, year, monthIndex);
+            if ('skipped' in trResult) {
+                skipped++;
+                console.log(`[sheet-jobs] ${companyId}/${doc.id} traslados omitido: ${trResult.reason}`);
             }
             else {
                 ok++;
