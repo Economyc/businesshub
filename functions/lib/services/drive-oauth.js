@@ -175,9 +175,17 @@ export async function resolveDriveUid(companyId, fallbackUid) {
     if (explicit)
         return explicit;
     const owners = await companyRef.collection('members').where('role', '==', 'owner').limit(10).get();
-    const active = owners.docs.find((d) => d.data().status === 'active');
-    if (active)
-        return active.id;
+    const active = owners.docs.filter((d) => d.data().status === 'active');
+    // Con varios owners, el primero que devuelve la query (sin orderBy → orden NO
+    // estable) puede no tener Drive conectado. Preferir el owner que SÍ tenga
+    // refreshToken; caer al primer owner activo / fallback sólo si ninguno lo tiene.
+    for (const d of active) {
+        const auth = await getUserDriveAuth(d.id);
+        if (auth?.refreshToken)
+            return d.id;
+    }
+    if (active.length > 0)
+        return active[0].id;
     return fallbackUid;
 }
 /**
