@@ -1,1 +1,1 @@
-{"version":3,"file":"company-access.d.ts","sourceRoot":"","sources":["../../src/utils/company-access.ts"],"names":[],"mappings":"AASA;;;GAGG;AACH,wBAAsB,mBAAmB,CAAC,GAAG,EAAE,MAAM,EAAE,SAAS,EAAE,MAAM,GAAG,OAAO,CAAC,IAAI,CAAC,CAcvF"}
+{"version":3,"file":"company-access.d.ts","sourceRoot":"","sources":["../../src/utils/company-access.ts"],"names":[],"mappings":"AAgCA;;;;GAIG;AACH,wBAAsB,mBAAmB,CAAC,GAAG,EAAE,MAAM,EAAE,SAAS,EAAE,MAAM,GAAG,OAAO,CAAC,IAAI,CAAC,CAgBvF"}

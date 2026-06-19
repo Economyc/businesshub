@@ -1,0 +1,366 @@
+- generic [ref=e9] [box=0,0,1280,656]:
+  - generic [ref=e11] [box=0,0,408,656]:
+    - navigation [ref=e12] [box=0,0,208,656]:
+      - button [ref=e13] [cursor=pointer] [box=197,317,22,22]:
+        - img [ref=e14] [box=201,321,13,13]
+      - button "Blue Smash Brgr Manila" [ref=e19] [cursor=pointer] [box=11,18,186,43]:
+        - img "Blue Smash Brgr" [ref=e20] [box=20,25,29,29]
+        - generic [ref=e22] [box=58,28,107,22]:
+          - img [ref=e23] [box=58,34,11,11]
+          - text: Manila
+        - img [ref=e26] [box=174,33,14,14]
+      - generic [ref=e29] [box=0,72,207,471]:
+        - generic [ref=e30] [box=10,72,187,26]: Módulos
+        - generic [ref=e33] [box=10,98,187,81]:
+          - button "Facturación" [ref=e34] [cursor=pointer] [box=17,98,173,40]:
+            - generic [ref=e35] [box=28,107,79,22]: Facturación
+          - link "Recursos Humanos" [ref=e36] [cursor=pointer] [box=17,139,173,40]:
+            - /url: /rrhh
+            - generic [ref=e37] [box=28,148,128,22]: Recursos Humanos
+      - generic [ref=e38] [box=14,543,179,95]:
+        - generic [ref=e39] [box=14,547,179,40]:
+          - button "Auto-ocultar sidebar" [ref=e40] [cursor=pointer] [box=18,554,26,26]:
+            - img [ref=e41] [box=23,560,15,15]
+          - button "Notificaciones" [disabled] [ref=e44] [box=164,554,26,26]:
+            - img [ref=e45] [box=169,560,15,15]
+        - button "CL Claude claude@economyc.cc" [ref=e49] [cursor=pointer] [box=14,587,179,51]:
+          - generic [ref=e51] [box=29,607,14,11]: CL
+          - generic [ref=e52] [box=58,595,126,36]:
+            - generic [ref=e53] [box=58,595,126,22]: Claude
+            - generic [ref=e54] [box=58,617,126,14]: claude@economyc.cc
+    - generic [ref=e55] [box=208,0,200,656]:
+      - heading "Facturación" [level=3] [ref=e57] [box=222,18,171,19]
+      - generic [ref=e58] [box=208,52,199,556]:
+        - link "Cuentas por Pagar" [ref=e59] [cursor=pointer] [box=215,52,185,40]:
+          - /url: /facturacion/por-pagar
+          - img [ref=e60] [box=226,64,16,16]
+          - text: Cuentas por Pagar
+        - link "Cuentas por Cobrar" [ref=e62] [cursor=pointer] [box=215,94,185,40]:
+          - /url: /facturacion/por-cobrar
+          - img [ref=e63] [box=226,106,16,16]
+          - text: Cuentas por Cobrar
+        - link "Traslados" [ref=e65] [cursor=pointer] [box=215,136,185,40]:
+          - /url: /facturacion/traslados
+          - img [ref=e66] [box=226,148,16,16]
+          - text: Traslados
+        - link "Cuentas" [ref=e69] [cursor=pointer] [box=215,178,185,40]:
+          - /url: /facturacion/cuentas
+          - img [ref=e70] [box=226,190,16,16]
+          - text: Cuentas
+        - link "Hojas / Drive" [ref=e72] [cursor=pointer] [box=215,220,185,40]:
+          - /url: /facturacion/hojas
+          - img [ref=e73] [box=226,232,16,16]
+          - text: Hojas / Drive
+        - link "Consolidado" [ref=e75] [cursor=pointer] [box=215,262,185,40]:
+          - /url: /facturacion/consolidado
+          - img [ref=e76] [box=226,275,16,16]
+          - text: Consolidado
+      - button [ref=e81] [cursor=pointer] [box=367,612,26,26]:
+        - img [ref=e82] [box=373,618,15,15]
+  - main [ref=e85] [box=408,0,872,656]:
+    - generic [ref=e86] [box=430,22,819,1567]:
+      - generic [ref=e87] [box=430,22,819,53]:
+        - generic [ref=e88] [box=430,22,203,53]:
+          - heading "Cuentas por Pagar" [level=1] [ref=e89] [box=430,22,203,32]
+          - paragraph [ref=e90] [box=430,55,203,19]: "Saldo pendiente total: $47.797.784"
+        - generic [ref=e91] [box=1029,22,219,35]:
+          - button "Proveedores" [ref=e92] [cursor=pointer] [box=1029,22,115,35]:
+            - img [ref=e93] [box=1040,32,14,14]
+            - text: Proveedores
+          - button "Nuevo" [ref=e98] [cursor=pointer] [box=1151,22,97,34]:
+            - img [ref=e99] [box=1162,32,14,14]
+            - text: Nuevo
+            - img [ref=e100] [box=1224,32,14,14]
+      - generic [ref=e102] [box=430,93,819,38]:
+        - button "Proveedores" [ref=e103] [cursor=pointer] [box=430,93,106,39]
+        - button "Compras" [ref=e104] [cursor=pointer] [box=539,93,82,39]
+        - button "Entre locales" [ref=e105] [cursor=pointer] [box=625,93,108,39]
+        - button "Costos fijos" [ref=e106] [cursor=pointer] [box=737,93,101,39]
+      - generic [ref=e107] [box=430,149,819,1439]:
+        - generic [ref=e108] [box=430,149,819,117]:
+          - generic [ref=e109] [box=430,149,402,117]:
+            - generic [ref=e110] [box=445,164,372,19]:
+              - img [ref=e111] [box=445,167,14,14]
+              - generic [ref=e114] [box=464,164,150,19]: Pendiente por pagar
+            - generic [ref=e115] [box=445,187,372,42]: $47.797.784
+            - generic [ref=e116] [box=445,232,372,19]: 20 documentos
+          - generic [ref=e117] [box=846,149,402,117]:
+            - generic [ref=e118] [box=861,164,372,19]:
+              - img [ref=e119] [box=861,167,14,14]
+              - generic [ref=e122] [box=881,164,143,19]: Pagado · Junio 2026
+            - generic [ref=e123] [box=861,187,372,42]: $56.736.150
+            - generic [ref=e124] [box=861,232,372,19]: 58 documentos
+        - generic [ref=e125] [box=430,284,819,43]:
+          - generic [ref=e126] [box=430,284,252,43]:
+            - button "Pendientes (20)" [ref=e127] [cursor=pointer] [box=434,289,129,35]
+            - button "Pagadas (58)" [ref=e128] [cursor=pointer] [box=567,289,111,33]
+          - generic [ref=e129] [box=692,285,556,42]:
+            - button "Junio 2026" [ref=e131] [cursor=pointer] [box=692,285,144,42]:
+              - generic [ref=e133] [box=704,295,75,22]: Junio 2026
+              - img [ref=e134] [box=811,299,14,14]
+            - generic [ref=e137] [box=847,285,401,42]:
+              - img [ref=e138] [box=858,298,16,16]
+              - textbox "Buscar proveedor, número, categoría…" [ref=e141] [box=847,285,401,42]
+        - generic [ref=e142] [box=430,342,819,1247]:
+          - generic [ref=e143] [box=430,342,817,41]:
+            - button "Proveedor" [ref=e144] [cursor=pointer] [box=445,351,159,22]:
+              - generic [ref=e145] [box=445,351,92,22]: Proveedor
+              - img [ref=e146] [box=540,357,12,12]
+            - button "Categoría" [ref=e149] [cursor=pointer] [box=611,351,99,22]:
+              - generic [ref=e150] [box=611,351,84,22]: Categoría
+              - img [ref=e151] [box=698,357,12,12]
+            - button "Tipo" [ref=e154] [cursor=pointer] [box=717,351,79,22]:
+              - generic [ref=e155] [box=717,351,36,22]: Tipo
+              - img [ref=e156] [box=757,357,12,12]
+            - button "Número" [ref=e159] [cursor=pointer] [box=804,351,79,22]:
+              - generic [ref=e160] [box=804,351,64,22]: Número
+              - img [ref=e161] [box=871,357,12,12]
+            - button "Fecha" [ref=e164] [cursor=pointer] [box=891,351,89,22]:
+              - generic [ref=e165] [box=891,351,51,22]: Fecha
+              - img [ref=e166] [box=945,357,12,12]
+            - button "Estado" [ref=e168] [cursor=pointer] [box=987,351,89,22]:
+              - generic [ref=e169] [box=987,351,61,22]: Estado
+              - img [ref=e170] [box=1051,357,12,12]
+            - button "Valor" [ref=e173] [cursor=pointer] [box=1117,351,66,22]:
+              - generic [ref=e174] [box=1133,351,50,22]: Valor
+              - img [ref=e175] [box=1117,357,12,12]
+          - generic [ref=e179] [cursor=pointer] [box=430,383,817,60]:
+            - generic [ref=e180] [box=445,392,159,42]:
+              - paragraph [ref=e181] [box=445,392,159,22]: Jose Cardenas
+              - paragraph [ref=e182] [box=445,415,159,19]: Jose Cardenas - Factura 501000064618
+            - generic [ref=e185] [box=623,404,32,19]: Socio
+            - generic [ref=e187] [box=717,404,43,19]: Factura
+            - generic [ref=e189] [box=804,404,79,19]: "501000064618"
+            - generic [ref=e191] [box=891,404,52,19]: 25/07/26
+            - generic [ref=e193] [box=987,403,67,21]: Pendiente
+            - generic [ref=e195] [box=1116,402,67,22]: $119.980
+            - button "Abonar" [ref=e197] [box=1205,399,28,28]:
+              - img [ref=e198] [box=1212,406,14,14]
+          - generic [ref=e202] [cursor=pointer] [box=430,444,817,60]:
+            - generic [ref=e203] [box=445,453,159,42]:
+              - paragraph [ref=e204] [box=445,453,159,22]: Carnes Walter
+              - paragraph [ref=e205] [box=445,475,159,19]: Carnes Walter - Factura 14056
+            - generic [ref=e208] [box=623,464,66,19]: Suministros
+            - generic [ref=e210] [box=717,464,43,19]: Factura
+            - generic [ref=e212] [box=804,464,39,19]: "14056"
+            - generic [ref=e214] [box=891,464,50,19]: 15/06/26
+            - generic [ref=e216] [box=987,463,70,21]: Vence hoy
+            - generic [ref=e218] [box=1116,462,67,22]: $118.450
+            - button "Abonar" [ref=e220] [box=1205,459,28,28]:
+              - img [ref=e221] [box=1212,466,14,14]
+          - generic [ref=e225] [cursor=pointer] [box=430,504,817,60]:
+            - generic [ref=e226] [box=445,513,159,42]:
+              - paragraph [ref=e227] [box=445,513,159,22]: Campo de Oro
+              - paragraph [ref=e228] [box=445,535,159,19]: Campo de Oro - Factura 3757
+            - generic [ref=e231] [box=623,524,66,19]: Suministros
+            - generic [ref=e233] [box=717,524,43,19]: Factura
+            - generic [ref=e235] [box=804,524,31,19]: "3757"
+            - generic [ref=e237] [box=891,524,51,19]: 13/06/26
+            - generic [ref=e239] [box=987,523,71,21]: Vencida 1d
+            - generic [ref=e241] [box=1116,523,67,22]: $158.280
+            - button "Abonar" [ref=e243] [box=1205,520,28,28]:
+              - img [ref=e244] [box=1212,527,14,14]
+          - generic [ref=e248] [cursor=pointer] [box=430,564,817,60]:
+            - generic [ref=e249] [box=445,573,159,42]:
+              - paragraph [ref=e250] [box=445,573,159,22]: Natalia Castaño SST
+              - paragraph [ref=e251] [box=445,596,159,19]: Natalia Castaño SST - Factura 08
+            - generic [ref=e254] [box=623,584,87,19]: Servicios Profesionales
+            - generic [ref=e256] [box=717,584,43,19]: Factura
+            - generic [ref=e258] [box=804,584,16,19]: "08"
+            - generic [ref=e260] [box=891,584,53,19]: 06/06/26
+            - generic [ref=e262] [box=987,583,70,21]: Vence hoy
+            - generic [ref=e264] [box=1116,583,67,22]: $400.000
+            - button "Abonar" [ref=e266] [box=1205,580,28,28]:
+              - img [ref=e267] [box=1212,587,14,14]
+          - generic [ref=e271] [cursor=pointer] [box=430,624,817,60]:
+            - generic [ref=e272] [box=445,633,159,42]:
+              - paragraph [ref=e273] [box=445,633,159,22]: Colparafinados
+              - paragraph [ref=e274] [box=445,656,159,19]: Colparafinados - Factura FE11703
+            - generic [ref=e277] [box=623,645,60,19]: Empaques
+            - generic [ref=e279] [box=717,645,43,19]: Factura
+            - generic [ref=e281] [box=804,645,53,19]: FE11703
+            - generic [ref=e283] [box=891,645,53,19]: 05/06/26
+            - generic [ref=e285] [box=987,644,67,21]: Pendiente
+            - generic [ref=e287] [box=1116,643,67,22]: $247.478
+            - button "Abonar" [ref=e289] [box=1205,640,28,28]:
+              - img [ref=e290] [box=1212,647,14,14]
+          - generic [ref=e294] [cursor=pointer] [box=430,685,817,60]:
+            - generic [ref=e295] [box=445,694,159,42]:
+              - paragraph [ref=e296] [box=445,694,159,22]: Sebastian Barrios
+              - paragraph [ref=e297] [box=445,716,159,19]: Sebastian Barrios - Factura OLINMIKW-0010
+            - generic [ref=e300] [box=623,705,62,19]: Tecnologia
+            - generic [ref=e302] [box=717,705,43,19]: Factura
+            - generic [ref=e304] [box=804,705,79,19]: OLINMIKW-0010
+            - generic [ref=e306] [box=891,705,51,19]: 01/06/26
+            - generic [ref=e308] [box=987,704,67,21]: Pendiente
+            - generic [ref=e310] [box=1116,703,67,22]: $123.157
+            - button "Abonar" [ref=e312] [box=1205,700,28,28]:
+              - img [ref=e313] [box=1212,707,14,14]
+          - generic [ref=e317] [cursor=pointer] [box=430,745,817,60]:
+            - generic [ref=e318] [box=445,754,159,42]:
+              - paragraph [ref=e319] [box=445,754,159,22]: Jose Cardenas
+              - paragraph [ref=e320] [box=445,776,159,19]: Jose Cardenas - Factura IMP2026 (virtual)
+            - generic [ref=e323] [box=623,765,32,19]: Socio
+            - generic [ref=e325] [box=717,765,43,19]: Factura
+            - generic [ref=e327] [box=804,765,53,19]: IMP2026
+            - generic [ref=e329] [box=891,765,50,19]: 31/05/26
+            - generic [ref=e331] [box=987,764,67,21]: Pendiente
+            - generic [ref=e333] [box=1103,763,80,22]: $1.207.000
+            - button "Abonar" [ref=e335] [box=1205,760,28,28]:
+              - img [ref=e336] [box=1212,768,14,14]
+          - generic [ref=e340] [cursor=pointer] [box=430,805,817,60]:
+            - generic [ref=e341] [box=445,814,159,42]:
+              - paragraph [ref=e342] [box=445,814,159,22]: Jose Cardenas
+              - paragraph [ref=e343] [box=445,837,159,19]: Jose Cardenas - Factura UL7720908
+            - generic [ref=e346] [box=623,825,32,19]: Socio
+            - generic [ref=e348] [box=717,825,43,19]: Factura
+            - generic [ref=e350] [box=804,825,70,19]: UL7720908
+            - generic [ref=e352] [box=891,825,53,19]: 29/05/26
+            - generic [ref=e354] [box=987,824,67,21]: Pendiente
+            - generic [ref=e356] [box=1103,824,80,22]: $1.307.890
+            - button "Abonar" [ref=e358] [box=1205,821,28,28]:
+              - img [ref=e359] [box=1212,828,14,14]
+          - generic [ref=e363] [cursor=pointer] [box=430,865,817,60]:
+            - generic [ref=e364] [box=445,874,159,42]:
+              - paragraph [ref=e365] [box=445,874,159,22]: Jose Cardenas
+              - paragraph [ref=e366] [box=445,897,159,19]: Jose Cardenas - Factura 27052026A
+            - generic [ref=e369] [box=623,886,32,19]: Socio
+            - generic [ref=e371] [box=717,886,43,19]: Factura
+            - generic [ref=e373] [box=804,886,71,19]: 27052026A
+            - generic [ref=e375] [box=891,886,52,19]: 27/05/26
+            - generic [ref=e377] [box=987,885,67,21]: Pendiente
+            - generic [ref=e379] [box=1116,884,67,22]: $120.500
+            - button "Abonar" [ref=e381] [box=1205,881,28,28]:
+              - img [ref=e382] [box=1212,888,14,14]
+          - generic [ref=e386] [cursor=pointer] [box=430,926,817,60]:
+            - generic [ref=e387] [box=445,935,159,42]:
+              - paragraph [ref=e388] [box=445,935,159,22]: Jose Cardenas
+              - paragraph [ref=e389] [box=445,957,159,19]: Jose Cardenas - Factura 272052026
+            - generic [ref=e392] [box=623,946,32,19]: Socio
+            - generic [ref=e394] [box=717,946,43,19]: Factura
+            - generic [ref=e396] [box=804,946,70,19]: "272052026"
+            - generic [ref=e398] [box=891,946,52,19]: 27/05/26
+            - generic [ref=e400] [box=987,945,67,21]: Pendiente
+            - generic [ref=e402] [box=1116,944,67,22]: $669.030
+            - button "Abonar" [ref=e404] [box=1205,941,28,28]:
+              - img [ref=e405] [box=1212,948,14,14]
+          - generic [ref=e409] [cursor=pointer] [box=430,986,817,60]:
+            - generic [ref=e410] [box=445,995,159,42]:
+              - paragraph [ref=e411] [box=445,995,159,22]: Jose Cardenas
+              - paragraph [ref=e412] [box=445,1017,159,19]: Jose Cardenas - Factura 4411
+            - generic [ref=e415] [box=623,1006,32,19]: Socio
+            - generic [ref=e417] [box=717,1006,43,19]: Factura
+            - generic [ref=e419] [box=804,1006,31,19]: "4411"
+            - generic [ref=e421] [box=891,1006,52,19]: 27/05/26
+            - generic [ref=e423] [box=987,1005,67,21]: Pendiente
+            - generic [ref=e425] [box=1116,1004,67,22]: $572.700
+            - button "Abonar" [ref=e427] [box=1205,1001,28,28]:
+              - img [ref=e428] [box=1212,1009,14,14]
+          - generic [ref=e432] [cursor=pointer] [box=430,1046,817,60]:
+            - generic [ref=e433] [box=445,1055,159,42]:
+              - paragraph [ref=e434] [box=445,1055,159,22]: Jose Cardenas
+              - paragraph [ref=e435] [box=445,1077,159,19]: Jose Cardenas - Factura 25052026
+            - generic [ref=e438] [box=623,1066,32,19]: Socio
+            - generic [ref=e440] [box=717,1066,43,19]: Factura
+            - generic [ref=e442] [box=804,1066,62,19]: "25052026"
+            - generic [ref=e444] [box=891,1066,53,19]: 25/05/26
+            - generic [ref=e446] [box=987,1065,67,21]: Pendiente
+            - generic [ref=e448] [box=1103,1065,80,22]: $1.559.960
+            - button "Abonar" [ref=e450] [box=1205,1062,28,28]:
+              - img [ref=e451] [box=1212,1069,14,14]
+          - generic [ref=e455] [cursor=pointer] [box=430,1106,817,60]:
+            - generic [ref=e456] [box=445,1115,159,42]:
+              - paragraph [ref=e457] [box=445,1115,159,22]: Jose Cardenas
+              - paragraph [ref=e458] [box=445,1138,159,19]: Jose Cardenas - Factura 368104063
+            - generic [ref=e461] [box=623,1127,32,19]: Socio
+            - generic [ref=e463] [box=717,1127,43,19]: Factura
+            - generic [ref=e465] [box=804,1127,70,19]: "368104063"
+            - generic [ref=e467] [box=891,1127,53,19]: 25/05/26
+            - generic [ref=e469] [box=987,1126,67,21]: Pendiente
+            - generic [ref=e471] [box=1103,1125,80,22]: $1.927.499
+            - button "Abonar" [ref=e473] [box=1205,1122,28,28]:
+              - img [ref=e474] [box=1212,1129,14,14]
+          - generic [ref=e478] [cursor=pointer] [box=430,1167,817,60]:
+            - generic [ref=e479] [box=445,1176,159,42]:
+              - paragraph [ref=e480] [box=445,1176,159,22]: Jose Cardenas
+              - paragraph [ref=e481] [box=445,1198,159,19]: Jose Cardenas - Factura NI901922971-1
+            - generic [ref=e484] [box=623,1187,48,19]: Arreglos
+            - generic [ref=e486] [box=717,1187,43,19]: Factura
+            - generic [ref=e488] [box=804,1187,79,19]: NI901922971-1
+            - generic [ref=e490] [box=891,1187,50,19]: 19/05/26
+            - generic [ref=e492] [box=987,1186,67,21]: Pendiente
+            - generic [ref=e494] [box=1116,1185,67,22]: $599.980
+            - button "Abonar" [ref=e496] [box=1205,1182,28,28]:
+              - img [ref=e497] [box=1212,1189,14,14]
+          - generic [ref=e501] [cursor=pointer] [box=430,1227,817,60]:
+            - generic [ref=e502] [box=445,1236,159,42]:
+              - paragraph [ref=e503] [box=445,1236,159,22]: Gobernación de Antioquia
+              - paragraph [ref=e504] [box=445,1258,159,19]: Gobernación de Antioquia - Factura 0000000502427196
+            - generic [ref=e507] [box=623,1247,87,19]: Tasa de Seguridad
+            - generic [ref=e509] [box=717,1247,43,19]: Factura
+            - generic [ref=e511] [box=804,1247,79,19]: "0000000502427196"
+            - generic [ref=e513] [box=891,1247,50,19]: 15/05/26
+            - generic [ref=e515] [box=987,1246,67,21]: Pendiente
+            - generic [ref=e517] [box=1116,1245,67,22]: $527.000
+            - button "Abonar" [ref=e519] [box=1205,1242,28,28]:
+              - img [ref=e520] [box=1212,1250,14,14]
+          - generic [ref=e524] [cursor=pointer] [box=430,1287,817,60]:
+            - generic [ref=e525] [box=445,1296,159,42]:
+              - paragraph [ref=e526] [box=445,1296,159,22]: Jose Cardenas
+              - paragraph [ref=e527] [box=445,1318,159,19]: Jose Cardenas - Factura JR002026
+            - generic [ref=e530] [box=623,1307,32,19]: Socio
+            - generic [ref=e532] [box=717,1307,43,19]: Factura
+            - generic [ref=e534] [box=804,1307,61,19]: JR002026
+            - generic [ref=e536] [box=891,1307,50,19]: 15/05/26
+            - generic [ref=e538] [box=987,1306,67,21]: Pendiente
+            - generic [ref=e540] [box=1103,1306,80,22]: $6.030.200
+            - button "Abonar" [ref=e542] [box=1205,1303,28,28]:
+              - img [ref=e543] [box=1212,1310,14,14]
+          - generic [ref=e547] [cursor=pointer] [box=430,1347,817,60]:
+            - generic [ref=e548] [box=445,1356,159,42]:
+              - paragraph [ref=e549] [box=445,1356,159,22]: Jose Cardenas
+              - paragraph [ref=e550] [box=445,1379,159,19]: Jose Cardenas - Factura UV479520
+            - generic [ref=e553] [box=623,1367,32,19]: Socio
+            - generic [ref=e555] [box=717,1367,43,19]: Factura
+            - generic [ref=e557] [box=804,1367,64,19]: UV479520
+            - generic [ref=e559] [box=891,1367,51,19]: 14/05/26
+            - generic [ref=e561] [box=987,1366,67,21]: Pendiente
+            - generic [ref=e563] [box=1103,1366,80,22]: $2.369.800
+            - button "Abonar" [ref=e565] [box=1205,1363,28,28]:
+              - img [ref=e566] [box=1212,1370,14,14]
+          - generic [ref=e570] [cursor=pointer] [box=430,1408,817,60]:
+            - generic [ref=e571] [box=445,1417,159,42]:
+              - paragraph [ref=e572] [box=445,1417,159,22]: Jose Cardenas
+              - paragraph [ref=e573] [box=445,1439,159,19]: Jose Cardenas - Factura 08F2-00593
+            - generic [ref=e576] [box=623,1428,32,19]: Socio
+            - generic [ref=e578] [box=717,1428,43,19]: Factura
+            - generic [ref=e580] [box=804,1428,77,19]: 08F2-00593
+            - generic [ref=e582] [box=891,1428,51,19]: 14/05/26
+            - generic [ref=e584] [box=987,1427,67,21]: Pendiente
+            - generic [ref=e586] [box=1103,1426,80,22]: $1.199.980
+            - button "Abonar" [ref=e588] [box=1205,1423,28,28]:
+              - img [ref=e589] [box=1212,1430,14,14]
+          - generic [ref=e593] [cursor=pointer] [box=430,1468,817,60]:
+            - generic [ref=e594] [box=445,1477,159,42]:
+              - paragraph [ref=e595] [box=445,1477,159,22]: Dian
+              - paragraph [ref=e596] [box=445,1499,159,19]: Dian - Factura 3102613161188
+            - generic [ref=e599] [box=623,1488,59,19]: Impuestos
+            - generic [ref=e601] [box=717,1488,43,19]: Factura
+            - generic [ref=e603] [box=804,1488,79,19]: "3102613161188"
+            - generic [ref=e605] [box=891,1488,50,19]: 12/05/26
+            - generic [ref=e607] [box=987,1487,67,21]: Pendiente
+            - generic [ref=e609] [box=1094,1486,89,22]: $28.407.000
+            - button "Abonar" [ref=e611] [box=1205,1483,28,28]:
+              - img [ref=e612] [box=1212,1491,14,14]
+          - generic [ref=e616] [cursor=pointer] [box=430,1528,817,60]:
+            - generic [ref=e617] [box=445,1537,159,42]:
+              - paragraph [ref=e618] [box=445,1537,159,22]: Jose Cardenas
+              - paragraph [ref=e619] [box=445,1559,159,19]: Jose Cardenas - Factura 734124090958
+            - generic [ref=e622] [box=623,1548,57,19]: Marketing
+            - generic [ref=e624] [box=717,1548,43,19]: Factura
+            - generic [ref=e626] [box=804,1548,79,19]: "734124090958"
+            - generic [ref=e628] [box=891,1548,54,19]: 24/04/26
+            - generic [ref=e630] [box=987,1547,67,21]: Pendiente
+            - generic [ref=e632] [box=1116,1547,67,22]: $131.900
+            - button "Abonar" [ref=e634] [box=1205,1544,28,28]:
+              - img [ref=e635] [box=1212,1551,14,14]
