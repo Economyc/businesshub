@@ -348,11 +348,12 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
   // Cuenta de archivos en Drive que se borrarán — para el copy del diálogo.
   const attachmentCount = [attachments.source, attachments.proof, attachments.combined].filter(Boolean).length
 
-  // El botón Eliminar se muestra solo en tx independientes editables. Las
-  // vinculadas (cierre/compra automática), las generadas por recurring y las
-  // partes de un gasto compartido tienen su propio flujo de borrado — borrarlas
-  // individualmente desde acá dejaría huérfanos o grupos inconsistentes.
-  const canDelete = !!transactionId && !isLinked && !isRecurring && !isSplit && !loading
+  // El botón Eliminar se muestra en tx independientes editables y en las
+  // generadas por recurring (borrar una ocurrencia no la regenera). Las
+  // vinculadas (cierre/compra automática) y las partes de un gasto compartido
+  // tienen su propio flujo de borrado — borrarlas individualmente desde acá
+  // dejaría huérfanos o grupos inconsistentes.
+  const canDelete = !!transactionId && !isLinked && !isSplit && !loading
 
   async function handleDelete() {
     if (!selectedCompany || !transactionId) return

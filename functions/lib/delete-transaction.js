@@ -90,9 +90,10 @@ export const deleteTransactionWithAttachments = onCall({ region: 'us-central1', 
     if (tx.splitGroupId) {
         throw new HttpsError('failed-precondition', 'Esta transacción es parte de un gasto compartido entre locales. Bórrala desde el origen (la transacción padre) para que se eliminen todas las partes en bloque.');
     }
-    if (tx.sourceType === 'recurring') {
-        throw new HttpsError('failed-precondition', 'Esta transacción fue generada por una regla recurrente. Pausa o elimina la regla para que no se vuelva a generar.');
-    }
+    // Nota: las tx con sourceType === 'recurring' SÍ se pueden borrar. El
+    // generador es idempotente y solo avanza (nextDueDate nunca retrocede), así
+    // que borrar una ocurrencia ya generada no la regenera. Frenar futuras
+    // ocurrencias es asunto de la regla, no de esta tx.
     // Recolectar IDs de Drive (deduplicados — defensa contra duplicación entre campos).
     const fileIds = Array.from(new Set([
         tx.sourceDocument?.driveFileId,
