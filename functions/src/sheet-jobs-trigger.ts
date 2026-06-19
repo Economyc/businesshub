@@ -22,21 +22,29 @@ import { db } from './firestore.js'
 import { ymKeyFromTs, currentYm } from './invoice-sheet/month.js'
 
 interface TxLike {
-  status?: 'paid' | 'pending' | 'overdue'
-  documentKind?: 'invoice' | 'purchase'
+  status?: 'paid' | 'pending' | 'overdue' | 'partial'
+  documentKind?: 'invoice' | 'purchase' | 'receivable'
   date?: Timestamp
   paidDate?: Timestamp
+  interLocalGroupId?: string
 }
 
 // Devuelve el/los YYYY-MM que un estado de la transacción afecta en las hojas.
 function monthsForTx(tx: TxLike | null, months: Set<string>): void {
   if (!tx) return
+  // Préstamos entre locales (pestaña "Entre Locales") y Cuentas por Cobrar
+  // (pestaña "Por Cobrar") son snapshots de deuda abierta: viven en el archivo
+  // del mes actual (igual que "Pendientes"), sin filtrar por mes en regenerate.
+  if (tx.interLocalGroupId || tx.documentKind === 'receivable') {
+    months.add(currentYm().key)
+    return
+  }
   if (tx.documentKind !== 'invoice' && tx.documentKind !== 'purchase') return
   if (tx.status === 'paid') {
     const ym = ymKeyFromTs(tx.paidDate ?? tx.date)
     if (ym) months.add(ym)
-  } else if (tx.status === 'pending' || tx.status === 'overdue') {
-    // Las pendientes solo viven en el archivo del mes actual.
+  } else if (tx.status === 'pending' || tx.status === 'overdue' || tx.status === 'partial') {
+    // Las abiertas (incl. parciales) solo viven en el archivo del mes actual.
     if (tx.documentKind === 'invoice') months.add(currentYm().key)
   }
 }

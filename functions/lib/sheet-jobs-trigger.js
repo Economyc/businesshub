@@ -23,6 +23,13 @@ import { ymKeyFromTs, currentYm } from './invoice-sheet/month.js';
 function monthsForTx(tx, months) {
     if (!tx)
         return;
+    // Préstamos entre locales (pestaña "Entre Locales") y Cuentas por Cobrar
+    // (pestaña "Por Cobrar") son snapshots de deuda abierta: viven en el archivo
+    // del mes actual (igual que "Pendientes"), sin filtrar por mes en regenerate.
+    if (tx.interLocalGroupId || tx.documentKind === 'receivable') {
+        months.add(currentYm().key);
+        return;
+    }
     if (tx.documentKind !== 'invoice' && tx.documentKind !== 'purchase')
         return;
     if (tx.status === 'paid') {
@@ -30,8 +37,8 @@ function monthsForTx(tx, months) {
         if (ym)
             months.add(ym);
     }
-    else if (tx.status === 'pending' || tx.status === 'overdue') {
-        // Las pendientes solo viven en el archivo del mes actual.
+    else if (tx.status === 'pending' || tx.status === 'overdue' || tx.status === 'partial') {
+        // Las abiertas (incl. parciales) solo viven en el archivo del mes actual.
         if (tx.documentKind === 'invoice')
             months.add(currentYm().key);
     }
