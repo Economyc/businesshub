@@ -22,7 +22,7 @@ import { AiUsageBanner, type AiUsageSnapshot } from './ai-usage-banner'
 import { StaleDateWarning } from './stale-date-warning'
 import { isDateTooOld } from '../utils/date-validation'
 import { addDaysISO } from '../utils/due-status'
-import type { DocumentKind, PayableFile, TransactionPriority } from '../types'
+import type { DocumentKind, PayableFile, Transaction, TransactionPriority } from '../types'
 import type { Supplier } from '@/modules/suppliers/types'
 
 type UploadMode = 'file' | 'virtual'
@@ -44,6 +44,13 @@ interface DocumentUploadDialogProps {
   onSaved: () => void
   /** Tipo por defecto al abrir el dialog. */
   defaultKind?: DocumentKind
+  /**
+   * Modo "adjuntar a transacción existente". Cuando se pasa una transacción, el
+   * dialog NO crea una nueva: sube la factura/cuenta de cobro y actualiza esa
+   * transacción (setea sourceDocument + documentKind='invoice'). Pensado para
+   * costos fijos generados sin factura. Fuerza kind='invoice'.
+   */
+  attachTo?: Transaction
 }
 
 function fileIcon(mime: string) {
@@ -71,7 +78,13 @@ function parseLocalDate(iso: string): Date {
   return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12, 0, 0)
 }
 
-export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'invoice' }: DocumentUploadDialogProps) {
+function tsToLocalISO(ts: Timestamp | undefined): string {
+  if (!ts?.toDate) return todayLocalISO()
+  const d = ts.toDate()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'invoice', attachTo }: DocumentUploadDialogProps) {
   const { selectedCompany } = useCompany()
   const companyId = selectedCompany?.id ?? ''
   const { data: suppliers } = useCollection<Supplier>('suppliers')
@@ -129,16 +142,27 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
 
   useEffect(() => {
     if (open) {
-      setKind(defaultKind)
+      // Modo adjuntar: la factura es siempre de tipo invoice y prellenamos
+      // proveedor/monto/categoría/fecha desde la transacción que ya existe.
+      setKind(attachTo ? 'invoice' : defaultKind)
       setMode('file')
       setFile(null)
       setFileBase64(null)
-      setSupplierId('')
-      setCustomSupplier('')
-      setDocNumber('')
-      setDate(todayLocalISO())
-      setAmount('')
-      setCategory('')
+      const pr = attachTo?.payeeRef
+      if (pr && pr.type === 'supplier' && pr.id) {
+        setSupplierId(pr.id)
+        setCustomSupplier('')
+      } else if (pr && pr.name) {
+        setSupplierId(CUSTOM)
+        setCustomSupplier(pr.name)
+      } else {
+        setSupplierId('')
+        setCustomSupplier('')
+      }
+      setDocNumber(attachTo?.docNumber ?? '')
+      setDate(attachTo ? tsToLocalISO(attachTo.date) : todayLocalISO())
+      setAmount(attachTo ? String(attachTo.amount) : '')
+      setCategory(attachTo?.category ?? '')
       setNotes('')
       setPriority('waiting')
       setPaymentMethod('')
@@ -154,7 +178,7 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
       setUsage(null)
       setAiProvider(undefined)
     }
-  }, [open, defaultKind])
+  }, [open, defaultKind, attachTo])
 
   useEffect(() => {
     if (!open) return
@@ -424,30 +448,49 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
         }
       }
 
-      // 3) Crear transaction con sourceDocument (y combinado si es compra).
+      // 3) Persistir.
       setStep('saving')
-      const conceptLabel = `${supplierName} - ${docType} ${docNumber.trim()}${isVirtual ? ' (virtual)' : ''}`
-
-      await financeService.create(companyId, {
-        concept: conceptLabel,
-        category,
-        amount: Number(amount),
-        type: 'expense',
-        date: dateTs,
-        status: kind === 'invoice' ? 'pending' : 'paid',
-        notes: notes.trim() || undefined,
-        payeeRef: isCustom
-          ? { type: 'external', id: '', name: supplierName }
-          : { type: 'supplier', id: supplierId, name: supplierName },
-        documentKind: kind,
-        docNumber: docNumber.trim(),
-        sourceDocument,
-        ...(combinedDocument ? { combinedDocument } : {}),
-        ...(kind === 'invoice' ? { priority } : {}),
-        ...(kind === 'invoice' && dueDate ? { dueDate: Timestamp.fromDate(parseLocalDate(dueDate)) } : {}),
-        ...(kind === 'purchase' ? { paidDate: dateTs } : {}),
-        ...(kind === 'purchase' ? { paymentMethod } : {}),
-      })
+      if (attachTo) {
+        // Modo adjuntar: NO creamos transaction nueva; actualizamos la existente
+        // (típicamente un costo fijo generado sin factura). Setear documentKind
+        // 'invoice' la vuelve elegible para el cruce con comprobante de pago.
+        // No tocamos status (sigue pending) ni generamos combinado (eso pasa
+        // después, al subir el comprobante).
+        await financeService.update(companyId, attachTo.id, {
+          sourceDocument,
+          documentKind: 'invoice',
+          docNumber: docNumber.trim(),
+          amount: Number(amount),
+          category,
+          payeeRef: isCustom
+            ? { type: 'external', id: '', name: supplierName }
+            : { type: 'supplier', id: supplierId, name: supplierName },
+          ...(priority ? { priority } : {}),
+          ...(dueDate ? { dueDate: Timestamp.fromDate(parseLocalDate(dueDate)) } : {}),
+        })
+      } else {
+        const conceptLabel = `${supplierName} - ${docType} ${docNumber.trim()}${isVirtual ? ' (virtual)' : ''}`
+        await financeService.create(companyId, {
+          concept: conceptLabel,
+          category,
+          amount: Number(amount),
+          type: 'expense',
+          date: dateTs,
+          status: kind === 'invoice' ? 'pending' : 'paid',
+          notes: notes.trim() || undefined,
+          payeeRef: isCustom
+            ? { type: 'external', id: '', name: supplierName }
+            : { type: 'supplier', id: supplierId, name: supplierName },
+          documentKind: kind,
+          docNumber: docNumber.trim(),
+          sourceDocument,
+          ...(combinedDocument ? { combinedDocument } : {}),
+          ...(kind === 'invoice' ? { priority } : {}),
+          ...(kind === 'invoice' && dueDate ? { dueDate: Timestamp.fromDate(parseLocalDate(dueDate)) } : {}),
+          ...(kind === 'purchase' ? { paidDate: dateTs } : {}),
+          ...(kind === 'purchase' ? { paymentMethod } : {}),
+        })
+      }
 
       queryClient.invalidateQueries({ queryKey: ['firestore', companyId, 'transactions'] })
       queryClient.invalidateQueries({ queryKey: ['firestore-paginated', companyId, 'transactions'] })
@@ -487,9 +530,11 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
         >
           <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
             <h2 className="text-subheading font-medium text-graphite">
-              {mode === 'virtual'
-                ? (kind === 'invoice' ? 'Crear factura virtual' : 'Crear compra virtual')
-                : 'Subir documento'}
+              {attachTo
+                ? (mode === 'virtual' ? 'Crear factura virtual' : 'Subir factura / cuenta de cobro')
+                : mode === 'virtual'
+                  ? (kind === 'invoice' ? 'Crear factura virtual' : 'Crear compra virtual')
+                  : 'Subir documento'}
             </h2>
             <button
               type="button"
@@ -501,34 +546,43 @@ export function DocumentUploadDialog({ open, onClose, onSaved, defaultKind = 'in
           </div>
 
           <div className="px-6 py-5 space-y-5 overflow-y-auto flex-1">
-            {/* Toggle Factura | Compra */}
-            <div className="grid grid-cols-2 gap-2 p-1 rounded-lg bg-bone/60 border border-border/60">
-              <button
-                type="button"
-                onClick={() => setKind('invoice')}
-                disabled={submitting}
-                className={`px-4 py-2 rounded-md text-body font-medium transition-colors ${
-                  kind === 'invoice' ? 'bg-surface text-graphite card-elevated' : 'text-mid-gray hover:text-graphite'
-                }`}
-              >
-                Factura / Cuenta de Cobro
-              </button>
-              <button
-                type="button"
-                onClick={() => setKind('purchase')}
-                disabled={submitting}
-                className={`px-4 py-2 rounded-md text-body font-medium transition-colors ${
-                  kind === 'purchase' ? 'bg-surface text-graphite card-elevated' : 'text-mid-gray hover:text-graphite'
-                }`}
-              >
-                Compras
-              </button>
-            </div>
-            <p className="text-caption text-mid-gray -mt-3">
-              {kind === 'invoice'
-                ? 'Crea una cuenta por pagar en estado Pendiente. Luego se cruza con un comprobante de pago.'
-                : 'Compra ya pagada al momento. Se registra como Pagada directamente.'}
-            </p>
+            {/* Toggle Factura | Compra — oculto en modo adjuntar (siempre factura) */}
+            {!attachTo && (
+              <>
+                <div className="grid grid-cols-2 gap-2 p-1 rounded-lg bg-bone/60 border border-border/60">
+                  <button
+                    type="button"
+                    onClick={() => setKind('invoice')}
+                    disabled={submitting}
+                    className={`px-4 py-2 rounded-md text-body font-medium transition-colors ${
+                      kind === 'invoice' ? 'bg-surface text-graphite card-elevated' : 'text-mid-gray hover:text-graphite'
+                    }`}
+                  >
+                    Factura / Cuenta de Cobro
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setKind('purchase')}
+                    disabled={submitting}
+                    className={`px-4 py-2 rounded-md text-body font-medium transition-colors ${
+                      kind === 'purchase' ? 'bg-surface text-graphite card-elevated' : 'text-mid-gray hover:text-graphite'
+                    }`}
+                  >
+                    Compras
+                  </button>
+                </div>
+                <p className="text-caption text-mid-gray -mt-3">
+                  {kind === 'invoice'
+                    ? 'Crea una cuenta por pagar en estado Pendiente. Luego se cruza con un comprobante de pago.'
+                    : 'Compra ya pagada al momento. Se registra como Pagada directamente.'}
+                </p>
+              </>
+            )}
+            {attachTo && (
+              <p className="text-caption text-mid-gray">
+                Adjuntás la factura/cuenta de cobro a esta transacción. Luego, al subir el comprobante de pago, se cruzan y se arma el PDF combinado.
+              </p>
+            )}
 
             {/* Toggle Archivo | Virtual */}
             <div className="grid grid-cols-2 gap-2 p-1 rounded-lg bg-bone/60 border border-border/60">

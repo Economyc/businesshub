@@ -17,6 +17,7 @@ import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { useCollection } from '@/core/hooks/use-firestore'
 import { queryClient } from '@/core/query/query-client'
 import { financeService } from '../services'
+import { DocumentUploadDialog } from './document-upload-dialog'
 import { StaleDateWarning } from './stale-date-warning'
 import { isDateTooOld } from '../utils/date-validation'
 import type { Transaction, PayeeRef, PayeeType, PayableFile, TransactionPriority } from '../types'
@@ -113,6 +114,11 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
   }>({})
   const [combining, setCombining] = useState(false)
   const [combineError, setCombineError] = useState<string | null>(null)
+  // Transacción completa cargada (para pasarla al dialog de adjuntar factura).
+  const [loadedTx, setLoadedTx] = useState<Transaction | null>(null)
+  const [attachOpen, setAttachOpen] = useState(false)
+  // Bump para forzar recarga del detalle tras adjuntar la factura.
+  const [reloadKey, setReloadKey] = useState(0)
 
   const { data: partners } = useCollection<NamedEntity>('partners')
   const { data: employees } = useCollection<NamedEntity>('employees')
@@ -169,6 +175,8 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
       setAttachments({})
       setCombining(false)
       setCombineError(null)
+      setLoadedTx(null)
+      setAttachOpen(false)
       return
     }
     // Reset del banner de error al (re)abrir el modal — evita que un error de
@@ -181,6 +189,7 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
     setLoading(true)
     financeService.getById(selectedCompany.id, transactionId).then((tx: Transaction | null) => {
       if (!tx) { onClose(); return }
+      setLoadedTx(tx)
       if (tx.sourceType === 'closing') setIsLinked(true)
       if (tx.sourceType === 'recurring') setIsRecurring(true)
       if (tx.splitGroupId) setIsSplit(true)
@@ -214,16 +223,18 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
       setPriority(tx.priority ?? '')
       setLoading(false)
     })
-  }, [open, transactionId, selectedCompany?.id])
+  }, [open, transactionId, selectedCompany?.id, reloadKey])
 
   useEffect(() => {
     if (!open) return
     function handleKey(e: KeyboardEvent) {
-      if (e.key === 'Escape' && !showDelete) onClose()
+      // No cerrar el form si hay un diálogo encima (borrar o adjuntar factura):
+      // ese diálogo maneja su propio Escape.
+      if (e.key === 'Escape' && !showDelete && !attachOpen) onClose()
     }
     document.addEventListener('keydown', handleKey)
     return () => document.removeEventListener('keydown', handleKey)
-  }, [open, onClose, showDelete])
+  }, [open, onClose, showDelete, attachOpen])
 
   // Si cambia la fecha (solo importa al crear), re-exigir confirmación del aviso.
   useEffect(() => {
@@ -555,13 +566,25 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
                         className={`${inputClass} min-h-[70px] resize-none`}
                       />
                     </div>
-                    {(attachments.source || attachments.proof) && (
+                    {loadedTx && (
                       <div className="md:col-span-2 pt-2 border-t border-border/40">
                         <label className={labelClass}>
                           Documentos {attachments.documentKind === 'purchase' ? 'de la compra' : attachments.documentKind === 'invoice' ? 'de la factura' : 'asociados'}
                           {attachments.docNumber && <span className="ml-2 text-mid-gray/70">#{attachments.docNumber}</span>}
                         </label>
                         <div className="flex flex-wrap gap-2">
+                          {/* Adjuntar factura/cuenta de cobro a una transacción que aún no la tiene
+                              (típicamente un costo fijo generado sin factura). */}
+                          {!attachments.source && (
+                            <button
+                              type="button"
+                              onClick={() => setAttachOpen(true)}
+                              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-dashed border-mid-gray/40 text-body text-mid-gray hover:text-graphite hover:border-graphite/50 transition-colors"
+                            >
+                              <FileText size={13} strokeWidth={1.5} />
+                              <span>Subir factura / cuenta de cobro</span>
+                            </button>
+                          )}
                           {attachments.source && (
                             <a
                               href={attachments.source.driveWebViewLink}
@@ -695,6 +718,19 @@ export function TransactionForm({ open, transactionId, onClose, onSaved }: Trans
             : `¿Estás seguro de que deseas eliminar "${form.concept || 'esta transacción'}"? Esta acción no se puede deshacer.`
         }
       />
+
+      {loadedTx && (
+        <DocumentUploadDialog
+          open={attachOpen}
+          onClose={() => setAttachOpen(false)}
+          onSaved={() => {
+            setAttachOpen(false)
+            setReloadKey((k) => k + 1) // recargar el detalle con la factura adjunta
+            onSaved() // refrescar la lista del padre
+          }}
+          attachTo={loadedTx}
+        />
+      )}
     </>
   )
 }
