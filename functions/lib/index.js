@@ -24,4 +24,5 @@ export { analyzePayrollDocument } from './analyze-payroll-document.js';
 export { reconcileBankStatement } from './bank-reconcile.js';
 export { telegramBot, telegramLinkStart } from './telegram/index.js';
 export { notifyCountDiff } from './notify-count-diff.js';
+export { notifyPendingPayments } from './notify-pending-payments.js';
 //# sourceMappingURL=index.js.map

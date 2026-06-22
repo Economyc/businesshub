@@ -16,6 +16,7 @@ import { telegramBotToken } from './telegram/index.js'
 import { fmtMoney, fmtQty } from './utils/format-money.js'
 import { buildCountDiffPdf } from './utils/build-count-diff-pdf.js'
 import { buildCountDiffCsv } from './utils/build-count-diff-csv.js'
+import { sendDocument, sendMessage } from './utils/telegram-send.js'
 import type { CountReportData } from './utils/count-report-types.js'
 
 interface NotifyCountDiffData extends CountReportData {
@@ -64,36 +65,6 @@ function buildMessage(data: NotifyCountDiffData): string {
     detail.push(`…y ${data.lines.length - MAX_DETAIL_LINES} más`)
   }
   return [...buildHeader(data), '', '<b>Detalle</b>', ...detail].join('\n')
-}
-
-async function sendMessage(token: string, chatId: string, text: string): Promise<boolean> {
-  const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML', disable_web_page_preview: true }),
-  })
-  const json = (await res.json()) as { ok?: boolean }
-  return !!json.ok
-}
-
-async function sendDocument(
-  token: string,
-  chatId: string,
-  buffer: Buffer,
-  filename: string,
-  mime: string,
-  caption?: string,
-): Promise<boolean> {
-  const form = new FormData()
-  form.append('chat_id', chatId)
-  form.append('document', new Blob([new Uint8Array(buffer)], { type: mime }), filename)
-  if (caption) {
-    form.append('caption', caption)
-    form.append('parse_mode', 'HTML')
-  }
-  const res = await fetch(`https://api.telegram.org/bot${token}/sendDocument`, { method: 'POST', body: form })
-  const json = (await res.json()) as { ok?: boolean }
-  return !!json.ok
 }
 
 export const notifyCountDiff = onCall(
