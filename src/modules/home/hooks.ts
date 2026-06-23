@@ -45,14 +45,22 @@ export interface DashboardProjection {
   applicable: boolean
   projected: number
   mtd: number
+  /** Días transcurridos del período en curso */
   daysElapsed: number
+  /** Días totales del período (proyectado hasta el fin del ciclo) */
   daysInMonth: number
   daysRemaining: number
+  /** Delta % del proyectado vs el mismo rango del ciclo anterior */
   deltaVsLastMonth: string
   deltaTrend: 'up' | 'down' | 'neutral'
+  /** Total del ciclo anterior comparable */
   lastMonthTotal: number
   dailyAverage: number
   futurePoints: SalesTrendPoint[]
+  /** Encabezado del tile (ej. "Proyección fin de mes" / "Total del período") */
+  headlineLabel: string
+  /** Etiqueta de comparación (ej. "vs mes anterior") */
+  comparisonLabel: string
 }
 
 export interface AlertItem {
@@ -126,6 +134,101 @@ function daysUntil(ts: any): number {
   const d = ts?.toDate?.() ?? (typeof ts === 'string' ? new Date(ts) : null)
   if (!d) return Infinity
   return Math.ceil((d.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+}
+
+function startOfDayLocal(d: Date): Date {
+  const r = new Date(d)
+  r.setHours(0, 0, 0, 0)
+  return r
+}
+
+/** Mismo día del mes desplazado `months`, clampeado al último día si el mes destino es más corto. */
+function shiftMonthsClamped(d: Date, months: number): Date {
+  const day = d.getDate()
+  const target = new Date(d.getFullYear(), d.getMonth() + months, 1)
+  const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate()
+  target.setDate(Math.min(day, lastDay))
+  target.setHours(0, 0, 0, 0)
+  return target
+}
+
+interface ProjectionWindow {
+  rangeStart: Date
+  horizonEnd: Date
+  prevStart: Date
+  prevEnd: Date
+  headlineLabel: string
+  comparisonLabel: string
+}
+
+/**
+ * Ventana de proyección según el preset/rango activo. Devuelve `null` cuando el
+ * período no está "en curso" (hoy fuera de `[rangeStart, horizonEnd]`) o el preset
+ * no es proyectable.
+ *
+ * - `thisMonth`/`thisWeek`: el horizonte es el fin del ciclo (mes/semana) y el
+ *   comparativo es el ciclo anterior completo — preserva el comportamiento previo.
+ * - `custom`: horizonte = `endDate` elegido; comparativo = el mismo rango desplazado
+ *   un mes atrás (ej. 1–22 jun → 1–22 may).
+ * - Otros presets (today, last7, last30, lastMonth, lastWeek, yearToDate): no proyectables.
+ */
+function getProjectionWindow(
+  activePreset: string,
+  startDate: Date,
+  endDate: Date,
+  today: Date,
+): ProjectionWindow | null {
+  let win: Omit<ProjectionWindow, 'headlineLabel' | 'comparisonLabel'> & {
+    headlineLabel: string
+    comparisonLabel: string
+  }
+
+  if (activePreset === 'thisMonth') {
+    const year = today.getFullYear()
+    const month = today.getMonth()
+    win = {
+      rangeStart: new Date(year, month, 1),
+      horizonEnd: startOfDayLocal(new Date(year, month + 1, 0)),
+      prevStart: new Date(year, month - 1, 1),
+      prevEnd: startOfDayLocal(new Date(year, month, 0)),
+      headlineLabel: 'Proyección fin de mes',
+      comparisonLabel: 'vs mes anterior',
+    }
+  } else if (activePreset === 'thisWeek') {
+    // startDate ya es el lunes (startOfDay) que fijó el preset.
+    const monday = startOfDayLocal(startDate)
+    const sunday = new Date(monday)
+    sunday.setDate(monday.getDate() + 6)
+    const prevMonday = new Date(monday)
+    prevMonday.setDate(monday.getDate() - 7)
+    const prevSunday = new Date(monday)
+    prevSunday.setDate(monday.getDate() - 1)
+    win = {
+      rangeStart: monday,
+      horizonEnd: startOfDayLocal(sunday),
+      prevStart: prevMonday,
+      prevEnd: startOfDayLocal(prevSunday),
+      headlineLabel: 'Proyección fin de semana',
+      comparisonLabel: 'vs semana anterior',
+    }
+  } else if (activePreset === 'custom') {
+    const rangeStart = startOfDayLocal(startDate)
+    const horizonEnd = startOfDayLocal(endDate)
+    win = {
+      rangeStart,
+      horizonEnd,
+      prevStart: shiftMonthsClamped(rangeStart, -1),
+      prevEnd: shiftMonthsClamped(horizonEnd, -1),
+      headlineLabel: 'Proyección fin de período',
+      comparisonLabel: 'vs período anterior',
+    }
+  } else {
+    return null
+  }
+
+  // Debe estar en curso: hoy dentro del rango proyectable.
+  if (today < win.rangeStart || today > win.horizonEnd) return null
+  return win
 }
 
 // ─── Hook ───────────────────────────────────────────────────────────
@@ -710,7 +813,7 @@ export function useDashboardData() {
     return points
   }, [closings, transactions, posSalesByDate, startDate, endDate])
 
-  // ─── Month-end projection (solo aplicable cuando preset = thisMonth) ──
+  // ─── Projection (período en curso: thisMonth, thisWeek o rango custom) ──
   const projection = useMemo<DashboardProjection>(() => {
     const empty: DashboardProjection = {
       applicable: false,
@@ -724,74 +827,55 @@ export function useDashboardData() {
       lastMonthTotal: 0,
       dailyAverage: 0,
       futurePoints: [],
+      headlineLabel: '',
+      comparisonLabel: '',
     }
 
-    if (activePreset !== 'thisMonth') return empty
+    const today = startOfDayLocal(new Date())
+    const win = getProjectionWindow(activePreset, startDate, endDate, today)
+    if (!win) return empty
 
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const year = today.getFullYear()
-    const month = today.getMonth()
-    const monthFirst = new Date(year, month, 1)
-    const monthLast = new Date(year, month + 1, 0)
-    const daysInMonth = monthLast.getDate()
-    const dayOfMonth = today.getDate()
+    const { rangeStart, horizonEnd, prevStart, prevEnd, comparisonLabel } = win
+    const elapsedEnd = today < horizonEnd ? today : horizonEnd
 
-    const monthStartStr = toDateStr(monthFirst)
-    const mtdEndStr = toDateStr(today)
-
-    // MTD: usa la misma precedencia que kpis (POS → closings → transactions)
-    let mtd = 0
-    if (hasPosBetween(monthStartStr, mtdEndStr)) {
-      mtd = sumPosBetween(monthStartStr, mtdEndStr)
-    } else {
-      const mtdClosings = closings.filter(
-        (c) => c.date >= monthStartStr && c.date <= mtdEndStr,
-      )
-      mtd = mtdClosings.reduce((s, c) => s + c.ventaTotal, 0)
-      if (mtd === 0 && mtdClosings.length === 0) {
-        mtd = transactions
-          .filter((t) => {
-            const d = t.date?.toDate?.()
-            return d && t.type === 'income' && d >= monthFirst && d <= today
-          })
-          .reduce((s, t) => s + t.amount, 0)
-      }
+    // Suma de ventas en un rango con la misma precedencia que los KPIs:
+    // POS (cache + hoy en vivo) → closings → income transactions.
+    const sumWithPrecedence = (start: Date, end: Date): number => {
+      const startStr = toDateStr(start)
+      const endStr = toDateStr(end)
+      if (hasPosBetween(startStr, endStr)) return sumPosBetween(startStr, endStr)
+      const cl = closings.filter((c) => c.date >= startStr && c.date <= endStr)
+      if (cl.length > 0) return cl.reduce((s, c) => s + c.ventaTotal, 0)
+      return transactions
+        .filter((t) => {
+          const d = t.date?.toDate?.()
+          return d && t.type === 'income' && d >= start && d <= end
+        })
+        .reduce((s, t) => s + t.amount, 0)
     }
 
-    // Mes anterior completo — para comparar el proyectado
-    const lastMonthStart = new Date(year, month - 1, 1)
-    const lastMonthEnd = new Date(year, month, 0)
-    const lastMonthStartStr = toDateStr(lastMonthStart)
-    const lastMonthEndStr = toDateStr(lastMonthEnd)
-    let lastMonthTotal = 0
-    if (hasPosBetween(lastMonthStartStr, lastMonthEndStr)) {
-      lastMonthTotal = sumPosBetween(lastMonthStartStr, lastMonthEndStr)
-    } else {
-      const lmClosings = closings.filter(
-        (c) => c.date >= lastMonthStartStr && c.date <= lastMonthEndStr,
-      )
-      lastMonthTotal = lmClosings.reduce((s, c) => s + c.ventaTotal, 0)
-      if (lastMonthTotal === 0 && lmClosings.length === 0) {
-        lastMonthTotal = transactions
-          .filter((t) => {
-            const d = t.date?.toDate?.()
-            return (
-              d && t.type === 'income' && d >= lastMonthStart && d <= lastMonthEnd
-            )
-          })
-          .reduce((s, t) => s + t.amount, 0)
-      }
-    }
+    // Acumulado real (parte transcurrida del período) y ciclo anterior comparable.
+    const mtd = sumWithPrecedence(rangeStart, elapsedEnd)
+    const lastMonthTotal = sumWithPrecedence(prevStart, prevEnd)
 
-    const daysElapsed = Math.min(dayOfMonth, daysInMonth)
-    const daysRemaining = Math.max(0, daysInMonth - daysElapsed)
+    const MS_DAY = 86400000
+    const daysElapsed =
+      Math.round((elapsedEnd.getTime() - rangeStart.getTime()) / MS_DAY) + 1
+    const totalDays =
+      Math.round((horizonEnd.getTime() - rangeStart.getTime()) / MS_DAY) + 1
+    const daysRemaining = Math.max(0, totalDays - daysElapsed)
 
-    // Umbral: necesitamos al menos 3 días con datos y MTD > 0
+    // Umbral: al menos 3 días transcurridos con datos y acumulado > 0.
     if (daysElapsed < 3 || mtd <= 0) return empty
 
     const dailyAverage = mtd / daysElapsed
     const projected = mtd + dailyAverage * daysRemaining
+
+    // Sin días por proyectar → el "proyectado" es el total real del período.
+    const headlineLabel =
+      daysRemaining === 0 && activePreset === 'custom'
+        ? 'Total del período'
+        : win.headlineLabel
 
     const deltaVsLastMonth =
       lastMonthTotal > 0 ? pctChange(projected, lastMonthTotal) : 'n/d'
@@ -802,16 +886,19 @@ export function useDashboardData() {
           ? 'up'
           : 'down'
 
-    // Puntos proyectados: día siguiente a hoy hasta fin de mes
+    // Puntos proyectados: solo cuando el horizonte excede el endDate seleccionado
+    // (thisMonth/thisWeek, donde endDate=hoy). En custom el chart ya cubre el rango.
     const futurePoints: SalesTrendPoint[] = []
-    const cursor = new Date(today)
-    cursor.setDate(cursor.getDate() + 1)
-    while (cursor <= monthLast) {
-      futurePoints.push({
-        date: formatShortDate(toDateStr(cursor)),
-        sales: dailyAverage,
-      })
+    if (horizonEnd > startOfDayLocal(endDate)) {
+      const cursor = new Date(today)
       cursor.setDate(cursor.getDate() + 1)
+      while (cursor <= horizonEnd) {
+        futurePoints.push({
+          date: formatShortDate(toDateStr(cursor)),
+          sales: dailyAverage,
+        })
+        cursor.setDate(cursor.getDate() + 1)
+      }
     }
 
     return {
@@ -819,15 +906,17 @@ export function useDashboardData() {
       projected,
       mtd,
       daysElapsed,
-      daysInMonth,
+      daysInMonth: totalDays,
       daysRemaining,
       deltaVsLastMonth,
       deltaTrend,
       lastMonthTotal,
       dailyAverage,
       futurePoints,
+      headlineLabel,
+      comparisonLabel,
     }
-  }, [activePreset, closings, transactions, posSalesByDate])
+  }, [activePreset, startDate, endDate, closings, transactions, posSalesByDate])
 
   // ─── Alerts ─────────────────────────────────────────────────────
   const alerts = useMemo<DashboardAlerts>(() => {

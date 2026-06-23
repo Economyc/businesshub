@@ -18,6 +18,8 @@ export function MonthProjectionTile({ projection }: MonthProjectionTileProps) {
     deltaVsLastMonth,
     deltaTrend,
     lastMonthTotal,
+    headlineLabel,
+    comparisonLabel,
   } = projection
 
   const progressPct = Math.min(100, Math.round((daysElapsed / daysInMonth) * 100))
@@ -37,7 +39,7 @@ export function MonthProjectionTile({ projection }: MonthProjectionTileProps) {
           <div className="flex items-center gap-1.5 mb-1">
             <TrendingUp size={14} strokeWidth={1.5} className="text-mid-gray" />
             <span className="text-caption text-mid-gray">
-              Proyección fin de mes
+              {headlineLabel}
             </span>
           </div>
           <div className="flex flex-wrap items-baseline gap-2">
@@ -58,7 +60,7 @@ export function MonthProjectionTile({ projection }: MonthProjectionTileProps) {
             )}
             {lastMonthTotal > 0 && (
               <span className="text-caption text-mid-gray">
-                vs mes anterior
+                {comparisonLabel}
               </span>
             )}
           </div>
@@ -97,7 +99,9 @@ export function MonthProjectionTile({ projection }: MonthProjectionTileProps) {
       </div>
 
       <div className="mt-3 text-caption text-mid-gray">
-        Proyección basada en el promedio diario del mes en curso.
+        {daysRemaining === 0
+          ? 'Total real del período seleccionado.'
+          : 'Proyección basada en el promedio diario del período en curso.'}
       </div>
     </div>
   )
