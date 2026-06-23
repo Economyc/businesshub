@@ -8,6 +8,7 @@ export { indexContractEmbeddings } from './contracts-indexer.js';
 export { dispatchScheduledReports } from './scheduled-reports-dispatch.js';
 export { adminCreateUser, adminSetUserStatus, adminDeleteUser } from './users-admin.js';
 export { uploadDocumentToDrive, validateDriveFolder, driveAuthStart, driveAuthDisconnect, driveAuthStatus, driveOAuthCallback, } from './upload-document-to-drive.js';
+export { uploadEmployeeDocumentToDrive } from './upload-employee-document-to-drive.js';
 export { uploadDiscountPhotoToDrive } from './upload-discount-photo.js';
 export { combineInvoicePaymentToDrive } from './combine-invoice-payment.js';
 export { deleteTransactionWithAttachments } from './delete-transaction.js';
