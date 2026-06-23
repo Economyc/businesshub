@@ -14,6 +14,7 @@ interface KPICardProps {
   comparison?: string
   icon?: LucideIcon
   inverse?: boolean
+  tone?: 'positive' | 'negative'
 }
 
 function useCountUp(target: number, duration = 800) {
@@ -37,8 +38,10 @@ function useCountUp(target: number, duration = 800) {
   return count
 }
 
-export function KPICard({ label, value, format = 'number', change, trend, comparison, icon: Icon, inverse = false }: KPICardProps) {
+export function KPICard({ label, value, format = 'number', change, trend, comparison, icon: Icon, inverse = false, tone }: KPICardProps) {
   const animatedValue = useCountUp(value)
+
+  const valueColor = tone === 'positive' ? 'text-positive-text' : tone === 'negative' ? 'text-negative-text' : 'text-dark-graphite'
 
   const formattedValue = format === 'currency'
     ? formatCurrency(animatedValue)
@@ -55,7 +58,7 @@ export function KPICard({ label, value, format = 'number', change, trend, compar
         <span className="text-caption text-mid-gray truncate mr-1">{label}</span>
         {Icon && <Icon size={16} strokeWidth={1.5} className="text-smoke" />}
       </div>
-      <div className="text-lg sm:text-kpi font-extrabold text-dark-graphite truncate">{formattedValue}</div>
+      <div className={`text-lg sm:text-kpi font-extrabold truncate ${valueColor}`}>{formattedValue}</div>
       {(change || comparison) && (
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
           {change && (

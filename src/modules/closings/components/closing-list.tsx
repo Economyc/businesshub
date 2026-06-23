@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { ClipboardList, List, FilePlus, Trash2, SquarePen, UserCircle, CalendarRange, TrendingUp, Wallet, CreditCard, QrCode, Bike, Coins, Receipt, CalendarCheck, HandCoins, CheckCircle2, AlertCircle } from 'lucide-react'
+import { ClipboardList, List, FilePlus, Trash2, SquarePen, UserCircle, CalendarRange, TrendingUp, TrendingDown, Wallet, CreditCard, QrCode, Bike, Coins, Receipt, CalendarCheck, HandCoins, PiggyBank, CheckCircle2, AlertCircle } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { PageTransition } from '@/core/ui/page-transition'
 import { UnderlineButtonTabs } from '@/core/ui/underline-tabs'
@@ -199,8 +199,10 @@ function AccumulatedTab({ canEdit, onEdit, onDelete, onRowClick }: AccumulatedTa
         propinas: acc.propinas + (c.propinas ?? 0),
         gastos: acc.gastos + (c.gastos ?? 0),
         entregaEfectivo: acc.entregaEfectivo + (c.entregaEfectivo ?? 0),
+        totalFaltante: acc.totalFaltante + (c.totalFaltante ?? 0),
+        totalSobrante: acc.totalSobrante + (c.totalSobrante ?? 0),
       }),
-      { ventaTotal: 0, efectivo: 0, datafono: 0, ap: 0, qr: 0, rappiVentas: 0, propinas: 0, gastos: 0, entregaEfectivo: 0 },
+      { ventaTotal: 0, efectivo: 0, datafono: 0, ap: 0, qr: 0, rappiVentas: 0, propinas: 0, gastos: 0, entregaEfectivo: 0, totalFaltante: 0, totalSobrante: 0 },
     )
   }, [monthClosings])
 
@@ -268,19 +270,21 @@ function AccumulatedTab({ canEdit, onEdit, onDelete, onRowClick }: AccumulatedTa
 
       {loading ? (
         <div className="space-y-4 mb-6">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {Array.from({ length: 4 }).map((_, i) => <KPICardSkeleton key={i} />)}
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+            {Array.from({ length: 6 }).map((_, i) => <KPICardSkeleton key={i} />)}
           </div>
           <div className="rounded-xl bg-smoke animate-pulse h-28" />
         </div>
       ) : (
         <>
           {/* KPIs hero */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
             <KPICard label="Venta Total" value={totals.ventaTotal} format="currency" icon={TrendingUp} />
             <KPICard label="Venta Efectivo" value={totals.efectivo - totals.ap} format="currency" icon={Wallet} />
             <KPICard label="Venta Datáfono" value={totals.datafono} format="currency" icon={CreditCard} />
             <KPICard label="Días con cierre" value={monthClosings.length} format="number" icon={CalendarCheck} />
+            <KPICard label="Total Faltante" value={totals.totalFaltante} format="currency" icon={TrendingDown} tone="negative" />
+            <KPICard label="Total Sobrante" value={totals.totalSobrante} format="currency" icon={PiggyBank} tone="positive" />
           </div>
 
           {/* Desglose de otros medios y movimientos */}
