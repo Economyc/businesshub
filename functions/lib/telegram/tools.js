@@ -142,7 +142,9 @@ export function createTelegramTools(opts) {
                     .optional()
                     .describe('Solo para documentKind="invoice". "immediate" = urgente. Si el usuario dice "urgente", "pagar ya" → "immediate". Default: "waiting".'),
                 customSupplier: z
-                    .boolean()
+                    // Algunos modelos (Gemini) emiten el booleano como string "true"/"false";
+                    // z.coerce.boolean trataría "false" como true, así que normalizamos a mano.
+                    .preprocess((v) => (typeof v === 'string' ? v.trim().toLowerCase() === 'true' : v), z.boolean())
                     .optional()
                     .describe('true cuando el proveedor NO existe en la lista registrada y el usuario quiere usarlo como tercero ocasional. Default: false (busca el proveedor en la lista).'),
                 targetCompanyName: TARGET_COMPANY_PARAM,
