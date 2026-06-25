@@ -1,11 +1,22 @@
 // Helpers de envío a la API de Telegram (texto y documentos adjuntos).
 // Compartidos por notify-count-diff.ts y notify-pending-payments.ts.
 
-export async function sendMessage(token: string, chatId: string, text: string): Promise<boolean> {
+export async function sendMessage(
+  token: string,
+  chatId: string,
+  text: string,
+  replyMarkup?: { inline_keyboard: Array<Array<{ text: string; callback_data: string }>> },
+): Promise<boolean> {
   const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML', disable_web_page_preview: true }),
+    body: JSON.stringify({
+      chat_id: chatId,
+      text,
+      parse_mode: 'HTML',
+      disable_web_page_preview: true,
+      ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
+    }),
   })
   const json = (await res.json()) as { ok?: boolean }
   return !!json.ok

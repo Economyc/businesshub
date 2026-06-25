@@ -137,6 +137,9 @@ export async function executeServerMutation(opts) {
                 }
                 const useCustomSupplier = args.customSupplier === true;
                 let payeeRef;
+                // Categoría efectiva: si el proveedor está registrado y tiene categoría
+                // propia, esa gana sobre la inferida por el LLM (info real del maestro).
+                let effectiveCategory = category;
                 if (useCustomSupplier) {
                     payeeRef = { type: 'external', id: 'external', name: supplierName };
                 }
@@ -154,6 +157,9 @@ export async function executeServerMutation(opts) {
                         };
                     }
                     payeeRef = resolution.payee;
+                    if (resolution.supplierCategory?.trim()) {
+                        effectiveCategory = resolution.supplierCategory.trim();
+                    }
                 }
                 const docType = documentKind === 'invoice' ? 'Factura' : 'Compra';
                 const uploaded = await uploadCompanyDocument(uid, {
@@ -177,7 +183,7 @@ export async function executeServerMutation(opts) {
                 const priorityArg = args.priority === 'immediate' || args.priority === 'waiting' ? args.priority : undefined;
                 const data = {
                     concept: `${payeeRef.name} - ${docType} ${docNumber}`,
-                    category,
+                    category: effectiveCategory,
                     amount,
                     type: 'expense',
                     date: dateTs,

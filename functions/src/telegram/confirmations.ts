@@ -24,6 +24,10 @@ export interface PendingMutation {
   telegramFileName: string | null
   status: PendingStatus
   telegramMessageId?: number
+  // 'ui' = la mutación nació de un botón (pay-flow/quick-entry) sin tool-call en
+  // el historial; al confirmar se ejecuta sin pasar por el LLM (ver bot.ts). El
+  // default 'llm' preserva el flujo del agente (inyecta tool-result + cierre).
+  origin?: 'llm' | 'ui'
 }
 
 function pendingRef(id: string) {
@@ -38,6 +42,7 @@ export async function savePendingMutation(
     ...data,
     // args como JSON string: pueden traer estructuras que Firestore rechaza.
     args: JSON.stringify(data.args),
+    origin: data.origin ?? 'llm',
     status: 'pending',
     createdAt: FieldValue.serverTimestamp(),
     expiresAt: Timestamp.fromMillis(Date.now() + PENDING_TTL_MS),
@@ -87,6 +92,7 @@ export async function claimPendingMutation(id: string): Promise<ClaimResult> {
         telegramFileName: (raw.telegramFileName as string | null) ?? null,
         status: 'executing',
         telegramMessageId: raw.telegramMessageId as number | undefined,
+        origin: (raw.origin as 'llm' | 'ui') ?? 'llm',
       },
     }
   })

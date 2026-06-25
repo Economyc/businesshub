@@ -98,6 +98,9 @@ export interface TelegramChatState {
     fileName: string
   } | null
   pendingMutationId?: string | null
+  // stateId de un registro rápido (quick-entry) esperando que el usuario
+  // escriba monto + concepto. Lo lee bot.on('message') para enrutar ese texto.
+  awaitingQuickEntry?: string | null
 }
 
 export function chatRef(chatId: number) {

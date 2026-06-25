@@ -16,6 +16,7 @@ export async function savePendingMutation(data) {
         ...data,
         // args como JSON string: pueden traer estructuras que Firestore rechaza.
         args: JSON.stringify(data.args),
+        origin: data.origin ?? 'llm',
         status: 'pending',
         createdAt: FieldValue.serverTimestamp(),
         expiresAt: Timestamp.fromMillis(Date.now() + PENDING_TTL_MS),
@@ -61,6 +62,7 @@ export async function claimPendingMutation(id) {
                 telegramFileName: raw.telegramFileName ?? null,
                 status: 'executing',
                 telegramMessageId: raw.telegramMessageId,
+                origin: raw.origin ?? 'llm',
             },
         };
     });

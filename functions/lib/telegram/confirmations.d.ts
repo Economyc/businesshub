@@ -11,6 +11,7 @@ export interface PendingMutation {
     telegramFileName: string | null;
     status: PendingStatus;
     telegramMessageId?: number;
+    origin?: 'llm' | 'ui';
 }
 export declare function savePendingMutation(data: Omit<PendingMutation, 'status'>): Promise<string>;
 export declare function setPendingMessageId(id: string, messageId: number): Promise<void>;

@@ -186,6 +186,9 @@ export async function executeServerMutation(opts: {
 
         const useCustomSupplier = args.customSupplier === true
         let payeeRef: PayeeRef
+        // Categoría efectiva: si el proveedor está registrado y tiene categoría
+        // propia, esa gana sobre la inferida por el LLM (info real del maestro).
+        let effectiveCategory = category
         if (useCustomSupplier) {
           payeeRef = { type: 'external', id: 'external', name: supplierName }
         } else {
@@ -203,6 +206,9 @@ export async function executeServerMutation(opts: {
             }
           }
           payeeRef = resolution.payee
+          if (resolution.supplierCategory?.trim()) {
+            effectiveCategory = resolution.supplierCategory.trim()
+          }
         }
 
         const docType: 'Factura' | 'Compra' = documentKind === 'invoice' ? 'Factura' : 'Compra'
@@ -230,7 +236,7 @@ export async function executeServerMutation(opts: {
           args.priority === 'immediate' || args.priority === 'waiting' ? args.priority : undefined
         const data: Record<string, unknown> = {
           concept: `${payeeRef.name} - ${docType} ${docNumber}`,
-          category,
+          category: effectiveCategory,
           amount,
           type: 'expense',
           date: dateTs,

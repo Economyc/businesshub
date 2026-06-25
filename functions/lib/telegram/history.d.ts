@@ -12,6 +12,7 @@ export interface TelegramChatState {
         fileName: string;
     } | null;
     pendingMutationId?: string | null;
+    awaitingQuickEntry?: string | null;
 }
 export declare function chatRef(chatId: number): FirebaseFirestore.DocumentReference<FirebaseFirestore.DocumentData, FirebaseFirestore.DocumentData>;
 export declare function loadChatState(chatId: number): Promise<TelegramChatState>;

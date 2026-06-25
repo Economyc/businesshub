@@ -20,7 +20,7 @@ export interface CompanyInfo {
 }
 
 export type PayeeResolution =
-  | { ok: true; payee: PayeeRef }
+  | { ok: true; payee: PayeeRef; supplierCategory?: string }
   | { ok: false; reason: 'not_found'; type: PayeeType; name: string }
   | { ok: false; reason: 'ambiguous'; matches: Array<{ id: string; name: string }> }
 
@@ -32,6 +32,43 @@ function normalize(s: string): string {
     .trim()
 }
 
+/**
+ * Normalización agresiva (también quita puntuación) usada solo por el scorer
+ * fuzzy. Espejo de la de analyze-invoice-document.ts para que web y bot
+ * matcheen igual.
+ */
+function normalizeFuzzy(s: string): string {
+  return (s || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9 ]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+/**
+ * Puntaje de similitud entre el proveedor extraído del documento y un
+ * proveedor registrado. Misma lógica/umbral que la web (analyze-invoice-document.ts):
+ * exact=1.0, inclusión=0.85, tokens compartidos (>2 chars) / max. Rango [0,1].
+ */
+export function similarSupplier(extractedName: string, supplierName: string): number {
+  const a = normalizeFuzzy(extractedName)
+  const b = normalizeFuzzy(supplierName)
+  if (!a || !b) return 0
+  if (a === b) return 1
+  if (a.includes(b) || b.includes(a)) return 0.85
+  const ta = new Set(a.split(' ').filter((x) => x.length > 2))
+  const tb = new Set(b.split(' ').filter((x) => x.length > 2))
+  if (ta.size === 0 || tb.size === 0) return 0
+  let shared = 0
+  for (const t of ta) if (tb.has(t)) shared++
+  return shared / Math.max(ta.size, tb.size)
+}
+
+/** Umbral mínimo de aceptación del fuzzy-match (idéntico al de la web). */
+const FUZZY_THRESHOLD = 0.5
+
 const COLLECTION_BY_TYPE: Record<Exclude<PayeeType, 'external'>, string> = {
   partner: 'partners',
   employee: 'employees',
@@ -41,10 +78,14 @@ const COLLECTION_BY_TYPE: Record<Exclude<PayeeType, 'external'>, string> = {
 async function fetchByType(
   companyId: string,
   type: Exclude<PayeeType, 'external'>,
-): Promise<Array<{ id: string; name: string }>> {
+): Promise<Array<{ id: string; name: string; category?: string }>> {
   const docs = await fetchCollection(companyId, COLLECTION_BY_TYPE[type])
   return docs
-    .map((d) => ({ id: String(d.id), name: String(d.name ?? '') }))
+    .map((d) => ({
+      id: String(d.id),
+      name: String(d.name ?? ''),
+      category: d.category ? String(d.category) : undefined,
+    }))
     .filter((d) => d.name.length > 0)
 }
 
@@ -61,16 +102,35 @@ export async function resolvePayeeOnCompany(
   const target = normalize(name)
   if (!target) return { ok: false, reason: 'not_found', type, name }
 
+  const hit = (c: { id: string; name: string; category?: string }): PayeeResolution => ({
+    ok: true,
+    payee: { type, id: c.id, name: c.name },
+    supplierCategory: c.category,
+  })
+
   const exact = candidates.filter((c) => normalize(c.name) === target)
-  if (exact.length === 1) return { ok: true, payee: { type, id: exact[0].id, name: exact[0].name } }
+  if (exact.length === 1) return hit(exact[0])
   if (exact.length > 1) return { ok: false, reason: 'ambiguous', matches: exact }
 
   const partial = candidates.filter((c) => {
     const n = normalize(c.name)
     return n.includes(target) || target.includes(n)
   })
-  if (partial.length === 1) return { ok: true, payee: { type, id: partial[0].id, name: partial[0].name } }
+  if (partial.length === 1) return hit(partial[0])
   if (partial.length > 1) return { ok: false, reason: 'ambiguous', matches: partial }
+
+  // Backstop fuzzy (mismo scorer/umbral que la web): atrapa variantes como
+  // "Super Carner Walter" ≈ "Carnes Walter" que exact/inclusión no capturan.
+  const scored = candidates
+    .map((c) => ({ c, score: similarSupplier(name, c.name) }))
+    .filter((s) => s.score >= FUZZY_THRESHOLD)
+    .sort((a, b) => b.score - a.score)
+  if (scored.length === 1) return hit(scored[0].c)
+  if (scored.length > 1) {
+    // Ganador claro (margen) → lo tomamos; empate cercano → ambiguo.
+    if (scored[0].score - scored[1].score >= 0.15) return hit(scored[0].c)
+    return { ok: false, reason: 'ambiguous', matches: scored.map((s) => ({ id: s.c.id, name: s.c.name })) }
+  }
 
   return { ok: false, reason: 'not_found', type, name }
 }
