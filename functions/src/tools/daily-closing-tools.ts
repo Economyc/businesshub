@@ -16,7 +16,8 @@ function formatClosing(c: Record<string, unknown>) {
   const efectivo = Number(c.efectivo) || 0
   const propinas = Number(c.propinas) || 0
   const gastos = Number(c.gastos) || 0
-  const ventaTotal = Number(c.ventaTotal) || ap + qr + datafono + rappiVentas + efectivo
+  // Fórmula canónica: QR + Datáfono + Rappi + efectivo neto (efectivo − apertura, sin negativos).
+  const ventaTotal = Number(c.ventaTotal) || qr + datafono + rappiVentas + Math.max(efectivo - ap, 0)
   return {
     id: c.id,
     date: c.date,

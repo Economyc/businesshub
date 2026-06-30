@@ -22,6 +22,7 @@ import { TAB_IDS } from '@/core/config/access-registry'
 import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { usePaginatedClosings, useClosings } from '../hooks'
 import { closingService } from '../services'
+import { computeVentaTotal } from '../compute'
 import { ClosingForm } from './closing-form'
 import { ClosingReceipt } from './closing-receipt'
 import type { Closing } from '../types'
@@ -38,10 +39,11 @@ function formatShortDate(dateStr: string): string {
   return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short' }).toUpperCase()
 }
 
-// Cuadre: el cierre cuadra si efectivo + datafono - ap == ventaTotal (tolerancia ~0)
+// Cuadre: el cierre cuadra si el ventaTotal guardado coincide con la fórmula canónica
+// (QR + Datáfono + Rappi + efectivo neto). Los cierres viejos sin Rappi quedan marcados
+// como descuadre hasta recalcular su ventaTotal.
 function isReconciled(c: Closing): boolean {
-  const esperado = (c.efectivo ?? 0) + (c.datafono ?? 0) - (c.ap ?? 0)
-  return Math.abs(esperado - (c.ventaTotal ?? 0)) < 1
+  return Math.abs(computeVentaTotal(c) - (c.ventaTotal ?? 0)) < 1
 }
 
 function ReconcileIcon({ closing }: { closing: Closing }) {

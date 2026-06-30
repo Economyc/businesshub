@@ -17,9 +17,9 @@ interface ClosingReceiptProps {
   onClose: () => void
 }
 
-function ReceiptLine({ label, amount, bold }: { label: string; amount: number; bold?: boolean }) {
+function ReceiptLine({ label, amount, bold, danger }: { label: string; amount: number; bold?: boolean; danger?: boolean }) {
   return (
-    <div className={`flex justify-between ${bold ? 'font-bold text-dark-graphite' : ''}`}>
+    <div className={`flex justify-between ${bold ? 'font-bold text-dark-graphite' : ''} ${danger ? 'text-negative-text' : ''}`}>
       <span>{label}</span>
       <span className="tabular-nums">{formatCurrency(amount)}</span>
     </div>
@@ -108,7 +108,7 @@ export function ClosingReceipt({ closing, companyName, onClose }: ClosingReceipt
                 <ReceiptLine label="Apertura (AP)" amount={closing.ap ?? 0} />
                 <ReceiptLine label="QR" amount={closing.qr ?? 0} />
                 <ReceiptLine label="Datafono" amount={closing.datafono ?? 0} />
-                <ReceiptLine label="Rappi" amount={closing.rappiVentas ?? 0} />
+                <ReceiptLine label="Rappi" amount={closing.rappiVentas ?? 0} danger />
                 <ReceiptLine label="Efectivo" amount={closing.efectivo ?? 0} />
               </div>
 

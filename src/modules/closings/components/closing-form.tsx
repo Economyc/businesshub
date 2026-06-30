@@ -3,6 +3,7 @@ import { CurrencyInput } from '@/core/ui/currency-input'
 import { DateInput } from '@/core/ui/date-input'
 import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { closingService } from '../services'
+import { computeVentaTotal } from '../compute'
 import type { Closing } from '../types'
 
 const inputClass =
@@ -76,10 +77,13 @@ export function ClosingForm({ onSaved, editing, onCancelEdit }: ClosingFormProps
     onCancelEdit?.()
   }
 
-  const ventaTotal =
-    Number(form.qr || 0) +
-    Number(form.datafono || 0) +
-    Math.max(Number(form.efectivo || 0) - Number(form.ap || 0), 0)
+  const ventaTotal = computeVentaTotal({
+    qr: Number(form.qr || 0),
+    datafono: Number(form.datafono || 0),
+    rappiVentas: Number(form.rappiVentas || 0),
+    efectivo: Number(form.efectivo || 0),
+    ap: Number(form.ap || 0),
+  })
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -110,10 +114,10 @@ export function ClosingForm({ onSaved, editing, onCancelEdit }: ClosingFormProps
     onSaved()
   }
 
-  function currencyField(label: string, name: string) {
+  function currencyField(label: string, name: string, opts?: { danger?: boolean; note?: string }) {
     return (
       <div>
-        <label className={labelClass}>{label}</label>
+        <label className={`${labelClass} ${opts?.danger ? 'text-negative-text' : ''}`}>{label}</label>
         <CurrencyInput
           name={name}
           value={form[name as keyof typeof form]}
@@ -121,6 +125,9 @@ export function ClosingForm({ onSaved, editing, onCancelEdit }: ClosingFormProps
           placeholder="0"
           className={inputClass}
         />
+        {opts?.note && (
+          <span className="block mt-1 text-caption text-negative-text">{opts.note}</span>
+        )}
       </div>
     )
   }
@@ -164,7 +171,7 @@ export function ClosingForm({ onSaved, editing, onCancelEdit }: ClosingFormProps
           {currencyField('AP (Apertura)', 'ap')}
           {currencyField('QR', 'qr')}
           {currencyField('Datáfono', 'datafono')}
-          {currencyField('Rappi', 'rappiVentas')}
+          {currencyField('Rappi', 'rappiVentas', { danger: true, note: 'Suma a la Venta Total · se liquida aparte' })}
           <div className="col-span-2">
             {currencyField('Efectivo en Caja', 'efectivo')}
           </div>

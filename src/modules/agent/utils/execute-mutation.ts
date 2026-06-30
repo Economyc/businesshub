@@ -6,6 +6,7 @@ import { supplierService } from '@/modules/suppliers/services'
 import { financeService, budgetService } from '@/modules/finance/services'
 import { generatePendingTransactions } from '@/modules/finance/recurring-generator'
 import { closingService } from '@/modules/closings/services'
+import { computeVentaTotal } from '@/modules/closings/compute'
 import { influencerService } from '@/modules/marketing/influencers/services'
 import { notificationService } from '@/modules/notifications/services'
 import { templateService, contractService } from '@/modules/contracts/services'
@@ -465,7 +466,7 @@ export async function executeMutation(
       const datafono = Number(args.datafono) || 0
       const rappiVentas = Number(args.rappiVentas) || 0
       const efectivo = Number(args.efectivo) || 0
-      const ventaTotal = ap + qr + datafono + rappiVentas + efectivo
+      const ventaTotal = computeVentaTotal({ ap, qr, datafono, rappiVentas, efectivo })
       const data: ClosingFormData = {
         date: String(args.date),
         ap,
