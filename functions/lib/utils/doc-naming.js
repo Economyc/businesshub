@@ -6,6 +6,11 @@ export const MESES_ES = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
     'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
 ];
+// Carpeta de mes en Drive: "07-Julio" para que el orden alfabético coincida
+// con el cronológico. Los nombres de archivo siguen usando el mes pelado.
+export function monthFolderName(monthIndex) {
+    return `${String(monthIndex + 1).padStart(2, '0')}-${MESES_ES[monthIndex]}`;
+}
 // Subcarpetas dentro de {root}/{Año}/{Mes}/ para separar tipos de archivo: la
 // carpeta del mes se saturaba con todo mezclado. Nombres user-facing en Drive,
 // compartidos por los uploaders y por el script de migración.
@@ -58,14 +63,17 @@ export function extFromMime(mime, fallbackName) {
 /**
  * Deriva la ruta Año/Mes y el nombre del archivo a partir del proveedor, tipo,
  * número y fecha. Devuelve los segmentos de carpeta y el nombre final (sin ext).
+ * `month` es el nombre pelado (para filenames); `monthFolder` lleva el prefijo
+ * numérico y es el que va en la ruta de carpetas.
  */
 export function buildDocLocation(supplierName, docType, docNumber, date) {
     const year = String(date.getFullYear());
     const month = MESES_ES[date.getMonth()];
+    const monthFolder = monthFolderName(date.getMonth());
     const dd = String(date.getDate()).padStart(2, '0');
     const supplier = sanitizeForFileName(supplierName);
     const docNum = sanitizeForFileName(docNumber);
     const baseName = `${supplier} - ${docType} ${docNum} - ${month} ${dd} ${year}`;
-    return { year, month, baseName };
+    return { year, month, monthFolder, baseName };
 }
 //# sourceMappingURL=doc-naming.js.map

@@ -10,7 +10,7 @@
 // HttpsError; el dispatch los captura por-job y re-marca dirty para reintento.
 import { db, fetchCollection } from '../firestore.js';
 import { ensureFolderPath, uploadOrReplaceFile, resolveDriveUid, getUserDriveAuth, } from '../services/drive-oauth.js';
-import { MESES_ES, SUBFOLDER_TRACKING } from '../utils/doc-naming.js';
+import { MESES_ES, monthFolderName, SUBFOLDER_TRACKING } from '../utils/doc-naming.js';
 import { TRANSFER_FIELDS, buildTransferRows, } from './accounting-rows.js';
 import { buildWorkbookBase64 } from './build-workbook.js';
 import { inMonthBogota } from './month.js';
@@ -50,7 +50,7 @@ export async function regenerateTransferSheet(companyId, year, monthIndex) {
     const fileName = `Seguimiento traslados - ${month} ${year}`;
     const targetFolderId = await ensureFolderPath(driveUid, companyId, driveRootFolderId, [
         String(year),
-        month,
+        monthFolderName(monthIndex),
         SUBFOLDER_TRACKING,
     ]);
     const uploaded = await uploadOrReplaceFile(driveUid, targetFolderId, fileName, XLSX_MIME, fileBase64, GOOGLE_SHEET_MIME);

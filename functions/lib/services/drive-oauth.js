@@ -2,6 +2,7 @@ import { google } from 'googleapis';
 import { Readable } from 'stream';
 import { defineSecret } from 'firebase-functions/params';
 import { db } from '../firestore.js';
+import { MESES_ES } from '../utils/doc-naming.js';
 // OAuth helper para Drive.
 // El usuario autoriza una vez desde Settings → "Conectar Drive". El refresh
 // token resultante queda en users/{uid}.driveAuth.refreshToken. A partir de ahí
@@ -223,7 +224,7 @@ async function setCachedFolder(companyId, path, driveFolderId) {
         .doc(docId)
         .set({ driveFolderId, path, createdAt: Date.now() });
 }
-async function findOrCreateFolder(drive, parentId, name) {
+async function findFolder(drive, parentId, name) {
     const escapedName = name.replace(/'/g, "\\'");
     const q = `'${parentId}' in parents and name = '${escapedName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
     const list = await drive.files.list({
@@ -233,9 +234,32 @@ async function findOrCreateFolder(drive, parentId, name) {
         supportsAllDrives: true,
         includeItemsFromAllDrives: true,
     });
-    const existing = list.data.files?.[0];
-    if (existing?.id)
-        return existing.id;
+    return list.data.files?.[0]?.id ?? null;
+}
+// Las carpetas de mes se crearon históricamente sin prefijo numérico ("Julio");
+// hoy se piden como "07-Julio". Si el nombre pedido es un mes con prefijo,
+// devuelve el nombre viejo para buscar/renombrar la carpeta existente en vez
+// de crear una duplicada.
+function legacyMonthName(name) {
+    const m = /^\d{2}-(.+)$/.exec(name);
+    return m && MESES_ES.includes(m[1]) ? m[1] : null;
+}
+async function findOrCreateFolder(drive, parentId, name) {
+    const existing = await findFolder(drive, parentId, name);
+    if (existing)
+        return existing;
+    const legacy = legacyMonthName(name);
+    if (legacy) {
+        const legacyId = await findFolder(drive, parentId, legacy);
+        if (legacyId) {
+            await drive.files.update({
+                fileId: legacyId,
+                requestBody: { name },
+                supportsAllDrives: true,
+            });
+            return legacyId;
+        }
+    }
     const created = await drive.files.create({
         requestBody: {
             name,

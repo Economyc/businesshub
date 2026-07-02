@@ -1,6 +1,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { db } from './firestore.js';
 import { ensureFolderPath, uploadFile, getUserDriveAuth, resolveDriveUid, driveClientId, driveClientSecret, } from './services/drive-oauth.js';
+import { monthFolderName } from './utils/doc-naming.js';
 // Callable de upload de fotos de Descuentos a Drive.
 // Estructura: {Company.driveDiscountsFolderId} / {YYYY} / {MesEs} / {filename}
 // Nombre: "Descuento - {motivo}[ - {detalle}] - {Mes DD YYYY}.{ext}"
@@ -87,7 +88,7 @@ export const uploadDiscountPhotoToDrive = onCall({ region: 'us-central1', memory
     const reason = sanitizeForFileName(data.reason);
     const detail = data.detail?.trim() ? sanitizeForFileName(data.detail) : '';
     const fileName = `Descuento - ${reason}${detail ? ` - ${detail}` : ''} - ${month} ${dd} ${year}.${ext}`;
-    const targetFolderId = await ensureFolderPath(driveUid, data.companyId, company.driveDiscountsFolderId, [year, month]);
+    const targetFolderId = await ensureFolderPath(driveUid, data.companyId, company.driveDiscountsFolderId, [year, monthFolderName(date.getMonth())]);
     const uploaded = await uploadFile(driveUid, targetFolderId, fileName, data.mimeType, data.fileBase64);
     return {
         driveFileId: uploaded.driveFileId,

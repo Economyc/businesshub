@@ -2,7 +2,7 @@ import { onCall, onRequest, HttpsError } from 'firebase-functions/v2/https';
 import { db } from './firestore.js';
 import { ensureFolderPath, uploadFile, validateRootFolderAccess, buildAuthUrl, exchangeCodeForTokens, saveDriveAuth, clearDriveAuth, getUserDriveAuth, resolveDriveUid, driveClientId, driveClientSecret, DriveTokenExpiredError, DriveScopeError, } from './services/drive-oauth.js';
 import { assertCompanyMember } from './utils/company-access.js';
-import { MESES_ES, sanitizeForFileName, parseDate, extFromMime, SUBFOLDER_LOOSE, looseSubfolderFor } from './utils/doc-naming.js';
+import { MESES_ES, monthFolderName, sanitizeForFileName, parseDate, extFromMime, SUBFOLDER_LOOSE, looseSubfolderFor } from './utils/doc-naming.js';
 const SECRETS = [driveClientId, driveClientSecret];
 // Cuerpo compartido del upload. Lo usan el callable (web) y el bot de
 // Telegram (server-side, sin request.auth — el uid viene del link verificado).
@@ -43,7 +43,7 @@ export async function uploadCompanyDocument(actorUid, data) {
     const fileName = `${supplier} - ${data.docType} ${docNumber} - ${month} ${dd} ${year}.${ext}`;
     try {
         const looseSub = looseSubfolderFor(data.docType);
-        const targetFolderId = await ensureFolderPath(driveUid, data.companyId, company.driveRootFolderId, [year, month, SUBFOLDER_LOOSE, looseSub]);
+        const targetFolderId = await ensureFolderPath(driveUid, data.companyId, company.driveRootFolderId, [year, monthFolderName(date.getMonth()), SUBFOLDER_LOOSE, looseSub]);
         const uploaded = await uploadFile(driveUid, targetFolderId, fileName, data.mimeType, data.fileBase64);
         return {
             driveFileId: uploaded.driveFileId,

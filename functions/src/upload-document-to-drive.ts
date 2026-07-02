@@ -16,7 +16,7 @@ import {
   DriveScopeError,
 } from './services/drive-oauth.js'
 import { assertCompanyMember } from './utils/company-access.js'
-import { MESES_ES, sanitizeForFileName, parseDate, extFromMime, SUBFOLDER_LOOSE, looseSubfolderFor, type DocType } from './utils/doc-naming.js'
+import { MESES_ES, monthFolderName, sanitizeForFileName, parseDate, extFromMime, SUBFOLDER_LOOSE, looseSubfolderFor, type DocType } from './utils/doc-naming.js'
 
 // Callable de upload de documentos (Facturas, Pagos, Compras) a Drive.
 // Estructura: {Company.driveRootFolderId} / {YYYY} / {MesEs} / {filename}
@@ -83,7 +83,7 @@ export async function uploadCompanyDocument(
 
   try {
     const looseSub = looseSubfolderFor(data.docType)
-    const targetFolderId = await ensureFolderPath(driveUid, data.companyId, company.driveRootFolderId, [year, month, SUBFOLDER_LOOSE, looseSub])
+    const targetFolderId = await ensureFolderPath(driveUid, data.companyId, company.driveRootFolderId, [year, monthFolderName(date.getMonth()), SUBFOLDER_LOOSE, looseSub])
     const uploaded = await uploadFile(driveUid, targetFolderId, fileName, data.mimeType, data.fileBase64)
 
     return {

@@ -36,7 +36,7 @@ export const combineInvoicePaymentToDrive = onCall({ region: 'us-central1', memo
     }
     const date = parseDate(data.date ?? Date.now());
     const docType = data.docType ?? 'Factura+Pago';
-    const { year, month, baseName } = buildDocLocation(data.supplierName, docType, data.docNumber, date);
+    const { year, monthFolder, baseName } = buildDocLocation(data.supplierName, docType, data.docNumber, date);
     const fileName = `${baseName}.pdf`;
     // Normaliza comprobantes: acepta el singular (compat App1) o el arreglo.
     const proofIds = (data.proofFileIds?.length ? data.proofFileIds : data.proofFileId ? [data.proofFileId] : []).filter((id) => !!id);
@@ -66,7 +66,7 @@ export const combineInvoicePaymentToDrive = onCall({ region: 'us-central1', memo
             : undefined;
         const pdf = await buildCombinedPdf(parts, cover);
         const pdfBase64 = pdf.toString('base64');
-        const targetFolderId = await ensureFolderPath(driveUid, data.companyId, company.driveRootFolderId, [year, month, SUBFOLDER_CONSOLIDATED]);
+        const targetFolderId = await ensureFolderPath(driveUid, data.companyId, company.driveRootFolderId, [year, monthFolder, SUBFOLDER_CONSOLIDATED]);
         const uploaded = await uploadFile(driveUid, targetFolderId, fileName, 'application/pdf', pdfBase64);
         return {
             driveFileId: uploaded.driveFileId,

@@ -8,6 +8,7 @@ import {
   driveClientId,
   driveClientSecret,
 } from './services/drive-oauth.js'
+import { monthFolderName } from './utils/doc-naming.js'
 
 // Callable de upload de fotos de Descuentos a Drive.
 // Estructura: {Company.driveDiscountsFolderId} / {YYYY} / {MesEs} / {filename}
@@ -123,7 +124,7 @@ export const uploadDiscountPhotoToDrive = onCall(
       driveUid,
       data.companyId,
       company.driveDiscountsFolderId,
-      [year, month],
+      [year, monthFolderName(date.getMonth())],
     )
     const uploaded = await uploadFile(driveUid, targetFolderId, fileName, data.mimeType, data.fileBase64)
 
