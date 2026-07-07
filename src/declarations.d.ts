@@ -38,24 +38,6 @@ declare module '@base-ui/react/popover' {
   }
 }
 
-declare module '@base-ui/react/context-menu' {
-  const ContextMenu: any
-  export { ContextMenu }
-  export namespace ContextMenu {
-    namespace Root { type Props = Record<string, any> }
-    namespace Trigger { type Props = Record<string, any> }
-    namespace Portal { type Props = Record<string, any> }
-    namespace Positioner { type Props = Record<string, any> }
-    namespace Popup { type Props = Record<string, any> }
-    namespace Item { type Props = Record<string, any> }
-    namespace Separator { type Props = Record<string, any> }
-    namespace Group { type Props = Record<string, any> }
-    namespace GroupLabel { type Props = Record<string, any> }
-    namespace SubmenuRoot { type Props = Record<string, any> }
-    namespace SubmenuTrigger { type Props = Record<string, any> }
-  }
-}
-
 declare module '@base-ui/react/select' {
   const Select: any
   export { Select }

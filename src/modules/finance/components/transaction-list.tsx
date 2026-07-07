@@ -1,20 +1,12 @@
-import { useState, useMemo, useCallback, type ReactElement, type ReactNode } from 'react'
+import { useState, useMemo, useCallback, type MouseEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Upload, Sparkles, FileText, Receipt, Files, StickyNote, Split, Plus, ShoppingBag, Users, Pencil, ArrowRightLeft } from 'lucide-react'
+import { Upload, Sparkles, FileText, Receipt, Files, StickyNote, Split, Plus, ShoppingBag, Users, Pencil, ArrowRightLeft, Building2, ChevronRight } from 'lucide-react'
 import { TransactionForm } from './transaction-form'
 import { DocumentUploadDialog } from './document-upload-dialog'
 import { PaymentUploadDialog } from './payment-upload-dialog'
 import { SplitExpenseDialog } from './split-expense-dialog'
 import { MoveInvoiceDialog } from './move-invoice-dialog'
-import {
-  ContextMenu,
-  ContextMenuTrigger,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSub,
-  ContextMenuSubTrigger,
-  ContextMenuSubContent,
-} from '@/components/ui/context-menu'
+import { ContextMenu, ContextMenuItem, ContextMenuSeparator } from '@/components/ui/context-menu'
 import { ActionMenu } from '@/core/ui/action-menu'
 import { InvoiceExportMenu } from './invoice-export-menu'
 import type { DocumentKind, Transaction } from '../types'
@@ -181,6 +173,10 @@ export function TransactionList() {
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false)
   const [splitDialogOpen, setSplitDialogOpen] = useState(false)
   const [moveTarget, setMoveTarget] = useState<{ tx: Transaction; toCompany: { id: string; name: string } } | null>(null)
+  // Menú contextual (click derecho) por fila: guarda la tx y las coordenadas del
+  // cursor. `moveSubOpen` despliega la lista de compañías destino en el mismo menú.
+  const [menu, setMenu] = useState<{ tx: Transaction; x: number; y: number } | null>(null)
+  const [moveSubOpen, setMoveSubOpen] = useState(false)
 
   // Pagadas dentro del rango — por fecha de pago (paidDate), fallback a la
   // de emisión si no existe paidDate (data legacy). "Pagadas en mayo" =
@@ -233,42 +229,13 @@ export function TransactionList() {
     setFormOpen(true)
   }, [])
 
-  // Menú contextual (click derecho / long-press) por fila en la tab Pendientes:
-  // Editar (igual que el click izquierdo) + submenú "Mover a otra compañía".
-  const renderRowMenu = useCallback(
-    (t: Transaction, row: ReactNode) => (
-      <ContextMenu>
-        <ContextMenuTrigger render={row as ReactElement} />
-        <ContextMenuContent>
-          <ContextMenuItem onClick={() => handleRowClick(t)}>
-            <Pencil size={15} strokeWidth={1.5} className="text-mid-gray shrink-0" />
-            Editar
-          </ContextMenuItem>
-          {otherCompanies.length > 0 ? (
-            <ContextMenuSub>
-              <ContextMenuSubTrigger>
-                <ArrowRightLeft size={15} strokeWidth={1.5} className="text-mid-gray shrink-0" />
-                Mover a otra compañía
-              </ContextMenuSubTrigger>
-              <ContextMenuSubContent>
-                {otherCompanies.map((c) => (
-                  <ContextMenuItem
-                    key={c.id}
-                    onClick={() => setMoveTarget({ tx: t, toCompany: { id: c.id, name: c.name } })}
-                  >
-                    {c.name}
-                  </ContextMenuItem>
-                ))}
-              </ContextMenuSubContent>
-            </ContextMenuSub>
-          ) : (
-            <ContextMenuItem disabled>No hay otra compañía</ContextMenuItem>
-          )}
-        </ContextMenuContent>
-      </ContextMenu>
-    ),
-    [handleRowClick, otherCompanies],
-  )
+  // Click derecho sobre una fila (solo tab Pendientes): abre el menú contextual
+  // propio en las coordenadas del cursor.
+  const handleRowContextMenu = useCallback((t: Transaction, e: MouseEvent) => {
+    e.preventDefault()
+    setMoveSubOpen(false)
+    setMenu({ tx: t, x: e.clientX, y: e.clientY })
+  }, [])
 
   // Snapshot que se inyecta al system prompt cuando el usuario abre el
   // asistente desde esta vista. Mantenerlo compacto (<1KB stringificado).
@@ -530,7 +497,7 @@ export function TransactionList() {
           data={filtered}
           onRowClick={handleRowClick}
           rowClassName={(t) => getDueInfo(t)?.level === 'overdue' ? 'bg-negative-bg/30' : ''}
-          renderRowMenu={activeTab === 'pending' && canEdit ? renderRowMenu : undefined}
+          onRowContextMenu={activeTab === 'pending' && canEdit ? handleRowContextMenu : undefined}
         />
       )}
 
@@ -571,6 +538,57 @@ export function TransactionList() {
         onClose={() => setSplitDialogOpen(false)}
         onSaved={() => refetch()}
       />
+
+      <ContextMenu
+        open={!!menu}
+        x={menu?.x ?? 0}
+        y={menu?.y ?? 0}
+        onClose={() => setMenu(null)}
+      >
+        {menu && (
+          <>
+            <ContextMenuItem
+              onSelect={() => {
+                handleRowClick(menu.tx)
+                setMenu(null)
+              }}
+            >
+              <Pencil size={15} strokeWidth={1.5} className="text-mid-gray shrink-0" />
+              Editar
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+            {otherCompanies.length > 0 ? (
+              <>
+                <ContextMenuItem onSelect={() => setMoveSubOpen((v) => !v)}>
+                  <ArrowRightLeft size={15} strokeWidth={1.5} className="text-mid-gray shrink-0" />
+                  <span className="flex-1">Mover a otra compañía</span>
+                  <ChevronRight
+                    size={14}
+                    strokeWidth={1.5}
+                    className={`text-mid-gray shrink-0 transition-transform ${moveSubOpen ? 'rotate-90' : ''}`}
+                  />
+                </ContextMenuItem>
+                {moveSubOpen &&
+                  otherCompanies.map((c) => (
+                    <ContextMenuItem
+                      key={c.id}
+                      indent
+                      onSelect={() => {
+                        setMoveTarget({ tx: menu.tx, toCompany: { id: c.id, name: c.name } })
+                        setMenu(null)
+                      }}
+                    >
+                      <Building2 size={14} strokeWidth={1.5} className="text-mid-gray shrink-0" />
+                      <span className="truncate">{c.name}</span>
+                    </ContextMenuItem>
+                  ))}
+              </>
+            ) : (
+              <ContextMenuItem disabled>No hay otra compañía</ContextMenuItem>
+            )}
+          </>
+        )}
+      </ContextMenu>
 
       <MoveInvoiceDialog
         open={!!moveTarget}

@@ -1,128 +1,109 @@
-"use client"
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
+import { cn } from '@/lib/utils'
 
-import { ChevronRight } from "lucide-react"
-import { ContextMenu as ContextMenuPrimitive } from "@base-ui/react/context-menu"
+// Menú contextual (click derecho) propio, sin dependencias externas. Se renderiza
+// vía portal en <body> con position:fixed en las coordenadas del cursor, con
+// clamping al viewport, cierre por click-outside / Escape / scroll. Mismo enfoque
+// que `select-input.tsx`. El caller controla apertura/cierre y las coordenadas.
 
-import { cn } from "@/lib/utils"
-
-// Menú contextual (click derecho / long-press) construido sobre Base UI, el
-// mismo primitivo que usa el Popover. Estilado con tokens del design system:
-// popup flotante con borde 1px + shadow (igual que PopoverContent), items con
-// hover `bg-bone`. Soporta submenús (Sub / SubTrigger / SubContent).
-
-function ContextMenu({ ...props }: ContextMenuPrimitive.Root.Props) {
-  return <ContextMenuPrimitive.Root {...props} />
+interface ContextMenuProps {
+  open: boolean
+  x: number
+  y: number
+  onClose: () => void
+  children: ReactNode
+  className?: string
 }
 
-function ContextMenuTrigger({ ...props }: ContextMenuPrimitive.Trigger.Props) {
-  return <ContextMenuPrimitive.Trigger data-slot="context-menu-trigger" {...props} />
-}
+const MARGIN = 8
 
-const POPUP_CLASS = cn(
-  "min-w-[12rem] rounded-xl border border-border bg-card-bg p-1.5 shadow-lg outline-none",
-  "duration-100 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
-)
+export function ContextMenu({ open, x, y, onClose, children, className }: ContextMenuProps) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState({ x, y })
 
-function ContextMenuContent({
-  className,
-  children,
-  ...props
-}: ContextMenuPrimitive.Popup.Props) {
-  return (
-    <ContextMenuPrimitive.Portal>
-      <ContextMenuPrimitive.Positioner className="z-[100]" sideOffset={4}>
-        <ContextMenuPrimitive.Popup
-          data-slot="context-menu-content"
-          className={cn(POPUP_CLASS, className)}
-          {...props}
-        >
-          {children}
-        </ContextMenuPrimitive.Popup>
-      </ContextMenuPrimitive.Positioner>
-    </ContextMenuPrimitive.Portal>
-  )
-}
+  // Posicionar (con clamp al viewport) tras montar/medir. useLayoutEffect para
+  // evitar un frame en la esquina equivocada.
+  useLayoutEffect(() => {
+    if (!open) return
+    const el = ref.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    let nx = x
+    let ny = y
+    if (nx + r.width > window.innerWidth - MARGIN) nx = window.innerWidth - r.width - MARGIN
+    if (ny + r.height > window.innerHeight - MARGIN) ny = window.innerHeight - r.height - MARGIN
+    setPos({ x: Math.max(MARGIN, nx), y: Math.max(MARGIN, ny) })
+  }, [open, x, y])
 
-const ITEM_CLASS = cn(
-  "flex items-center gap-2 w-full px-3 py-2 rounded-lg text-body text-graphite text-left cursor-pointer select-none",
-  "transition-colors outline-none hover:bg-bone data-highlighted:bg-bone",
-  "data-disabled:opacity-50 data-disabled:pointer-events-none",
-)
+  useEffect(() => {
+    if (!open) return
+    function onDown(e: MouseEvent) {
+      if (!ref.current?.contains(e.target as Node)) onClose()
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        e.stopPropagation()
+        onClose()
+      }
+    }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    window.addEventListener('scroll', onClose, true)
+    window.addEventListener('resize', onClose)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('keydown', onKey)
+      window.removeEventListener('scroll', onClose, true)
+      window.removeEventListener('resize', onClose)
+    }
+  }, [open, onClose])
 
-function ContextMenuItem({
-  className,
-  ...props
-}: ContextMenuPrimitive.Item.Props) {
-  return (
-    <ContextMenuPrimitive.Item
-      data-slot="context-menu-item"
-      className={cn(ITEM_CLASS, className)}
-      {...props}
-    />
-  )
-}
+  if (!open) return null
 
-function ContextMenuSeparator({
-  className,
-  ...props
-}: ContextMenuPrimitive.Separator.Props) {
-  return (
-    <ContextMenuPrimitive.Separator
-      data-slot="context-menu-separator"
-      className={cn("my-1 h-px bg-border/60", className)}
-      {...props}
-    />
-  )
-}
-
-function ContextMenuSub({ ...props }: ContextMenuPrimitive.SubmenuRoot.Props) {
-  return <ContextMenuPrimitive.SubmenuRoot {...props} />
-}
-
-function ContextMenuSubTrigger({
-  className,
-  children,
-  ...props
-}: ContextMenuPrimitive.SubmenuTrigger.Props) {
-  return (
-    <ContextMenuPrimitive.SubmenuTrigger
-      data-slot="context-menu-sub-trigger"
-      className={cn(ITEM_CLASS, "data-popup-open:bg-bone justify-between", className)}
-      {...props}
+  return createPortal(
+    <div
+      ref={ref}
+      style={{ position: 'fixed', left: pos.x, top: pos.y }}
+      className={cn(
+        'min-w-[13rem] rounded-xl border border-border bg-card-bg p-1.5 shadow-lg z-[100] outline-none',
+        className,
+      )}
+      onContextMenu={(e) => e.preventDefault()}
     >
-      <span className="inline-flex items-center gap-2 min-w-0 truncate">{children}</span>
-      <ChevronRight size={14} strokeWidth={1.5} className="text-mid-gray shrink-0" />
-    </ContextMenuPrimitive.SubmenuTrigger>
+      {children}
+    </div>,
+    document.body,
   )
 }
 
-function ContextMenuSubContent({
-  className,
-  children,
-  ...props
-}: ContextMenuPrimitive.Popup.Props) {
+interface ContextMenuItemProps {
+  onSelect?: () => void
+  disabled?: boolean
+  children: ReactNode
+  className?: string
+  /** Indenta el item (para sub-opciones desplegadas). */
+  indent?: boolean
+}
+
+export function ContextMenuItem({ onSelect, disabled, children, className, indent }: ContextMenuItemProps) {
   return (
-    <ContextMenuPrimitive.Portal>
-      <ContextMenuPrimitive.Positioner className="z-[100]" sideOffset={4}>
-        <ContextMenuPrimitive.Popup
-          data-slot="context-menu-sub-content"
-          className={cn(POPUP_CLASS, "max-h-[min(24rem,60vh)] overflow-y-auto", className)}
-          {...props}
-        >
-          {children}
-        </ContextMenuPrimitive.Popup>
-      </ContextMenuPrimitive.Positioner>
-    </ContextMenuPrimitive.Portal>
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onSelect}
+      className={cn(
+        'flex items-center gap-2 w-full px-3 py-2 rounded-lg text-body text-graphite text-left transition-colors',
+        'hover:bg-bone disabled:opacity-50 disabled:cursor-not-allowed',
+        indent && 'pl-8',
+        className,
+      )}
+    >
+      {children}
+    </button>
   )
 }
 
-export {
-  ContextMenu,
-  ContextMenuTrigger,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSeparator,
-  ContextMenuSub,
-  ContextMenuSubTrigger,
-  ContextMenuSubContent,
+export function ContextMenuSeparator() {
+  return <div className="my-1 h-px bg-border/60" />
 }
