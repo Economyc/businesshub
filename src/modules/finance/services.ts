@@ -24,6 +24,21 @@ export interface DeleteWithAttachmentsResult {
   driveErrors: string[]
 }
 
+// Resultado de mover una factura pendiente a otra compañía. Lo devuelve la
+// Cloud Function `moveInvoiceToCompany`: reubica el registro + los archivos en
+// Drive y regenera la hoja contable de ambas compañías al instante. Si alguna
+// hoja no se pudo regenerar en el momento (Drive desconectado), `sheetWarning`
+// lo avisa y el cron la retomará en ≤10 min.
+export interface MoveInvoiceResult {
+  newTransactionId: string | null
+  movedFiles: number
+  attemptedFiles: number
+  sheetOriginRegenerated: boolean
+  sheetTargetRegenerated: boolean
+  sheetWarning: string | null
+  alreadyMoved: boolean
+}
+
 export const financeService = {
   getAll: (companyId: string) => fetchCollection<Transaction>(companyId, COLLECTION),
   getById: (companyId: string, id: string) => fetchDocument<Transaction>(companyId, COLLECTION, id),
@@ -47,6 +62,21 @@ export const financeService = {
       DeleteWithAttachmentsResult
     >(fns, 'deleteTransactionWithAttachments')
     const res = await callable({ companyId, transactionId: id })
+    return res.data
+  },
+  // Mueve una factura pendiente a otra compañía (registro + archivos en Drive +
+  // regeneración de ambas hojas contables). Server-side vía callable.
+  moveToCompany: async (
+    fromCompanyId: string,
+    transactionId: string,
+    toCompanyId: string,
+  ): Promise<MoveInvoiceResult> => {
+    const fns = await getAppFunctions()
+    const callable = httpsCallable<
+      { fromCompanyId: string; transactionId: string; toCompanyId: string },
+      MoveInvoiceResult
+    >(fns, 'moveInvoiceToCompany')
+    const res = await callable({ fromCompanyId, transactionId, toCompanyId })
     return res.data
   },
 }

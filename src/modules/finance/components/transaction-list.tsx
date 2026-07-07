@@ -1,10 +1,20 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, type ReactElement, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Upload, Sparkles, FileText, Receipt, Files, StickyNote, Split, Plus, ShoppingBag, Users } from 'lucide-react'
+import { Upload, Sparkles, FileText, Receipt, Files, StickyNote, Split, Plus, ShoppingBag, Users, Pencil, ArrowRightLeft } from 'lucide-react'
 import { TransactionForm } from './transaction-form'
 import { DocumentUploadDialog } from './document-upload-dialog'
 import { PaymentUploadDialog } from './payment-upload-dialog'
 import { SplitExpenseDialog } from './split-expense-dialog'
+import { MoveInvoiceDialog } from './move-invoice-dialog'
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSub,
+  ContextMenuSubTrigger,
+  ContextMenuSubContent,
+} from '@/components/ui/context-menu'
 import { ActionMenu } from '@/core/ui/action-menu'
 import { InvoiceExportMenu } from './invoice-export-menu'
 import type { DocumentKind, Transaction } from '../types'
@@ -143,8 +153,13 @@ export function TransactionList() {
   const { categories: categoryItems } = useSettings()
   const { can } = usePermissions()
   const canEdit = can('finance.invoicing', 'create')
-  const { selectedCompany } = useCompany()
+  const { selectedCompany, companies } = useCompany()
   const companyId = selectedCompany?.id ?? ''
+  // Compañías destino para "Mover a otra compañía": todas menos la activa.
+  const otherCompanies = useMemo(
+    () => companies.filter((c) => c.id && c.id !== companyId),
+    [companies, companyId],
+  )
   const { data: suppliers } = useSuppliers()
   // Map proveedor → NIT para la columna NIT de la hoja contable. Vacío si el
   // proveedor aún no tiene identification cargada.
@@ -165,6 +180,7 @@ export function TransactionList() {
   const [docDialogKind, setDocDialogKind] = useState<DocumentKind>('invoice')
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false)
   const [splitDialogOpen, setSplitDialogOpen] = useState(false)
+  const [moveTarget, setMoveTarget] = useState<{ tx: Transaction; toCompany: { id: string; name: string } } | null>(null)
 
   // Pagadas dentro del rango — por fecha de pago (paidDate), fallback a la
   // de emisión si no existe paidDate (data legacy). "Pagadas en mayo" =
@@ -216,6 +232,43 @@ export function TransactionList() {
     setEditingId(t.id)
     setFormOpen(true)
   }, [])
+
+  // Menú contextual (click derecho / long-press) por fila en la tab Pendientes:
+  // Editar (igual que el click izquierdo) + submenú "Mover a otra compañía".
+  const renderRowMenu = useCallback(
+    (t: Transaction, row: ReactNode) => (
+      <ContextMenu>
+        <ContextMenuTrigger render={row as ReactElement} />
+        <ContextMenuContent>
+          <ContextMenuItem onClick={() => handleRowClick(t)}>
+            <Pencil size={15} strokeWidth={1.5} className="text-mid-gray shrink-0" />
+            Editar
+          </ContextMenuItem>
+          {otherCompanies.length > 0 ? (
+            <ContextMenuSub>
+              <ContextMenuSubTrigger>
+                <ArrowRightLeft size={15} strokeWidth={1.5} className="text-mid-gray shrink-0" />
+                Mover a otra compañía
+              </ContextMenuSubTrigger>
+              <ContextMenuSubContent>
+                {otherCompanies.map((c) => (
+                  <ContextMenuItem
+                    key={c.id}
+                    onClick={() => setMoveTarget({ tx: t, toCompany: { id: c.id, name: c.name } })}
+                  >
+                    {c.name}
+                  </ContextMenuItem>
+                ))}
+              </ContextMenuSubContent>
+            </ContextMenuSub>
+          ) : (
+            <ContextMenuItem disabled>No hay otra compañía</ContextMenuItem>
+          )}
+        </ContextMenuContent>
+      </ContextMenu>
+    ),
+    [handleRowClick, otherCompanies],
+  )
 
   // Snapshot que se inyecta al system prompt cuando el usuario abre el
   // asistente desde esta vista. Mantenerlo compacto (<1KB stringificado).
@@ -477,6 +530,7 @@ export function TransactionList() {
           data={filtered}
           onRowClick={handleRowClick}
           rowClassName={(t) => getDueInfo(t)?.level === 'overdue' ? 'bg-negative-bg/30' : ''}
+          renderRowMenu={activeTab === 'pending' && canEdit ? renderRowMenu : undefined}
         />
       )}
 
@@ -516,6 +570,16 @@ export function TransactionList() {
         open={splitDialogOpen}
         onClose={() => setSplitDialogOpen(false)}
         onSaved={() => refetch()}
+      />
+
+      <MoveInvoiceDialog
+        open={!!moveTarget}
+        transaction={moveTarget?.tx ?? null}
+        fromCompanyId={companyId}
+        fromCompanyName={selectedCompany?.name ?? 'Compañía actual'}
+        toCompany={moveTarget?.toCompany ?? null}
+        onClose={() => setMoveTarget(null)}
+        onMoved={() => refetch()}
       />
 
       <InlineAgentSheet

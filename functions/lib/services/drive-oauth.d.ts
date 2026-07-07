@@ -102,6 +102,24 @@ export declare function downloadFile(uid: string, fileId: string): Promise<{
     buffer: Buffer;
     mimeType: string;
 }>;
+/**
+ * Mueve un archivo de Drive a otra carpeta (posiblemente de otra empresa).
+ *
+ *  - **Mismo dueño de Drive** (`uidFrom === uidTo`, caso típico Blue↔Blue):
+ *    reparent con `addParents`/`removeParents`. Conserva `driveFileId` y
+ *    `webViewLink` — el `PayableFile` no cambia.
+ *  - **Dueños distintos:** no se puede reparentar entre cuentas, así que se
+ *    descarga del Drive origen, se sube al destino y se borra el original.
+ *    Genera un `driveFileId`/`webViewLink` NUEVOS — el caller debe persistirlos.
+ *
+ * Devuelve los datos (quizá nuevos) del archivo ya en destino.
+ */
+export declare function moveDriveFile(uidFrom: string, uidTo: string, fileId: string, targetFolderId: string, fileName: string): Promise<{
+    sameAccount: boolean;
+    driveFileId: string;
+    webViewLink: string;
+    fileName: string;
+}>;
 export declare function validateRootFolderAccess(uid: string, rootFolderId: string): Promise<{
     ok: true;
     folderName: string;

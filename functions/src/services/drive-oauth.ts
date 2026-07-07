@@ -519,6 +519,67 @@ export async function downloadFile(
   })
 }
 
+/**
+ * Mueve un archivo de Drive a otra carpeta (posiblemente de otra empresa).
+ *
+ *  - **Mismo dueño de Drive** (`uidFrom === uidTo`, caso típico Blue↔Blue):
+ *    reparent con `addParents`/`removeParents`. Conserva `driveFileId` y
+ *    `webViewLink` — el `PayableFile` no cambia.
+ *  - **Dueños distintos:** no se puede reparentar entre cuentas, así que se
+ *    descarga del Drive origen, se sube al destino y se borra el original.
+ *    Genera un `driveFileId`/`webViewLink` NUEVOS — el caller debe persistirlos.
+ *
+ * Devuelve los datos (quizá nuevos) del archivo ya en destino.
+ */
+export async function moveDriveFile(
+  uidFrom: string,
+  uidTo: string,
+  fileId: string,
+  targetFolderId: string,
+  fileName: string,
+): Promise<{ sameAccount: boolean; driveFileId: string; webViewLink: string; fileName: string }> {
+  if (uidFrom === uidTo) {
+    const drive = await getDriveForUser(uidFrom)
+    return runDrive(uidFrom, async () => {
+      const meta = await drive.files.get({
+        fileId,
+        fields: 'parents',
+        supportsAllDrives: true,
+      })
+      const prevParents = (meta.data.parents ?? []).join(',')
+      const updated = await drive.files.update({
+        fileId,
+        addParents: targetFolderId,
+        removeParents: prevParents || undefined,
+        fields: 'id, webViewLink, name',
+        supportsAllDrives: true,
+      })
+      if (!updated.data.id) throw new Error('Drive no retornó id al mover el archivo')
+      return {
+        sameAccount: true,
+        driveFileId: updated.data.id,
+        webViewLink: updated.data.webViewLink ?? '',
+        fileName: updated.data.name ?? fileName,
+      }
+    })
+  }
+
+  // Cuentas distintas: copiar bytes y borrar el original.
+  const { buffer, mimeType } = await downloadFile(uidFrom, fileId)
+  const uploaded = await uploadFile(uidTo, targetFolderId, fileName, mimeType, buffer.toString('base64'))
+  // Borrado best-effort del original: si falla queda un huérfano recuperable,
+  // pero la copia en destino ya existe y es la que referenciará la tx.
+  await deleteDriveFile(uidFrom, fileId).catch((err) => {
+    console.warn('[moveDriveFile] no se pudo borrar el original tras copiar', { fileId, err })
+  })
+  return {
+    sameAccount: false,
+    driveFileId: uploaded.driveFileId,
+    webViewLink: uploaded.webViewLink,
+    fileName: uploaded.fileName,
+  }
+}
+
 export async function validateRootFolderAccess(
   uid: string,
   rootFolderId: string,

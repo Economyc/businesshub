@@ -1,4 +1,4 @@
-import { useRef, type ReactNode } from 'react'
+import { Fragment, useRef, type ReactNode } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { cn } from '@/lib/utils'
 
@@ -27,13 +27,21 @@ interface DataTableProps<T> {
   mobileActions?: (item: T) => ReactNode
   /** Alto fijo de la card en mobile (px). Default 88. Subir si hay `mobileActions`. */
   mobileCardHeight?: number
+  /**
+   * Envuelve cada fila (desktop y card mobile) con un menú contextual (click
+   * derecho / long-press). Recibe el item y el nodo de la fila ya construido, y
+   * debe devolver el nodo final a renderizar — típicamente un `<ContextMenu>`
+   * cuyo `<ContextMenuTrigger render={row} />` reusa la misma fila. Sin esto, la
+   * fila se renderiza tal cual. No altera `onRowClick` (click izq. sigue igual).
+   */
+  renderRowMenu?: (item: T, row: ReactNode) => ReactNode
 }
 
 const ROW_HEIGHT = 57
 const CARD_HEIGHT = 88
 const OVERSCAN = 5
 
-export function DataTable<T extends { id: string }>({ columns, data, onRowClick, rowClassName, mobileActions, mobileCardHeight }: DataTableProps<T>) {
+export function DataTable<T extends { id: string }>({ columns, data, onRowClick, rowClassName, mobileActions, mobileCardHeight, renderRowMenu }: DataTableProps<T>) {
   const gridCols = columns.map((c) => {
     if (!c.width) return '1fr'
     if (c.width.endsWith('fr')) return c.width
@@ -91,9 +99,8 @@ export function DataTable<T extends { id: string }>({ columns, data, onRowClick,
           >
             {desktopVirtualizer.getVirtualItems().map((virtualRow) => {
               const item = data[virtualRow.index]
-              return (
+              const rowEl = (
                 <div
-                  key={item.id}
                   onClick={() => onRowClick?.(item)}
                   className={cn(
                     'grid items-center px-[18px] py-0 text-body text-graphite hover:bg-bone transition-colors duration-150',
@@ -121,6 +128,11 @@ export function DataTable<T extends { id: string }>({ columns, data, onRowClick,
                   ))}
                 </div>
               )
+              return (
+                <Fragment key={item.id}>
+                  {renderRowMenu ? renderRowMenu(item, rowEl) : rowEl}
+                </Fragment>
+              )
             })}
           </div>
         </div>
@@ -141,9 +153,8 @@ export function DataTable<T extends { id: string }>({ columns, data, onRowClick,
         >
           {mobileVirtualizer.getVirtualItems().map((virtualRow) => {
             const item = data[virtualRow.index]
-            return (
+            const cardEl = (
               <div
-                key={item.id}
                 onClick={() => onRowClick?.(item)}
                 className={cn(
                   'bg-surface rounded-xl card-elevated p-4 text-body text-graphite active:bg-bone/50 transition-colors',
@@ -186,6 +197,11 @@ export function DataTable<T extends { id: string }>({ columns, data, onRowClick,
                   </div>
                 )}
               </div>
+            )
+            return (
+              <Fragment key={item.id}>
+                {renderRowMenu ? renderRowMenu(item, cardEl) : cardEl}
+              </Fragment>
             )
           })}
         </div>
