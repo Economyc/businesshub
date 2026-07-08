@@ -35,6 +35,19 @@ service cloud.firestore {
       allow read, write: if request.auth != null;
     }
 
+    // Catálogo de clientes compartido (Cuentas por Cobrar de Ecore/App1).
+    // Mismo patrón que suppliers: raíz, un solo catálogo para todos los locales.
+    match /customers/{customerId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Catálogo de socios de cuentas en participación (módulo ROI de Ecore).
+    // Mismo patrón que suppliers: raíz, compartido entre locales. Los pagos de
+    // ROI viven bajo companies/{id}/transactions (ya cubiertos arriba).
+    match /partners/{partnerId} {
+      allow read, write: if request.auth != null;
+    }
+
     // LLM rate-limits: solo Admin SDK desde Cloud Functions
     match /system/llm-rate-limits/{document=**} {
       allow read, write: if false;
