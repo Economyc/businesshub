@@ -1,8 +1,17 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import { driveClientId, driveClientSecret, DriveTokenExpiredError, DriveScopeError, } from './services/drive-oauth.js';
+import { driveClientId, driveClientSecret, DriveTokenExpiredError, DriveScopeError, DriveBudgetExceededError, } from './services/drive-oauth.js';
 import { assertCompanyMember } from './utils/company-access.js';
 import { regenerateInvoiceSheet } from './invoice-sheet/regenerate.js';
+import { claimSheetJob, releaseSheetJob, markSheetJobDirty, newLockOwner, } from './invoice-sheet/sheet-lock.js';
 const SECRETS = [driveClientId, driveClientSecret];
+// Cascada de tiempos (bug de prod 2026-07-16): el cliente corta a los 70s
+// (default de httpsCallable). El contenedor corta a los 60s, y el presupuesto
+// interno a los 50s → siempre respondemos nosotros, nunca la infra. Importa
+// porque un 504 de Cloud Run llega SIN header CORS y el navegador lo reporta
+// como un error de CORS que no tiene nada que ver.
+// OJO: gcloud IGNORA el `timeoutSeconds` del literal → hay que pasar --timeout=60.
+const CALLABLE_BUDGET_MS = 50_000;
+const CALLABLE_ATTEMPT_TIMEOUT_MS = 20_000;
 // Traduce el motivo de "skipped" de regenerateInvoiceSheet a un mensaje accionable.
 function messageForReason(reason) {
     switch (reason) {
@@ -17,7 +26,7 @@ function messageForReason(reason) {
             return 'No se pudo generar la hoja en Drive.';
     }
 }
-export const saveInvoiceSheetToDrive = onCall({ region: 'us-central1', memory: '512MiB', timeoutSeconds: 120, secrets: SECRETS }, async (request) => {
+export const saveInvoiceSheetToDrive = onCall({ region: 'us-central1', memory: '512MiB', timeoutSeconds: 60, secrets: SECRETS }, async (request) => {
     if (!request.auth) {
         throw new HttpsError('unauthenticated', 'Login requerido');
     }
@@ -31,16 +40,42 @@ export const saveInvoiceSheetToDrive = onCall({ region: 'us-central1', memory: '
         throw new HttpsError('invalid-argument', 'year/monthIndex inválidos');
     }
     await assertCompanyMember(request.auth.uid, data.companyId);
+    const { companyId, year, monthIndex } = data;
+    // Serializar contra el cron y contra otras pestañas/abonos simultáneos: dos
+    // PATCH concurrentes sobre el mismo Google Sheet cuelgan a Drive y acaban en
+    // 500. Si otro proceso tiene el mes, no tocamos Drive: dejamos el mes sucio
+    // y que lo cierre el cron. Ver sheet-lock.ts.
+    const claim = await claimSheetJob(companyId, year, monthIndex, newLockOwner('callable'));
+    if (!claim.claimed) {
+        await markSheetJobDirty(companyId, year, monthIndex);
+        return { queued: true, reason: 'locked' };
+    }
     try {
-        const result = await regenerateInvoiceSheet(data.companyId, data.year, data.monthIndex);
+        const result = await regenerateInvoiceSheet(companyId, year, monthIndex, {
+            deadlineAt: Date.now() + CALLABLE_BUDGET_MS,
+            attemptTimeoutMs: CALLABLE_ATTEMPT_TIMEOUT_MS,
+        });
         if ('skipped' in result) {
             throw new HttpsError('failed-precondition', messageForReason(result.reason));
         }
         return result;
     }
     catch (err) {
+        // `skipped` (sin Drive configurado, etc.) sale por aquí: no se re-marca
+        // dirty, igual que hace el cron — reintentarlo no arreglaría nada.
         if (err instanceof HttpsError)
             throw err;
+        // Cualquier fallo real: tomar el lock ya limpió `dirty`, así que hay que
+        // volver a marcarlo o el cron no recogería este mes y la actualización se
+        // perdería hasta la próxima escritura.
+        await markSheetJobDirty(companyId, year, monthIndex).catch(() => { });
+        // Drive no respondió a tiempo. No es un fallo del usuario: el mes ya quedó
+        // marcado para el cron, así que devolvemos 200 en vez de agotar el
+        // contenedor y que la infra devuelva un 504 sin CORS.
+        if (err instanceof DriveBudgetExceededError) {
+            console.warn(`[save-invoice-sheet] presupuesto agotado en ${companyId}/${year}-${monthIndex + 1}`);
+            return { queued: true, reason: 'timeout' };
+        }
         if (err instanceof DriveTokenExpiredError) {
             throw new HttpsError('failed-precondition', 'El Drive de la empresa se desconectó (la sesión de Google caducó). El propietario debe reconectarlo en Ajustes → Compañías.');
         }
@@ -48,6 +83,9 @@ export const saveInvoiceSheetToDrive = onCall({ region: 'us-central1', memory: '
             throw new HttpsError('failed-precondition', 'Al reconectar Drive no se concedió el permiso completo. El propietario debe volver a Ajustes → Compañías, Desconectar y Conectar Drive, y marcar TODAS las casillas de permiso de Google Drive en la pantalla de Google.');
         }
         throw err;
+    }
+    finally {
+        await releaseSheetJob(claim.ref);
     }
 });
 //# sourceMappingURL=save-invoice-sheet.js.map

@@ -4,9 +4,16 @@ import {
   driveClientSecret,
   DriveTokenExpiredError,
   DriveScopeError,
+  DriveBudgetExceededError,
 } from './services/drive-oauth.js'
 import { assertCompanyMember } from './utils/company-access.js'
 import { regenerateTransferSheet } from './invoice-sheet/regenerate-transfers.js'
+import {
+  claimSheetJob,
+  releaseSheetJob,
+  markSheetJobDirty,
+  newLockOwner,
+} from './invoice-sheet/sheet-lock.js'
 
 // Genera la hoja de seguimiento de TRASLADOS del mes y la sube a Drive como Google
 // Sheet nativo, en {root}/{YYYY}/{MesEs}/Seguimiento/ (junto a la hoja de facturas).
@@ -21,6 +28,11 @@ interface SaveSheetInput {
 }
 
 const SECRETS = [driveClientId, driveClientSecret]
+
+// Misma cascada de tiempos que saveInvoiceSheetToDrive (ver ahí el porqué).
+// OJO: gcloud IGNORA el `timeoutSeconds` del literal → hay que pasar --timeout=60.
+const CALLABLE_BUDGET_MS = 50_000
+const CALLABLE_ATTEMPT_TIMEOUT_MS = 20_000
 
 // Traduce el motivo de "skipped" de regenerateTransferSheet a un mensaje accionable.
 function messageForReason(reason: string): string {
@@ -40,7 +52,7 @@ function messageForReason(reason: string): string {
 }
 
 export const saveTransferSheetToDrive = onCall(
-  { region: 'us-central1', memory: '512MiB', timeoutSeconds: 120, secrets: SECRETS },
+  { region: 'us-central1', memory: '512MiB', timeoutSeconds: 60, secrets: SECRETS },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Login requerido')
@@ -58,14 +70,39 @@ export const saveTransferSheetToDrive = onCall(
 
     await assertCompanyMember(request.auth.uid, data.companyId)
 
+    const { companyId, year, monthIndex } = data
+
+    // Lock compartido con la hoja de facturas y con el cron: son archivos
+    // distintos, pero resuelven la misma ruta de carpetas con ensureFolderPath y
+    // dos findOrCreateFolder concurrentes pueden duplicar carpetas en Drive.
+    const claim = await claimSheetJob(companyId, year, monthIndex, newLockOwner('callable-tr'))
+    if (!claim.claimed) {
+      await markSheetJobDirty(companyId, year, monthIndex)
+      return { queued: true as const, reason: 'locked' as const }
+    }
+
     try {
-      const result = await regenerateTransferSheet(data.companyId, data.year, data.monthIndex)
+      const result = await regenerateTransferSheet(companyId, year, monthIndex, {
+        deadlineAt: Date.now() + CALLABLE_BUDGET_MS,
+        attemptTimeoutMs: CALLABLE_ATTEMPT_TIMEOUT_MS,
+      })
       if ('skipped' in result) {
         throw new HttpsError('failed-precondition', messageForReason(result.reason))
       }
       return result
     } catch (err) {
+      // `skipped` (incl. 'no-transfers') sale por aquí sin re-marcar dirty,
+      // igual que hace el cron.
       if (err instanceof HttpsError) throw err
+
+      // Fallo real: el claim limpió `dirty`, hay que reponerlo o el cron no
+      // recogería este mes. Ver save-invoice-sheet.ts.
+      await markSheetJobDirty(companyId, year, monthIndex).catch(() => {})
+
+      if (err instanceof DriveBudgetExceededError) {
+        console.warn(`[save-transfer-sheet] presupuesto agotado en ${companyId}/${year}-${monthIndex + 1}`)
+        return { queued: true as const, reason: 'timeout' as const }
+      }
       if (err instanceof DriveTokenExpiredError) {
         throw new HttpsError(
           'failed-precondition',
@@ -79,6 +116,8 @@ export const saveTransferSheetToDrive = onCall(
         )
       }
       throw err
+    } finally {
+      await releaseSheetJob(claim.ref)
     }
   },
 )

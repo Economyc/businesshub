@@ -16,7 +16,7 @@ import { buildWorkbookBase64 } from './build-workbook.js';
 import { inMonthBogota } from './month.js';
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const GOOGLE_SHEET_MIME = 'application/vnd.google-apps.spreadsheet';
-export async function regenerateTransferSheet(companyId, year, monthIndex) {
+export async function regenerateTransferSheet(companyId, year, monthIndex, opts) {
     // 1) Company + Drive configurado (misma carpeta que la hoja de facturas).
     const companySnap = await db.collection('companies').doc(companyId).get();
     if (!companySnap.exists)
@@ -48,12 +48,8 @@ export async function regenerateTransferSheet(companyId, year, monthIndex) {
     const fileBase64 = await buildWorkbookBase64(sheets);
     const month = MESES_ES[monthIndex];
     const fileName = `Seguimiento traslados - ${month} ${year}`;
-    const targetFolderId = await ensureFolderPath(driveUid, companyId, driveRootFolderId, [
-        String(year),
-        monthFolderName(monthIndex),
-        SUBFOLDER_TRACKING,
-    ]);
-    const uploaded = await uploadOrReplaceFile(driveUid, targetFolderId, fileName, XLSX_MIME, fileBase64, GOOGLE_SHEET_MIME);
+    const targetFolderId = await ensureFolderPath(driveUid, companyId, driveRootFolderId, [String(year), monthFolderName(monthIndex), SUBFOLDER_TRACKING], opts);
+    const uploaded = await uploadOrReplaceFile(driveUid, targetFolderId, fileName, XLSX_MIME, fileBase64, GOOGLE_SHEET_MIME, opts);
     return {
         driveFileId: uploaded.driveFileId,
         webViewLink: uploaded.webViewLink,

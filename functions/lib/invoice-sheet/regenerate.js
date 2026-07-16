@@ -13,13 +13,14 @@
 // a HttpsError; el dispatch los captura por-job y re-marca dirty para reintento.
 import { db, fetchCollection } from '../firestore.js';
 import { ensureFolderPath, uploadOrReplaceFile, resolveDriveUid, getUserDriveAuth, } from '../services/drive-oauth.js';
+import { mapLimit } from '../utils/map-limit.js';
 import { MESES_ES, monthFolderName, SUBFOLDER_TRACKING } from '../utils/doc-naming.js';
 import { ACCOUNTING_FIELDS, PAYABLE_FIELDS, RECEIVABLE_FIELDS, INTERLOCAL_FIELDS, PAYMENT_FIELDS, buildAccountingRows, buildPayableRows, buildInterLocalRows, buildPaymentRows, } from './accounting-rows.js';
 import { buildWorkbookBase64 } from './build-workbook.js';
 import { inMonthBogota, isCurrentMonthBogota } from './month.js';
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const GOOGLE_SHEET_MIME = 'application/vnd.google-apps.spreadsheet';
-export async function regenerateInvoiceSheet(companyId, year, monthIndex) {
+export async function regenerateInvoiceSheet(companyId, year, monthIndex, opts) {
     // 1) Company + Drive configurado
     const companySnap = await db.collection('companies').doc(companyId).get();
     if (!companySnap.exists)
@@ -53,7 +54,10 @@ export async function regenerateInvoiceSheet(companyId, year, monthIndex) {
     //     (paidAmount denormalizado y estado pagado/parcial). Necesario para la
     //     pestaña Abonos.
     const managedTxs = txs.filter((t) => t.paidAmount != null && (t.status === 'paid' || t.status === 'partial'));
-    const managed = await Promise.all(managedTxs.map(async (tx) => {
+    //     Con tope de concurrencia: esto corre dentro de la sección crítica del
+    //     lock del mes (sheet-lock.ts), así que abrir un .get() por tx a la vez
+    //     alarga la ventana en la que el resto responde `queued`.
+    const managed = await mapLimit(managedTxs, 8, async (tx) => {
         const snap = await db
             .collection('companies')
             .doc(companyId)
@@ -63,7 +67,7 @@ export async function regenerateInvoiceSheet(companyId, year, monthIndex) {
             .get();
         const payments = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
         return { tx, payments };
-    }));
+    });
     // 4) Pagadas del mes (anclado por paidDate ?? date, hora Bogotá).
     //    interLocal se excluye: sólo aparece en su pestaña (neutralidad F4).
     const paid = txs.filter((t) => t.status === 'paid' &&
@@ -112,12 +116,8 @@ export async function regenerateInvoiceSheet(companyId, year, monthIndex) {
     const fileBase64 = await buildWorkbookBase64(sheets);
     const month = MESES_ES[monthIndex];
     const fileName = `Seguimiento facturas - ${month} ${year}`;
-    const targetFolderId = await ensureFolderPath(driveUid, companyId, driveRootFolderId, [
-        String(year),
-        monthFolderName(monthIndex),
-        SUBFOLDER_TRACKING,
-    ]);
-    const uploaded = await uploadOrReplaceFile(driveUid, targetFolderId, fileName, XLSX_MIME, fileBase64, GOOGLE_SHEET_MIME);
+    const targetFolderId = await ensureFolderPath(driveUid, companyId, driveRootFolderId, [String(year), monthFolderName(monthIndex), SUBFOLDER_TRACKING], opts);
+    const uploaded = await uploadOrReplaceFile(driveUid, targetFolderId, fileName, XLSX_MIME, fileBase64, GOOGLE_SHEET_MIME, opts);
     return {
         driveFileId: uploaded.driveFileId,
         webViewLink: uploaded.webViewLink,

@@ -1,8 +1,13 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import { driveClientId, driveClientSecret, DriveTokenExpiredError, DriveScopeError, } from './services/drive-oauth.js';
+import { driveClientId, driveClientSecret, DriveTokenExpiredError, DriveScopeError, DriveBudgetExceededError, } from './services/drive-oauth.js';
 import { assertCompanyMember } from './utils/company-access.js';
 import { regenerateTransferSheet } from './invoice-sheet/regenerate-transfers.js';
+import { claimSheetJob, releaseSheetJob, markSheetJobDirty, newLockOwner, } from './invoice-sheet/sheet-lock.js';
 const SECRETS = [driveClientId, driveClientSecret];
+// Misma cascada de tiempos que saveInvoiceSheetToDrive (ver ahí el porqué).
+// OJO: gcloud IGNORA el `timeoutSeconds` del literal → hay que pasar --timeout=60.
+const CALLABLE_BUDGET_MS = 50_000;
+const CALLABLE_ATTEMPT_TIMEOUT_MS = 20_000;
 // Traduce el motivo de "skipped" de regenerateTransferSheet a un mensaje accionable.
 function messageForReason(reason) {
     switch (reason) {
@@ -19,7 +24,7 @@ function messageForReason(reason) {
             return 'No se pudo generar la hoja en Drive.';
     }
 }
-export const saveTransferSheetToDrive = onCall({ region: 'us-central1', memory: '512MiB', timeoutSeconds: 120, secrets: SECRETS }, async (request) => {
+export const saveTransferSheetToDrive = onCall({ region: 'us-central1', memory: '512MiB', timeoutSeconds: 60, secrets: SECRETS }, async (request) => {
     if (!request.auth) {
         throw new HttpsError('unauthenticated', 'Login requerido');
     }
@@ -33,16 +38,37 @@ export const saveTransferSheetToDrive = onCall({ region: 'us-central1', memory: 
         throw new HttpsError('invalid-argument', 'year/monthIndex inválidos');
     }
     await assertCompanyMember(request.auth.uid, data.companyId);
+    const { companyId, year, monthIndex } = data;
+    // Lock compartido con la hoja de facturas y con el cron: son archivos
+    // distintos, pero resuelven la misma ruta de carpetas con ensureFolderPath y
+    // dos findOrCreateFolder concurrentes pueden duplicar carpetas en Drive.
+    const claim = await claimSheetJob(companyId, year, monthIndex, newLockOwner('callable-tr'));
+    if (!claim.claimed) {
+        await markSheetJobDirty(companyId, year, monthIndex);
+        return { queued: true, reason: 'locked' };
+    }
     try {
-        const result = await regenerateTransferSheet(data.companyId, data.year, data.monthIndex);
+        const result = await regenerateTransferSheet(companyId, year, monthIndex, {
+            deadlineAt: Date.now() + CALLABLE_BUDGET_MS,
+            attemptTimeoutMs: CALLABLE_ATTEMPT_TIMEOUT_MS,
+        });
         if ('skipped' in result) {
             throw new HttpsError('failed-precondition', messageForReason(result.reason));
         }
         return result;
     }
     catch (err) {
+        // `skipped` (incl. 'no-transfers') sale por aquí sin re-marcar dirty,
+        // igual que hace el cron.
         if (err instanceof HttpsError)
             throw err;
+        // Fallo real: el claim limpió `dirty`, hay que reponerlo o el cron no
+        // recogería este mes. Ver save-invoice-sheet.ts.
+        await markSheetJobDirty(companyId, year, monthIndex).catch(() => { });
+        if (err instanceof DriveBudgetExceededError) {
+            console.warn(`[save-transfer-sheet] presupuesto agotado en ${companyId}/${year}-${monthIndex + 1}`);
+            return { queued: true, reason: 'timeout' };
+        }
         if (err instanceof DriveTokenExpiredError) {
             throw new HttpsError('failed-precondition', 'El Drive de la empresa se desconectó (la sesión de Google caducó). El propietario debe reconectarlo en Ajustes → Compañías.');
         }
@@ -50,6 +76,9 @@ export const saveTransferSheetToDrive = onCall({ region: 'us-central1', memory: 
             throw new HttpsError('failed-precondition', 'Al reconectar Drive no se concedió el permiso completo. El propietario debe volver a Ajustes → Compañías, Desconectar y Conectar Drive, y marcar TODAS las casillas de permiso de Google Drive en la pantalla de Google.');
         }
         throw err;
+    }
+    finally {
+        await releaseSheetJob(claim.ref);
     }
 });
 //# sourceMappingURL=save-transfer-sheet.js.map

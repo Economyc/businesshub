@@ -54,6 +54,52 @@ export declare function isInvalidGrant(err: unknown): boolean;
 /** Detecta el caso "token sin scope de Drive" (403 / insufficient scopes). */
 export declare function isInsufficientScope(err: unknown): boolean;
 /**
+ * Error tipado: se agotó el presupuesto de tiempo antes de conseguir que Drive
+ * respondiera. El caller lo traduce a "encolado" en vez de a un fallo duro — el
+ * cron regenerará la hoja. Existe para NUNCA llegar al timeout del contenedor:
+ * un 504 lo genera la infra de Cloud Run sin header CORS, y el navegador lo
+ * reporta como un error de CORS que despista (bug de prod 2026-07-16).
+ */
+export declare class DriveBudgetExceededError extends Error {
+    constructor();
+}
+export interface DriveOpts {
+    /** Epoch ms. Al pasarse, se lanza DriveBudgetExceededError en vez de reintentar. */
+    deadlineAt?: number;
+    /** Timeout de cada request a Drive. */
+    attemptTimeoutMs?: number;
+    maxAttempts?: number;
+}
+/** Opciones de gaxios por request: sin retry interno (ver withDriveRetry) + timeout. */
+export declare function driveReqOpts(opts: DriveOpts | undefined, capMs?: number): {
+    retry: boolean;
+    timeout: number;
+};
+/**
+ * ¿Merece la pena reintentar este error de Drive? Solo fallos transitorios.
+ *
+ * Contexto: gaxios NO reintenta nada de esto por su cuenta — su
+ * `httpMethodsToRetry` por defecto es GET/HEAD/PUT/OPTIONS/DELETE, y el upload
+ * de la hoja es PATCH (files.update) o POST (files.create). O sea que hasta
+ * ahora un 500 de Drive moría al primer intento.
+ */
+export declare function isRetryableDriveError(err: unknown): boolean;
+/**
+ * Reintenta `fn` con backoff exponencial ante fallos transitorios de Drive.
+ *
+ * `fn` DEBE ser idempotente y auto-contenida: se la envuelve entera (p. ej.
+ * list → update|create), no llamada a llamada. Motivos:
+ *  - Reintentar un `files.create` suelto tras un 500 puede DUPLICAR el archivo
+ *    (el 500 puede llegar con el archivo ya creado). Al re-ejecutar el bloque
+ *    completo, el `list` encuentra lo que dejó el intento fallido y toma `update`.
+ *  - El body del upload es un `Readable`, que se consume: cada intento tiene que
+ *    reconstruirlo. Metiendo el stream dentro de `fn` sale gratis.
+ *
+ * Va DENTRO de runDrive: los errores de auth salen intactos al primer intento y
+ * runDrive los traduce como siempre.
+ */
+export declare function withDriveRetry<T>(fn: () => Promise<T>, opts?: DriveOpts): Promise<T>;
+/**
  * Resuelve qué uid de Drive usar para las operaciones de una empresa.
  *
  * 1. Si la empresa tiene `driveOwnerUid` explícito → ese (override manual).
@@ -66,7 +112,7 @@ export declare function resolveDriveUid(companyId: string, fallbackUid: string):
  * Lanza error si no hay token configurado.
  */
 export declare function getDriveForUser(uid: string): Promise<drive_v3.Drive>;
-export declare function ensureFolderPath(uid: string, companyId: string, rootFolderId: string, segments: string[]): Promise<string>;
+export declare function ensureFolderPath(uid: string, companyId: string, rootFolderId: string, segments: string[], opts?: DriveOpts): Promise<string>;
 export interface UploadResult {
     driveFileId: string;
     webViewLink: string;
@@ -83,7 +129,7 @@ export declare function uploadFile(uid: string, parentFolderId: string, fileName
  * sin necesidad del scope de Sheets. Al actualizar un archivo que ya es nativo
  * de Google, subir media .xlsx reemplaza su contenido y Drive lo re-convierte.
  */
-export declare function uploadOrReplaceFile(uid: string, parentFolderId: string, fileName: string, mediaMimeType: string, fileBase64: string, convertToMimeType?: string): Promise<UploadResult>;
+export declare function uploadOrReplaceFile(uid: string, parentFolderId: string, fileName: string, mediaMimeType: string, fileBase64: string, convertToMimeType?: string, opts?: DriveOpts): Promise<UploadResult>;
 /**
  * Borra un archivo de Drive por id. Idempotente: si el archivo ya no existe
  * (404), devuelve `notFound: true` sin lanzar — el caller lo trata como éxito.

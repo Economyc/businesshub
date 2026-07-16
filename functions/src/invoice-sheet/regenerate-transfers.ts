@@ -15,6 +15,7 @@ import {
   uploadOrReplaceFile,
   resolveDriveUid,
   getUserDriveAuth,
+  type DriveOpts,
 } from '../services/drive-oauth.js'
 import { MESES_ES, monthFolderName, SUBFOLDER_TRACKING } from '../utils/doc-naming.js'
 import {
@@ -33,6 +34,7 @@ export async function regenerateTransferSheet(
   companyId: string,
   year: number,
   monthIndex: number,
+  opts?: DriveOpts,
 ): Promise<RegenerateResult> {
   // 1) Company + Drive configurado (misma carpeta que la hoja de facturas).
   const companySnap = await db.collection('companies').doc(companyId).get()
@@ -64,11 +66,13 @@ export async function regenerateTransferSheet(
   const fileBase64 = await buildWorkbookBase64(sheets)
   const month = MESES_ES[monthIndex]
   const fileName = `Seguimiento traslados - ${month} ${year}`
-  const targetFolderId = await ensureFolderPath(driveUid, companyId, driveRootFolderId, [
-    String(year),
-    monthFolderName(monthIndex),
-    SUBFOLDER_TRACKING,
-  ])
+  const targetFolderId = await ensureFolderPath(
+    driveUid,
+    companyId,
+    driveRootFolderId,
+    [String(year), monthFolderName(monthIndex), SUBFOLDER_TRACKING],
+    opts,
+  )
   const uploaded = await uploadOrReplaceFile(
     driveUid,
     targetFolderId,
@@ -76,6 +80,7 @@ export async function regenerateTransferSheet(
     XLSX_MIME,
     fileBase64,
     GOOGLE_SHEET_MIME,
+    opts,
   )
   return {
     driveFileId: uploaded.driveFileId,

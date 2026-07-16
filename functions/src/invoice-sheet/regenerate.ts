@@ -18,7 +18,9 @@ import {
   uploadOrReplaceFile,
   resolveDriveUid,
   getUserDriveAuth,
+  type DriveOpts,
 } from '../services/drive-oauth.js'
+import { mapLimit } from '../utils/map-limit.js'
 import { MESES_ES, monthFolderName, SUBFOLDER_TRACKING } from '../utils/doc-naming.js'
 import {
   ACCOUNTING_FIELDS,
@@ -48,6 +50,7 @@ export async function regenerateInvoiceSheet(
   companyId: string,
   year: number,
   monthIndex: number,
+  opts?: DriveOpts,
 ): Promise<RegenerateResult> {
   // 1) Company + Drive configurado
   const companySnap = await db.collection('companies').doc(companyId).get()
@@ -82,19 +85,20 @@ export async function regenerateInvoiceSheet(
   const managedTxs = txs.filter(
     (t) => t.paidAmount != null && (t.status === 'paid' || t.status === 'partial'),
   )
-  const managed: ManagedTx[] = await Promise.all(
-    managedTxs.map(async (tx) => {
-      const snap = await db
-        .collection('companies')
-        .doc(companyId)
-        .collection('transactions')
-        .doc(tx.id)
-        .collection('payments')
-        .get()
-      const payments = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as AdminPayment)
-      return { tx, payments }
-    }),
-  )
+  //     Con tope de concurrencia: esto corre dentro de la sección crítica del
+  //     lock del mes (sheet-lock.ts), así que abrir un .get() por tx a la vez
+  //     alarga la ventana en la que el resto responde `queued`.
+  const managed: ManagedTx[] = await mapLimit(managedTxs, 8, async (tx) => {
+    const snap = await db
+      .collection('companies')
+      .doc(companyId)
+      .collection('transactions')
+      .doc(tx.id)
+      .collection('payments')
+      .get()
+    const payments = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as AdminPayment)
+    return { tx, payments }
+  })
 
   // 4) Pagadas del mes (anclado por paidDate ?? date, hora Bogotá).
   //    interLocal se excluye: sólo aparece en su pestaña (neutralidad F4).
@@ -159,11 +163,13 @@ export async function regenerateInvoiceSheet(
   const fileBase64 = await buildWorkbookBase64(sheets)
   const month = MESES_ES[monthIndex]
   const fileName = `Seguimiento facturas - ${month} ${year}`
-  const targetFolderId = await ensureFolderPath(driveUid, companyId, driveRootFolderId, [
-    String(year),
-    monthFolderName(monthIndex),
-    SUBFOLDER_TRACKING,
-  ])
+  const targetFolderId = await ensureFolderPath(
+    driveUid,
+    companyId,
+    driveRootFolderId,
+    [String(year), monthFolderName(monthIndex), SUBFOLDER_TRACKING],
+    opts,
+  )
   const uploaded = await uploadOrReplaceFile(
     driveUid,
     targetFolderId,
@@ -171,6 +177,7 @@ export async function regenerateInvoiceSheet(
     XLSX_MIME,
     fileBase64,
     GOOGLE_SHEET_MIME,
+    opts,
   )
   return {
     driveFileId: uploaded.driveFileId,

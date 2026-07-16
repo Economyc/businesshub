@@ -205,6 +205,119 @@ async function runDrive<T>(uid: string, fn: () => Promise<T>): Promise<T> {
 }
 
 /**
+ * Error tipado: se agotó el presupuesto de tiempo antes de conseguir que Drive
+ * respondiera. El caller lo traduce a "encolado" en vez de a un fallo duro — el
+ * cron regenerará la hoja. Existe para NUNCA llegar al timeout del contenedor:
+ * un 504 lo genera la infra de Cloud Run sin header CORS, y el navegador lo
+ * reporta como un error de CORS que despista (bug de prod 2026-07-16).
+ */
+export class DriveBudgetExceededError extends Error {
+  constructor() {
+    super('DRIVE_BUDGET_EXCEEDED')
+    this.name = 'DriveBudgetExceededError'
+  }
+}
+
+export interface DriveOpts {
+  /** Epoch ms. Al pasarse, se lanza DriveBudgetExceededError en vez de reintentar. */
+  deadlineAt?: number
+  /** Timeout de cada request a Drive. */
+  attemptTimeoutMs?: number
+  maxAttempts?: number
+}
+
+const DEFAULT_ATTEMPT_TIMEOUT_MS = 30_000
+const DEFAULT_MAX_ATTEMPTS = 4
+
+/** Opciones de gaxios por request: sin retry interno (ver withDriveRetry) + timeout. */
+export function driveReqOpts(opts: DriveOpts | undefined, capMs?: number) {
+  const t = opts?.attemptTimeoutMs ?? DEFAULT_ATTEMPT_TIMEOUT_MS
+  return { retry: false, timeout: capMs ? Math.min(t, capMs) : t }
+}
+
+/**
+ * ¿Merece la pena reintentar este error de Drive? Solo fallos transitorios.
+ *
+ * Contexto: gaxios NO reintenta nada de esto por su cuenta — su
+ * `httpMethodsToRetry` por defecto es GET/HEAD/PUT/OPTIONS/DELETE, y el upload
+ * de la hoja es PATCH (files.update) o POST (files.create). O sea que hasta
+ * ahora un 500 de Drive moría al primer intento.
+ */
+export function isRetryableDriveError(err: unknown): boolean {
+  // Los errores de auth NO son transitorios: reintentarlos solo repetiría el
+  // clearDriveAuth de runDrive. Cortocircuito antes que nada.
+  if (isInvalidGrant(err) || isInsufficientScope(err)) return false
+
+  const e = err as {
+    code?: unknown
+    status?: unknown
+    name?: unknown
+    message?: unknown
+    response?: { status?: number; data?: { error?: { errors?: { reason?: string }[] } } }
+  }
+
+  // Nuestro propio timeout por intento (gaxios aborta con AbortError).
+  if (e?.name === 'AbortError') return true
+
+  const status = Number(e?.response?.status ?? e?.status ?? e?.code)
+  if ([408, 429, 500, 502, 503, 504].includes(status)) return true
+
+  const reasons = e?.response?.data?.error?.errors?.map((x) => x.reason) ?? []
+  if (
+    reasons.some((r) =>
+      ['rateLimitExceeded', 'userRateLimitExceeded', 'backendError', 'internalError'].includes(
+        r ?? '',
+      ),
+    )
+  ) {
+    return true
+  }
+
+  if (typeof e?.code === 'string' && ['ECONNRESET', 'ETIMEDOUT', 'EPIPE'].includes(e.code)) {
+    return true
+  }
+  const msg = typeof e?.message === 'string' ? e.message.toLowerCase() : ''
+  return msg.includes('socket hang up')
+}
+
+/**
+ * Reintenta `fn` con backoff exponencial ante fallos transitorios de Drive.
+ *
+ * `fn` DEBE ser idempotente y auto-contenida: se la envuelve entera (p. ej.
+ * list → update|create), no llamada a llamada. Motivos:
+ *  - Reintentar un `files.create` suelto tras un 500 puede DUPLICAR el archivo
+ *    (el 500 puede llegar con el archivo ya creado). Al re-ejecutar el bloque
+ *    completo, el `list` encuentra lo que dejó el intento fallido y toma `update`.
+ *  - El body del upload es un `Readable`, que se consume: cada intento tiene que
+ *    reconstruirlo. Metiendo el stream dentro de `fn` sale gratis.
+ *
+ * Va DENTRO de runDrive: los errores de auth salen intactos al primer intento y
+ * runDrive los traduce como siempre.
+ */
+export async function withDriveRetry<T>(fn: () => Promise<T>, opts?: DriveOpts): Promise<T> {
+  const maxAttempts = opts?.maxAttempts ?? DEFAULT_MAX_ATTEMPTS
+  const attemptTimeoutMs = opts?.attemptTimeoutMs ?? DEFAULT_ATTEMPT_TIMEOUT_MS
+  const deadlineAt = opts?.deadlineAt ?? Infinity
+
+  for (let attempt = 1; ; attempt++) {
+    if (Date.now() + attemptTimeoutMs > deadlineAt) throw new DriveBudgetExceededError()
+    try {
+      return await fn()
+    } catch (err) {
+      if (attempt >= maxAttempts || !isRetryableDriveError(err)) throw err
+      const delay = Math.min(1000 * 2 ** (attempt - 1), 8000) + Math.random() * 250
+      // El presupuesto manda sobre el contador de intentos: si el siguiente
+      // intento no cabe entero, cortar ya en vez de agotar el deadline del caller.
+      if (Date.now() + delay + attemptTimeoutMs > deadlineAt) throw new DriveBudgetExceededError()
+      console.warn(
+        `[drive-retry] intento ${attempt}/${maxAttempts} falló (${(err as Error)?.message}); reintento en ${Math.round(delay)}ms`,
+      )
+      await new Promise((r) => setTimeout(r, delay))
+    }
+  }
+}
+
+/**
  * Resuelve qué uid de Drive usar para las operaciones de una empresa.
  *
  * 1. Si la empresa tiene `driveOwnerUid` explícito → ese (override manual).
@@ -277,16 +390,20 @@ async function findFolder(
   drive: drive_v3.Drive,
   parentId: string,
   name: string,
+  opts?: DriveOpts,
 ): Promise<string | null> {
   const escapedName = name.replace(/'/g, "\\'")
   const q = `'${parentId}' in parents and name = '${escapedName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`
-  const list = await drive.files.list({
-    q,
-    fields: 'files(id, name)',
-    pageSize: 1,
-    supportsAllDrives: true,
-    includeItemsFromAllDrives: true,
-  })
+  const list = await drive.files.list(
+    {
+      q,
+      fields: 'files(id, name)',
+      pageSize: 1,
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
+    },
+    driveReqOpts(opts, 10_000),
+  )
   return list.data.files?.[0]?.id ?? null
 }
 
@@ -303,32 +420,39 @@ async function findOrCreateFolder(
   drive: drive_v3.Drive,
   parentId: string,
   name: string,
+  opts?: DriveOpts,
 ): Promise<string> {
-  const existing = await findFolder(drive, parentId, name)
+  const existing = await findFolder(drive, parentId, name, opts)
   if (existing) return existing
 
   const legacy = legacyMonthName(name)
   if (legacy) {
-    const legacyId = await findFolder(drive, parentId, legacy)
+    const legacyId = await findFolder(drive, parentId, legacy, opts)
     if (legacyId) {
-      await drive.files.update({
-        fileId: legacyId,
-        requestBody: { name },
-        supportsAllDrives: true,
-      })
+      await drive.files.update(
+        {
+          fileId: legacyId,
+          requestBody: { name },
+          supportsAllDrives: true,
+        },
+        driveReqOpts(opts),
+      )
       return legacyId
     }
   }
 
-  const created = await drive.files.create({
-    requestBody: {
-      name,
-      mimeType: 'application/vnd.google-apps.folder',
-      parents: [parentId],
+  const created = await drive.files.create(
+    {
+      requestBody: {
+        name,
+        mimeType: 'application/vnd.google-apps.folder',
+        parents: [parentId],
+      },
+      fields: 'id',
+      supportsAllDrives: true,
     },
-    fields: 'id',
-    supportsAllDrives: true,
-  })
+    driveReqOpts(opts),
+  )
   if (!created.data.id) throw new Error(`No se pudo crear la carpeta "${name}"`)
   return created.data.id
 }
@@ -338,6 +462,7 @@ export async function ensureFolderPath(
   companyId: string,
   rootFolderId: string,
   segments: string[],
+  opts?: DriveOpts,
 ): Promise<string> {
   const drive = await getDriveForUser(uid)
   let parent = rootFolderId
@@ -353,7 +478,11 @@ export async function ensureFolderPath(
       parent = cached
       continue
     }
-    const folderId = await runDrive(uid, () => findOrCreateFolder(drive, parent, seg))
+    // findOrCreateFolder es find-then-create → re-ejecutarlo es idempotente
+    // (el reintento re-hace el find y encuentra lo que dejó el intento fallido).
+    const folderId = await runDrive(uid, () =>
+      withDriveRetry(() => findOrCreateFolder(drive, parent, seg, opts), opts),
+    )
     await setCachedFolder(companyId, cacheKey, folderId)
     parent = folderId
   }
@@ -411,52 +540,67 @@ export async function uploadOrReplaceFile(
   mediaMimeType: string,
   fileBase64: string,
   convertToMimeType?: string,
+  opts?: DriveOpts,
 ): Promise<UploadResult> {
   const drive = await getDriveForUser(uid)
   const buffer = Buffer.from(fileBase64, 'base64')
 
-  return runDrive(uid, async () => {
-    const escapedName = fileName.replace(/'/g, "\\'")
-    const list = await drive.files.list({
-      q: `'${parentFolderId}' in parents and name = '${escapedName}' and trashed = false`,
-      fields: 'files(id, name)',
-      pageSize: 1,
-      supportsAllDrives: true,
-      includeItemsFromAllDrives: true,
-    })
-    const existing = list.data.files?.[0]
-
-    const result = existing?.id
-      ? await drive.files.update({
-          fileId: existing.id,
-          // Forzamos el tipo de conversión también al actualizar: si el archivo
-          // previo no fuese un Sheet nativo (p. ej. un .xlsx crudo legacy),
-          // esto garantiza que quede convertido igual y no se rompa la idempotencia.
-          requestBody: convertToMimeType ? { mimeType: convertToMimeType } : {},
-          media: { mimeType: mediaMimeType, body: Readable.from(buffer) },
-          fields: 'id, webViewLink, name',
+  // El retry envuelve list+update/create como una unidad: así el reintento
+  // re-lista (nunca duplica el archivo) y reconstruye el stream del body, que
+  // el intento anterior dejó consumido. Ver withDriveRetry.
+  return runDrive(uid, () =>
+    withDriveRetry(async () => {
+      const escapedName = fileName.replace(/'/g, "\\'")
+      const list = await drive.files.list(
+        {
+          q: `'${parentFolderId}' in parents and name = '${escapedName}' and trashed = false`,
+          fields: 'files(id, name)',
+          pageSize: 1,
           supportsAllDrives: true,
-        })
-      : await drive.files.create({
-          requestBody: {
-            name: fileName,
-            parents: [parentFolderId],
-            ...(convertToMimeType ? { mimeType: convertToMimeType } : {}),
-          },
-          media: { mimeType: mediaMimeType, body: Readable.from(buffer) },
-          fields: 'id, webViewLink, name',
-          supportsAllDrives: true,
-        })
+          includeItemsFromAllDrives: true,
+        },
+        driveReqOpts(opts, 10_000),
+      )
+      const existing = list.data.files?.[0]
 
-    if (!result.data.id || !result.data.webViewLink) {
-      throw new Error('Drive no retornó id/webViewLink al guardar el archivo')
-    }
-    return {
-      driveFileId: result.data.id,
-      webViewLink: result.data.webViewLink,
-      fileName: result.data.name ?? fileName,
-    }
-  })
+      const result = existing?.id
+        ? await drive.files.update(
+            {
+              fileId: existing.id,
+              // Forzamos el tipo de conversión también al actualizar: si el archivo
+              // previo no fuese un Sheet nativo (p. ej. un .xlsx crudo legacy),
+              // esto garantiza que quede convertido igual y no se rompa la idempotencia.
+              requestBody: convertToMimeType ? { mimeType: convertToMimeType } : {},
+              media: { mimeType: mediaMimeType, body: Readable.from(buffer) },
+              fields: 'id, webViewLink, name',
+              supportsAllDrives: true,
+            },
+            driveReqOpts(opts),
+          )
+        : await drive.files.create(
+            {
+              requestBody: {
+                name: fileName,
+                parents: [parentFolderId],
+                ...(convertToMimeType ? { mimeType: convertToMimeType } : {}),
+              },
+              media: { mimeType: mediaMimeType, body: Readable.from(buffer) },
+              fields: 'id, webViewLink, name',
+              supportsAllDrives: true,
+            },
+            driveReqOpts(opts),
+          )
+
+      if (!result.data.id || !result.data.webViewLink) {
+        throw new Error('Drive no retornó id/webViewLink al guardar el archivo')
+      }
+      return {
+        driveFileId: result.data.id,
+        webViewLink: result.data.webViewLink,
+        fileName: result.data.name ?? fileName,
+      }
+    }, opts),
+  )
 }
 
 /**
