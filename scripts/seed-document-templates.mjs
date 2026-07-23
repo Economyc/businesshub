@@ -111,8 +111,12 @@ if (files.length === 0) {
 const bucket = await resolveBucket()
 console.log(`Bucket: ${bucket.name} — ${files.length} plantilla(s) en ${rootDir}\n`)
 
+// Clave de upsert = nombre + razon social, NO solo el nombre: dos razones
+// sociales pueden tener legitimamente la misma plantilla (ej. "Certificado
+// Laboral" de Blue y de Filipo) y no deben pisarse entre si.
+const keyOf = (name, entity) => `${entity}::${name}`
 const existingSnap = await db.collection(COLLECTION).get()
-const existingByName = new Map(existingSnap.docs.map((d) => [d.data().name, d]))
+const existingByKey = new Map(existingSnap.docs.map((d) => [keyOf(d.data().name, d.data().entity), d]))
 
 for (const f of files) {
   const override = OVERRIDES[f.fileName] ?? {}
@@ -137,7 +141,7 @@ for (const f of files) {
 
   const now = admin.firestore.Timestamp.now()
   const data = { name, entity, fileName: f.fileName, storagePath, downloadUrl, mimeType, sizeBytes, updatedAt: now }
-  const existing = existingByName.get(name)
+  const existing = existingByKey.get(keyOf(name, entity))
   if (existing) {
     const oldPath = existing.data().storagePath
     await existing.ref.update(data)
