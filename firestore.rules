@@ -48,6 +48,14 @@ service cloud.firestore {
       allow read, write: if request.auth != null;
     }
 
+    // Catálogo de plantillas de documentos (módulo Documentos de Ecore).
+    // Mismo patrón que suppliers: raíz, un solo catálogo para todos los locales;
+    // cada plantilla lleva su etiqueta de razón social (blue/filipo/general).
+    // Los archivos viven en Storage bajo document-templates/.
+    match /documentTemplates/{templateId} {
+      allow read, write: if request.auth != null;
+    }
+
     // LLM rate-limits: solo Admin SDK desde Cloud Functions
     match /system/llm-rate-limits/{document=**} {
       allow read, write: if false;
