@@ -7,7 +7,7 @@ import {
   fetchMembers,
   adminDeleteUserCallable,
   adminSetUserStatusCallable,
-  updateMember,
+  adminSetMemberRoleCallable,
 } from '@/core/services/permissions-service'
 import { ConfirmDialog } from './confirm-dialog'
 import { SettingsTeamInvite } from './settings-team-invite'
@@ -63,7 +63,11 @@ export function SettingsTeamMembers() {
   async function handleRoleChange(target: CompanyMember, roleId: string) {
     if (!selectedCompany || roleId === target.role) return
     try {
-      await updateMember(selectedCompany.id, target.userId, { role: roleId })
+      await adminSetMemberRoleCallable({
+        companyId: selectedCompany.id,
+        userId: target.userId,
+        roleId,
+      })
       setMembers((prev) => prev.map((m) => (m.userId === target.userId ? { ...m, role: roleId } : m)))
     } catch (err) {
       console.error('Error changing role:', err)

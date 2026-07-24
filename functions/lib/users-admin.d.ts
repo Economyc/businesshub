@@ -4,6 +4,9 @@ export declare const adminCreateUser: import("firebase-functions/v2/https").Call
 export declare const adminSetUserStatus: import("firebase-functions/v2/https").CallableFunction<any, Promise<{
     ok: boolean;
 }>, unknown>;
+export declare const adminSetMemberRole: import("firebase-functions/v2/https").CallableFunction<any, Promise<{
+    ok: boolean;
+}>, unknown>;
 export declare const adminDeleteUser: import("firebase-functions/v2/https").CallableFunction<any, Promise<{
     ok: boolean;
 }>, unknown>;

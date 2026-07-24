@@ -1,8 +1,70 @@
 rules_version = '2';
+
+// Bucket compartido por BusinessHub (App2) y Ecore (App1) — proyecto `empresas-bf`.
+//
+// Hasta jul-2026 este archivo era `allow read, write: if true`, o sea el bucket
+// entero abierto a internet sin autenticacion: cualquiera podia enumerar,
+// descargar, sobrescribir y borrar todo objeto (hallazgo F3 del escaneo).
+//
+// Ahora se autoriza por prefijo, con deny por defecto al final. Prefijos reales
+// en uso (verificados contra el bucket + el codigo de ambas apps):
+//   logos/{companyId}/...              -> logo-picker.tsx y settings-page.tsx (ambas apps)
+//   document-templates/{uuid}/...      -> Ecore, src/modules/documents/services.ts
+//   employees/{companyId}/{empId}/...  -> BusinessHub, src/modules/talent/services.ts
+//
+// OJO: las URLs que devuelve `getDownloadURL()` llevan un token y NO pasan por
+// estas reglas. Los logos y plantillas ya publicados siguen sirviendose igual;
+// lo que se cierra aqui es la enumeracion, la sobrescritura y el borrado.
 service firebase.storage {
   match /b/{bucket}/o {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // Mismo OWNER_EMAIL que usan ambas apps en core/config/access-registry.ts.
+    function isOwnerEmail() {
+      return signedIn() && request.auth.token.email == 'admin@filipoblue.co';
+    }
+
+    // Logos de empresa.
+    // Wildcard recursivo (y no `/{companyId}/{fileName}`) porque logo-cache.ts
+    // hace `listAll()` sobre el prefijo `logos`: un `list` se evalua contra la
+    // ruta de la carpeta, no la del objeto, y con un match de 2 segmentos fijos
+    // no habria regla que aplique y el listado quedaria denegado.
+    match /logos/{allPaths=**} {
+      allow read: if signedIn();
+      // create/update separados de delete: en un borrado `request.resource` es
+      // null y una condicion de tamano/tipo rechazaria la operacion.
+      allow create, update: if signedIn()
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+      allow delete: if signedIn();
+    }
+
+    // Plantillas de RR.HH./contratos (modulo Documentos de Ecore).
+    // Lectura para cualquier autenticado; escritura solo owner — espeja la
+    // guardia `isOwner` de document-list.tsx, que hasta ahora era unicamente
+    // client-side (F13).
+    match /document-templates/{allPaths=**} {
+      allow read: if signedIn();
+      allow create, update: if isOwnerEmail()
+        && request.resource.size < 25 * 1024 * 1024;
+      allow delete: if isOwnerEmail();
+    }
+
+    // Documentos de empleados (modulo Talento de BusinessHub).
+    match /employees/{companyId}/{allPaths=**} {
+      allow read: if signedIn();
+      allow create, update: if signedIn()
+        && request.resource.size < 25 * 1024 * 1024;
+      allow delete: if signedIn();
+    }
+
+    // Todo lo demas: denegado. Si aparece un prefijo nuevo hay que agregarlo
+    // arriba explicitamente.
     match /{allPaths=**} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
   }
 }

@@ -45,6 +45,12 @@ export async function createMember(
   })
 }
 
+/**
+ * @deprecated Desde jul-2026 las reglas de Firestore niegan `update` sobre
+ * `companies/{id}/members/**` desde el cliente: era la vía por la que cualquier
+ * usuario podía escribirse `role: 'owner'` (hallazgos F1/F7 del escaneo).
+ * Usar `adminSetMemberRoleCallable` / `adminSetUserStatusCallable`.
+ */
 export async function updateMember(
   companyId: string,
   userId: string,
@@ -53,6 +59,7 @@ export async function updateMember(
   await updateDoc(memberDoc(companyId, userId), data)
 }
 
+/** @deprecated Las reglas niegan `delete` desde el cliente. Usar `adminDeleteUserCallable`. */
 export async function removeMember(companyId: string, userId: string): Promise<void> {
   await deleteDoc(memberDoc(companyId, userId))
 }
@@ -148,9 +155,16 @@ export async function replicateRoleToAllowedCompanies(role: RoleDefinition): Pro
 export async function fetchRoles(companyId: string): Promise<RoleDefinition[]> {
   const snapshot = await getDocs(rolesCollection(companyId))
   if (snapshot.empty) {
-    // Seed default roles
-    for (const role of DEFAULT_ROLES) {
-      await setDoc(roleDoc(companyId, role.id), roleToDoc(role))
+    // Seed default roles. Desde jul-2026 las reglas restringen la escritura de
+    // `companies/{id}/roles/**` al owner, así que para un miembro común el seed
+    // falla. En ese caso devolvemos los defaults en memoria: sin esto, entrar a
+    // una compañía sin roles sembrados rompería toda la carga de permisos.
+    try {
+      for (const role of DEFAULT_ROLES) {
+        await setDoc(roleDoc(companyId, role.id), roleToDoc(role))
+      }
+    } catch (err) {
+      console.warn('[permissions] no se pudieron sembrar los roles por defecto:', err)
     }
     return [...DEFAULT_ROLES]
   }
@@ -231,6 +245,18 @@ export async function adminSetUserStatusCallable(input: {
 }): Promise<void> {
   const functions = await getAppFunctions()
   const fn = httpsCallable<typeof input, { ok: boolean }>(functions, 'adminSetUserStatus')
+  await fn(input)
+}
+
+/** Cambia el cargo de un miembro. Va por callable porque las reglas ya no
+ *  dejan escribir `companies/{id}/members/**` desde el navegador. */
+export async function adminSetMemberRoleCallable(input: {
+  companyId: string
+  userId: string
+  roleId: string
+}): Promise<void> {
+  const functions = await getAppFunctions()
+  const fn = httpsCallable<typeof input, { ok: boolean }>(functions, 'adminSetMemberRole')
   await fn(input)
 }
 

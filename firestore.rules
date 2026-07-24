@@ -1,59 +1,137 @@
 rules_version = '2';
+
+// Reglas del proyecto `empresas-bf`, compartido por BusinessHub (App2) y Ecore
+// (App1). Hasta jul-2026 todo `companies/**` era `read, write: if request.auth
+// != null`: cualquier cuenta del proyecto podia leer, modificar y borrar datos
+// de cualquier empresa, y escribir su propio rol para autopromoverse a owner
+// (hallazgos F1, F4, F5, F6, F7, F13, F14 del escaneo de seguridad).
+//
+// Ahora la membresia se verifica aca, del lado del servidor. El filtro por
+// compania de CompanyProvider y la matriz de `usePermissions` pasan a ser lo
+// que siempre debieron ser: UX, no control de acceso.
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Companies y todo lo que cuelga de ellas (members, roles, subcolecciones de negocio)
-    // Wave 4.2 — `companies/{companyId}/threads/{threadId}` queda cubierto por
-    // el wildcard de subcolecciones de abajo: lectura/escritura para cualquier
-    // miembro autenticado. Si más adelante endurecemos el RBAC, agregar regla
-    // explícita por threads validando role del usuario en members/.
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // Mismo OWNER_EMAIL que ambas apps tienen en core/config/access-registry.ts.
+    // Sirve de valvula de seguridad: el owner sigue entrando aunque falte su
+    // doc de miembro en alguna compania (p.ej. "Administrativo", que no tiene
+    // subcoleccion members).
+    function isOwnerEmail() {
+      return signedIn() && request.auth.token.email == 'admin@filipoblue.co';
+    }
+
+    function memberPath(companyId) {
+      return /databases/$(database)/documents/companies/$(companyId)/members/$(request.auth.uid);
+    }
+
+    function isMember(companyId) {
+      return signedIn() && exists(memberPath(companyId));
+    }
+
+    function isActiveMember(companyId) {
+      return isMember(companyId) && get(memberPath(companyId)).data.status == 'active';
+    }
+
+    function allowed(companyId) {
+      return isOwnerEmail() || isActiveMember(companyId);
+    }
+
+    // ── Documento de compania ────────────────────────────────────────────────
+    // La lectura queda abierta a cualquier autenticado a proposito: el selector
+    // de empresas de ambas apps hace `getDocs(collection(db,'companies'))` y una
+    // query se deniega entera si algun doc no pasa la regla. Solo expone
+    // metadatos (nombre, logo, slug); los datos sensibles viven en las
+    // subcolecciones, que si exigen membresia.
     match /companies/{companyId} {
-      allow read, write: if request.auth != null;
-
-      match /{document=**} {
-        allow read, write: if request.auth != null;
-      }
+      allow read: if signedIn();
+      // `update` para miembros activos: ademas de Ajustes -> Companias, el
+      // CompanyProvider escribe `logoThumb` en background al cargar.
+      allow update: if allowed(companyId);
+      // Crear y borrar companias es exclusivo del owner (antes cualquier
+      // miembro podia hacer deleteDoc de la compania entera).
+      allow create, delete: if isOwnerEmail();
     }
 
-    // Settings globales (categories, roles legados, departments)
+    // ── Membresias ───────────────────────────────────────────────────────────
+    // Origen de verdad de la autorizacion: NO se escribe desde el cliente.
+    // Altas, bajas, cambios de rol y de estado pasan por los callables
+    // adminCreateUser / adminSetMemberRole / adminSetUserStatus /
+    // adminDeleteUser, que corren con Admin SDK (saltea estas reglas) y
+    // reverifican al llamante.
+    match /companies/{companyId}/members/{memberId} {
+      // Leer el propio doc en CUALQUIER compania es necesario: company-provider
+      // barre todas las companias para calcular a cuales tiene acceso el
+      // usuario. Listar la coleccion (Ajustes -> Equipo) exige ser miembro.
+      allow get: if signedIn() && (memberId == request.auth.uid || allowed(companyId));
+      allow list: if allowed(companyId);
+
+      // Unica escritura de cliente permitida: el auto-seed del owner en una
+      // compania donde todavia no figura (seedMembershipIfNeeded).
+      allow create: if isOwnerEmail()
+        && memberId == request.auth.uid
+        && request.resource.data.role == 'owner';
+
+      allow update, delete: if false;
+    }
+
+    // ── Definiciones de rol ──────────────────────────────────────────────────
+    // Contienen `canManageUsers`, que es lo que consultan los callables admin
+    // para autorizar. Escritura solo owner — la pantalla Cargos ya era
+    // solo-owner, pero la guardia vivia unicamente en React.
+    match /companies/{companyId}/roles/{roleId} {
+      allow read: if isMember(companyId) || isOwnerEmail();
+      allow write: if isOwnerEmail();
+    }
+
+    // ── Subcolecciones de negocio ────────────────────────────────────────────
+    // transactions, employees, inventoryItems, shifts, settings, notifications,
+    // sheet-jobs, summary, etc. Todo exige membresia activa en esa compania.
+    //
+    // No se puede usar `{document=**}` aca: las reglas de Firestore son
+    // aditivas, asi que un match amplio volveria a habilitar la escritura de
+    // members/ y roles/ y anularia los dos bloques de arriba. De ahi la forma
+    // `{col}/{docId}/{rest=**}` con exclusion explicita.
+    match /companies/{companyId}/{col}/{docId}/{rest=**} {
+      allow read, write: if col != 'members'
+        && col != 'roles'
+        && allowed(companyId);
+    }
+
+    // ── Catalogos raiz compartidos entre companias ───────────────────────────
+    // Son compartidos por diseno (los mismos proveedores/clientes/socios se
+    // repiten entre locales), asi que siguen abiertos a cualquier autenticado.
     match /settings/{docId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if signedIn();
     }
 
-    // Catálogo de proveedores compartido entre todas las companies.
-    // Vive en la raíz (no bajo companies/) porque los mismos proveedores se
-    // repiten entre locales. Acceso para cualquier usuario autenticado, igual
-    // que las subcolecciones de negocio.
     match /suppliers/{supplierId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if signedIn();
     }
 
-    // Catálogo de tipos de novedad de Horarios compartido entre todas las
-    // companies. Vive en la raíz (no bajo companies/) porque el catálogo es el
-    // mismo para todos los locales — el Owner lo define una vez. Las novedades
-    // aplicadas a la grilla siguen scopeadas bajo companies/{id}/novelties.
     match /noveltyTypes/{typeId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if signedIn();
     }
 
-    // Catálogo de clientes compartido (Cuentas por Cobrar de Ecore/App1).
-    // Mismo patrón que suppliers: raíz, un solo catálogo para todos los locales.
     match /customers/{customerId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if signedIn();
     }
 
-    // Catálogo de socios de cuentas en participación (módulo ROI de Ecore).
-    // Mismo patrón que suppliers: raíz, compartido entre locales. Los pagos de
-    // ROI viven bajo companies/{id}/transactions (ya cubiertos arriba).
     match /partners/{partnerId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if signedIn();
     }
 
-    // Catálogo de plantillas de documentos (módulo Documentos de Ecore).
-    // Mismo patrón que suppliers: raíz, un solo catálogo para todos los locales;
-    // cada plantilla lleva su etiqueta de razón social (blue/filipo/general).
-    // Los archivos viven en Storage bajo document-templates/.
+    // Catalogo de plantillas de documentos (modulo Documentos de Ecore).
+    // Lectura para todos; escritura solo owner. Antes cualquier autenticado
+    // podia reescribir `downloadUrl`/`storagePath` de una plantilla que despues
+    // descarga el resto del equipo (F13), o insertar un doc malformado que
+    // tumbaba la pagina entera al renderizar (F17).
     match /documentTemplates/{templateId} {
-      allow read, write: if request.auth != null;
+      allow read: if signedIn();
+      allow write: if isOwnerEmail();
     }
 
     // LLM rate-limits: solo Admin SDK desde Cloud Functions
@@ -64,14 +142,14 @@ service cloud.firestore {
     // Wave 1.2 — Memoria persistente del asistente AI por usuario.
     // Sólo el dueño (uid match) puede leer y escribir su propia memoria.
     match /users/{userId}/agentMemory/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if signedIn() && request.auth.uid == userId;
     }
 
     // Tareas personales del usuario (módulo Tasks).
     // Cross-company por diseño: viven bajo /users/{uid} para no scopearse
     // por compañía. Sólo el dueño puede leer y escribir.
     match /users/{userId}/tasks/{taskId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if signedIn() && request.auth.uid == userId;
     }
 
     // Wave 2.3 — progreso incremental de tools largas. El cliente lee
@@ -81,7 +159,7 @@ service cloud.firestore {
     // Datos efímeros, no sensibles. TTL de 24h se configura desde la
     // consola de Firestore sobre el campo `updatedAt`.
     match /toolProgress/{toolCallId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if signedIn();
     }
   }
 }
