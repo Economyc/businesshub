@@ -84,6 +84,19 @@ async function generateForCompany(companyId) {
                 txData.priority = r.priority;
             if (r.splitGroupId != null)
                 txData.splitGroupId = `${r.splitGroupId}::${isoDate(nextDue)}`;
+            // Sin estos campos la ocurrencia de un costo fijo compartido nace con su
+            // parte en `amount` pero sin nada que explique por qué no cuadra contra la
+            // factura del proveedor.
+            if (r.splitTotalAmount != null)
+                txData.splitTotalAmount = r.splitTotalAmount;
+            if (r.splitSharePct != null)
+                txData.splitSharePct = r.splitSharePct;
+            if (r.splitPayerCompanyId != null)
+                txData.splitPayerCompanyId = r.splitPayerCompanyId;
+            if (r.splitCompanyIds != null)
+                txData.splitCompanyIds = r.splitCompanyIds;
+            if (r.splitCompanyNames != null)
+                txData.splitCompanyNames = r.splitCompanyNames;
             await createDocumentInCollection(companyId, 'transactions', txData);
             lastGenerated = nextDue;
             nextDue = addFrequency(nextDue, r.frequency);

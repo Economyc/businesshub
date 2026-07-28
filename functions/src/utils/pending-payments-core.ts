@@ -18,11 +18,32 @@ interface TxData {
   status?: string
   documentKind?: string
   amount?: number
+  paidAmount?: number
+  remainingAmount?: number
   concept?: string
   date?: unknown
   dueDate?: unknown
   priority?: string
   payeeRef?: { name?: string } | null
+  interLocalGroupId?: string
+  splitGroupId?: string
+}
+
+/**
+ * Lo que falta por pagar. Antes se reportaba `amount`, con lo que una factura
+ * parcial figuraba por su valor total aunque ya estuviera medio abonada.
+ * Prioriza el denormalizado y cae a amount − paidAmount si falta.
+ */
+function pendingAmount(t: TxData): number {
+  const amount = Number(t.amount) || 0
+  if (typeof t.remainingAmount === 'number') return Math.max(0, t.remainingAmount)
+  return Math.max(0, amount - (Number(t.paidAmount) || 0))
+}
+
+/** Parte de un gasto compartido entre locales (ver Ecore split-service.ts). */
+function isSharedExpense(t: TxData): boolean {
+  const id = t.splitGroupId
+  return !!id && (id.startsWith('split-') || id.startsWith('rsplit-'))
 }
 
 /** Acepta Timestamp de Admin (toDate), serializado (_seconds) o Date. */
@@ -67,7 +88,7 @@ export async function buildCompanySection(
   today.setHours(0, 0, 0, 0)
 
   // Bloque A — facturas por pagar agrupadas por proveedor.
-  const groups = new Map<string, PendingInvoiceSupplier & { oldest: Date | null }>()
+  const groups = new Map<string, PendingInvoiceSupplier & { oldest: Date | null; shared: number }>()
   let invoiceTotal = 0
   let invoiceCount = 0
 
@@ -77,18 +98,22 @@ export async function buildCompanySection(
 
   for (const doc of snap.docs) {
     const t = doc.data() as TxData
-    const amount = Number(t.amount) || 0
+    // Lo que falta por pagar, no el valor de la factura: una parcial ya abonada
+    // inflaba el reporte por su total.
+    const amount = pendingAmount(t)
 
     if (t.documentKind === 'invoice') {
       const name = t.payeeRef?.name ?? 'Sin proveedor'
       const key = name.toLowerCase().trim()
       const entry =
         groups.get(key) ??
-        ({ supplierName: name, count: 0, total: 0, oldestDate: null, overdueCount: 0, oldest: null } as PendingInvoiceSupplier & {
+        ({ supplierName: name, count: 0, total: 0, oldestDate: null, overdueCount: 0, oldest: null, shared: 0 } as PendingInvoiceSupplier & {
           oldest: Date | null
+          shared: number
         })
       entry.count += 1
       entry.total += amount
+      if (isSharedExpense(t)) entry.shared += 1
       const d = tsToDate(t.date)
       if (d && (!entry.oldest || d < entry.oldest)) entry.oldest = d
       if (t.status === 'overdue' || (d && d < today)) entry.overdueCount += 1
@@ -110,7 +135,15 @@ export async function buildCompanySection(
 
   const invoiceSuppliers: PendingInvoiceSupplier[] = Array.from(groups.values())
     .map((g) => ({
-      supplierName: g.supplierName,
+      // El monto de una factura compartida es sólo la parte de ESTA compañía;
+      // el mismo proveedor aparece también en la sección del otro local. Sin la
+      // marca parece que la factura vale menos de lo que dice el documento.
+      supplierName:
+        g.shared === 0
+          ? g.supplierName
+          : g.shared === g.count
+            ? `${g.supplierName} (compartida)`
+            : `${g.supplierName} (incl. compartidas)`,
       count: g.count,
       total: g.total,
       oldestDate: isoDate(g.oldest),

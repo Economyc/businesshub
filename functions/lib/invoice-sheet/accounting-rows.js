@@ -67,6 +67,21 @@ function buildNumeracion(index, t) {
 function parseCategoryName(value) {
     return value.split(' > ')[0] ?? '';
 }
+// Concepto con la marca del reparto cuando la factura es un gasto compartido
+// entre locales. Sin ella, la contadora ve el mismo número de factura en dos
+// hojas con dos valores distintos y ninguno cuadra contra el documento físico.
+// Va en Concepto y no en Numeración: esa última debe seguir coincidiendo
+// exactamente con el nombre del PDF en Drive.
+function conceptoLabel(t) {
+    const concepto = t.concept ?? '';
+    const id = t.splitGroupId;
+    const isShared = !!id && (id.startsWith('split-') || id.startsWith('rsplit-'));
+    if (!isShared || t.splitTotalAmount == null)
+        return concepto;
+    const share = t.splitSharePct != null ? `${t.splitSharePct}% ` : '';
+    const total = t.splitTotalAmount.toLocaleString('es-CO');
+    return `${concepto} [compartida — ${share}de $${total}]`;
+}
 export function buildAccountingRows(txs, suppliersById, startIndex = 1) {
     return txs.map((t, i) => {
         const nit = t.payeeRef?.type === 'supplier' && t.payeeRef.id
@@ -77,7 +92,7 @@ export function buildAccountingRows(txs, suppliersById, startIndex = 1) {
             fecha: formatDate(t.date),
             nit,
             proveedor: t.payeeRef?.name ?? '',
-            concepto: t.concept ?? '',
+            concepto: conceptoLabel(t),
             categoria: parseCategoryName(t.category ?? ''),
             prioridad: t.priority === 'immediate' ? 'Inmediato' : 'Espera',
             tipo: tipoLabel(t),
@@ -126,7 +141,7 @@ export function buildPayableRows(txs, suppliersById, startIndex = 1) {
             vencimiento: t.dueDate ? formatDate(t.dueDate) : '—',
             nit,
             tercero: t.payeeRef?.name ?? '',
-            concepto: t.concept ?? '',
+            concepto: conceptoLabel(t),
             categoria: parseCategoryName(t.category ?? ''),
             numero: t.docNumber ?? '',
             valor: t.amount ?? 0,

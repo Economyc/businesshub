@@ -32,6 +32,13 @@ interface RecurringRule {
   documentKind?: string
   priority?: string
   splitGroupId?: string
+  // Gasto compartido entre locales: trazabilidad del reparto (ver Ecore
+  // split-service.ts). `amount` de la regla ya es la parte de este local.
+  splitTotalAmount?: number
+  splitSharePct?: number
+  splitPayerCompanyId?: string
+  splitCompanyIds?: string[]
+  splitCompanyNames?: string[]
 }
 
 function startOfDay(date: Date): Date {
@@ -109,6 +116,14 @@ async function generateForCompany(companyId: string): Promise<number> {
       if (r.documentKind != null) txData.documentKind = r.documentKind
       if (r.priority != null) txData.priority = r.priority
       if (r.splitGroupId != null) txData.splitGroupId = `${r.splitGroupId}::${isoDate(nextDue)}`
+      // Sin estos campos la ocurrencia de un costo fijo compartido nace con su
+      // parte en `amount` pero sin nada que explique por qué no cuadra contra la
+      // factura del proveedor.
+      if (r.splitTotalAmount != null) txData.splitTotalAmount = r.splitTotalAmount
+      if (r.splitSharePct != null) txData.splitSharePct = r.splitSharePct
+      if (r.splitPayerCompanyId != null) txData.splitPayerCompanyId = r.splitPayerCompanyId
+      if (r.splitCompanyIds != null) txData.splitCompanyIds = r.splitCompanyIds
+      if (r.splitCompanyNames != null) txData.splitCompanyNames = r.splitCompanyNames
 
       await createDocumentInCollection(companyId, 'transactions', txData)
 

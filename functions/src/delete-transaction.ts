@@ -52,6 +52,15 @@ interface TxLike {
 interface Input {
   companyId: string
   transactionId: string
+  /**
+   * El caller está borrando un gasto compartido COMPLETO (una llamada por
+   * parte). Levanta el gate de `splitGroupId` sólo para las partes de un
+   * reparto entre locales (prefijos split-/rsplit-); los lotes de nómina y la
+   * conciliación bancaria, que usan el mismo campo con otra semántica, siguen
+   * bloqueados. Sin esto un gasto compartido creado en Ecore sería indeleble:
+   * su "transacción padre" no existe en ninguna pantalla.
+   */
+  allowSplitMember?: boolean
 }
 
 interface DeleteResult {
@@ -96,6 +105,7 @@ export const deleteTransactionWithAttachments = onCall(
     const data = request.data as Input
     const companyId = typeof data?.companyId === 'string' ? data.companyId.trim() : ''
     const transactionId = typeof data?.transactionId === 'string' ? data.transactionId.trim() : ''
+    const allowSplitMember = data?.allowSplitMember === true
     if (!companyId) throw new HttpsError('invalid-argument', 'companyId requerido')
     if (!transactionId) throw new HttpsError('invalid-argument', 'transactionId requerido')
 
@@ -133,10 +143,19 @@ export const deleteTransactionWithAttachments = onCall(
     // tienen su propio borrado coordinado. Permitir borrarlas individualmente
     // dejaría grupos huérfanos.
     if (tx.splitGroupId) {
-      throw new HttpsError(
-        'failed-precondition',
-        'Esta transacción es parte de un gasto compartido entre locales. Bórrala desde el origen (la transacción padre) para que se eliminen todas las partes en bloque.',
-      )
+      // Un gasto compartido entre locales (split-/rsplit-) SÍ se puede borrar
+      // parte por parte, siempre que el caller declare que está eliminando el
+      // grupo completo. El resto de usos del campo (lotes de nómina,
+      // conciliación bancaria) conserva el bloqueo: ahí sí hay un origen desde
+      // donde borrar en bloque.
+      const isSharedExpense =
+        tx.splitGroupId.startsWith('split-') || tx.splitGroupId.startsWith('rsplit-')
+      if (!isSharedExpense || !allowSplitMember) {
+        throw new HttpsError(
+          'failed-precondition',
+          'Esta transacción es parte de un gasto compartido entre locales. Bórrala desde el origen (la transacción padre) para que se eliminen todas las partes en bloque.',
+        )
+      }
     }
     // Nota: las tx con sourceType === 'recurring' SÍ se pueden borrar. El
     // generador es idempotente y solo avanza (nextDueDate nunca retrocede), así

@@ -101,12 +101,28 @@ export async function executeServerMutation(opts) {
                 if (existing.status !== 'pending') {
                     return { success: false, message: 'Esa factura no está pendiente — ya está pagada o cancelada.' };
                 }
+                // Gasto compartido entre locales: esta factura es sólo UNA parte del
+                // reparto y el bot ve una sola compañía. Marcarla pagada dejaría las
+                // demás partes vivas sin ningún aviso, y encima no se sabe si el pago lo
+                // hizo el local que desembolsa. Se resuelve en la app, que salda el grupo.
+                const splitGroupId = typeof existing.splitGroupId === 'string' ? existing.splitGroupId : '';
+                if (splitGroupId.startsWith('split-') || splitGroupId.startsWith('rsplit-')) {
+                    return {
+                        success: false,
+                        message: 'Esa factura es un gasto compartido entre locales: hay que pagarla desde la app, en Cuentas por Pagar, para que se salde la parte de cada local.',
+                    };
+                }
                 const paidDateStr = args.paidDate
                     ? String(args.paidDate)
                     : new Date().toISOString().slice(0, 10);
+                // Mantener los denormalizados que usan la hoja contable y los paneles de
+                // saldo: sin ellos, paidParts() cae al fallback y el pendiente sale mal.
+                const invoiceAmount = Number(existing.amount) || 0;
                 await updateDocumentInCollection(companyId, 'transactions', id, {
                     status: 'paid',
                     paidDate: toTimestamp(paidDateStr),
+                    paidAmount: invoiceAmount,
+                    remainingAmount: 0,
                 });
                 const supplier = args.supplierName ? ` de ${String(args.supplierName)}` : '';
                 const amountLabel = args.amount !== undefined ? ` por ${formatCop(Number(args.amount))}` : '';

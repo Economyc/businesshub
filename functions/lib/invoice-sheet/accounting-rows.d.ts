@@ -23,6 +23,9 @@ export interface AdminTx {
     paidAmount?: number;
     remainingAmount?: number;
     interLocalGroupId?: string;
+    splitGroupId?: string;
+    splitTotalAmount?: number;
+    splitSharePct?: number;
 }
 export interface AdminTransfer {
     id: string;
