@@ -53,3 +53,7 @@ cors.json
 .claude/plans/
 .aidesigner/*
 !.aidesigner/.gitkeep
+
+# Respaldos de la unificacion de empleados duplicados: llevan PII (cedulas,
+# salarios, pagos). Se generan con functions/scripts/backup-duplicate-employees.mjs
+functions/scripts/backup-duplicados-*.json
