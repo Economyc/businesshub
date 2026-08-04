@@ -225,6 +225,17 @@ describe('F4/F5/F6 — aislamiento entre companias', () => {
     await assertFails(getDocs(collection(activeB(), 'companies', A, 'employees')))
   })
 
+  // Empleados compartidos entre sedes (Ecore): una persona que rota entre
+  // locales se replica con el MISMO doc id en cada company. Vincular es escribir
+  // en la sede destino, así que sólo puede hacerlo quien es miembro de ambas.
+  it('un miembro de B no puede replicar un empleado en A (vinculo entre sedes)', async () => {
+    await assertFails(
+      setDoc(doc(activeB(), 'companies', A, 'employees', 'e-shared'), {
+        name: 'Compartido', companyIds: [A, B], primaryCompanyId: B,
+      }),
+    )
+  })
+
   it('un miembro de B no lee ni escribe las transacciones de A', async () => {
     await assertFails(getDocs(collection(activeB(), 'companies', A, 'transactions')))
     await assertFails(setDoc(doc(activeB(), 'companies', A, 'transactions', 'x'), { amount: 1 }))
