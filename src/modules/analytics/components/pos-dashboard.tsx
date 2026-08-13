@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useRef } from 'react'
 import { motion } from 'framer-motion'
 import {
   DollarSign,
@@ -16,12 +16,10 @@ import { formatCurrency } from '@/core/utils/format'
 import { DashboardSkeleton } from '@/core/ui/skeleton'
 import { DateRangePicker } from '@/core/ui/date-range-picker'
 import { useDateRange } from '@/core/ui/date-range-context'
-import { SelectInput } from '@/core/ui/select-input'
 import { SyncStatusDot } from '@/core/ui/sync-status-dot'
 import { ExportPDF } from './export-pdf'
-import { ChartCard } from './shared/chart-card'
 import { EmptyChart } from './shared/empty-chart'
-import { CHART_SEMANTIC, paletteColor } from './shared/chart-theme'
+import { paletteColor } from './shared/chart-theme'
 import { RichHoverTooltip } from './shared/rich-hover-tooltip'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { usePosAnalytics } from '../hooks'
@@ -31,35 +29,17 @@ function pct(part: number, total: number): string {
   return `${((part / total) * 100).toFixed(1)}%`
 }
 
-const ALL_CATEGORIES_VALUE = '__all__'
-
 export function PosDashboard() {
   const dashboardRef = useRef<HTMLDivElement>(null)
-  const [productCategory, setProductCategory] = useState<string>(ALL_CATEGORIES_VALUE)
   const { presetLabel } = useDateRange()
   const {
     totals,
-    topCategories,
-    categoriesTotal,
-    topProducts,
-    allCategories,
-    productsByCategory,
     loading,
     hasLocales,
     lastUpdated,
     fromCache,
     forceRefresh,
   } = usePosAnalytics()
-
-  const productsToShow =
-    productCategory === ALL_CATEGORIES_VALUE
-      ? topProducts
-      : productsByCategory[productCategory] ?? []
-
-  const categoryOptions = [
-    { value: ALL_CATEGORIES_VALUE, label: 'Todas las categorías' },
-    ...allCategories.map((c) => ({ value: c, label: c })),
-  ]
 
   const composition = [
     { name: 'Ventas netas', value: Math.max(totals.ventas - totals.impuestos, 0) },
@@ -73,8 +53,6 @@ export function PosDashboard() {
     ...slice,
     percentage: compositionTotal > 0 ? (slice.value / compositionTotal) * 100 : 0,
   }))
-
-  const maxCategory = topCategories[0]?.amount ?? 0
 
   return (
     <PageTransition>
@@ -93,7 +71,7 @@ export function PosDashboard() {
       </PageHeader>
 
       {loading ? (
-        <DashboardSkeleton kpiCount={6} charts={2} />
+        <DashboardSkeleton kpiCount={6} charts={1} />
       ) : !hasLocales ? (
         <EmptyChart
           message="No hay locales POS configurados"
@@ -157,7 +135,7 @@ export function PosDashboard() {
             variants={staggerContainer}
             initial="initial"
             animate="animate"
-            className="grid grid-cols-1 lg:grid-cols-2 gap-6"
+            className="grid grid-cols-1 gap-6"
           >
             <motion.section
               variants={staggerItem}
@@ -229,165 +207,7 @@ export function PosDashboard() {
                 </>
               )}
             </motion.section>
-
-            <ChartCard
-              eyebrow="Top 10"
-              title="Productos más vendidos"
-              description="Ranking por monto total de venta en el periodo"
-              action={
-                allCategories.length > 0 ? (
-                  <SelectInput
-                    value={productCategory}
-                    onChange={setProductCategory}
-                    options={categoryOptions}
-                    className="w-52"
-                  />
-                ) : undefined
-              }
-            >
-              {productsToShow.length === 0 ? (
-                <EmptyChart
-                  height={200}
-                  compact
-                  message={
-                    productCategory === ALL_CATEGORIES_VALUE
-                      ? 'Sin productos vendidos'
-                      : 'Sin productos en esta categoría'
-                  }
-                />
-              ) : (
-                <ul className="divide-y divide-border/60">
-                  {productsToShow.map((p, i) => {
-                    const maxAmount = productsToShow[0]?.amount ?? 0
-                    const pctWidth =
-                      maxAmount > 0 ? Math.max((p.amount / maxAmount) * 100, 2) : 2
-                    const avgTicket = p.quantity > 0 ? p.amount / p.quantity : 0
-                    return (
-                      <RichHoverTooltip
-                        key={p.id}
-                        title={p.name}
-                        accentColor={CHART_SEMANTIC.income}
-                        metrics={[
-                          {
-                            label: 'Unidades',
-                            value: p.quantity.toLocaleString('es-CO'),
-                            accent: true,
-                          },
-                          {
-                            label: 'Monto',
-                            value: formatCurrency(p.amount),
-                          },
-                          {
-                            label: 'Ticket prom.',
-                            value: formatCurrency(avgTicket),
-                          },
-                          {
-                            label: 'Ranking',
-                            value: `#${String(i + 1).padStart(2, '0')}`,
-                          },
-                        ]}
-                        footer={
-                          productCategory !== ALL_CATEGORIES_VALUE
-                            ? `Categoría · ${productCategory}`
-                            : undefined
-                        }
-                      >
-                        <li className="grid grid-cols-[auto_minmax(0,1.4fr)_minmax(0,1fr)_auto] items-center gap-4 py-3 cursor-default hover:bg-bone/50 -mx-2 px-2 rounded-lg transition-colors">
-                          <span className="text-caption text-mid-gray tabular-nums w-6">
-                            {String(i + 1).padStart(2, '0')}
-                          </span>
-                          <span className="text-body text-graphite font-medium truncate">
-                            {p.name}
-                          </span>
-                          <div className="h-2 rounded-full bg-bone overflow-hidden">
-                            <div
-                              className="h-full rounded-full transition-all duration-700 ease-out"
-                              style={{
-                                width: `${pctWidth}%`,
-                                backgroundColor: CHART_SEMANTIC.income,
-                              }}
-                            />
-                          </div>
-                          <span className="text-body text-mid-gray tabular-nums w-24 text-right">
-                            {formatCurrency(p.amount)}
-                          </span>
-                        </li>
-                      </RichHoverTooltip>
-                    )
-                  })}
-                </ul>
-              )}
-            </ChartCard>
           </motion.div>
-
-          <ChartCard
-            eyebrow="Top 5"
-            title="Categorías con mayor venta"
-            description="Participación por categoría sobre el total vendido"
-          >
-            {topCategories.length === 0 ? (
-              <EmptyChart height={200} compact message="Sin ventas categorizadas" />
-            ) : (
-              <div className="space-y-3">
-                {topCategories.map((cat, i) => {
-                  const pct =
-                    categoriesTotal > 0 ? (cat.amount / categoriesTotal) * 100 : 0
-                  return (
-                    <RichHoverTooltip
-                      key={cat.category}
-                      title={cat.category}
-                      accentColor={paletteColor(i)}
-                      metrics={[
-                        {
-                          label: 'Monto',
-                          value: formatCurrency(cat.amount),
-                          accent: true,
-                        },
-                        {
-                          label: 'Unidades',
-                          value: cat.quantity.toLocaleString('es-CO'),
-                        },
-                        {
-                          label: '% del total',
-                          value: `${pct.toFixed(1)}%`,
-                        },
-                        {
-                          label: 'Productos',
-                          value: cat.productCount.toLocaleString('es-CO'),
-                        },
-                      ]}
-                    >
-                      <div className="flex items-center gap-3 cursor-default hover:bg-bone/50 -mx-2 px-2 py-1 rounded-lg transition-colors">
-                        <span
-                          className="w-2.5 h-2.5 rounded-full shrink-0"
-                          style={{ backgroundColor: paletteColor(i) }}
-                        />
-                        <span className="text-body text-graphite w-20 sm:w-40 truncate">
-                          {cat.category}
-                        </span>
-                        <div className="flex-1 h-7 bg-bone rounded-lg overflow-hidden relative">
-                          <div
-                            className="h-full rounded-lg transition-all duration-700 ease-out"
-                            style={{
-                              width: `${maxCategory > 0 ? Math.max((cat.amount / maxCategory) * 100, 2) : 2}%`,
-                              backgroundColor: paletteColor(i),
-                              opacity: 0.75,
-                            }}
-                          />
-                        </div>
-                        <span className="text-body font-medium text-dark-graphite w-20 sm:w-24 text-right tabular-nums">
-                          {formatCurrency(cat.amount)}
-                        </span>
-                        <span className="text-caption text-mid-gray tabular-nums w-12 text-right">
-                          {pct.toFixed(1)}%
-                        </span>
-                      </div>
-                    </RichHoverTooltip>
-                  )
-                })}
-              </div>
-            )}
-          </ChartCard>
         </div>
         </TooltipProvider>
       )}
