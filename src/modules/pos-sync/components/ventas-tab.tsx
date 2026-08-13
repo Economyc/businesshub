@@ -8,22 +8,22 @@ import { PosHeroSkeleton, PosSummaryCardsSkeleton, TableSkeleton } from '@/core/
 import { formatCurrency } from '@/core/utils/format'
 import { useDateRange } from '@/core/ui/date-range-context'
 import { usePosVentas } from '../hooks'
-import { calcTotals, num, toDateStrLocal, type PosTotals } from '../utils/sales-calculations'
+import {
+  calcDocCounts,
+  calcTotals,
+  getDocType,
+  num,
+  toDateStrLocal,
+  type DocType,
+  type PosTotals,
+} from '../utils/sales-calculations'
 import { VentaDetailDrawer } from './venta-detail-drawer'
 import type { PosVenta, PosLocal } from '../types'
 import type { LucideIcon } from 'lucide-react'
 
-type DocType = 'factura' | 'boleta' | 'nota' | 'otro'
-
-function getDocType(v: PosVenta): DocType {
-  const td = v.tipo_documento?.toUpperCase()
-  if (td === 'F') return 'factura'
-  if (td === 'B') return 'boleta'
-  if (td === 'NV' || v.documento?.toLowerCase().includes('nota')) return 'nota'
-  return 'otro'
-}
-
-const DOC_TYPE_LABELS: Record<DocType, string> = {
+// Singular y corto: son etiquetas de filtro y de celda de tabla, no de leyenda.
+// El plural vive en DOC_TYPE_LABELS de sales-calculations, para los listados.
+const DOC_TYPE_SHORT: Record<DocType, string> = {
   factura: 'Factura',
   boleta: 'Boleta',
   nota: 'Nota',
@@ -160,13 +160,7 @@ export function VentasTab({ localIds, allLocalIds, localLabel, localDisplayNames
     const base = ventas.filter(
       (v) => v.estado_txt?.toLowerCase() !== 'comprobante anulado' && localSet.has(v.id_local)
     )
-    return {
-      todos: base.length,
-      factura: base.filter((v) => getDocType(v) === 'factura').length,
-      boleta: base.filter((v) => getDocType(v) === 'boleta').length,
-      nota: base.filter((v) => getDocType(v) === 'nota').length,
-      otro: base.filter((v) => getDocType(v) === 'otro').length,
-    }
+    return calcDocCounts(base)
   }, [ventas, localIds])
 
   const columns: Column<PosVenta & { id: string }>[] = [
@@ -183,7 +177,7 @@ export function VentasTab({ localIds, allLocalIds, localLabel, localDisplayNames
       hideOnMobile: true,
       render: (v) => (
         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-caption bg-bone text-graphite">
-          {DOC_TYPE_LABELS[getDocType(v)]}
+          {DOC_TYPE_SHORT[getDocType(v)]}
         </span>
       ),
     },
@@ -284,7 +278,7 @@ export function VentasTab({ localIds, allLocalIds, localLabel, localDisplayNames
   const showSkeleton = loading && !hasData
 
   const docOptions: SegmentedFilterOption<DocType | 'todos'>[] = [
-    { value: 'todos', label: 'Todos', count: docCounts.todos },
+    { value: 'todos', label: 'Todos', count: docCounts.total },
     { value: 'factura', label: 'Factura', count: docCounts.factura },
     { value: 'boleta', label: 'Boleta', count: docCounts.boleta },
     { value: 'nota', label: 'Nota', count: docCounts.nota },

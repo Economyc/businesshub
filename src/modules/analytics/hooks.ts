@@ -3,9 +3,11 @@ import { useDateRange } from '@/core/ui/date-range-context'
 import { usePosVentas } from '@/modules/pos-sync/hooks'
 import { useCompanyLocalIds } from '@/modules/pos-sync/company-mapping'
 import {
+  calcDocCounts,
   calcTotals,
   isAnulada,
   toDateStrLocal,
+  type DocCounts,
   type PosTotals,
 } from '@/modules/pos-sync/utils/sales-calculations'
 
@@ -13,6 +15,7 @@ import {
 
 export function usePosAnalytics(): {
   totals: PosTotals
+  docCounts: DocCounts
   loading: boolean
   rateLimited: boolean
   hasLocales: boolean
@@ -48,13 +51,15 @@ export function usePosAnalytics(): {
   const hasData = ventas.length > 0
   const coldLoading = localesLoading || (ventasPending && localIds.length > 0 && !hasData)
 
-  const totals = useMemo(
-    () => calcTotals(ventas.filter((v) => !isAnulada(v))),
-    [ventas]
-  )
+  // Una sola lista filtrada para ambos cálculos: los montos y el conteo por
+  // tipo de comprobante tienen que medir exactamente el mismo conjunto.
+  const ventasValidas = useMemo(() => ventas.filter((v) => !isAnulada(v)), [ventas])
+  const totals = useMemo(() => calcTotals(ventasValidas), [ventasValidas])
+  const docCounts = useMemo(() => calcDocCounts(ventasValidas), [ventasValidas])
 
   return {
     totals,
+    docCounts,
     loading: coldLoading,
     rateLimited,
     hasLocales: localIds.length > 0,

@@ -23,10 +23,29 @@ import { paletteColor } from './shared/chart-theme'
 import { RichHoverTooltip } from './shared/rich-hover-tooltip'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { usePosAnalytics } from '../hooks'
+import {
+  DOC_TYPE_LABELS,
+  type DocCounts,
+  type DocType,
+} from '@/modules/pos-sync/utils/sales-calculations'
 
 function pct(part: number, total: number): string {
   if (total <= 0) return '0.0%'
   return `${((part / total) * 100).toFixed(1)}%`
+}
+
+const DOC_TYPE_ORDER: DocType[] = ['factura', 'nota', 'boleta', 'otro']
+
+// Solo los tipos presentes en el periodo. Hoy el POS de las 4 sedes emite
+// únicamente facturas y notas de venta, pero si aparece otro tipo entra solo
+// y los porcentajes siguen sumando 100.
+function buildDocMix(counts: DocCounts) {
+  return DOC_TYPE_ORDER.filter((t) => counts[t] > 0).map((t) => ({
+    type: t,
+    name: DOC_TYPE_LABELS[t],
+    value: counts[t],
+    percentage: counts.total > 0 ? (counts[t] / counts.total) * 100 : 0,
+  }))
 }
 
 export function PosDashboard() {
@@ -34,6 +53,7 @@ export function PosDashboard() {
   const { presetLabel } = useDateRange()
   const {
     totals,
+    docCounts,
     loading,
     hasLocales,
     lastUpdated,
@@ -53,6 +73,8 @@ export function PosDashboard() {
     ...slice,
     percentage: compositionTotal > 0 ? (slice.value / compositionTotal) * 100 : 0,
   }))
+
+  const docMix = buildDocMix(docCounts)
 
   return (
     <PageTransition>
@@ -196,6 +218,77 @@ export function PosDashboard() {
                           </span>
                           <span className="text-mid-gray tabular-nums">
                             {formatCurrency(slice.value)}
+                          </span>
+                          <span className="text-dark-graphite font-medium tabular-nums w-14 text-right">
+                            {slice.percentage.toFixed(1)}%
+                          </span>
+                        </li>
+                      </RichHoverTooltip>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </motion.section>
+
+            <motion.section
+              variants={staggerItem}
+              className="bg-surface rounded-2xl card-elevated p-6"
+            >
+              {docMix.length === 0 ? (
+                <EmptyChart message="Sin comprobantes en el periodo" />
+              ) : (
+                <>
+                  <header className="flex flex-wrap items-baseline gap-x-3 gap-y-1 mb-4">
+                    <span className="text-kpi font-semibold text-dark-graphite tabular-nums">
+                      {docCounts.total.toLocaleString('es-CO')}
+                    </span>
+                    <span className="text-caption text-mid-gray font-medium">
+                      Comprobantes · {presetLabel}
+                    </span>
+                  </header>
+
+                  <div className="flex h-2 w-full overflow-hidden rounded-full bg-smoke mb-2">
+                    {docMix.map((slice, i) => (
+                      <div
+                        key={slice.type}
+                        style={{
+                          width: `${slice.percentage}%`,
+                          backgroundColor: paletteColor(i),
+                        }}
+                      />
+                    ))}
+                  </div>
+
+                  <ul className="divide-y divide-border/60">
+                    {docMix.map((slice, i) => (
+                      <RichHoverTooltip
+                        key={slice.type}
+                        title={slice.name}
+                        accentColor={paletteColor(i)}
+                        metrics={[
+                          {
+                            label: 'Cantidad',
+                            value: slice.value.toLocaleString('es-CO'),
+                            accent: true,
+                          },
+                          {
+                            label: '% del total',
+                            value: pct(slice.value, docCounts.total),
+                          },
+                        ]}
+                        footer={`${docCounts.total.toLocaleString('es-CO')} comprobantes en total`}
+                      >
+                        <li className="flex items-center gap-3 py-3 text-body cursor-default hover:bg-bone/50 -mx-2 px-2 rounded-lg transition-colors">
+                          <span
+                            className="inline-block w-2 h-2 rounded-full shrink-0"
+                            style={{ backgroundColor: paletteColor(i) }}
+                            aria-hidden
+                          />
+                          <span className="text-graphite flex-1 min-w-0 truncate">
+                            {slice.name}
+                          </span>
+                          <span className="text-mid-gray tabular-nums">
+                            {slice.value.toLocaleString('es-CO')}
                           </span>
                           <span className="text-dark-graphite font-medium tabular-nums w-14 text-right">
                             {slice.percentage.toFixed(1)}%

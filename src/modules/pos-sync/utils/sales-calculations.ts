@@ -48,6 +48,48 @@ export function cajaKey(v: PosVenta): string {
   return String(v.caja_id ?? '?')
 }
 
+// --- Tipo de comprobante ---
+
+export type DocType = 'factura' | 'boleta' | 'nota' | 'otro'
+
+// El POS marca las facturas con `tipo_documento: "F"`, pero deja el campo VACÍO
+// en las notas de venta — de ahí el fallback por `documento`. En las 4 sedes
+// solo aparecen esos dos tipos hoy; boleta/otro se mantienen para no romper si
+// el POS empieza a emitirlos.
+export function getDocType(v: PosVenta): DocType {
+  const td = v.tipo_documento?.toUpperCase()
+  if (td === 'F') return 'factura'
+  if (td === 'B') return 'boleta'
+  if (td === 'NV' || v.documento?.toLowerCase().includes('nota')) return 'nota'
+  return 'otro'
+}
+
+// Plural, para listados y leyendas. Los filtros de la tabla de ventas usan sus
+// propias etiquetas en singular ("Factura", "Nota") y no dependen de esto.
+export const DOC_TYPE_LABELS: Record<DocType, string> = {
+  factura: 'Facturas',
+  boleta: 'Boletas',
+  nota: 'Notas de venta',
+  otro: 'Otros',
+}
+
+export interface DocCounts {
+  total: number
+  factura: number
+  boleta: number
+  nota: number
+  otro: number
+}
+
+// Un solo recorrido. `list` debe venir ya filtrada (sin anuladas y solo los
+// locales de la company), igual que `calcTotals` — así Análisis e Integraciones
+// cuentan exactamente el mismo conjunto.
+export function calcDocCounts(list: PosVenta[]): DocCounts {
+  const counts: DocCounts = { total: list.length, factura: 0, boleta: 0, nota: 0, otro: 0 }
+  for (const v of list) counts[getDocType(v)]++
+  return counts
+}
+
 // YYYY-MM-DD en zona horaria LOCAL del navegador.
 // No usar toISOString() porque en zonas negativas (ej. Perú UTC-5) el
 // endOfDay local cae al día siguiente en UTC y desplaza los rangos.
