@@ -10,6 +10,10 @@ export interface Company {
   logoThumb?: string
   categories?: string[]
   posTenantId?: string
+  // Override explícito del local POS de esta sede. Necesario cuando el nombre
+  // del local en el POS no coincide con `location` (ej. San Lucas ↔ "FILIPO
+  // POBLADO"). Si está seteado, gana sobre el matching heurístico por nombre.
+  posLocalId?: number
   driveRootFolderId?: string
   driveDiscountsFolderId?: string
   // Override manual del "dueño de Drive": uid cuyo token se usa para todas las

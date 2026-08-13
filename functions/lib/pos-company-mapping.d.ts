@@ -4,6 +4,7 @@ interface CompanyLike {
     name?: string | null;
     location?: string | null;
     posTenantId?: string | null;
+    posLocalId?: number | null;
 }
 export declare function normalize(str: string | null | undefined): string;
 export declare function findMatchingLocal(locales: PosLocalRaw[], company: CompanyLike | null | undefined): PosLocalRaw | null;

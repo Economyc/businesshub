@@ -15,6 +15,7 @@ interface CompanyLike {
   name?: string | null
   location?: string | null
   posTenantId?: string | null
+  posLocalId?: number | null
 }
 
 export function normalize(str: string | null | undefined): string {
@@ -29,7 +30,11 @@ function escapeRegex(s: string): string {
   return s.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')
 }
 
-// Matching estricto en 3 niveles de confidence:
+// Matching estricto en 4 niveles de confidence:
+//   0) Override `posLocalId`: la company declara su local_id a mano. Gana sobre
+//      todo lo demás. Existe porque el heurístico no puede resolver sedes cuyo
+//      nombre en el POS no se parece a su `location` (Filipo San Lucas está
+//      cargada en el POS como "FILIPO POBLADO").
 //   1) Exact: `<name> <location>` == local_descripcion (ej. "Blue Manila")
 //   2) Location as word: desc contiene la location como palabra (ej. "BLUE MANILA"
 //      contiene "manila")
@@ -42,7 +47,17 @@ export function findMatchingLocal(
   locales: PosLocalRaw[],
   company: CompanyLike | null | undefined,
 ): PosLocalRaw | null {
-  if (!company || !company.location || locales.length === 0) return null
+  if (!company || locales.length === 0) return null
+
+  // Nivel 0 — override explícito. Una company con override no necesita `name`
+  // ni `location`, así que se evalúa antes de esos guards. Si el id no existe
+  // en el dominio devolvemos null a propósito: preferimos "sin datos" a caer
+  // al heurístico y terminar sincronizando las ventas de otra sede.
+  if (company.posLocalId != null) {
+    return locales.find((l) => Number(l.local_id) === Number(company.posLocalId)) ?? null
+  }
+
+  if (!company.location) return null
   if (!company.name) return null
 
   const nameNorm = normalize(company.name)
@@ -91,6 +106,18 @@ export async function buildCompanyLocalMap(
         localIds: [Number(matched.local_id)],
         matchedExact: true,
       })
+      continue
+    }
+    // La company declaró un `posLocalId` que no existe en el dominio. El
+    // fallback de abajo asignaría el único local disponible, que es justo lo
+    // que el override quiere impedir. Log ruidoso y la omitimos: el operador
+    // corrige el id, y mientras tanto no se sincronizan ventas ajenas.
+    if (company.posLocalId != null) {
+      console.warn(
+        `[PosCompanyMapping] company=${doc.id} tenant=${tenantId} declara ` +
+          `posLocalId=${company.posLocalId} pero ese local no existe en el dominio ` +
+          `(locales=[${locales.map((l) => l.local_id).join(',')}]), omitida`,
+      )
       continue
     }
     // Fallback tenant-single-local: si el dominio tiene un solo local, se

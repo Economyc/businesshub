@@ -113,10 +113,11 @@ async function getTenantLocales(
 function computeAllowedIds(locales: PosLocal[], company: Company): Set<number> {
   if (locales.length === 0) return new Set()
   const matched = findMatchingLocal(locales, company)
-  const ids = matched
-    ? [Number(matched.local_id)]
-    : locales.map((l) => Number(l.local_id))
-  return new Set(ids)
+  if (matched) return new Set([Number(matched.local_id)])
+  // Override seteado que no resolvió: vacío en vez de todos los locales, o la
+  // tarjeta de esta sede mostraría las ventas de sus hermanas del mismo tenant.
+  if (company.posLocalId != null) return new Set()
+  return new Set(locales.map((l) => Number(l.local_id)))
 }
 
 // ESTRATEGIA CACHE-FIRST:

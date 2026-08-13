@@ -75,18 +75,36 @@ function enumerateDates(start, end) {
   return dates
 }
 
-async function fetchLive(localIds, from, to) {
+// Reintenta con backoff: un rango de un mes tarda lo suficiente como para que
+// la conexión al proxy se corte cada tanto (ECONNRESET / fetch failed). Sin
+// esto el operador tiene que relanzar el script a ojo.
+async function fetchLive(localIds, from, to, attempts = 4) {
   const f1 = `${from} 00:00:00`
   const f2 = `${to} 23:59:59`
-  const res = await fetch(POS_PROXY_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'ventas-batch', params: { local_ids: localIds, f1, f2 } }),
-  })
-  if (!res.ok) throw new Error(`Proxy HTTP ${res.status}: ${await res.text()}`)
-  const json = await res.json()
-  if (!json.success) throw new Error(json.error || 'Proxy error')
-  return { ventas: json.data.ventas || [], rateLimited: !!json.data.rateLimited }
+  for (let i = 1; ; i++) {
+    try {
+      const res = await fetch(POS_PROXY_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        // `companyId` es obligatorio desde que el POS pasó a multi-tenant: el
+        // proxy lo usa para resolver token + domainId (ver pos-proxy.ts).
+        body: JSON.stringify({
+          action: 'ventas-batch',
+          companyId,
+          params: { local_ids: localIds, f1, f2 },
+        }),
+      })
+      if (!res.ok) throw new Error(`Proxy HTTP ${res.status}: ${await res.text()}`)
+      const json = await res.json()
+      if (!json.success) throw new Error(json.error || 'Proxy error')
+      return { ventas: json.data.ventas || [], rateLimited: !!json.data.rateLimited }
+    } catch (err) {
+      if (i >= attempts) throw err
+      const backoff = 10000 * i
+      console.log(`  (intento ${i}/${attempts} falló: ${err.message}; reintentando en ${backoff / 1000}s)`)
+      await new Promise((r) => setTimeout(r, backoff))
+    }
+  }
 }
 
 async function discoverLocalIds() {
