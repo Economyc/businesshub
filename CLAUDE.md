@@ -54,7 +54,12 @@ Reglas duras (resumen; detalle completo en el doc):
 - MCP `playwright` está configurado en `.mcp.json` para testing interactivo de UI (navegar/clickear/screenshot) — requiere reiniciar Claude Code para que cargue.
 
 ### Deploy frontend (producción)
-Usar el skill `/deploy-oracle`. Hace push a GitHub + build + deploy a Oracle Cloud (`http://134.65.233.213`). Es el único método de deploy de frontend. No usar Firebase Hosting.
+Usar el skill `/deploy-hub`. Hace push a GitHub + dispara el rebuild en Coolify (Hetzner) y espera el resultado. La app vive en **`https://hub.economyc.cc`**. No usar Firebase Hosting.
+
+- El build corre **dentro de Coolify** (Dockerfile multi-stage), no en local.
+- **No hay auto-deploy**: el `git push` solo no publica nada, hay que disparar el rebuild.
+- `/deploy-oracle` quedó **obsoleto** (2026-08-12). Oracle (`businesshub.myvnc.com`) sigue vivo con el último bundle publicado, sólo como rollback: `bash deploy-oracle.sh`.
+- App2 admin (`businessadm.economyc.cc`) es otro recurso del mismo repo, con `/Dockerfile.admin`.
 
 ### Deploy Cloud Functions
 - **SIEMPRE** `gcloud functions deploy ...` para cada función.
