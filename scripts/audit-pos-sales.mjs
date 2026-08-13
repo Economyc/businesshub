@@ -4,6 +4,22 @@
 // aplica la fórmula canónica ventaMonto y reporta agregados y
 // distribuciones para diagnosticar la diferencia contra el POS.
 //
+// QUÉ NÚMERO MUESTRA LA APP: `Σ total` de los comprobantes no anulados
+// (mirror de `ventaMonto` en src/modules/pos-sync/utils/sales-calculations.ts).
+// Propinas, envío e impuestos NO se suman ahí — van como informativos.
+//
+// POR QUÉ NO CUADRA EXACTO CONTRA EL POS: el dashboard del POS arma su
+// "Total de Ventas e Ingresos" desde la CAJA, no desde los comprobantes:
+//
+//     Total POS = Σ pagos recibidos (efectivo + tarjeta + …) + REDONDEO
+//
+// El REDONDEO (el badge sobre "Ventas en efectivo") no viaja en la API:
+// `obtenerVentasPorIntegracion` no trae ningún campo de redondeo. Y en los
+// comprobantes pagados en efectivo el monto cobrado puede quedar unos pesos
+// por debajo del facturado. Por eso la sección CONCILIACIÓN descompone la
+// brecha en (redondeo del POS) − (Δ facturado vs cobrado). Los que SÍ deben
+// dar 1:1 son descuento, propinas y # de comprobantes: ver CONTROL CRUZADO.
+//
 // Uso:
 //   node scripts/audit-pos-sales.mjs                      # lista empresas
 //   node scripts/audit-pos-sales.mjs --company <id>       # mes actual
@@ -63,24 +79,40 @@ function isAnuladaStrict(v) {
   return (v.estado_txt || '').toLowerCase() === 'comprobante anulado'
 }
 
+function esPagoPropina(p) {
+  const t = String(p.tipoPago ?? p.pagoventa_tipo ?? '').toLowerCase()
+  return t.includes('propina') || t.includes('tip')
+}
+
 function sumPropinasCanonical(v) {
   const list = v.lista_propinas || []
   let s = 0
   for (const p of list) s += num(p.montoConIgv)
   if (s > 0) return s
-  const pagos = v.pagosList || []
-  for (const p of pagos) {
-    const tipoStr = String(p.tipoPago ?? p.pagoventa_tipo ?? '').toLowerCase()
-    if (tipoStr.includes('propina') || tipoStr.includes('tip')) {
-      const monto = p.monto ?? p.pagoventa_monto
-      s += num(monto)
-    }
+  for (const p of v.pagosList || []) {
+    if (esPagoPropina(p)) s += num(p.monto ?? p.pagoventa_monto)
   }
   return s
 }
 
-function ventaMontoCanonical(v) {
-  return num(v.total) + sumPropinasCanonical(v) + num(v.costoenvio)
+// Mirror EXACTO de `ventaMonto` en sales-calculations.ts:43. Solo el neto del
+// comprobante: así cuadra con el KPI de Análisis/Home. Si esta función deja de
+// coincidir con la app, el script miente — es lo que pasó hasta 2026-08-13,
+// cuando todavía sumaba propinas + costoenvio.
+function ventaMonto(v) {
+  return num(v.total)
+}
+
+// Σ de lo efectivamente COBRADO en el comprobante (excluye propinas, que el POS
+// lista aparte). Es la base de las cards "Ventas en efectivo"/"Ventas con
+// tarjeta" del dashboard del POS.
+function sumPagosVenta(v) {
+  let s = 0
+  for (const p of v.pagosList || []) {
+    if (esPagoPropina(p)) continue
+    s += num(p.pagoventa_monto ?? p.monto)
+  }
+  return s
 }
 
 // ───────── Formato ─────────
@@ -158,16 +190,16 @@ function reportTotals(ventas) {
   let costoenvio = 0
   let impuestos = 0
   let sumaImpuestos = 0
+  let descuento = 0
   let anuladasTotal = 0
   let anuladasCount = 0
   let validCount = 0
-  let pagosNoReconocidos = 0 // suma de pagosList no-propina excluyendo pagos normales
 
   for (const v of ventas) {
     const anul = isAnuladaStrict(v)
     if (anul) {
       anuladasCount++
-      anuladasTotal += ventaMontoCanonical(v)
+      anuladasTotal += ventaMonto(v)
       continue
     }
     validCount++
@@ -175,6 +207,7 @@ function reportTotals(ventas) {
     costoenvio += num(v.costoenvio)
     impuestos += num(v.impuestos)
     sumaImpuestos += num(v.suma_impuestos)
+    descuento += num(v.descuento)
     // propinas desde lista
     let pl = 0
     for (const p of v.lista_propinas || []) pl += num(p.montoConIgv)
@@ -182,44 +215,127 @@ function reportTotals(ventas) {
     // propinas fallback desde pagosList (cuando lista_propinas vacío)
     if (pl === 0) {
       for (const p of v.pagosList || []) {
-        const tipoStr = String(p.tipoPago ?? p.pagoventa_tipo ?? '').toLowerCase()
-        if (tipoStr.includes('propina') || tipoStr.includes('tip')) {
-          propinasFallback += num(p.monto ?? p.pagoventa_monto)
-        }
+        if (esPagoPropina(p)) propinasFallback += num(p.monto ?? p.pagoventa_monto)
       }
     }
   }
-
-  const ventaMontoTotal = total + propinasLista + propinasFallback + costoenvio
 
   printHeader('TOTALES (fórmula canónica)')
   console.log(`  Ventas válidas:               ${validCount}`)
   console.log(`  Anuladas (excluidas):         ${anuladasCount}  (${COP(anuladasTotal)})`)
   console.log('')
-  console.log(`  Σ total (neto):               ${COP(total)}`)
-  console.log(`  Σ propinas (lista_propinas):  ${COP(propinasLista)}`)
-  console.log(`  Σ propinas (pagosList):       ${COP(propinasFallback)}`)
-  console.log(`  Σ costoenvio:                 ${COP(costoenvio)}`)
-  console.log(`  Σ impuestos:                  ${COP(impuestos)}`)
-  console.log(`  Σ suma_impuestos:             ${COP(sumaImpuestos)}`)
+  console.log(`  Σ total (neto):               ${COP(total)}   ← lo que ve BusinessHub`)
   console.log('')
-  console.log(`  ventaMonto TOTAL (actual):    ${COP(ventaMontoTotal)}   ← lo que ve BusinessHub`)
-  console.log(`  + anuladas:                   ${COP(ventaMontoTotal + anuladasTotal)}`)
-  console.log(`  + impuestos:                  ${COP(ventaMontoTotal + impuestos)}`)
-  console.log(`  + suma_impuestos:             ${COP(ventaMontoTotal + sumaImpuestos)}`)
-  console.log(`  + anuladas + impuestos:       ${COP(ventaMontoTotal + anuladasTotal + impuestos)}`)
+  console.log('  Informativos (NO entran al KPI de ventas):')
+  console.log(`    Σ descuento:                ${COP(descuento)}`)
+  console.log(`    Σ propinas (lista_propinas):${COP(propinasLista)}`)
+  console.log(`    Σ propinas (pagosList):     ${COP(propinasFallback)}`)
+  console.log(`    Σ costoenvio:               ${COP(costoenvio)}`)
+  console.log(`    Σ impuestos:                ${COP(impuestos)}`)
+  console.log(`    Σ suma_impuestos:           ${COP(sumaImpuestos)}`)
 
   if (target !== null) {
-    const diff = target - ventaMontoTotal
+    const diff = target - total
     printHeader('COMPARACIÓN CONTRA TARGET')
     console.log(`  POS reportado:        ${COP(target)}`)
-    console.log(`  BusinessHub:          ${COP(ventaMontoTotal)}`)
+    console.log(`  BusinessHub:          ${COP(total)}`)
     console.log(`  Diferencia:           ${COP(diff)}   (${((diff / target) * 100).toFixed(3)}%)`)
     if (Math.abs(diff) < 1) console.log('  OK ✅  Cuadra 1:1')
-    else console.log('  ⚠️  NO cuadra — revisar distribuciones abajo')
+    else console.log('  → esperado si es redondeo de caja; ver CONCILIACIÓN abajo')
   }
 
-  return { ventaMontoTotal, validCount }
+  return {
+    total,
+    validCount,
+    descuento,
+    propinas: propinasLista + propinasFallback,
+  }
+}
+
+// El bloque que explica la brecha contra el dashboard del POS.
+// Identidad que debe cerrar: target = Σ pagos cobrados + redondeo de caja.
+function reportConciliacion(ventas, totals) {
+  const porMetodo = new Map()
+  let pagosTotal = 0
+  const desajustes = []
+
+  for (const v of ventas) {
+    if (isAnuladaStrict(v)) continue
+    const pagos = sumPagosVenta(v)
+    pagosTotal += pagos
+    for (const p of v.pagosList || []) {
+      if (esPagoPropina(p)) continue
+      const tipo = String(p.pagoventa_tipo ?? p.tipoPago ?? '(vacío)')
+      const row = porMetodo.get(tipo) || { count: 0, monto: 0 }
+      row.count++
+      row.monto += num(p.pagoventa_monto ?? p.monto)
+      porMetodo.set(tipo, row)
+    }
+    // Comprobantes con pagos ($0 = cortesías/anulados de hecho, no son desajuste)
+    const d = num(v.total) - pagos
+    if (Math.abs(d) > 0.4 && (pagos > 0 || num(v.total) > 0)) {
+      const metodos = [...new Set((v.pagosList || []).filter((p) => !esPagoPropina(p))
+        .map((p) => String(p.pagoventa_tipo ?? p.tipoPago ?? '?')))].join('+') || '(sin pagos)'
+      desajustes.push({ id: v.ID, fecha: v.fecha, total: num(v.total), pagos, d, metodos })
+    }
+  }
+
+  printHeader('CONCILIACIÓN CON EL POS (por qué no da exacto)')
+  console.log('  Σ pagos cobrados por método — cuadra con las cards del dashboard POS:')
+  const rows = [...porMetodo.entries()].sort((a, b) => b[1].monto - a[1].monto)
+  for (const [k, r] of rows) {
+    console.log('    ' + pad(k, 24) + padR(r.count, 7) + padR(COP(r.monto), 20))
+  }
+  printRule()
+  console.log('    ' + pad('Σ pagos', 24) + padR('', 7) + padR(COP(pagosTotal), 20))
+  console.log('')
+
+  const delta = totals.total - pagosTotal
+  console.log(`  Σ total (facturado):   ${COP(totals.total)}`)
+  console.log(`  Σ pagos (cobrado):     ${COP(pagosTotal)}`)
+  console.log(`  Δ facturado − cobrado: ${COP(delta)}  en ${desajustes.length} comprobante(s)`)
+  if (desajustes.length > 0 && desajustes.length <= 25) {
+    desajustes.sort((a, b) => Math.abs(b.d) - Math.abs(a.d))
+    for (const r of desajustes) {
+      console.log(
+        `    ${pad(r.fecha, 21)} ID=${pad(r.id, 8)} total=${padR(COP(r.total), 12)}` +
+          ` pagos=${padR(COP(r.pagos), 12)} Δ=${padR(COP(r.d), 9)}  ${r.metodos}`,
+      )
+    }
+  } else if (desajustes.length > 25) {
+    console.log(`    (${desajustes.length} comprobantes — demasiados para listar)`)
+  }
+
+  if (target === null) {
+    console.log('')
+    console.log('  Pasá --target <total del POS> para calcular el redondeo de caja.')
+    return
+  }
+
+  // El redondeo no viaja en la API (`obtenerVentasPorIntegracion` no trae el
+  // campo; recargoConsumo llega en {monto:0}). Se deduce del total del POS.
+  const redondeo = target - pagosTotal
+  const brecha = target - totals.total
+  console.log('')
+  console.log(`  Redondeo de caja implícito:  ${COP(redondeo)}   (target − Σ pagos)`)
+  console.log(`    ↳ el badge REDONDEO del POS; no reconstruible desde la API`)
+  console.log('')
+  console.log(`  ${COP(pagosTotal)} (pagos) + ${COP(redondeo)} (redondeo) = ${COP(target)} ✅`)
+  console.log(
+    `  Brecha hub vs POS:  ${COP(brecha)}  =  ${COP(redondeo)} (redondeo) − ${COP(delta)} (Δ)`,
+  )
+}
+
+// Los tres valores que sí deben dar idénticos al POS. Si alguno descuadra, ahí
+// sí hay problema de datos: cache incompleto, anuladas mal etiquetadas o el bug
+// de caché cruzado entre locales del mismo tenant.
+function reportControlCruzado(totals) {
+  printHeader('CONTROL CRUZADO (esto SÍ debe dar 1:1 contra el POS)')
+  console.log(`  Total de descuentos:      ${COP(totals.descuento)}`)
+  console.log(`  Propinas:                 ${COP(totals.propinas)}`)
+  console.log(`  Comprobantes válidos:     ${totals.validCount}   (= "Clientes" en el POS)`)
+  console.log('')
+  console.log('  Si alguno NO cuadra → revisar cobertura del cache y estado_txt abajo.')
 }
 
 function reportByDay(ventas) {
@@ -230,7 +346,7 @@ function reportByDay(ventas) {
     const row = map.get(d) || { count: 0, total: 0, propinas: 0, envio: 0, anuladas: 0, montoAnul: 0 }
     if (isAnuladaStrict(v)) {
       row.anuladas++
-      row.montoAnul += ventaMontoCanonical(v)
+      row.montoAnul += ventaMonto(v)
     } else {
       row.count++
       row.total += num(v.total)
@@ -281,7 +397,7 @@ function reportEstados(ventas) {
     const k = String(v.estado_txt || '(vacío)')
     const row = map.get(k) || { count: 0, monto: 0 }
     row.count++
-    row.monto += ventaMontoCanonical(v)
+    row.monto += ventaMonto(v)
     map.set(k, row)
   }
   printHeader('DISTRIBUCIÓN DE estado_txt (importante para detectar anuladas mal etiquetadas)')
@@ -373,7 +489,7 @@ async function main() {
         const { ventas } = await loadVentas(c.id, mr.from, mr.monthEnd)
         for (const v of ventas) {
           if (!isAnuladaStrict(v)) {
-            totalMes += ventaMontoCanonical(v)
+            totalMes += ventaMonto(v)
             count++
           }
         }
@@ -414,8 +530,8 @@ async function main() {
       const onlyLive = live.ventas.filter((v) => !cacheIds.has(String(v.ID)))
       const onlyCache = ventas.filter((v) => !liveIds.has(String(v.ID)))
       printHeader('DIFF cache vs live')
-      console.log(`  En live pero NO en cache: ${onlyLive.length}  ventaMonto=${COP(onlyLive.reduce((s, v) => s + (isAnuladaStrict(v) ? 0 : ventaMontoCanonical(v)), 0))}`)
-      console.log(`  En cache pero NO en live: ${onlyCache.length}  ventaMonto=${COP(onlyCache.reduce((s, v) => s + (isAnuladaStrict(v) ? 0 : ventaMontoCanonical(v)), 0))}`)
+      console.log(`  En live pero NO en cache: ${onlyLive.length}  ventaMonto=${COP(onlyLive.reduce((s, v) => s + (isAnuladaStrict(v) ? 0 : ventaMonto(v)), 0))}`)
+      console.log(`  En cache pero NO en live: ${onlyCache.length}  ventaMonto=${COP(onlyCache.reduce((s, v) => s + (isAnuladaStrict(v) ? 0 : ventaMonto(v)), 0))}`)
       if (onlyLive.length > 0 && onlyLive.length <= 20) {
         console.log('  IDs en live no cacheadas:')
         for (const v of onlyLive) {
@@ -433,7 +549,9 @@ async function main() {
     }
   }
 
-  reportTotals(ventasForReport)
+  const totals = reportTotals(ventasForReport)
+  reportConciliacion(ventasForReport, totals)
+  reportControlCruzado(totals)
   reportByDay(ventasForReport)
   reportByKey(ventasForReport, (v) => String(v.id_local ?? '?'), 'DESGLOSE POR id_local')
   reportByKey(ventasForReport, (v) => String(v.caja_id ?? '?'), 'DESGLOSE POR caja_id')
