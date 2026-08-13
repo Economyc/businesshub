@@ -10,7 +10,7 @@ import { LoginPage } from '@/core/ui/login-page'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { ErrorBoundary } from '@/core/ui/error-boundary'
 import { Skeleton } from '@/core/ui/skeleton'
-import { DateRangeProvider } from '@/modules/finance/context/date-range-context'
+import { DateRangeProvider } from '@/core/ui/date-range-context'
 import { AdminLayout } from './layout'
 import { DefaultRedirect } from './default-redirect'
 // Módulos: Horarios es nuevo; Cierres y Descuentos se reutilizan tal cual de App1

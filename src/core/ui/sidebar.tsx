@@ -15,7 +15,7 @@ import { useCompany } from '@/core/hooks/use-company'
 import { usePermissions } from '@/core/hooks/use-permissions'
 import { prefetchRoute, resetPrefetchCache } from '@/core/utils/prefetch'
 import { prefetchSelectorSales } from '@/modules/home/selector-sales'
-import { NAV_SECTIONS, SETTINGS_ITEMS, FINANCE_ITEMS, getActiveSections, isNavItemVisible } from '@/core/config/navigation'
+import { NAV_SECTIONS, SETTINGS_ITEMS, getActiveSections, isNavItemVisible } from '@/core/config/navigation'
 
 interface SidebarProps {
   onNavClick?: () => void
@@ -95,9 +95,6 @@ export function Sidebar({ onNavClick }: SidebarProps) {
   const isSettingsRoute = location.pathname.startsWith('/settings')
   const [settingsOpen, setSettingsOpen] = useState(isSettingsRoute)
 
-  const isFinanceRoute = location.pathname.startsWith('/finance')
-  const [financeOpen, setFinanceOpen] = useState(isFinanceRoute)
-
 
   // Sync settings panel with route
   useEffect(() => {
@@ -141,11 +138,6 @@ export function Sidebar({ onNavClick }: SidebarProps) {
     if (prefetchTimerRef.current) clearTimeout(prefetchTimerRef.current)
   }, [])
 
-  // Close finance panel when navigating away from finance routes
-  useEffect(() => {
-    if (!isFinanceRoute) setFinanceOpen(false)
-  }, [location.pathname, isFinanceRoute])
-
   // Auto-expand section of active route; collapse previous route's section when switching categories
   const previousPathnameRef = useRef<string | null>(null)
   useEffect(() => {
@@ -177,14 +169,6 @@ export function Sidebar({ onNavClick }: SidebarProps) {
     })
   }
 
-  function handleFinanceClick() {
-    setFinanceOpen(prev => {
-      const next = !prev
-      if (next) { setSettingsOpen(false) }
-      return next
-    })
-  }
-
   function handleSettingsClick() {
     setUserMenuOpen(false)
     if (settingsOpen && isSettingsRoute) {
@@ -193,7 +177,6 @@ export function Sidebar({ onNavClick }: SidebarProps) {
     } else if (settingsOpen) {
       setSettingsOpen(false)
     } else {
-      setFinanceOpen(false)
       setSettingsOpen(true)
       navigate('/settings/companies')
     }
@@ -216,7 +199,6 @@ export function Sidebar({ onNavClick }: SidebarProps) {
         if (companyOpen) { e.preventDefault(); setCompanyOpen(false) }
         if (userMenuOpen) { e.preventDefault(); setUserMenuOpen(false) }
         if (settingsOpen) { e.preventDefault(); setSettingsOpen(false) }
-        if (financeOpen) { e.preventDefault(); setFinanceOpen(false) }
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -225,10 +207,10 @@ export function Sidebar({ onNavClick }: SidebarProps) {
       document.removeEventListener('mousedown', handleClickOutside)
       window.removeEventListener('keydown', handleKey, true)
     }
-  }, [companyOpen, userMenuOpen, settingsOpen, financeOpen])
+  }, [companyOpen, userMenuOpen, settingsOpen])
 
   const effectiveCollapsed = autoHide
-    ? !(hovered || companyOpen || userMenuOpen || settingsOpen || financeOpen)
+    ? !(hovered || companyOpen || userMenuOpen || settingsOpen)
     : collapsed
 
   function toggleAutoHide() {
@@ -237,7 +219,6 @@ export function Sidebar({ onNavClick }: SidebarProps) {
     localStorage.setItem('sidebar-auto-hide', String(next))
     if (next) {
       setSettingsOpen(false)
-      setFinanceOpen(false)
     }
   }
 
@@ -257,7 +238,7 @@ export function Sidebar({ onNavClick }: SidebarProps) {
         {/* Collapse toggle — hover-reveal on sidebar edge */}
         {!autoHide && (
           <button
-            onClick={() => { if (!collapsed) { setSettingsOpen(false); setFinanceOpen(false) }; setCollapsed(!collapsed) }}
+            onClick={() => { if (!collapsed) { setSettingsOpen(false) }; setCollapsed(!collapsed) }}
             className="absolute top-1/2 -translate-y-1/2 -right-3 w-6 h-6 rounded-full bg-bone border border-border shadow-sm flex items-center justify-center text-mid-gray/60 hover:text-graphite hover:bg-smoke opacity-0 group-hover/sidebar:opacity-100 transition-all duration-200 z-20 cursor-pointer"
           >
             <ChevronsLeft size={13} strokeWidth={1.5} className={cn('transition-transform duration-300', collapsed && 'rotate-180')} />
@@ -398,29 +379,6 @@ export function Sidebar({ onNavClick }: SidebarProps) {
                       >
                         <div className="overflow-hidden relative">
                           {visibleItems.map(({ to, label, icon: Icon }) => {
-                            if (to === '/finance') {
-                              const isPanelRoute = isFinanceRoute
-                              const onClick = handleFinanceClick
-                              return (
-                                <button
-                                  key={to}
-                                  onClick={onClick}
-                                  onMouseEnter={() => handlePrefetchEnter(to)}
-                                  onMouseLeave={handlePrefetchLeave}
-                                  onFocus={() => prefetchRoute(to, selectedCompany?.id)}
-                                  className={cn(
-                                    'group/nav relative flex items-center gap-2.5 px-3 mx-2 rounded-lg text-body transition-all duration-150 w-[calc(100%-1rem)]',
-                                    section.title ? 'py-2' : 'py-2.5',
-                                    isPanelRoute
-                                      ? 'text-dark-graphite font-medium bg-smoke'
-                                      : 'text-graphite/70 hover:bg-card-bg hover:text-graphite'
-                                  )}
-                                >
-                                  {Icon && <Icon size={16} strokeWidth={1.5} />}
-                                  <span className={section.title ? 'ml-3' : ''}>{label}</span>
-                                </button>
-                              )
-                            }
                             return (
                               <RegularNavItem
                                 key={to}
@@ -551,49 +509,6 @@ export function Sidebar({ onNavClick }: SidebarProps) {
           </>
         )}
       </nav>
-
-      {/* Finance sub-panel */}
-      <div
-        className={cn(
-          'bg-card-bg border-r border-border flex flex-col py-5 overflow-hidden transition-all duration-300 ease-in-out',
-          financeOpen ? 'w-[200px] opacity-100' : 'w-0 opacity-0'
-        )}
-      >
-        <div className="px-4 mb-4">
-          <h3 className="text-caption uppercase tracking-wider font-semibold text-mid-gray">Contabilidad</h3>
-        </div>
-        <div className="flex flex-col gap-0.5 flex-1">
-          {FINANCE_ITEMS.filter((i) => canAccessPage(i.pageId)).map(({ to, label, icon: Icon, end }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={end}
-              onClick={() => { onNavClick?.(); setFinanceOpen(false) }}
-              onMouseEnter={() => prefetchRoute(to, selectedCompany?.id)}
-              onFocus={() => prefetchRoute(to, selectedCompany?.id)}
-              className={({ isActive }) =>
-                cn(
-                  'flex items-center gap-2.5 px-3 mx-2 py-2.5 rounded-lg text-body transition-all duration-150 whitespace-nowrap',
-                  isActive
-                    ? 'text-dark-graphite font-medium bg-bone/80'
-                    : 'text-graphite/70 hover:bg-bone/50 hover:text-graphite'
-                )
-              }
-            >
-              <Icon size={16} strokeWidth={1.5} />
-              {label}
-            </NavLink>
-          ))}
-        </div>
-        <div className="mx-4 pt-1 border-t border-border flex justify-end">
-          <button
-            onClick={() => setFinanceOpen(false)}
-            className="group/close relative flex items-center justify-center p-1.5 rounded-md text-mid-gray/50 hover:text-graphite transition-colors duration-200"
-          >
-            <ChevronsLeft size={15} strokeWidth={1.5} />
-          </button>
-        </div>
-      </div>
 
       {/* Settings sub-panel */}
       <div

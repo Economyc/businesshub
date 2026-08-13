@@ -7,19 +7,7 @@ import { fetchCollection } from '@/core/firebase/helpers'
 // deduplica.
 const CHUNK_BY_PATH: Record<string, () => Promise<unknown>> = {
   '/home': () => import('@/modules/home/components/home-page'),
-  '/agent': () => import('@/modules/agent/components/agent-page'),
   '/analytics': () => import('@/modules/analytics/components/pos-dashboard'),
-  '/finance': () => import('@/modules/finance/components/transaction-list'),
-  '/finance/cash-flow': () => import('@/modules/finance/components/cash-flow-view'),
-  '/finance/income-statement': () => import('@/modules/finance/components/income-statement-view'),
-  '/finance/budget': () => import('@/modules/finance/components/budget-view'),
-  '/closings': () => import('@/modules/closings/components/closing-list'),
-  '/discounts': () => import('@/modules/discounts/components/discounts-page'),
-  '/contracts': () => import('@/modules/contracts/components/contract-list'),
-  '/partners': () => import('@/modules/partners/components/partner-list'),
-  '/talent': () => import('@/modules/talent/components/employee-list'),
-  '/suppliers': () => import('@/modules/suppliers/components/supplier-list'),
-  '/marketing/influencers': () => import('@/modules/marketing/influencers/components/influencer-list'),
   '/pos-sync': () => import('@/modules/pos-sync/components/pos-sync-page'),
   '/settings/companies': () => import('@/core/ui/settings-companies'),
   '/settings/categories': () => import('@/core/ui/settings-categories'),
@@ -39,14 +27,7 @@ const CHUNK_BY_PATH: Record<string, () => Promise<unknown>> = {
 // Esas colecciones se cargan on-demand cuando el módulo monta, y persistence
 // + staleTime 5min hacen que la 2da visita sea instantánea.
 const COLLECTIONS_BY_PATH: Record<string, readonly string[]> = {
-  '/home': ['closings', 'suppliers', 'contracts'],
-  '/closings': ['closings'],
-  '/discounts': ['discounts'],
-  '/contracts': ['contracts', 'contract_templates'],
-  '/partners': ['partners'],
-  '/talent': ['employees'],
-  '/suppliers': ['suppliers'],
-  '/marketing/influencers': ['influencer-visits'],
+  '/home': ['closings', 'suppliers'],
 }
 
 // Evitar re-disparar el prefetch del mismo path muchas veces por sesión
@@ -96,11 +77,11 @@ export function resetPrefetchCache(): void {
 }
 
 // Colecciones que HomePage consume al montarse y que vale la pena precalentar.
-// Solo catálogos chicos: suppliers, contracts, closings. transactions/purchases/
-// payments se EXCLUYEN — son las grandes y saturaban la red en background.
-// Se cargan on-demand al montar el módulo, persistence + staleTime cubren las
-// visitas siguientes.
-const HOME_COLLECTIONS = ['closings', 'suppliers', 'contracts'] as const
+// Solo catálogos chicos: suppliers y closings. transactions/purchases/payments
+// se EXCLUYEN — son las grandes y saturaban la red en background. Se cargan
+// on-demand al montar el módulo, persistence + staleTime cubren las visitas
+// siguientes.
+const HOME_COLLECTIONS = ['closings', 'suppliers'] as const
 
 export function prefetchHomeData(companyId: string) {
   if (!companyId) return

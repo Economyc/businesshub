@@ -4,7 +4,6 @@ import { Topbar } from './topbar'
 import { Sidebar } from './sidebar'
 import { MobileNav } from './mobile-nav'
 import { Breadcrumb } from './breadcrumb'
-import { DriveReconnectModal } from './drive-reconnect-modal'
 
 export function Layout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -30,8 +29,6 @@ export function Layout() {
           <Outlet />
         </main>
       </div>
-
-      <DriveReconnectModal />
     </div>
   )
 }

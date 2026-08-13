@@ -2,27 +2,17 @@ import type { LucideIcon } from 'lucide-react'
 import {
   Users,
   Briefcase,
-  DollarSign,
   Tags,
   Network,
-  Handshake,
   ClipboardList,
-  FileSignature,
-  Wallet,
-  FileText,
   Shield,
   RefreshCw,
-  Megaphone,
-  List,
-  Target,
   Building2,
   Percent,
-  Landmark,
   KeyRound,
   CalendarDays,
   CreditCard,
   Package,
-  PieChart,
 } from 'lucide-react'
 import type {
   ModuleKey,
@@ -93,105 +83,56 @@ export const ACCESS_REGISTRY: AccessModule[] = [
     label: 'General',
     pages: [
       { id: 'home', label: 'Home', path: '/home', actions: ['read'], nav: { group: 'main', order: 1 } },
-      { id: 'tasks', label: 'Tasks', path: '/tasks', actions: [...ALL_ACTIONS], nav: { group: 'main', order: 2 } },
-      { id: 'agent', label: 'Asistente AI', path: '/agent', actions: ['read'], nav: { group: 'main', order: 3 } },
-      { id: 'analytics', label: 'Análisis', path: '/analytics', actions: ['read'], nav: { group: 'main', order: 4 } },
+      { id: 'analytics', label: 'Análisis', path: '/analytics', actions: ['read'], nav: { group: 'main', order: 2 } },
     ],
   },
   {
     id: 'finance',
     label: 'Finanzas',
     pages: [
-      // Opener del panel de Contabilidad. No es fila de matriz: agrupa las páginas
-      // de finanzas y se muestra si el rol accede a alguna de ellas.
-      {
-        id: 'finance',
-        label: 'Contabilidad',
-        path: '/finance',
-        icon: DollarSign,
-        actions: [],
-        matrixHidden: true,
-        nav: {
-          group: 'main',
-          section: 'Finanzas',
-          order: 1,
-          isSubPanel: true,
-          childPageIds: [
-            'finance.invoicing',
-            'finance.payroll',
-            'finance.bank',
-            'finance.cashflow',
-            'finance.income',
-            'finance.analysis',
-            'finance.budget',
-          ],
-        },
-      },
-      { id: 'finance.invoicing', label: 'Facturación', path: '/finance', icon: List, actions: [...ALL_ACTIONS], nav: { group: 'finance', order: 1, end: true } },
-      {
-        id: 'finance.payroll',
-        label: 'Nómina',
-        path: '/finance/nomina',
-        icon: Users,
-        actions: [...ALL_ACTIONS],
-        nav: { group: 'finance', order: 2 },
-        tabs: [
-          { id: 'finance.payroll.nomina', label: 'Nómina' },
-          { id: 'finance.payroll.propinas', label: 'Propinas' },
-          { id: 'finance.payroll.historial', label: 'Historial' },
-        ],
-      },
-      { id: 'finance.bank', label: 'Extracto Bancario', path: '/finance/bank', icon: Landmark, actions: [...ALL_ACTIONS], nav: { group: 'finance', order: 3 } },
-      { id: 'finance.cashflow', label: 'Flujo de Caja', path: '/finance/cash-flow', icon: Wallet, actions: ['read'], nav: { group: 'finance', order: 4 } },
-      { id: 'finance.income', label: 'Estado de Resultados', path: '/finance/income-statement', icon: FileText, actions: ['read'], nav: { group: 'finance', order: 5 } },
-      { id: 'finance.analysis', label: 'Análisis Finanzas', path: '/finance/analysis', icon: PieChart, actions: ['read'], nav: { group: 'finance', order: 6 } },
-      { id: 'finance.budget', label: 'Presupuesto', path: '/finance/budget', icon: Target, actions: [...ALL_ACTIONS], nav: { group: 'finance', order: 7 } },
+      // El panel de Contabilidad (Facturación, Nómina, Extracto, Flujo de Caja,
+      // Estado de Resultados, Análisis y Presupuesto) se retiró de BusinessHub:
+      // esa operación vive en Ecore (ecore.economyc.cc).
+      //
+      // Cierres y Descuentos quedan SIN `nav` — igual que Horarios e Inventarios
+      // más abajo: no salen en el sidebar de App1, pero conservan su pageId para
+      // que App2 (businessadm) los siga montando con PermissionRoute.
       {
         id: 'closings',
         label: 'Cierres de Caja',
         path: '/closings',
         icon: ClipboardList,
         actions: [...ALL_ACTIONS],
-        nav: { group: 'main', section: 'Finanzas', order: 2 },
         tabs: [
           { id: 'closings.form', label: 'Nuevo Cierre' },
           { id: 'closings.history', label: 'Cierres' },
           { id: 'closings.accumulated', label: 'Acumulado' },
         ],
       },
-      { id: 'discounts', label: 'Descuentos', path: '/discounts', icon: Percent, actions: [...ALL_ACTIONS], nav: { group: 'main', section: 'Finanzas', order: 3 } },
+      { id: 'discounts', label: 'Descuentos', path: '/discounts', icon: Percent, actions: [...ALL_ACTIONS] },
     ],
   },
   {
     id: 'operations',
     label: 'Operaciones',
     pages: [
-      {
-        id: 'contracts',
-        label: 'Contratos',
-        path: '/contracts',
-        icon: FileSignature,
-        actions: [...ALL_ACTIONS],
-        nav: { group: 'main', section: 'Operaciones', order: 1 },
-        tabs: [
-          { id: 'contracts.list', label: 'Contratos' },
-          { id: 'contracts.templates', label: 'Plantillas' },
-        ],
-      },
-      { id: 'partners', label: 'Socios', path: '/partners', icon: Handshake, actions: [...ALL_ACTIONS], nav: { group: 'main', section: 'Operaciones', order: 2 } },
+      // Contratos y Socios se retiraron de BusinessHub (Socios vive en Ecore).
+      //
+      // Equipo y Proveedores quedan SIN `nav`: no salen en el sidebar de App1,
+      // pero App2 monta /talent y su módulo de Inventarios usa `useSuppliers`,
+      // así que ambos pageId siguen haciendo falta para el gating de permisos.
       {
         id: 'talent',
         label: 'Equipo',
         path: '/talent',
         icon: Users,
         actions: [...ALL_ACTIONS],
-        nav: { group: 'main', section: 'Operaciones', order: 3 },
         tabs: [
           { id: 'talent.profile.info', label: 'Información' },
           { id: 'talent.profile.documentos', label: 'Documentos' },
         ],
       },
-      { id: 'suppliers', label: 'Proveedores', path: '/suppliers', icon: Briefcase, actions: [...ALL_ACTIONS], nav: { group: 'main', section: 'Operaciones', order: 4 } },
+      { id: 'suppliers', label: 'Proveedores', path: '/suppliers', icon: Briefcase, actions: [...ALL_ACTIONS] },
       // Horarios vive solo en App2 (herramienta operativa de local). Sin `nav`
       // para NO aparecer en el sidebar de App1, pero sí en la matriz de Roles
       // para poder concederlo a los puestos que arman horarios.
@@ -214,13 +155,6 @@ export const ACCESS_REGISTRY: AccessModule[] = [
           { id: 'inventory.waste', label: 'Mermas' },
         ],
       },
-    ],
-  },
-  {
-    id: 'marketing',
-    label: 'Mercadeo',
-    pages: [
-      { id: 'marketing', label: 'Influencers', path: '/marketing/influencers', icon: Megaphone, actions: [...ALL_ACTIONS], nav: { group: 'main', section: 'Mercadeo', order: 1 } },
     ],
   },
   {
@@ -259,14 +193,9 @@ export const ACCESS_REGISTRY: AccessModule[] = [
 
 /** Ids de tabs estables — importar desde aquí en los componentes (nunca string suelto). */
 export const TAB_IDS = {
-  payrollNomina: 'finance.payroll.nomina',
-  payrollPropinas: 'finance.payroll.propinas',
-  payrollHistorial: 'finance.payroll.historial',
   closingsForm: 'closings.form',
   closingsHistory: 'closings.history',
   closingsAccumulated: 'closings.accumulated',
-  contractsList: 'contracts.list',
-  contractsTemplates: 'contracts.templates',
   talentInfo: 'talent.profile.info',
   talentDocumentos: 'talent.profile.documentos',
   posVentas: 'pos-sync.ventas',
@@ -321,23 +250,11 @@ export function defaultPermissionsFull(): RolePermissions {
 /** Mapea cada pageId del registro a su ModuleKey legado, para migrar roles viejos. */
 const PAGE_LEGACY_MODULE: Record<string, ModuleKey> = {
   home: 'home',
-  tasks: 'tasks',
-  agent: 'agent',
   analytics: 'analytics',
-  'finance.invoicing': 'finance',
-  'finance.payroll': 'finance',
-  'finance.bank': 'finance',
-  'finance.cashflow': 'finance',
-  'finance.income': 'finance',
-  'finance.analysis': 'finance',
-  'finance.budget': 'finance',
   closings: 'closings',
   discounts: 'closings',
-  contracts: 'contracts',
-  partners: 'partners',
   talent: 'talent',
   suppliers: 'suppliers',
-  marketing: 'marketing',
   'settings.team': 'settings',
   'settings.companies': 'settings',
   'settings.categories': 'settings',

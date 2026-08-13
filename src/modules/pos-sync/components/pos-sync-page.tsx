@@ -12,8 +12,8 @@ import {
   Skeleton,
   TableSkeleton,
 } from '@/core/ui/skeleton'
-import { DateRangePicker } from '@/modules/finance/components/date-range-picker'
-import { useDateRange } from '@/modules/finance/context/date-range-context'
+import { DateRangePicker } from '@/core/ui/date-range-picker'
+import { useDateRange } from '@/core/ui/date-range-context'
 import { usePermissions } from '@/core/hooks/use-permissions'
 import { TAB_IDS } from '@/core/config/access-registry'
 import { useCompanyLocalIds } from '../company-mapping'

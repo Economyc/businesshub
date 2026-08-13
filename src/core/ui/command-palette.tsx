@@ -3,24 +3,21 @@ import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
-  Search, Home, BarChart3, Users, Briefcase, DollarSign, Handshake,
-  ClipboardList, FileSignature, Building2, Tags, BadgeCheck, Network,
-  ArrowRight, Clock, Plus, CornerDownLeft,
+  Search, Home, BarChart3, Building2, Tags, BadgeCheck, Network,
+  ArrowRight, Clock, CornerDownLeft,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useEmployees } from '@/modules/talent/hooks'
-import { useTransactions } from '@/modules/finance/hooks'
-import { useSuppliers } from '@/modules/suppliers/hooks'
-import { usePartners } from '@/modules/partners/hooks'
-import { formatCurrency } from '@/core/utils/format'
 import { usePermissions } from '@/core/hooks/use-permissions'
 import { getPageByPath } from '@/core/config/access-registry'
 
 // --- Types ---
 
+// La búsqueda de entidades (empleados, transacciones, proveedores, socios) se
+// retiró junto con sus módulos: sus resultados navegaban a rutas que BusinessHub
+// ya no monta. Queda la navegación por páginas y los recientes.
 interface SearchResult {
   id: string
-  type: 'navigation' | 'action' | 'employee' | 'transaction' | 'supplier' | 'partner' | 'recent'
+  type: 'navigation' | 'recent'
   label: string
   description?: string
   icon: React.ReactNode
@@ -37,32 +34,14 @@ const STROKE = 1.5
 const NAV_RESULTS: SearchResult[] = [
   { id: 'nav-home', type: 'navigation', label: 'Home', icon: <Home size={ICON_SIZE} strokeWidth={STROKE} />, to: '/home', keywords: 'inicio home dashboard' },
   { id: 'nav-analytics', type: 'navigation', label: 'Analisis', icon: <BarChart3 size={ICON_SIZE} strokeWidth={STROKE} />, to: '/analytics', keywords: 'reportes estadisticas graficos kpi metricas analytics analisis pos ventas' },
-  { id: 'nav-talent', type: 'navigation', label: 'Equipo', icon: <Users size={ICON_SIZE} strokeWidth={STROKE} />, to: '/talent', keywords: 'empleados personas equipo talento recurso humano' },
-  { id: 'nav-suppliers', type: 'navigation', label: 'Proveedores', icon: <Briefcase size={ICON_SIZE} strokeWidth={STROKE} />, to: '/suppliers', keywords: 'proveedores suministros vendors' },
-  { id: 'nav-finance', type: 'navigation', label: 'Contabilidad', icon: <DollarSign size={ICON_SIZE} strokeWidth={STROKE} />, to: '/finance', keywords: 'contabilidad finanzas transacciones pagos ingresos egresos' },
-  { id: 'nav-cashflow', type: 'navigation', label: 'Flujo de Caja', icon: <DollarSign size={ICON_SIZE} strokeWidth={STROKE} />, to: '/finance/cash-flow', keywords: 'flujo caja efectivo cash flow saldo entradas salidas balance' },
-  { id: 'nav-income', type: 'navigation', label: 'Estado de Resultados', icon: <DollarSign size={ICON_SIZE} strokeWidth={STROKE} />, to: '/finance/income-statement', keywords: 'estado resultados p&l perdidas ganancias utilidad margen' },
-  { id: 'nav-budget', type: 'navigation', label: 'Presupuesto vs Real', icon: <DollarSign size={ICON_SIZE} strokeWidth={STROKE} />, to: '/finance/budget', keywords: 'presupuesto budget meta objetivo comparar real ejecucion' },
-  { id: 'nav-import', type: 'navigation', label: 'Importar Transacciones', icon: <DollarSign size={ICON_SIZE} strokeWidth={STROKE} />, to: '/finance/import', keywords: 'importar csv excel transacciones carga masiva' },
-  { id: 'nav-partners', type: 'navigation', label: 'Socios', icon: <Handshake size={ICON_SIZE} strokeWidth={STROKE} />, to: '/partners', keywords: 'socios partners inversion participacion accionistas' },
-  { id: 'nav-closings', type: 'navigation', label: 'Cierres de Caja', icon: <ClipboardList size={ICON_SIZE} strokeWidth={STROKE} />, to: '/closings', keywords: 'cierres cierre caja diario ventas efectivo datafono propinas' },
-  { id: 'nav-contracts', type: 'navigation', label: 'Contratos', icon: <FileSignature size={ICON_SIZE} strokeWidth={STROKE} />, to: '/contracts', keywords: 'contratos laborales documentos legales' },
-  { id: 'nav-templates', type: 'navigation', label: 'Plantillas de Contratos', icon: <FileSignature size={ICON_SIZE} strokeWidth={STROKE} />, to: '/contracts/templates', keywords: 'plantillas templates modelos contratos clausulas' },
   { id: 'nav-settings-companies', type: 'navigation', label: 'Companias', icon: <Building2 size={ICON_SIZE} strokeWidth={STROKE} />, to: '/settings/companies', keywords: 'ajustes configuracion companias empresas settings' },
   { id: 'nav-settings-categories', type: 'navigation', label: 'Categorias', icon: <Tags size={ICON_SIZE} strokeWidth={STROKE} />, to: '/settings/categories', keywords: 'ajustes configuracion categorias financieras settings' },
   { id: 'nav-settings-roles', type: 'navigation', label: 'Cargos', icon: <BadgeCheck size={ICON_SIZE} strokeWidth={STROKE} />, to: '/settings/roles', keywords: 'ajustes configuracion cargos puestos roles settings' },
   { id: 'nav-settings-departments', type: 'navigation', label: 'Departamentos', icon: <Network size={ICON_SIZE} strokeWidth={STROKE} />, to: '/settings/departments', keywords: 'ajustes configuracion departamentos areas settings' },
 ]
 
-// --- Quick actions ---
-
-function getActionResults(_navigate: ReturnType<typeof useNavigate>): SearchResult[] {
-  return [
-    { id: 'act-new-transaction', type: 'action', label: 'Nueva Transaccion', description: 'Registrar ingreso o egreso', icon: <Plus size={ICON_SIZE} strokeWidth={STROKE} />, to: '/finance', keywords: 'crear nueva transaccion pago ingreso egreso' },
-    { id: 'act-new-contract', type: 'action', label: 'Generar Contrato', description: 'Crear contrato laboral', icon: <Plus size={ICON_SIZE} strokeWidth={STROKE} />, to: '/contracts/new', keywords: 'generar crear nuevo contrato laboral' },
-    { id: 'act-import', type: 'action', label: 'Importar Transacciones', description: 'Carga masiva CSV/Excel', icon: <Plus size={ICON_SIZE} strokeWidth={STROKE} />, to: '/finance/import', keywords: 'importar csv excel transacciones carga masiva' },
-  ]
-}
+// Las acciones rápidas (nueva transacción, generar contrato, importar) también
+// se retiraron: las tres abrían pantallas de Finanzas o Contratos.
 
 // --- Recent searches (localStorage) ---
 
@@ -105,14 +84,6 @@ export function CommandPalette() {
   const [position, setPosition] = useState<{ top: number; left: number; width: number } | null>(null)
   const navigate = useNavigate()
   const { canAccessPage } = usePermissions()
-
-  // Entity data
-  const { data: employees } = useEmployees()
-  const { data: transactions } = useTransactions()
-  const { data: suppliers } = useSuppliers()
-  const { data: partners } = usePartners()
-
-  const actions = useMemo(() => getActionResults(navigate), [navigate])
 
   // Keyboard shortcut: Ctrl+K / Cmd+K
   useEffect(() => {
@@ -179,85 +150,6 @@ export function CommandPalette() {
     }
   }, [open])
 
-  // Build entity results from data
-  const entityResults = useMemo<SearchResult[]>(() => {
-    const q = normalize(query)
-    if (!q || q.length < 2) return []
-
-    const results: SearchResult[] = []
-
-    for (const emp of employees) {
-      if (
-        normalize(emp.name).includes(q) ||
-        normalize(emp.identification || '').includes(q) ||
-        normalize(emp.email || '').includes(q)
-      ) {
-        results.push({
-          id: `emp-${emp.id}`,
-          type: 'employee',
-          label: emp.name,
-          description: emp.department || emp.email || '',
-          icon: <Users size={ICON_SIZE} strokeWidth={STROKE} className="text-blue-500" />,
-          to: `/talent/${emp.id}`,
-        })
-      }
-    }
-
-    for (const tx of transactions) {
-      if (
-        normalize(tx.concept).includes(q) ||
-        normalize(tx.category).includes(q) ||
-        normalize(tx.notes || '').includes(q)
-      ) {
-        results.push({
-          id: `tx-${tx.id}`,
-          type: 'transaction',
-          label: tx.concept,
-          description: `${tx.type === 'income' ? 'Ingreso' : 'Egreso'} · ${formatCurrency(tx.amount)} · ${tx.category}`,
-          icon: <DollarSign size={ICON_SIZE} strokeWidth={STROKE} className={tx.type === 'income' ? 'text-positive-text' : 'text-negative-text'} />,
-          to: '/finance',
-        })
-      }
-    }
-
-    for (const sup of suppliers) {
-      if (
-        normalize(sup.name).includes(q) ||
-        normalize(sup.contactName || '').includes(q) ||
-        normalize(sup.category || '').includes(q) ||
-        normalize(sup.identification || '').includes(q)
-      ) {
-        results.push({
-          id: `sup-${sup.id}`,
-          type: 'supplier',
-          label: sup.name,
-          description: `${sup.category} · ${sup.contactName}`,
-          icon: <Briefcase size={ICON_SIZE} strokeWidth={STROKE} className="text-mid-gray" />,
-          to: `/suppliers/${sup.id}`,
-        })
-      }
-    }
-
-    for (const p of partners) {
-      if (
-        normalize(p.name).includes(q) ||
-        normalize(p.identification || '').includes(q) ||
-        normalize(p.email || '').includes(q)
-      ) {
-        results.push({
-          id: `part-${p.id}`,
-          type: 'partner',
-          label: p.name,
-          description: `${p.ownership}% participacion · ${formatCurrency(p.investment)}`,
-          icon: <Handshake size={ICON_SIZE} strokeWidth={STROKE} className="text-purple-500" />,
-          to: '/partners',
-        })
-      }
-    }
-
-    return results.slice(0, 8)
-  }, [query, employees, transactions, suppliers, partners])
-
   const filteredNav = useMemo(() => {
     const q = normalize(query)
     if (!q) return []
@@ -274,17 +166,6 @@ export function CommandPalette() {
     }).slice(0, 6)
   }, [query, canAccessPage])
 
-  const filteredActions = useMemo(() => {
-    const q = normalize(query)
-    if (!q) return actions
-    return actions.filter(
-      (item) =>
-        normalize(item.label).includes(q) ||
-        normalize(item.description || '').includes(q) ||
-        normalize(item.keywords || '').includes(q)
-    )
-  }, [query, actions])
-
   const recentItems = useMemo<SearchResult[]>(() => {
     if (query) return []
     return getRecent().map((r, i) => ({
@@ -300,13 +181,10 @@ export function CommandPalette() {
     const s: { title: string; items: SearchResult[] }[] = []
 
     if (recentItems.length > 0) s.push({ title: 'Recientes', items: recentItems })
-    if (!query) s.push({ title: 'Acciones rapidas', items: actions })
-    if (filteredActions.length > 0 && query) s.push({ title: 'Acciones', items: filteredActions })
     if (filteredNav.length > 0) s.push({ title: 'Navegacion', items: filteredNav })
-    if (entityResults.length > 0) s.push({ title: 'Resultados', items: entityResults })
 
     return s
-  }, [recentItems, actions, filteredActions, filteredNav, entityResults, query])
+  }, [recentItems, filteredNav])
 
   const flatItems = useMemo(() => sections.flatMap((s) => s.items), [sections])
 

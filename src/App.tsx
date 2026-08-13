@@ -8,20 +8,10 @@ import { CompanyProvider } from '@/core/ui/company-provider'
 import { Layout } from '@/core/ui/layout'
 import { LoginPage } from '@/core/ui/login-page'
 import { PosDashboard } from '@/modules/analytics/routes'
-import { EmployeeList, EmployeeProfile } from '@/modules/talent/routes'
-import { SupplierList, SupplierDetail } from '@/modules/suppliers/routes'
-import { TransactionList, ImportView, CashFlowView, IncomeStatementView, BudgetView, PayrollView, BankImportView, ExpenseAnalysisView } from '@/modules/finance/routes'
-import { PartnerList } from '@/modules/partners/routes'
-import { ClosingList } from '@/modules/closings/routes'
-import { DiscountsPage } from '@/modules/discounts/routes'
-import { ContractList, TemplateList, ContractGenerate, ContractDetail } from '@/modules/contracts/routes'
 import { HomePage } from '@/modules/home/routes'
 import { CompanySelectorPage } from '@/modules/home/company-selector-page'
-import { DateRangeProvider } from '@/modules/finance/context/date-range-context'
-import { AgentPage } from '@/modules/agent/routes'
-import { TasksPage } from '@/modules/tasks/routes'
+import { DateRangeProvider } from '@/core/ui/date-range-context'
 import { PosSyncPage } from '@/modules/pos-sync/routes'
-import { InfluencerList } from '@/modules/marketing/influencers/routes'
 import { PermissionsProvider } from '@/core/ui/permissions-provider'
 import { PermissionRoute } from '@/core/ui/permission-route'
 import { ErrorBoundary } from '@/core/ui/error-boundary'
@@ -98,71 +88,6 @@ export default function App() {
                 <Route path="/analytics/pos" element={<Navigate to="/analytics" replace />} />
                 <Route path="/analytics/costs" element={<Navigate to="/analytics" replace />} />
               </Route>
-              <Route element={<PermissionRoute pageId="talent" />}>
-                <Route path="/talent" element={<Suspense fallback={<Loading />}><EmployeeList /></Suspense>} />
-                <Route path="/talent/:id" element={<Suspense fallback={<Loading />}><EmployeeProfile /></Suspense>} />
-              </Route>
-              <Route element={<PermissionRoute pageId="suppliers" />}>
-                <Route path="/suppliers" element={<Suspense fallback={<Loading />}><SupplierList /></Suspense>} />
-                <Route path="/suppliers/:id" element={<Suspense fallback={<Loading />}><SupplierDetail /></Suspense>} />
-              </Route>
-              <Route element={<DateRangeProvider><Outlet /></DateRangeProvider>}>
-                <Route path="/finance/new" element={<Navigate to="/finance" replace />} />
-                <Route path="/finance/edit/:id" element={<Navigate to="/finance" replace />} />
-                <Route path="/finance/recurring" element={<Navigate to="/finance" replace />} />
-                <Route element={<PermissionRoute pageId="finance.invoicing" />}>
-                  <Route path="/finance" element={<Suspense fallback={<Loading />}><TransactionList /></Suspense>} />
-                  <Route path="/finance/import" element={<Suspense fallback={<Loading />}><ImportView /></Suspense>} />
-                </Route>
-                <Route element={<PermissionRoute pageId="finance.payroll" />}>
-                  <Route path="/finance/nomina" element={<Suspense fallback={<Loading />}><PayrollView /></Suspense>} />
-                </Route>
-                <Route element={<PermissionRoute pageId="finance.bank" />}>
-                  <Route path="/finance/bank" element={<Suspense fallback={<Loading />}><BankImportView /></Suspense>} />
-                </Route>
-                <Route element={<PermissionRoute pageId="finance.cashflow" />}>
-                  <Route path="/finance/cash-flow" element={<Suspense fallback={<Loading />}><CashFlowView /></Suspense>} />
-                </Route>
-                <Route element={<PermissionRoute pageId="finance.income" />}>
-                  <Route path="/finance/income-statement" element={<Suspense fallback={<Loading />}><IncomeStatementView /></Suspense>} />
-                </Route>
-                <Route element={<PermissionRoute pageId="finance.analysis" />}>
-                  <Route path="/finance/analysis" element={<Suspense fallback={<Loading />}><ExpenseAnalysisView /></Suspense>} />
-                </Route>
-                <Route element={<PermissionRoute pageId="finance.budget" />}>
-                  <Route path="/finance/budget" element={<Suspense fallback={<Loading />}><BudgetView /></Suspense>} />
-                </Route>
-              </Route>
-              <Route element={<PermissionRoute pageId="partners" />}>
-                <Route path="/partners" element={<Suspense fallback={<Loading />}><PartnerList /></Suspense>} />
-              </Route>
-              <Route element={<DateRangeProvider><Outlet /></DateRangeProvider>}>
-                <Route element={<PermissionRoute pageId="closings" />}>
-                  <Route path="/closings" element={<Suspense fallback={<Loading />}><ClosingList /></Suspense>} />
-                </Route>
-              </Route>
-              <Route element={<DateRangeProvider><Outlet /></DateRangeProvider>}>
-                <Route element={<PermissionRoute pageId="discounts" />}>
-                  <Route path="/discounts" element={<Suspense fallback={<Loading />}><DiscountsPage /></Suspense>} />
-                </Route>
-              </Route>
-              <Route element={<PermissionRoute pageId="contracts" />}>
-                <Route path="/contracts" element={<Suspense fallback={<Loading />}><ContractList /></Suspense>} />
-                <Route path="/contracts/templates" element={<Suspense fallback={<Loading />}><TemplateList /></Suspense>} />
-                <Route path="/contracts/new" element={<Suspense fallback={<Loading />}><ContractGenerate /></Suspense>} />
-                <Route path="/contracts/:id" element={<Suspense fallback={<Loading />}><ContractDetail /></Suspense>} />
-              </Route>
-              <Route element={<PermissionRoute pageId="agent" />}>
-                <Route path="/agent" element={<Suspense fallback={<Loading />}><AgentPage /></Suspense>} />
-              </Route>
-              <Route element={<PermissionRoute pageId="tasks" />}>
-                <Route path="/tasks" element={<Suspense fallback={<Loading />}><TasksPage /></Suspense>} />
-              </Route>
-              <Route element={<DateRangeProvider><Outlet /></DateRangeProvider>}>
-                <Route element={<PermissionRoute pageId="marketing" />}>
-                  <Route path="/marketing/influencers" element={<Suspense fallback={<Loading />}><InfluencerList /></Suspense>} />
-                </Route>
-              </Route>
               <Route element={<DateRangeProvider><Outlet /></DateRangeProvider>}>
                 <Route element={<PermissionRoute pageId="pos-sync" />}>
                   <Route path="/pos-sync" element={<Suspense fallback={<Loading />}><PosSyncPage /></Suspense>} />
@@ -187,6 +112,11 @@ export default function App() {
               <Route element={<PermissionRoute pageId="settings.team" />}>
                 <Route path="/settings/team" element={<Suspense fallback={<Loading />}><SettingsTeam /></Suspense>} />
               </Route>
+              {/* Las rutas de los módulos retirados (/finance, /talent, /closings…)
+                  siguen en marcadores y en el historial de los usuarios. Sin este
+                  catch-all React Router no renderiza nada y queda la pantalla en
+                  blanco, que se lee como que la app se rompió. */}
+              <Route path="*" element={<Navigate to="/home" replace />} />
             </Route>
           </Routes>
           </TooltipProvider>

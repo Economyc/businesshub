@@ -6,7 +6,7 @@ import { useCollection } from '@/core/hooks/use-firestore'
 import { useTransactionsInRange, classifyExpense } from '@/modules/finance/hooks'
 import { useClosings } from '@/modules/closings/hooks'
 import { useBudgetComparison } from '@/modules/finance/hooks'
-import { useDateRange } from '@/modules/finance/context/date-range-context'
+import { useDateRange } from '@/core/ui/date-range-context'
 import { usePosVentas } from '@/modules/pos-sync/hooks'
 import { useCompanyLocalIds } from '@/modules/pos-sync/company-mapping'
 import { triggerServerReconcile } from '@/modules/pos-sync/services'
@@ -19,7 +19,6 @@ import {
 } from '@/modules/pos-sync/utils/sales-calculations'
 import { useHomeFilters } from './context/home-filters-context'
 import type { Supplier } from '@/modules/suppliers/types'
-import type { Contract } from '@/modules/contracts/types'
 import type { PosVenta } from '@/modules/pos-sync/types'
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -251,7 +250,6 @@ export function useDashboardData() {
   )
   const { data: closings, loading: closingsLoading } = useClosings()
   const { data: suppliers, loading: suppliersLoading } = useCollection<Supplier>('suppliers')
-  const { data: contracts, loading: contractsLoading } = useCollection<Contract>('contracts')
   const { localIds, loading: localIdsLoading } = useCompanyLocalIds()
 
   // Previous period of equal duration for comparison
@@ -929,7 +927,8 @@ export function useDashboardData() {
         detail: `${r.execution.toFixed(0)}% del presupuesto`,
       }))
 
-    // Expiring contracts (next 30 days)
+    // Contratos de proveedores por vencer (proximos 30 dias). Los contratos
+    // laborales salieron con el modulo de Contratos.
     const expiringContracts: AlertItem[] = []
 
     for (const s of suppliers) {
@@ -944,20 +943,8 @@ export function useDashboardData() {
       }
     }
 
-    for (const c of contracts) {
-      if (c.status !== 'active' || !c.endDate) continue
-      const days = daysUntil(c.endDate)
-      if (days >= 0 && days <= 30) {
-        expiringContracts.push({
-          id: c.id,
-          label: `${c.employeeName} — ${c.position}`,
-          detail: days === 0 ? 'Vence hoy' : `Vence en ${days} días`,
-        })
-      }
-    }
-
     return { budgetExceeded, expiringContracts }
-  }, [budgetComparison, suppliers, contracts])
+  }, [budgetComparison, suppliers])
 
   // Todas las secciones del Home bloquean hasta que las ventas del filtro
   // carguen, aunque su propia fuente (transacciones, cartera, alerts) ya esté
@@ -969,8 +956,7 @@ export function useDashboardData() {
   const gastosLoading = posColdLoading || txLoading
   const costoLoading = posColdLoading || txLoading
   const chartLoading = posColdLoading || txLoading || closingsLoading
-  const alertsLoading =
-    posColdLoading || budgetLoading || suppliersLoading || contractsLoading
+  const alertsLoading = posColdLoading || budgetLoading || suppliersLoading
 
   const syncStatus = useMemo<DashboardSyncStatus>(
     () => ({

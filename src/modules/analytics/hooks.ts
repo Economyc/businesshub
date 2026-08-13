@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useDateRange } from '@/modules/finance/context/date-range-context'
+import { useDateRange } from '@/core/ui/date-range-context'
 import { usePosVentas } from '@/modules/pos-sync/hooks'
 import { useCompanyLocalIds } from '@/modules/pos-sync/company-mapping'
 import {

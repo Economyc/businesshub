@@ -50,14 +50,6 @@ export const NAV_SECTIONS: NavSection[] = (() => {
   }))
 })()
 
-/** Sub-tabs del panel de Contabilidad. */
-export const FINANCE_ITEMS: { to: string; label: string; icon: LucideIcon; pageId: string; end?: boolean }[] =
-  getAllPages()
-    .filter((p) => p.nav?.group === 'finance')
-    .slice()
-    .sort(sortByOrder)
-    .map((p) => ({ to: p.path, label: p.label, icon: p.icon as LucideIcon, pageId: p.id, end: p.nav?.end }))
-
 /** Sub-páginas del panel de Configuración. */
 export const SETTINGS_ITEMS: { to: string; label: string; icon: LucideIcon; pageId: string }[] =
   getAllPages()

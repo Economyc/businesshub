@@ -30,16 +30,6 @@ function merge(...parts: RolePermissions[]): RolePermissions {
 const ALL: PermissionAction[] = ['read', 'create', 'update', 'delete']
 const READ: PermissionAction[] = ['read']
 
-const FINANCE_PAGES = [
-  'finance.invoicing',
-  'finance.payroll',
-  'finance.bank',
-  'finance.cashflow',
-  'finance.income',
-  'finance.analysis',
-  'finance.budget',
-]
-
 export const DEFAULT_ROLES: RoleDefinition[] = [
   {
     id: 'owner',
@@ -64,12 +54,12 @@ export const DEFAULT_ROLES: RoleDefinition[] = [
   {
     id: 'finance',
     label: 'Finanzas',
-    description: 'Gestión financiera: facturación, nómina, cierres y proveedores',
+    description: 'Gestión de cierres de caja, descuentos y proveedores',
     color: '#0891b2',
     isSystem: true,
     permissions: merge(
-      permsFor([...FINANCE_PAGES, 'closings', 'discounts', 'suppliers', 'tasks'], ALL),
-      permsFor(['home', 'analytics', 'partners'], READ),
+      permsFor(['closings', 'discounts', 'suppliers'], ALL),
+      permsFor(['home', 'analytics'], READ),
     ),
     canManageUsers: false,
     canManageCompany: false,
@@ -77,11 +67,11 @@ export const DEFAULT_ROLES: RoleDefinition[] = [
   {
     id: 'hr',
     label: 'Recursos Humanos',
-    description: 'Gestión de personal: equipo y contratos',
+    description: 'Gestión de personal: equipo y horarios',
     color: '#059669',
     isSystem: true,
     permissions: merge(
-      permsFor(['talent', 'contracts', 'tasks'], ALL),
+      permsFor(['talent', 'schedule'], ALL),
       permsFor(['home', 'analytics'], READ),
     ),
     canManageUsers: false,
@@ -93,25 +83,17 @@ export const DEFAULT_ROLES: RoleDefinition[] = [
     description: 'Puede ver información pero no crear, editar ni eliminar',
     color: '#6b7280',
     isSystem: true,
-    permissions: merge(
-      permsFor(
-        [
-          'home',
-          'analytics',
-          'agent',
-          ...FINANCE_PAGES,
-          'closings',
-          'discounts',
-          'contracts',
-          'partners',
-          'talent',
-          'suppliers',
-          'marketing',
-          'pos-sync',
-        ],
-        READ,
-      ),
-      permsFor(['tasks'], ALL),
+    permissions: permsFor(
+      [
+        'home',
+        'analytics',
+        'closings',
+        'discounts',
+        'talent',
+        'suppliers',
+        'pos-sync',
+      ],
+      READ,
     ),
     canManageUsers: false,
     canManageCompany: false,

@@ -11,7 +11,7 @@ import { ThemeToggle } from '@/core/ui/theme-toggle'
 import { AvatarPicker } from '@/core/ui/avatar-picker'
 import { UserAvatar } from '@/core/ui/user-avatar'
 import { useAvatarConfig } from '@/core/hooks/use-avatar-config'
-import { NAV_SECTIONS, SETTINGS_ITEMS, FINANCE_ITEMS, getActiveSections, isNavItemVisible } from '@/core/config/navigation'
+import { NAV_SECTIONS, SETTINGS_ITEMS, getActiveSections, isNavItemVisible } from '@/core/config/navigation'
 
 interface MobileNavProps {
   open: boolean
@@ -25,10 +25,8 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
   const canAccessSettings = SETTINGS_ITEMS.some((i) => canAccessPage(i.pageId))
   const { config: avatarConfig, setConfig: setAvatarConfig } = useAvatarConfig(user?.uid)
   const location = useLocation()
-  const isFinanceRoute = location.pathname.startsWith('/finance')
   const [companyOpen, setCompanyOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
-  const [financeExpanded, setFinanceExpanded] = useState(isFinanceRoute)
   const [openSections, setOpenSections] = useState<Set<string>>(() => getActiveSections(location.pathname))
 
   // Auto-expand section when navigating
@@ -42,12 +40,6 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
       })
     }
   }, [location.pathname])
-
-  // Close finance submenu when navigating away from finance routes
-  useEffect(() => {
-    if (!isFinanceRoute) setFinanceExpanded(false)
-    else setFinanceExpanded(true)
-  }, [location.pathname, isFinanceRoute])
 
   function toggleSection(title: string) {
     setOpenSections(prev => {
@@ -205,67 +197,7 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
                             const itemClass = inSection
                               ? 'flex items-center gap-3 mx-3 px-3 pl-9 py-2.5 rounded-xl text-body transition-all duration-150'
                               : 'flex items-center gap-3 mx-3 px-3 py-3 rounded-xl text-body transition-all duration-150'
-                            const subItemClass = inSection
-                              ? 'flex items-center gap-3 mx-3 px-3 pl-14 py-2.5 rounded-xl text-body transition-all duration-150'
-                              : 'flex items-center gap-3 mx-3 px-3 pl-9 py-2.5 rounded-xl text-body transition-all duration-150'
 
-                            if (to === '/finance') {
-                              const isExpanded = financeExpanded
-                              const setExpanded = setFinanceExpanded
-                              const subItems = FINANCE_ITEMS.filter((i) => canAccessPage(i.pageId))
-                              const isOnRoute = location.pathname.startsWith(to)
-                              return (
-                                <div key={to}>
-                                  <button
-                                    onClick={() => setExpanded(!isExpanded)}
-                                    className={cn(
-                                      'w-full ' + itemClass,
-                                      isOnRoute
-                                        ? 'text-dark-graphite font-medium bg-smoke'
-                                        : 'text-graphite/70 active:bg-bone/50'
-                                    )}
-                                  >
-                                    {Icon && <Icon size={16} strokeWidth={1.5} />}
-                                    {label}
-                                    <ChevronRight
-                                      size={14}
-                                      className={cn('ml-auto mr-1 text-mid-gray transition-transform duration-200', isExpanded && 'rotate-90')}
-                                    />
-                                  </button>
-                                  <AnimatePresence initial={false}>
-                                    {isExpanded && (
-                                      <motion.div
-                                        initial={{ height: 0, opacity: 0 }}
-                                        animate={{ height: 'auto', opacity: 1 }}
-                                        exit={{ height: 0, opacity: 0 }}
-                                        transition={{ duration: 0.2 }}
-                                        className="overflow-hidden"
-                                      >
-                                        {subItems.map((si) => (
-                                          <NavLink
-                                            key={si.to}
-                                            to={si.to}
-                                            end={si.end}
-                                            onClick={handleNav}
-                                            className={({ isActive }) =>
-                                              cn(
-                                                subItemClass,
-                                                isActive
-                                                  ? 'text-dark-graphite font-medium bg-bone'
-                                                  : 'text-graphite/70 active:bg-bone/50'
-                                              )
-                                            }
-                                          >
-                                            <si.icon size={16} strokeWidth={1.5} />
-                                            {si.label}
-                                          </NavLink>
-                                        ))}
-                                      </motion.div>
-                                    )}
-                                  </AnimatePresence>
-                                </div>
-                              )
-                            }
                             return (
                               <NavLink
                                 key={to}

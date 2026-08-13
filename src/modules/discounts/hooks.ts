@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useCollection } from '@/core/hooks/use-firestore'
-import { useDateRange } from '@/modules/finance/context/date-range-context'
+import { useDateRange } from '@/core/ui/date-range-context'
 import { usePosVentas } from '@/modules/pos-sync/hooks'
 import { useCompanyLocalIds } from '@/modules/pos-sync/company-mapping'
 import { calcTotals, isAnulada, toDateStrLocal } from '@/modules/pos-sync/utils/sales-calculations'

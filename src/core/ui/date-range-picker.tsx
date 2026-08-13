@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Calendar, ChevronDown, Check } from 'lucide-react'
 import { DateInput } from '@/core/ui/date-input'
-import { useDateRange, DATE_PRESETS } from '../context/date-range-context'
+import { useDateRange, DATE_PRESETS } from './date-range-context'
 
 function toISO(d: Date): string {
   const y = d.getFullYear()

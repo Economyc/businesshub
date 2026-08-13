@@ -1,4 +1,3 @@
-import { useNavigate } from 'react-router-dom'
 import { TrendingUp, FileWarning, CheckCircle } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { DashboardAlerts, AlertItem } from '../hooks'
@@ -9,8 +8,10 @@ interface AlertSectionProps {
   borderColor: string
   title: string
   items: AlertItem[]
-  actionLabel: string
-  onAction: () => void
+  // Opcionales: tras retirar Finanzas y Contratos algunas alertas ya no tienen
+  // una página a la que llevar, pero el aviso en sí sigue siendo útil.
+  actionLabel?: string
+  onAction?: () => void
 }
 
 function AlertSection({ icon: Icon, color, borderColor, title, items, actionLabel, onAction }: AlertSectionProps) {
@@ -31,12 +32,14 @@ function AlertSection({ icon: Icon, color, borderColor, title, items, actionLabe
           <span className="text-caption text-mid-gray">+{items.length - 3} más</span>
         )}
       </div>
-      <button
-        onClick={onAction}
-        className="text-caption font-medium text-graphite hover:text-dark-graphite transition-colors"
-      >
-        {actionLabel} →
-      </button>
+      {actionLabel && onAction && (
+        <button
+          onClick={onAction}
+          className="text-caption font-medium text-graphite hover:text-dark-graphite transition-colors"
+        >
+          {actionLabel} →
+        </button>
+      )}
     </div>
   )
 }
@@ -46,7 +49,6 @@ interface AlertsPanelProps {
 }
 
 export function AlertsPanel({ alerts }: AlertsPanelProps) {
-  const navigate = useNavigate()
   const { budgetExceeded, expiringContracts } = alerts
   const hasAlerts = budgetExceeded.length > 0 || expiringContracts.length > 0
 
@@ -68,8 +70,6 @@ export function AlertsPanel({ alerts }: AlertsPanelProps) {
               borderColor="border-warning-text"
               title={`${budgetExceeded.length} categoría${budgetExceeded.length > 1 ? 's' : ''} sobre presupuesto`}
               items={budgetExceeded}
-              actionLabel="Ver presupuesto"
-              onAction={() => navigate('/finance/budget')}
             />
           )}
 
@@ -78,10 +78,8 @@ export function AlertsPanel({ alerts }: AlertsPanelProps) {
               icon={FileWarning}
               color="text-warning-text"
               borderColor="border-warning-text"
-              title={`${expiringContracts.length} contrato${expiringContracts.length > 1 ? 's' : ''} por vencer`}
+              title={`${expiringContracts.length} contrato${expiringContracts.length > 1 ? 's' : ''} de proveedor por vencer`}
               items={expiringContracts}
-              actionLabel="Ver contratos"
-              onAction={() => navigate('/contracts')}
             />
           )}
         </div>
