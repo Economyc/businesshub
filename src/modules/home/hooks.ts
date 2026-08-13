@@ -141,6 +141,12 @@ function startOfDayLocal(d: Date): Date {
   return r
 }
 
+function endOfDayLocal(d: Date): Date {
+  const r = new Date(d)
+  r.setHours(23, 59, 59, 999)
+  return r
+}
+
 /** Mismo día del mes desplazado `months`, clampeado al último día si el mes destino es más corto. */
 function shiftMonthsClamped(d: Date, months: number): Date {
   const day = d.getDate()
@@ -230,20 +236,94 @@ function getProjectionWindow(
   return win
 }
 
+/**
+ * Período contra el que se compara el rango activo (el "% vs ..." de los KPIs).
+ *
+ * Restar la duración del rango en milisegundos —lo que se hacía antes— solo es
+ * correcto para presets de días fijos. Para los de calendario da rangos que no
+ * existen: julio dura 31 días, así que retroceder esa duración desde el 1 de
+ * julio caía en el 31 de MAYO, y la etiqueta salía "vs Mayo" comparando contra
+ * junio entero más un día suelto de mayo.
+ *
+ * Los presets en curso (`thisMonth`, `thisWeek`, `yearToDate`) comparan contra el
+ * MISMO TRAMO del período anterior, no contra el período anterior completo: el 13
+ * de agosto se compara 1–13 ago contra 1–13 jul. Comparar 13 días contra 31 haría
+ * que el porcentaje saliera siempre muy negativo a principio de mes.
+ */
+function getComparisonRange(
+  activePreset: string,
+  startDate: Date,
+  endDate: Date,
+): { prevStart: Date; prevEnd: Date } {
+  switch (activePreset) {
+    // `shiftMonthsClamped` clampea al último día del mes destino, así que la
+    // misma fórmula resuelve los dos casos: `lastMonth` (31-jul → 30-jun, o sea
+    // junio completo) y `thisMonth` (13-ago → 13-jul, mismo tramo).
+    case 'thisMonth':
+    case 'lastMonth':
+      return {
+        prevStart: shiftMonthsClamped(startDate, -1),
+        prevEnd: endOfDayLocal(shiftMonthsClamped(endDate, -1)),
+      }
+
+    case 'thisWeek': {
+      const prevStart = startOfDayLocal(startDate)
+      prevStart.setDate(prevStart.getDate() - 7)
+      const prevEnd = endOfDayLocal(endDate)
+      prevEnd.setDate(prevEnd.getDate() - 7)
+      return { prevStart, prevEnd }
+    }
+
+    case 'yearToDate': {
+      // Clampeamos el día como shiftMonthsClamped para que un 29-feb no se
+      // desborde al 1-mar del año anterior.
+      const shiftYear = (d: Date): Date => {
+        const target = new Date(d.getFullYear() - 1, d.getMonth(), 1)
+        const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate()
+        target.setDate(Math.min(d.getDate(), lastDay))
+        return target
+      }
+      return {
+        prevStart: startOfDayLocal(shiftYear(startDate)),
+        prevEnd: endOfDayLocal(shiftYear(endDate)),
+      }
+    }
+
+    // today, yesterday, last7, last30 y custom son rangos de días fijos: ahí
+    // restar la duración sí da el bloque inmediatamente anterior.
+    default: {
+      const durationMs = endDate.getTime() - startDate.getTime()
+      return {
+        prevStart: new Date(startDate.getTime() - durationMs - 1),
+        prevEnd: new Date(startDate.getTime() - 1),
+      }
+    }
+  }
+}
+
 // ─── Hook ───────────────────────────────────────────────────────────
 
 export function useDashboardData() {
   const { startDate, endDate, activePreset } = useDateRange()
   const { selectedCaja, setSelectedCaja } = useHomeFilters()
   const { selectedCompany } = useCompany()
+  // Período de comparación de los KPIs. Se calcula ANTES del rango de
+  // transacciones porque este último tiene que cubrirlo.
+  const { prevStart, prevEnd } = useMemo(
+    () => getComparisonRange(activePreset, startDate, endDate),
+    [activePreset, startDate, endDate],
+  )
+
   // Rango de transacciones: cubre filtro actual, periodo previo y mes anterior
   // (este último para projections). Antes se descargaba la colección entera.
+  // El extremo se toma de `prevStart`, no de una resta propia: en "Año hasta hoy"
+  // el período de comparación arranca el 1 de enero del año anterior, mucho antes
+  // que el mes anterior, y sin esto los gastos de ese tramo no se descargaban —
+  // el porcentaje salía mal aunque las fechas fueran correctas.
   const transactionsRangeStart = useMemo(() => {
-    const durationMs = Math.max(0, endDate.getTime() - startDate.getTime())
-    const prev = new Date(startDate.getTime() - durationMs - 1)
     const lastMonth = new Date(endDate.getFullYear(), endDate.getMonth() - 1, 1)
-    return prev < lastMonth ? prev : lastMonth
-  }, [startDate, endDate])
+    return prevStart < lastMonth ? prevStart : lastMonth
+  }, [prevStart, endDate])
   const { data: transactions, loading: txLoading } = useTransactionsInRange(
     transactionsRangeStart,
     endDate,
@@ -251,15 +331,6 @@ export function useDashboardData() {
   const { data: closings, loading: closingsLoading } = useClosings()
   const { data: suppliers, loading: suppliersLoading } = useCollection<Supplier>('suppliers')
   const { localIds, loading: localIdsLoading } = useCompanyLocalIds()
-
-  // Previous period of equal duration for comparison
-  const { prevStart, prevEnd } = useMemo(() => {
-    const durationMs = endDate.getTime() - startDate.getTime()
-    return {
-      prevStart: new Date(startDate.getTime() - durationMs - 1),
-      prevEnd: new Date(startDate.getTime() - 1),
-    }
-  }, [startDate, endDate])
 
   // Carga progresiva con 4 queries React Query independientes. Antes pedíamos
   // ~475 días upfront (año actual + año anterior) y el skeleton esperaba a que
