@@ -55,9 +55,14 @@ if [ -z "$DEPLOY_UUID" ]; then
 fi
 echo "OK Encolado: $DEPLOY_UUID"
 
-# Fase 3: esperar el resultado (build tipico 3-5 min)
+# Fase 3: esperar el resultado.
+# El build de App1 tarda ~10 min (medido 2026-08-12): es mucho mas pesado que el
+# de Ecore por el npm ci del monorepo (recharts, xlsx, jspdf, html2canvas, ai-sdk).
+# Cada vuelta abre una conexion SSH (~3s), asi que el ciclo real es ~13s, no 10:
+# 120 vueltas dan ~25 min de margen. Con 60 se quedaba corto y salia el aviso de
+# "sigue corriendo" en builds que estaban a punto de terminar.
 echo -n "Compilando"
-for i in $(seq 1 60); do
+for i in $(seq 1 120); do
   sleep 10
   STATUS=$(coolify "http://localhost:8000/api/v1/deployments/$DEPLOY_UUID" \
            | grep -o '"status":"[^"]*"' | head -1 | cut -d'"' -f4)
@@ -77,4 +82,4 @@ for i in $(seq 1 60); do
 done
 
 echo ""
-echo "AVISO: el build sigue corriendo tras 10 min. Revisa el panel de Coolify."
+echo "AVISO: el build sigue corriendo tras ~25 min. Revisa el panel de Coolify."
