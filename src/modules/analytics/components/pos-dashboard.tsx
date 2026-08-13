@@ -22,6 +22,7 @@ import { EmptyChart } from './shared/empty-chart'
 import { paletteColor } from './shared/chart-theme'
 import { RichHoverTooltip } from './shared/rich-hover-tooltip'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { chartColors } from '@/core/ui/chart-colors'
 import { usePosAnalytics } from '../hooks'
 import {
   DOC_TYPE_LABELS,
@@ -36,6 +37,28 @@ function pct(part: number, total: number): string {
 
 const DOC_TYPE_ORDER: DocType[] = ['factura', 'nota', 'boleta', 'otro']
 
+// Rayas diagonales sobre el color base. La distinción entre facturas y notas
+// NO puede depender solo del tono: los tokens funcionales del design system
+// son deliberadamente apagados y los cuatro caen en la misma banda de
+// luminancia (~0.16–0.20), así que para un usuario daltónico se ven casi
+// iguales. El patrón sobrevive a cualquier tipo de daltonismo.
+const STRIPES =
+  'repeating-linear-gradient(45deg, transparent 0 3px, color-mix(in srgb, var(--app-surface) 60%, transparent) 3px 6px)'
+
+// Color e identidad visual FIJOS por tipo — no por posición en la lista.
+// Con un índice, un mes sin facturas haría que las notas heredaran el color
+// de las facturas y el mismo dato cambiaría de color entre periodos.
+//
+// Azul vs ámbar es el par seguro para el daltonismo rojo-verde (deuteranopia
+// y protanopia, ~99% de los casos); verde/rojo, que es lo que da la paleta
+// categórica por defecto, es justo el peor par posible.
+const DOC_TYPE_STYLE: Record<DocType, { color: string; striped: boolean }> = {
+  factura: { color: chartColors.info, striped: false },
+  nota: { color: chartColors.warning, striped: true },
+  boleta: { color: chartColors.neutral, striped: false },
+  otro: { color: chartColors.muted, striped: true },
+}
+
 // Solo los tipos presentes en el periodo. Hoy el POS de las 4 sedes emite
 // únicamente facturas y notas de venta, pero si aparece otro tipo entra solo
 // y los porcentajes siguen sumando 100.
@@ -45,6 +68,7 @@ function buildDocMix(counts: DocCounts) {
     name: DOC_TYPE_LABELS[t],
     value: counts[t],
     percentage: counts.total > 0 ? (counts[t] / counts.total) * 100 : 0,
+    ...DOC_TYPE_STYLE[t],
   }))
 }
 
@@ -247,24 +271,28 @@ export function PosDashboard() {
                     </span>
                   </header>
 
-                  <div className="flex h-2 w-full overflow-hidden rounded-full bg-smoke mb-2">
-                    {docMix.map((slice, i) => (
+                  {/* Un paso más alta que la barra de composición (h-2): las
+                      rayas de las notas necesitan alto para leerse. h-3 es lo
+                      mínimo que funciona sin desbalancear las dos secciones. */}
+                  <div className="flex h-3 w-full overflow-hidden rounded-full bg-smoke mb-2">
+                    {docMix.map((slice) => (
                       <div
                         key={slice.type}
                         style={{
                           width: `${slice.percentage}%`,
-                          backgroundColor: paletteColor(i),
+                          backgroundColor: slice.color,
+                          backgroundImage: slice.striped ? STRIPES : undefined,
                         }}
                       />
                     ))}
                   </div>
 
                   <ul className="divide-y divide-border/60">
-                    {docMix.map((slice, i) => (
+                    {docMix.map((slice) => (
                       <RichHoverTooltip
                         key={slice.type}
                         title={slice.name}
-                        accentColor={paletteColor(i)}
+                        accentColor={slice.color}
                         metrics={[
                           {
                             label: 'Cantidad',
@@ -279,9 +307,16 @@ export function PosDashboard() {
                         footer={`${docCounts.total.toLocaleString('es-CO')} comprobantes en total`}
                       >
                         <li className="flex items-center gap-3 py-3 text-body cursor-default hover:bg-bone/50 -mx-2 px-2 rounded-lg transition-colors">
+                          {/* Mismo código visual que la barra: relleno sólido o
+                              rayado. La forma es la señal que no depende del
+                              tono, así que el marcador debe repetirla. */}
                           <span
-                            className="inline-block w-2 h-2 rounded-full shrink-0"
-                            style={{ backgroundColor: paletteColor(i) }}
+                            className="inline-block w-3 h-3 rounded-full shrink-0 border"
+                            style={{
+                              backgroundColor: slice.color,
+                              backgroundImage: slice.striped ? STRIPES : undefined,
+                              borderColor: slice.color,
+                            }}
                             aria-hidden
                           />
                           <span className="text-graphite flex-1 min-w-0 truncate">
