@@ -3,8 +3,9 @@
 //
 // Cadena de proveedores (en extract-with-fallback.ts):
 //   1) Gemini 2.5 Flash (vision nativo, lee PDFs e imágenes directo)
-//   2) Groq Llama 4 Scout (vision, si GROQ_API_KEY está configurada)
-//   3) Para PDFs solamente: pdf-parse → Cerebras Llama 3.1 8B
+//   2) Groq qwen3.6 (vision, sólo imágenes, si GROQ_API_KEY está configurada)
+//   3) pdf-parse (PDF) o Cloud Vision OCR (imagen) → providers de texto
+//      (Groq gpt-oss-120b, Cerebras gpt-oss-120b)
 //
 // La respuesta incluye flags para que el cliente sepa si la extracción
 // realmente falló (vs. salió vacía intencionalmente porque el documento
@@ -14,9 +15,11 @@ import { defineSecret } from 'firebase-functions/params';
 import { z } from 'zod';
 import { db } from './firestore.js';
 import { LLMRouter } from './llm-router.js';
-import { extractWithFallback, ExtractionFailedError } from './extract-with-fallback.js';
+import { extractWithFallback, ExtractionFailedError, describeExtractionFailure, } from './extract-with-fallback.js';
 import { getUsageSnapshot } from './ai-usage-stats.js';
 import { parseCopAmount } from './parse-cop.js';
+/** Tamaño máx. del archivo en base64 (~9 MB reales). Evita OOM / límite callable. */
+const MAX_FILE_B64 = 12_000_000;
 const geminiApiKey = defineSecret('GEMINI_API_KEY');
 const groqApiKey = defineSecret('GROQ_API_KEY');
 const cerebrasApiKey = defineSecret('CEREBRAS_API_KEY');
@@ -121,6 +124,9 @@ export const analyzeInvoiceDocument = onCall({
         throw new HttpsError('invalid-argument', 'fileBase64 requerido');
     if (!data.mimeType)
         throw new HttpsError('invalid-argument', 'mimeType requerido');
+    if (data.fileBase64.length > MAX_FILE_B64) {
+        throw new HttpsError('invalid-argument', 'Archivo demasiado grande (máx ~9 MB). Sube un PDF más liviano o una foto comprimida.');
+    }
     if (data.kind !== 'invoice' && data.kind !== 'purchase' && data.kind !== 'receivable') {
         throw new HttpsError('invalid-argument', 'kind debe ser invoice, purchase o receivable');
     }
@@ -166,6 +172,7 @@ export const analyzeInvoiceDocument = onCall({
         `Si algún campo no se puede leer con seguridad, déjalo vacío (string vacío o 0). NO inventes datos.`;
     let extracted = EMPTY_EXTRACTION;
     let extractionFailed = false;
+    let failureReason;
     let provider = 'none';
     let fallbackUsed = false;
     try {
@@ -186,6 +193,7 @@ export const analyzeInvoiceDocument = onCall({
     }
     catch (err) {
         extractionFailed = true;
+        failureReason = describeExtractionFailure(err);
         if (err instanceof ExtractionFailedError) {
             console.error('[analyzeInvoiceDocument] all providers failed:', err.attempts);
         }
@@ -228,6 +236,7 @@ export const analyzeInvoiceDocument = onCall({
         customerMatch,
         categoryExists,
         extractionFailed,
+        failureReason,
         provider,
         fallbackUsed,
         usage,

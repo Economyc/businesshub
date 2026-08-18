@@ -40,6 +40,7 @@ export declare const analyzeInvoiceDocument: import("firebase-functions/v2/https
     } | undefined;
     categoryExists: boolean;
     extractionFailed: boolean;
+    failureReason: string | undefined;
     provider: string;
     fallbackUsed: boolean;
     usage: UsageSnapshot | undefined;

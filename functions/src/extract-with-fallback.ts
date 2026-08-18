@@ -51,7 +51,7 @@ interface ExtractParams<T> {
 
 interface ExtractResult<T> {
   object: T
-  /** Provider que tuvo éxito. Ej: 'gemini', 'groq-scout', 'cerebras-llama8b+pdf-parse', 'cerebras-llama8b+vision-ocr' */
+  /** Provider que tuvo éxito. Ej: 'gemini', 'groq-qwen', 'groq-gptoss+pdf-parse', 'cerebras-gptoss+vision-ocr' */
   provider: string
   /** True si tuvo que caer a un proveedor secundario (no fue el primario). */
   fallbackUsed: boolean
@@ -72,6 +72,32 @@ export class ExtractionFailedError extends Error {
 
 /** Cooldown largo cuando un provider se quedó sin créditos prepagados. */
 const CREDITS_DEPLETED_COOLDOWN_MS = 6 * 60 * 60 * 1000 // 6 horas
+
+/**
+ * Traduce un fallo total de la cadena a un motivo entendible por el usuario.
+ * Sin esto el cliente sólo puede decir "no se pudo leer", y una caída por saldo
+ * o por un modelo retirado se ve igual que un documento borroso — que fue
+ * exactamente lo que dejó el lector roto durante 5 días sin que nadie lo notara.
+ */
+export function describeExtractionFailure(err: unknown): string {
+  const attempts = err instanceof ExtractionFailedError ? err.attempts : []
+  const errors = attempts.map((a) => new Error(a.error))
+
+  if (errors.some(isCreditDepletedError)) {
+    return 'El servicio de IA se quedó sin saldo. Avísale al administrador para que lo recargue.'
+  }
+  if (errors.some((e) => /does not exist|do not have access|not found/i.test(e.message))) {
+    return 'El modelo de IA configurado ya no está disponible y hay que actualizarlo.'
+  }
+  if (errors.some(isRateLimitError)) {
+    return 'El servicio de IA alcanzó su límite de uso. Intenta de nuevo en unos minutos.'
+  }
+  const msg = err instanceof Error ? err.message : ''
+  if (/rate-limited or unavailable/i.test(msg)) {
+    return 'Todos los proveedores de IA están temporalmente fuera de servicio. Intenta más tarde.'
+  }
+  return 'No pudimos leer el documento. Puede estar borroso o en un formato que la IA no entiende.'
+}
 
 /** Telemetría fire-and-forget de éxito por provider. No bloquea la respuesta. */
 function trackSuccess(provider: string): void {
@@ -95,8 +121,8 @@ function buildContent(
   fileBase64: string,
   mimeType: string,
 ): CoreUserMessage['content'] {
-  // Groq Scout sólo entiende imágenes vía content type 'image' con data URL.
-  if (provider === 'groq-scout') {
+  // Groq sólo entiende imágenes vía content type 'image' con data URL.
+  if (provider === 'groq-qwen') {
     return [
       { type: 'text', text: prompt },
       { type: 'image', image: `data:${mimeType};base64,${fileBase64}` },

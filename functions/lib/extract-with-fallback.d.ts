@@ -22,7 +22,7 @@ interface ExtractParams<T> {
 }
 interface ExtractResult<T> {
     object: T;
-    /** Provider que tuvo éxito. Ej: 'gemini', 'groq-scout', 'cerebras-llama8b+pdf-parse', 'cerebras-llama8b+vision-ocr' */
+    /** Provider que tuvo éxito. Ej: 'gemini', 'groq-qwen', 'groq-gptoss+pdf-parse', 'cerebras-gptoss+vision-ocr' */
     provider: string;
     /** True si tuvo que caer a un proveedor secundario (no fue el primario). */
     fallbackUsed: boolean;
@@ -35,6 +35,13 @@ export declare class ExtractionFailedError extends Error {
     attempts: AttemptRecord[];
     constructor(attempts: AttemptRecord[]);
 }
+/**
+ * Traduce un fallo total de la cadena a un motivo entendible por el usuario.
+ * Sin esto el cliente sólo puede decir "no se pudo leer", y una caída por saldo
+ * o por un modelo retirado se ve igual que un documento borroso — que fue
+ * exactamente lo que dejó el lector roto durante 5 días sin que nadie lo notara.
+ */
+export declare function describeExtractionFailure(err: unknown): string;
 /**
  * Intenta extraer datos estructurados de un archivo (imagen o PDF) usando
  * la cadena Gemini → Groq Scout (sólo imágenes) → (PDF) pdf-parse → text-only

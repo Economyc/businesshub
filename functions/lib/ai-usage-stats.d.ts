@@ -6,6 +6,11 @@ export interface UsageSnapshot {
     cloudVisionFreeMonthly: number;
     cloudVisionRemaining: number;
     cloudVisionOverFreeTier: boolean;
+    /**
+     * Claves heredadas de los modelos originales. Se conservan tal cual porque el
+     * histórico mensual y los clientes (App1/Ecore) las leen así; hoy 'groq-scout'
+     * cuenta a groq-qwen y 'groq-llama70b' a groq-gptoss.
+     */
     byProvider: {
         gemini: number;
         'groq-scout': number;

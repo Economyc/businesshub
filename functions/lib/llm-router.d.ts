@@ -20,7 +20,7 @@ export declare class LLMRouter {
      * Get the best available model. Skips rate-limited providers.
      * If the request includes images, only returns vision-capable models.
      * Si needsPdfNative=true, solo devuelve providers que pueden leer PDFs como input
-     * (excluye groq-scout que solo lee imágenes).
+     * (excluye groq-qwen que solo lee imágenes).
      * Si `exclude` está presente, salta esos providers (útil para iterar dentro de una
      * misma request sin marcarlos rate-limited).
      */

@@ -40,8 +40,8 @@ const LOCAL_CACHE_TTL_MS = 30_000
 /** Cooldowns por provider cuando no hay Retry-After. */
 const DEFAULT_COOLDOWNS: Record<string, number> = {
   gemini: 60_000,
-  'groq-scout': 30_000,
-  'groq-llama70b': 30_000,
+  'groq-qwen': 30_000,
+  'groq-gptoss': 30_000,
   'cerebras-gptoss': 60_000,
 }
 
@@ -79,22 +79,28 @@ export class LLMRouter {
   addGroq(apiKey: string) {
     if (!apiKey) return this
     const groq = createGroq({ apiKey })
-    // Vision-capable model first. Scout NO soporta PDFs vía API — solo imágenes
-    // como image_url. Si llega un PDF, el router lo salta.
+    // Groq retiró toda la familia Llama de su catálogo (2026-08): se fueron
+    // llama-4-scout (visión) y llama-3.3-70b-versatile (texto). Los vigentes son
+    // qwen3.6 para visión y gpt-oss-120b para texto.
+    //
+    // Vision-capable model first. Igual que Scout, qwen NO lee PDFs vía API —
+    // solo imágenes como image_url. Si llega un PDF, el router lo salta.
+    // OJO: qwen3.6 es un modelo de razonamiento y emite el reasoning en un campo
+    // aparte. NO ponerle un maxTokens bajo o el JSON estructurado sale vacío.
     this.providers.push({
-      name: 'groq-scout',
-      createModel: () => groq('meta-llama/llama-4-scout-17b-16e-instruct'),
+      name: 'groq-qwen',
+      createModel: () => groq('qwen/qwen3.6-27b'),
       supportsVision: true,
       supportsPdfNative: false,
-      defaultCooldownMs: DEFAULT_COOLDOWNS['groq-scout'],
+      defaultCooldownMs: DEFAULT_COOLDOWNS['groq-qwen'],
     })
     // Text-only model como fallback adicional
     this.providers.push({
-      name: 'groq-llama70b',
-      createModel: () => groq('llama-3.3-70b-versatile'),
+      name: 'groq-gptoss',
+      createModel: () => groq('openai/gpt-oss-120b'),
       supportsVision: false,
       supportsPdfNative: false,
-      defaultCooldownMs: DEFAULT_COOLDOWNS['groq-llama70b'],
+      defaultCooldownMs: DEFAULT_COOLDOWNS['groq-gptoss'],
     })
     return this
   }
@@ -168,7 +174,7 @@ export class LLMRouter {
    * Get the best available model. Skips rate-limited providers.
    * If the request includes images, only returns vision-capable models.
    * Si needsPdfNative=true, solo devuelve providers que pueden leer PDFs como input
-   * (excluye groq-scout que solo lee imágenes).
+   * (excluye groq-qwen que solo lee imágenes).
    * Si `exclude` está presente, salta esos providers (útil para iterar dentro de una
    * misma request sin marcarlos rate-limited).
    */

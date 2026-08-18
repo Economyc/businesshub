@@ -31,11 +31,13 @@ export function providerToField(provider) {
     switch (provider) {
         case 'gemini':
             return 'geminiExtractions';
-        case 'groq-scout':
+        // Los nombres de provider cambian cuando el proveedor retira un modelo;
+        // los campos del doc se mantienen para no partir el histórico mensual.
+        case 'groq-qwen':
             return 'groqScoutExtractions';
         case 'cerebras-llama8b':
             return 'cerebrasTextExtractions';
-        case 'groq-llama70b':
+        case 'groq-gptoss':
             return 'groqLlama70bExtractions';
         default:
             return null;

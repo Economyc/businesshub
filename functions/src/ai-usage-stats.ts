@@ -25,6 +25,11 @@ export interface UsageSnapshot {
   cloudVisionFreeMonthly: number
   cloudVisionRemaining: number
   cloudVisionOverFreeTier: boolean
+  /**
+   * Claves heredadas de los modelos originales. Se conservan tal cual porque el
+   * histórico mensual y los clientes (App1/Ecore) las leen así; hoy 'groq-scout'
+   * cuenta a groq-qwen y 'groq-llama70b' a groq-gptoss.
+   */
   byProvider: {
     gemini: number
     'groq-scout': number
@@ -64,11 +69,13 @@ export function providerToField(provider: string): UsageField | null {
   switch (provider) {
     case 'gemini':
       return 'geminiExtractions'
-    case 'groq-scout':
+    // Los nombres de provider cambian cuando el proveedor retira un modelo;
+    // los campos del doc se mantienen para no partir el histórico mensual.
+    case 'groq-qwen':
       return 'groqScoutExtractions'
     case 'cerebras-llama8b':
       return 'cerebrasTextExtractions'
-    case 'groq-llama70b':
+    case 'groq-gptoss':
       return 'groqLlama70bExtractions'
     default:
       return null
