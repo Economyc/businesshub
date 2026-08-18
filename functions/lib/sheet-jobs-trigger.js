@@ -30,8 +30,13 @@ function monthsForTx(tx, months) {
         months.add(currentYm().key);
         return;
     }
-    if (tx.documentKind !== 'invoice' && tx.documentKind !== 'purchase')
+    // 'extra' (turno extra de Ecore) nace siempre pagado y sale en "Pagadas",
+    // así que su alta/borrado también tiene que ensuciar el mes.
+    if (tx.documentKind !== 'invoice' &&
+        tx.documentKind !== 'purchase' &&
+        tx.documentKind !== 'extra') {
         return;
+    }
     if (tx.status === 'paid') {
         const ym = ymKeyFromTs(tx.paidDate ?? tx.date);
         if (ym)

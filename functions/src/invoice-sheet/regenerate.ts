@@ -102,11 +102,16 @@ export async function regenerateInvoiceSheet(
 
   // 4) Pagadas del mes (anclado por paidDate ?? date, hora Bogotá).
   //    interLocal se excluye: sólo aparece en su pestaña (neutralidad F4).
+  //    Los turnos extras ('extra', Ecore) entran acá y NO en pestaña aparte: son
+  //    gasto pagado del mes y deben sumar en el total que ve el contador; la
+  //    columna Tipo ("Extra") permite aislarlos.
   const paid = txs.filter(
     (t) =>
       t.status === 'paid' &&
       !t.interLocalGroupId &&
-      (t.documentKind === 'invoice' || t.documentKind === 'purchase') &&
+      (t.documentKind === 'invoice' ||
+        t.documentKind === 'purchase' ||
+        t.documentKind === 'extra') &&
       inMonthBogota(t.paidDate ?? t.date, year, monthIndex),
   )
 

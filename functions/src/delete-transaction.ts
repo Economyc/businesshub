@@ -39,7 +39,7 @@ interface PayableFileLike {
 
 interface TxLike {
   status?: 'paid' | 'pending' | 'overdue'
-  documentKind?: 'invoice' | 'purchase'
+  documentKind?: 'invoice' | 'purchase' | 'extra'
   date?: Timestamp
   paidDate?: Timestamp
   sourceDocument?: PayableFileLike
@@ -75,11 +75,17 @@ interface DeleteResult {
 const SECRETS = [driveClientId, driveClientSecret]
 
 // Mes contable de esta tx (si aplica al Sheet).
-//  - paid invoice/purchase → mes de paidDate ?? date, hora Bogotá.
+//  - paid invoice/purchase/extra → mes de paidDate ?? date, hora Bogotá.
 //  - pending/overdue invoice → mes actual (las pendientes solo viven ahí).
 //  - resto → null (no aparece en la hoja).
 function monthForTx(tx: TxLike): { year: number; monthIndex: number } | null {
-  if (tx.documentKind !== 'invoice' && tx.documentKind !== 'purchase') return null
+  if (
+    tx.documentKind !== 'invoice' &&
+    tx.documentKind !== 'purchase' &&
+    tx.documentKind !== 'extra'
+  ) {
+    return null
+  }
   if (tx.status === 'paid') {
     try {
       const d = (tx.paidDate ?? tx.date)?.toDate?.()

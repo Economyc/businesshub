@@ -33,6 +33,9 @@ function formatDate(ts) {
 function tipoLabel(t) {
     if (t.documentKind === 'receivable')
         return 'Cuenta por cobrar';
+    // Turno extra pagado a una persona (Ecore): no es compra a un proveedor.
+    if (t.documentKind === 'extra')
+        return 'Extra';
     return t.documentKind === 'invoice' ? 'Factura' : 'Compra';
 }
 function estadoLabel(status) {
