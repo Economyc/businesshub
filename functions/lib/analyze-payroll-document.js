@@ -19,7 +19,7 @@ import { defineSecret } from 'firebase-functions/params';
 import { generateObject } from 'ai';
 import { z } from 'zod';
 import { db } from './firestore.js';
-import { LLMRouter, isRateLimitError, isCreditDepletedError, parseRetryAfter, } from './llm-router.js';
+import { LLMRouter, isRateLimitError, isCreditDepletedError, parseRetryAfter, DOC_GEMINI_MODEL, } from './llm-router.js';
 import { extractWithFallback, ExtractionFailedError } from './extract-with-fallback.js';
 import { getUsageSnapshot, recordUsage, providerToField, } from './ai-usage-stats.js';
 import { parseCopAmount } from './parse-cop.js';
@@ -32,6 +32,10 @@ const CREDITS_DEPLETED_COOLDOWN_MS = 6 * 60 * 60 * 1000;
 // parseCopAmount (parse-cop.ts) desambigua decimal vs miles para formato CO/US
 // y devuelve entero de pesos.
 const copNumber = z.preprocess(parseCopAmount, z.number().nonnegative());
+// Key del free tier (proyecto sin facturación): va de primera y se usa hasta
+// que Google le corta la cuota diaria.
+const geminiFreeApiKey = defineSecret('GEMINI_API_KEY_FREE');
+// Key del proyecto con facturación: releva a la gratis cuando esta se agota.
 const geminiApiKey = defineSecret('GEMINI_API_KEY');
 const groqApiKey = defineSecret('GROQ_API_KEY');
 const cerebrasApiKey = defineSecret('CEREBRAS_API_KEY');
@@ -106,7 +110,8 @@ let router = null;
 function getRouter() {
     if (!router) {
         router = new LLMRouter()
-            .addGemini(geminiApiKey.value())
+            .addGemini(geminiFreeApiKey.value(), { modelId: DOC_GEMINI_MODEL })
+            .addGeminiPaid(geminiApiKey.value(), { modelId: DOC_GEMINI_MODEL })
             .addGroq(groqApiKey.value())
             .addCerebras(cerebrasApiKey.value());
     }
@@ -190,7 +195,7 @@ export const analyzePayrollDocument = onCall({
     region: 'us-central1',
     memory: '512MiB',
     timeoutSeconds: 120,
-    secrets: [geminiApiKey, groqApiKey, cerebrasApiKey],
+    secrets: [geminiFreeApiKey, geminiApiKey, groqApiKey, cerebrasApiKey],
 }, async (request) => {
     if (!request.auth) {
         throw new HttpsError('unauthenticated', 'Login requerido');

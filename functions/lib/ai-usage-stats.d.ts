@@ -1,4 +1,4 @@
-export type UsageField = 'cloudVisionOcr' | 'geminiExtractions' | 'groqScoutExtractions' | 'cerebrasTextExtractions' | 'groqLlama70bExtractions' | 'totalExtractions' | 'totalFailed';
+export type UsageField = 'cloudVisionOcr' | 'geminiExtractions' | 'geminiPaidExtractions' | 'groqScoutExtractions' | 'cerebrasTextExtractions' | 'groqLlama70bExtractions' | 'totalExtractions' | 'totalFailed';
 export interface UsageSnapshot {
     monthKey: string;
     monthLabel: string;
@@ -13,6 +13,8 @@ export interface UsageSnapshot {
      */
     byProvider: {
         gemini: number;
+        /** Lecturas que resolvió la key de Google con facturación. */
+        'gemini-paid': number;
         'groq-scout': number;
         'cerebras-llama8b': number;
         'groq-llama70b': number;

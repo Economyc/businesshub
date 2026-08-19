@@ -8,7 +8,19 @@ export declare class LLMRouter {
     private providers;
     /** Cache local: provider → { until, cachedAt }. También sirve de fallback. */
     private cache;
-    addGemini(apiKey: string): this;
+    addGemini(apiKey: string, opts?: {
+        name?: string;
+        modelId?: string;
+    }): this;
+    /**
+     * Segunda key de Google, esta con facturación. Se registra DESPUÉS de
+     * addGemini, así que sólo entra cuando la gratis quedó marcada (cuota diaria
+     * agotada o error). Es el único relevo que lee PDFs nativos: sin ella un PDF
+     * cae a OCR + modelo de texto y falla bastante más.
+     */
+    addGeminiPaid(apiKey: string, opts?: {
+        modelId?: string;
+    }): this;
     addGroq(apiKey: string): this;
     addCerebras(apiKey: string): this;
     /**
@@ -66,4 +78,26 @@ export declare function parseRetryAfter(error: unknown): number;
  * Check if messages contain image content (for vision routing).
  */
 export declare function messagesContainImages(messages: unknown[]): boolean;
+/**
+ * Modelo de Gemini para la lectura de documentos. NO es 'gemini-2.5-flash':
+ * Google dejó de habilitarlo en proyectos nuevos ("no longer available to new
+ * users"), así que la key del free tier responde 404 con ese id. 3.6-flash sí
+ * funciona con las dos keys, y usar el mismo en ambas evita que la extracción
+ * se comporte distinto según cuál esté atendiendo.
+ */
+export declare const DOC_GEMINI_MODEL = "gemini-3.6-flash";
+/**
+ * ¿El 429 viene de la cuota DIARIA y no del límite por minuto? Google lo
+ * distingue en el nombre de la métrica que devuelve (…PerDay… vs …PerMinute…).
+ * Sólo devolvemos true con la marca explícita: un falso positivo apaga el
+ * provider gratis hasta la madrugada siguiente.
+ */
+export declare function isDailyQuotaError(error: unknown): boolean;
+/**
+ * ms hasta la próxima medianoche del Pacífico, que es cuando Google resetea las
+ * cuotas diarias (≈ 2:00 a.m. en Bogotá), más un minuto de colchón. El día del
+ * cambio de horario dura 23 o 25 h; si nos quedamos cortos el siguiente 429
+ * vuelve a marcar el cooldown, así que no hace falta más precisión.
+ */
+export declare function msUntilPacificMidnight(now?: Date): number;
 //# sourceMappingURL=llm-router.d.ts.map

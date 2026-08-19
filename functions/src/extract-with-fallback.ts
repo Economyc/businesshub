@@ -23,6 +23,8 @@ import {
   LLMRouter,
   isRateLimitError,
   isCreditDepletedError,
+  isDailyQuotaError,
+  msUntilPacificMidnight,
   parseRetryAfter,
 } from './llm-router.js'
 import { ocrImageBase64, ocrPdfBase64 } from './cloud-vision-ocr.js'
@@ -188,10 +190,14 @@ async function tryTextOnlyProviders<T>(
         continue
       }
       if (isRateLimitError(err)) {
+        // Un 429 por cuota DIARIA no se recupera en un minuto: si lo tratamos
+        // como límite por minuto, cada lectura del resto del día quema un
+        // intento condenado a fallar antes de pasar al siguiente provider.
+        const daily = isDailyQuotaError(err)
         await router.markRateLimited(
           modelInfo.provider,
-          parseRetryAfter(err),
-          'extraction 429',
+          daily ? msUntilPacificMidnight() : parseRetryAfter(err),
+          daily ? 'cuota diaria agotada' : 'extraction 429',
         )
         continue
       }
@@ -276,10 +282,14 @@ export async function extractWithFallback<T>(
         continue
       }
       if (isRateLimitError(err)) {
+        // Un 429 por cuota DIARIA no se recupera en un minuto: si lo tratamos
+        // como límite por minuto, cada lectura del resto del día quema un
+        // intento condenado a fallar antes de pasar al siguiente provider.
+        const daily = isDailyQuotaError(err)
         await router.markRateLimited(
           modelInfo.provider,
-          parseRetryAfter(err),
-          'extraction 429',
+          daily ? msUntilPacificMidnight() : parseRetryAfter(err),
+          daily ? 'cuota diaria agotada' : 'extraction 429',
         )
         isPrimary = false
         continue

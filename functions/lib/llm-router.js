@@ -11,6 +11,7 @@ const LOCAL_CACHE_TTL_MS = 30_000;
 /** Cooldowns por provider cuando no hay Retry-After. */
 const DEFAULT_COOLDOWNS = {
     gemini: 60_000,
+    'gemini-paid': 60_000,
     'groq-qwen': 30_000,
     'groq-gptoss': 30_000,
     'cerebras-gptoss': 60_000,
@@ -31,18 +32,29 @@ export class LLMRouter {
     providers = [];
     /** Cache local: provider → { until, cachedAt }. También sirve de fallback. */
     cache = new Map();
-    addGemini(apiKey) {
+    addGemini(apiKey, opts) {
         if (!apiKey)
             return this;
+        const name = opts?.name ?? 'gemini';
+        const modelId = opts?.modelId ?? 'gemini-2.5-flash';
         const google = createGoogleGenerativeAI({ apiKey });
         this.providers.push({
-            name: 'gemini',
-            createModel: () => google('gemini-2.5-flash'),
+            name,
+            createModel: () => google(modelId),
             supportsVision: true,
             supportsPdfNative: true,
-            defaultCooldownMs: DEFAULT_COOLDOWNS.gemini,
+            defaultCooldownMs: DEFAULT_COOLDOWNS[name] ?? DEFAULT_COOLDOWNS.gemini,
         });
         return this;
+    }
+    /**
+     * Segunda key de Google, esta con facturación. Se registra DESPUÉS de
+     * addGemini, así que sólo entra cuando la gratis quedó marcada (cuota diaria
+     * agotada o error). Es el único relevo que lee PDFs nativos: sin ella un PDF
+     * cae a OCR + modelo de texto y falla bastante más.
+     */
+    addGeminiPaid(apiKey, opts) {
+        return this.addGemini(apiKey, { name: 'gemini-paid', modelId: opts?.modelId });
     }
     addGroq(apiKey) {
         if (!apiKey)
@@ -277,5 +289,76 @@ export function messagesContainImages(messages) {
         }
     }
     return false;
+}
+/**
+ * Modelo de Gemini para la lectura de documentos. NO es 'gemini-2.5-flash':
+ * Google dejó de habilitarlo en proyectos nuevos ("no longer available to new
+ * users"), así que la key del free tier responde 404 con ese id. 3.6-flash sí
+ * funciona con las dos keys, y usar el mismo en ambas evita que la extracción
+ * se comporte distinto según cuál esté atendiendo.
+ */
+export const DOC_GEMINI_MODEL = 'gemini-3.6-flash';
+const DAY_MS = 24 * 60 * 60 * 1000;
+/**
+ * Junta el texto donde puede venir el detalle del error de la API: el mensaje
+ * de la excepción no siempre trae el nombre de la métrica de cuota, pero el
+ * body de la respuesta sí.
+ */
+function errorText(error) {
+    const parts = [];
+    if (error instanceof Error)
+        parts.push(error.message);
+    if (typeof error === 'object' && error !== null) {
+        const rec = error;
+        for (const key of ['responseBody', 'body', 'data', 'detail', 'cause']) {
+            const value = rec[key];
+            if (typeof value === 'string') {
+                parts.push(value);
+            }
+            else if (value) {
+                try {
+                    parts.push(JSON.stringify(value));
+                }
+                catch {
+                    // referencias circulares: se ignora esa fuente
+                }
+            }
+        }
+    }
+    return parts.join(' ');
+}
+/**
+ * ¿El 429 viene de la cuota DIARIA y no del límite por minuto? Google lo
+ * distingue en el nombre de la métrica que devuelve (…PerDay… vs …PerMinute…).
+ * Sólo devolvemos true con la marca explícita: un falso positivo apaga el
+ * provider gratis hasta la madrugada siguiente.
+ */
+export function isDailyQuotaError(error) {
+    const msg = errorText(error).toLowerCase();
+    if (!msg)
+        return false;
+    return (msg.includes('perday') ||
+        msg.includes('per day') ||
+        msg.includes('per_day') ||
+        msg.includes('daily limit') ||
+        msg.includes('daily quota'));
+}
+/**
+ * ms hasta la próxima medianoche del Pacífico, que es cuando Google resetea las
+ * cuotas diarias (≈ 2:00 a.m. en Bogotá), más un minuto de colchón. El día del
+ * cambio de horario dura 23 o 25 h; si nos quedamos cortos el siguiente 429
+ * vuelve a marcar el cooldown, así que no hace falta más precisión.
+ */
+export function msUntilPacificMidnight(now = new Date()) {
+    const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/Los_Angeles',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+    }).formatToParts(now);
+    const get = (type) => Number(parts.find((p) => p.type === type)?.value ?? '0');
+    const elapsed = ((get('hour') % 24) * 3600 + get('minute') * 60 + get('second')) * 1000;
+    return Math.max(60_000, DAY_MS - elapsed + 60_000);
 }
 //# sourceMappingURL=llm-router.js.map

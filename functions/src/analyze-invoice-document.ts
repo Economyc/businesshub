@@ -15,7 +15,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https'
 import { defineSecret } from 'firebase-functions/params'
 import { z } from 'zod'
 import { db } from './firestore.js'
-import { LLMRouter } from './llm-router.js'
+import { LLMRouter, DOC_GEMINI_MODEL } from './llm-router.js'
 import {
   extractWithFallback,
   ExtractionFailedError,
@@ -27,6 +27,10 @@ import { parseCopAmount } from './parse-cop.js'
 /** Tamaño máx. del archivo en base64 (~9 MB reales). Evita OOM / límite callable. */
 const MAX_FILE_B64 = 12_000_000
 
+// Key del free tier (proyecto sin facturación): va de primera y se usa hasta
+// que Google le corta la cuota diaria.
+const geminiFreeApiKey = defineSecret('GEMINI_API_KEY_FREE')
+// Key del proyecto con facturación: releva a la gratis cuando esta se agota.
 const geminiApiKey = defineSecret('GEMINI_API_KEY')
 const groqApiKey = defineSecret('GROQ_API_KEY')
 const cerebrasApiKey = defineSecret('CEREBRAS_API_KEY')
@@ -133,7 +137,8 @@ let router: LLMRouter | null = null
 function getRouter(): LLMRouter {
   if (!router) {
     router = new LLMRouter()
-      .addGemini(geminiApiKey.value())
+      .addGemini(geminiFreeApiKey.value(), { modelId: DOC_GEMINI_MODEL })
+      .addGeminiPaid(geminiApiKey.value(), { modelId: DOC_GEMINI_MODEL })
       .addGroq(groqApiKey.value())
       .addCerebras(cerebrasApiKey.value())
   }
@@ -144,8 +149,11 @@ export const analyzeInvoiceDocument = onCall(
   {
     region: 'us-central1',
     memory: '512MiB',
-    timeoutSeconds: 60,
-    secrets: [geminiApiKey, groqApiKey, cerebrasApiKey],
+    // 120s y no 60: la key del free tier responde bastante mas lento que la
+    // de pago (picos de ~19s en pruebas), y un documento grande no debe
+    // morir por timeout cuando la esta atendiendo la gratis.
+    timeoutSeconds: 120,
+    secrets: [geminiFreeApiKey, geminiApiKey, groqApiKey, cerebrasApiKey],
   },
   async (request) => {
     if (!request.auth) {

@@ -25,6 +25,7 @@ import {
   isRateLimitError,
   isCreditDepletedError,
   parseRetryAfter,
+  DOC_GEMINI_MODEL,
 } from './llm-router.js'
 import { extractWithFallback, ExtractionFailedError } from './extract-with-fallback.js'
 import {
@@ -46,6 +47,10 @@ const CREDITS_DEPLETED_COOLDOWN_MS = 6 * 60 * 60 * 1000
 // y devuelve entero de pesos.
 const copNumber = z.preprocess(parseCopAmount, z.number().nonnegative())
 
+// Key del free tier (proyecto sin facturación): va de primera y se usa hasta
+// que Google le corta la cuota diaria.
+const geminiFreeApiKey = defineSecret('GEMINI_API_KEY_FREE')
+// Key del proyecto con facturación: releva a la gratis cuando esta se agota.
 const geminiApiKey = defineSecret('GEMINI_API_KEY')
 const groqApiKey = defineSecret('GROQ_API_KEY')
 const cerebrasApiKey = defineSecret('CEREBRAS_API_KEY')
@@ -161,7 +166,8 @@ let router: LLMRouter | null = null
 function getRouter(): LLMRouter {
   if (!router) {
     router = new LLMRouter()
-      .addGemini(geminiApiKey.value())
+      .addGemini(geminiFreeApiKey.value(), { modelId: DOC_GEMINI_MODEL })
+      .addGeminiPaid(geminiApiKey.value(), { modelId: DOC_GEMINI_MODEL })
       .addGroq(groqApiKey.value())
       .addCerebras(cerebrasApiKey.value())
   }
@@ -255,7 +261,7 @@ export const analyzePayrollDocument = onCall(
     region: 'us-central1',
     memory: '512MiB',
     timeoutSeconds: 120,
-    secrets: [geminiApiKey, groqApiKey, cerebrasApiKey],
+    secrets: [geminiFreeApiKey, geminiApiKey, groqApiKey, cerebrasApiKey],
   },
   async (request) => {
     if (!request.auth) {

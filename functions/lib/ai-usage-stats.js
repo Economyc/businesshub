@@ -31,6 +31,8 @@ export function providerToField(provider) {
     switch (provider) {
         case 'gemini':
             return 'geminiExtractions';
+        case 'gemini-paid':
+            return 'geminiPaidExtractions';
         // Los nombres de provider cambian cuando el proveedor retira un modelo;
         // los campos del doc se mantienen para no partir el histórico mensual.
         case 'groq-qwen':
@@ -80,6 +82,7 @@ export async function getUsageSnapshot() {
         cloudVisionOverFreeTier: cloudVisionOcrUsed >= FREE_TIER_CLOUD_VISION,
         byProvider: {
             gemini: d.geminiExtractions ?? 0,
+            'gemini-paid': d.geminiPaidExtractions ?? 0,
             'groq-scout': d.groqScoutExtractions ?? 0,
             'cerebras-llama8b': d.cerebrasTextExtractions ?? 0,
             'groq-llama70b': d.groqLlama70bExtractions ?? 0,

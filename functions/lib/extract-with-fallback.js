@@ -17,7 +17,7 @@
 // extractionFailed=true al cliente para que muestre toast y permita
 // llenar manualmente.
 import { generateObject } from 'ai';
-import { isRateLimitError, isCreditDepletedError, parseRetryAfter, } from './llm-router.js';
+import { isRateLimitError, isCreditDepletedError, isDailyQuotaError, msUntilPacificMidnight, parseRetryAfter, } from './llm-router.js';
 import { ocrImageBase64, ocrPdfBase64 } from './cloud-vision-ocr.js';
 import { recordUsage, providerToField } from './ai-usage-stats.js';
 export class ExtractionFailedError extends Error {
@@ -125,7 +125,11 @@ async function tryTextOnlyProviders(router, schema, prompt, textBody, textSource
                 continue;
             }
             if (isRateLimitError(err)) {
-                await router.markRateLimited(modelInfo.provider, parseRetryAfter(err), 'extraction 429');
+                // Un 429 por cuota DIARIA no se recupera en un minuto: si lo tratamos
+                // como límite por minuto, cada lectura del resto del día quema un
+                // intento condenado a fallar antes de pasar al siguiente provider.
+                const daily = isDailyQuotaError(err);
+                await router.markRateLimited(modelInfo.provider, daily ? msUntilPacificMidnight() : parseRetryAfter(err), daily ? 'cuota diaria agotada' : 'extraction 429');
                 continue;
             }
             await router.markRateLimited(modelInfo.provider, 30_000, 'extraction error');
@@ -191,7 +195,11 @@ export async function extractWithFallback(params) {
                 continue;
             }
             if (isRateLimitError(err)) {
-                await router.markRateLimited(modelInfo.provider, parseRetryAfter(err), 'extraction 429');
+                // Un 429 por cuota DIARIA no se recupera en un minuto: si lo tratamos
+                // como límite por minuto, cada lectura del resto del día quema un
+                // intento condenado a fallar antes de pasar al siguiente provider.
+                const daily = isDailyQuotaError(err);
+                await router.markRateLimited(modelInfo.provider, daily ? msUntilPacificMidnight() : parseRetryAfter(err), daily ? 'cuota diaria agotada' : 'extraction 429');
                 isPrimary = false;
                 continue;
             }
