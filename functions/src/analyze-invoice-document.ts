@@ -19,6 +19,7 @@ import { LLMRouter, DOC_GEMINI_MODEL } from './llm-router.js'
 import {
   extractWithFallback,
   ExtractionFailedError,
+  ExtractionBudgetExceededError,
   describeExtractionFailure,
 } from './extract-with-fallback.js'
 import { getUsageSnapshot, type UsageSnapshot } from './ai-usage-stats.js'
@@ -26,6 +27,14 @@ import { parseCopAmount } from './parse-cop.js'
 
 /** Tamaño máx. del archivo en base64 (~9 MB reales). Evita OOM / límite callable. */
 const MAX_FILE_B64 = 12_000_000
+
+// Cascada de tiempos (bug de prod 2026-08-31): el cliente corta a los 100s, el
+// contenedor a los 90s y el presupuesto interno a los 70s → siempre respondemos
+// nosotros, nunca la infra. Importa porque un 504 de Cloud Run llega SIN
+// cabecera CORS y el navegador lo reporta como un error de CORS que despista.
+// OJO: gcloud IGNORA el `timeoutSeconds` del literal → hay que pasar --timeout=90.
+const CALLABLE_BUDGET_MS = 70_000
+const ATTEMPT_TIMEOUT_MS = 20_000
 
 // Key del free tier (proyecto sin facturación): va de primera y se usa hasta
 // que Google le corta la cuota diaria.
@@ -149,10 +158,10 @@ export const analyzeInvoiceDocument = onCall(
   {
     region: 'us-central1',
     memory: '512MiB',
-    // 120s y no 60: la key del free tier responde bastante mas lento que la
-    // de pago (picos de ~19s en pruebas), y un documento grande no debe
-    // morir por timeout cuando la esta atendiendo la gratis.
-    timeoutSeconds: 120,
+    // 90s: con el corte por intento de 20s la cadena entera cabe en el
+    // presupuesto de 70s. El margen que sobra es para leer el catálogo y
+    // serializar la respuesta.
+    timeoutSeconds: 90,
     secrets: [geminiFreeApiKey, geminiApiKey, groqApiKey, cerebrasApiKey],
   },
   async (request) => {
@@ -180,21 +189,33 @@ export const analyzeInvoiceDocument = onCall(
     // Cargar categorías + catálogo de contraparte para que el modelo escoja de él.
     // En CxC la contraparte es el cliente (`customers`); en CxP el proveedor
     // (`suppliers`). Ambas son colecciones raíz compartidas (ver firestore.ts).
-    const [settingsSnap, partiesSnap] = await Promise.all([
-      db.collection('companies').doc(data.companyId).collection('settings').doc('categories').get(),
-      db.collection(isReceivable ? 'customers' : 'suppliers').get(),
-    ])
+    // El catálogo de contrapartes sólo se usa DESPUÉS de la lectura (para el
+    // match), y es una colección raíz compartida por todas las empresas que
+    // crece sin techo. Se lanza en paralelo y se espera al final, con
+    // `.select('name')` para traer únicamente el campo que se usa. El .catch()
+    // va aquí para que un fallo mientras esperamos al LLM no quede como
+    // unhandled rejection.
+    const partiesPromise = db
+      .collection(isReceivable ? 'customers' : 'suppliers')
+      .select('name')
+      .get()
+      .catch((err) => {
+        console.warn('[analyzeInvoiceDocument] catálogo de contrapartes no disponible:', err)
+        return null
+      })
+
+    const settingsSnap = await db
+      .collection('companies')
+      .doc(data.companyId)
+      .collection('settings')
+      .doc('categories')
+      .get()
 
     const categoryItems = (() => {
       if (!settingsSnap.exists) return [] as string[]
       const raw = settingsSnap.data() as { items?: Array<{ name?: string }> } | undefined
       return (raw?.items ?? []).map((c) => c?.name ?? '').filter(Boolean)
     })()
-
-    const parties = partiesSnap.docs.map((d) => {
-      const t = d.data() as { name?: string }
-      return { id: d.id, name: t?.name ?? '' }
-    })
 
     const docKindLabel = data.kind === 'invoice'
       ? 'factura o cuenta de cobro (cuenta por pagar)'
@@ -222,9 +243,11 @@ export const analyzeInvoiceDocument = onCall(
       `- notes (opcional): 1 línea con concepto o descripción si aparece.\n\n` +
       `Si algún campo no se puede leer con seguridad, déjalo vacío (string vacío o 0). NO inventes datos.`
 
+    const startedAt = Date.now()
     let extracted: Extraction = EMPTY_EXTRACTION
     let extractionFailed = false
     let failureReason: string | undefined
+    let failureCode: 'timeout' | 'providers' | undefined
     let provider = 'none'
     let fallbackUsed = false
 
@@ -239,6 +262,8 @@ export const analyzeInvoiceDocument = onCall(
         // (PDF) o marcar fallo. category se autopropone, no cuenta como dato.
         isResultEmpty: (o) =>
           !o.supplierName.trim() && !o.docNumber.trim() && !o.date.trim() && !o.amountRaw.trim(),
+        deadlineAt: startedAt + CALLABLE_BUDGET_MS,
+        attemptTimeoutMs: ATTEMPT_TIMEOUT_MS,
       })
       extracted = result.object
       provider = result.provider
@@ -247,7 +272,13 @@ export const analyzeInvoiceDocument = onCall(
     } catch (err) {
       extractionFailed = true
       failureReason = describeExtractionFailure(err)
-      if (err instanceof ExtractionFailedError) {
+      failureCode = err instanceof ExtractionBudgetExceededError ? 'timeout' : 'providers'
+      if (err instanceof ExtractionBudgetExceededError) {
+        console.error(
+          `[analyzeInvoiceDocument] presupuesto agotado en ${Date.now() - startedAt}ms:`,
+          err.attempts,
+        )
+      } else if (err instanceof ExtractionFailedError) {
         console.error('[analyzeInvoiceDocument] all providers failed:', err.attempts)
       } else {
         console.error('[analyzeInvoiceDocument] unexpected error:', err)
@@ -255,6 +286,11 @@ export const analyzeInvoiceDocument = onCall(
     }
 
     // Match de la contraparte contra el catálogo registrado (proveedor o cliente).
+    const partiesSnap = await partiesPromise
+    const parties = (partiesSnap?.docs ?? []).map((d) => {
+      const t = d.data() as { name?: string }
+      return { id: d.id, name: t?.name ?? '' }
+    })
     let partyMatch: { id: string; name: string; score: number } | undefined
     if (extracted.supplierName) {
       const scored = parties
@@ -293,6 +329,7 @@ export const analyzeInvoiceDocument = onCall(
       categoryExists,
       extractionFailed,
       failureReason,
+      failureCode,
       provider,
       fallbackUsed,
       usage,

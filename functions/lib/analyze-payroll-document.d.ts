@@ -18,6 +18,8 @@ export declare const analyzePayrollDocument: import("firebase-functions/v2/https
         }[];
     };
     extractionFailed: boolean;
+    failureReason: string | undefined;
+    failureCode: "providers" | "timeout" | undefined;
     provider: string;
     fallbackUsed: boolean;
     usage: UsageSnapshot | undefined;

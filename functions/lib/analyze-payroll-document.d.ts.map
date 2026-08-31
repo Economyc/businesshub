@@ -1,1 +1,1 @@
-{"version":3,"file":"analyze-payroll-document.d.ts","sourceRoot":"","sources":["../src/analyze-payroll-document.ts"],"names":[],"mappings":"AA8BA,OAAO,EAIL,KAAK,aAAa,EACnB,MAAM,qBAAqB,CAAA;AAsB5B,KAAK,WAAW,GAAG,SAAS,GAAG,UAAU,CAAA;AAyMzC,eAAO,MAAM,sBAAsB;;;;;;;;;;;;;;;;;;;;;YA6ElC,CAAA"}
+{"version":3,"file":"analyze-payroll-document.d.ts","sourceRoot":"","sources":["../src/analyze-payroll-document.ts"],"names":[],"mappings":"AAwCA,OAAO,EAIL,KAAK,aAAa,EACnB,MAAM,qBAAqB,CAAA;AA2B5B,KAAK,WAAW,GAAG,SAAS,GAAG,UAAU,CAAA;AAqNzC,eAAO,MAAM,sBAAsB;;;;;;;;;;;;;;;;;;;;;;;YA4FlC,CAAA"}

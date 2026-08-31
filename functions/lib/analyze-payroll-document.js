@@ -20,13 +20,17 @@ import { generateObject } from 'ai';
 import { z } from 'zod';
 import { db } from './firestore.js';
 import { LLMRouter, isRateLimitError, isCreditDepletedError, parseRetryAfter, DOC_GEMINI_MODEL, } from './llm-router.js';
-import { extractWithFallback, ExtractionFailedError } from './extract-with-fallback.js';
+import { extractWithFallback, ExtractionFailedError, ExtractionBudgetExceededError, describeExtractionFailure, attemptBudgetMs, isAbortError, MIN_ATTEMPT_MS, SLOW_PROVIDER_COOLDOWN_MS, TEXT_ATTEMPT_TIMEOUT_MS, } from './extract-with-fallback.js';
 import { getUsageSnapshot, recordUsage, providerToField, } from './ai-usage-stats.js';
 import { parseCopAmount } from './parse-cop.js';
 /** Tamaño máx. del archivo en base64 (~9 MB reales). Evita OOM / límite callable. */
 const MAX_FILE_B64 = 12_000_000;
 /** Cooldown largo cuando un provider se quedó sin créditos prepagados. */
 const CREDITS_DEPLETED_COOLDOWN_MS = 6 * 60 * 60 * 1000;
+// Misma cascada de tiempos que analyze-invoice-document.ts (ver el comentario
+// allí). OJO: gcloud IGNORA el `timeoutSeconds` del literal → pasar --timeout=90.
+const CALLABLE_BUDGET_MS = 70_000;
+const ATTEMPT_TIMEOUT_MS = 20_000;
 // Montos colombianos: "1.197.773" / "$1.197.773,00" / 1197773. El modelo a
 // veces devuelve string o un número mal tokenizado por el separador de miles.
 // parseCopAmount (parse-cop.ts) desambigua decimal vs miles para formato CO/US
@@ -130,11 +134,14 @@ function trackFailure() {
 // Extracción text-only para propinas que llegan como Excel/CSV ya parseado a
 // texto. Reusa el router con la misma política de fallback/telemetría que
 // extract-with-fallback.ts (rate-limit, créditos agotados, conteo de uso).
-async function extractFromText(schema, prompt, text) {
+async function extractFromText(schema, prompt, text, deadlineAt) {
     const r = getRouter();
     const tried = new Set();
     let lastErr;
     for (let i = 0; i < 3; i++) {
+        const attemptMs = attemptBudgetMs(deadlineAt, TEXT_ATTEMPT_TIMEOUT_MS);
+        if (attemptMs < MIN_ATTEMPT_MS)
+            break;
         let modelInfo;
         try {
             modelInfo = await r.getModel({ needsVision: false, exclude: tried });
@@ -147,6 +154,10 @@ async function extractFromText(schema, prompt, text) {
             const result = await generateObject({
                 model: modelInfo.model,
                 schema,
+                // El router ya hace el fallback al siguiente proveedor; el retry del
+                // SDK solo agregaría 6s de sleep antes de que nos enteremos del fallo.
+                maxRetries: 0,
+                abortSignal: AbortSignal.timeout(attemptMs),
                 messages: [
                     {
                         role: 'user',
@@ -159,7 +170,10 @@ async function extractFromText(schema, prompt, text) {
         }
         catch (err) {
             lastErr = err;
-            if (isCreditDepletedError(err)) {
+            if (isAbortError(err)) {
+                await r.markRateLimited(modelInfo.provider, SLOW_PROVIDER_COOLDOWN_MS, 'timeout de intento');
+            }
+            else if (isCreditDepletedError(err)) {
                 await r.markRateLimited(modelInfo.provider, CREDITS_DEPLETED_COOLDOWN_MS, 'credits depleted');
             }
             else if (isRateLimitError(err)) {
@@ -177,9 +191,9 @@ async function extractFromText(schema, prompt, text) {
 }
 // `schema` es z.ZodTypeAny porque copNumber (z.preprocess) hace que input!=output;
 // el cast al tipo de salida se hace en el handler (runtime garantizado por copNumber).
-async function runExtraction(schema, prompt, data, hasFile, hasText) {
+async function runExtraction(schema, prompt, data, hasFile, hasText, deadlineAt) {
     if (hasText && !hasFile) {
-        const r = await extractFromText(schema, prompt, data.spreadsheetText);
+        const r = await extractFromText(schema, prompt, data.spreadsheetText, deadlineAt);
         return { object: r.object, provider: r.provider, fallbackUsed: true };
     }
     const r = await extractWithFallback({
@@ -188,13 +202,17 @@ async function runExtraction(schema, prompt, data, hasFile, hasText) {
         prompt,
         fileBase64: data.fileBase64,
         mimeType: data.mimeType,
+        deadlineAt,
+        attemptTimeoutMs: ATTEMPT_TIMEOUT_MS,
     });
     return { object: r.object, provider: r.provider, fallbackUsed: r.fallbackUsed };
 }
 export const analyzePayrollDocument = onCall({
     region: 'us-central1',
     memory: '512MiB',
-    timeoutSeconds: 120,
+    // 90s: con el corte por intento de 20s la cadena cabe en el presupuesto
+    // interno de 70s (ver analyze-invoice-document.ts).
+    timeoutSeconds: 90,
     secrets: [geminiFreeApiKey, geminiApiKey, groqApiKey, cerebrasApiKey],
 }, async (request) => {
     if (!request.auth) {
@@ -219,18 +237,22 @@ export const analyzePayrollDocument = onCall({
     let extracted = isColilla
         ? EMPTY_COLILLA
         : EMPTY_PROPINAS;
+    const startedAt = Date.now();
+    const deadlineAt = startedAt + CALLABLE_BUDGET_MS;
     let extractionFailed = false;
+    let failureReason;
+    let failureCode;
     let provider = 'none';
     let fallbackUsed = false;
     try {
         if (isColilla) {
-            const r = await runExtraction(ColillaSchema, COLILLA_PROMPT, data, hasFile, hasText);
+            const r = await runExtraction(ColillaSchema, COLILLA_PROMPT, data, hasFile, hasText, deadlineAt);
             extracted = r.object;
             provider = r.provider;
             fallbackUsed = r.fallbackUsed;
         }
         else {
-            const r = await runExtraction(PropinasSchema, PROPINAS_PROMPT, data, hasFile, hasText);
+            const r = await runExtraction(PropinasSchema, PROPINAS_PROMPT, data, hasFile, hasText, deadlineAt);
             extracted = r.object;
             provider = r.provider;
             fallbackUsed = r.fallbackUsed;
@@ -239,7 +261,12 @@ export const analyzePayrollDocument = onCall({
     }
     catch (err) {
         extractionFailed = true;
-        if (err instanceof ExtractionFailedError) {
+        failureReason = describeExtractionFailure(err);
+        failureCode = err instanceof ExtractionBudgetExceededError ? 'timeout' : 'providers';
+        if (err instanceof ExtractionBudgetExceededError) {
+            console.error(`[analyzePayrollDocument] presupuesto agotado en ${Date.now() - startedAt}ms:`, err.attempts);
+        }
+        else if (err instanceof ExtractionFailedError) {
             console.error('[analyzePayrollDocument] todos los proveedores fallaron:', err.attempts);
         }
         else {
@@ -257,6 +284,8 @@ export const analyzePayrollDocument = onCall({
         kind: data.kind,
         extracted,
         extractionFailed,
+        failureReason,
+        failureCode,
         provider,
         fallbackUsed,
         usage,

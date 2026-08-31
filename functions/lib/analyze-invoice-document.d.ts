@@ -41,6 +41,7 @@ export declare const analyzeInvoiceDocument: import("firebase-functions/v2/https
     categoryExists: boolean;
     extractionFailed: boolean;
     failureReason: string | undefined;
+    failureCode: "providers" | "timeout" | undefined;
     provider: string;
     fallbackUsed: boolean;
     usage: UsageSnapshot | undefined;

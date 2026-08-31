@@ -13,12 +13,22 @@ import { defineSecret } from 'firebase-functions/params'
 import { z } from 'zod'
 import { db } from './firestore.js'
 import { LLMRouter, DOC_GEMINI_MODEL } from './llm-router.js'
-import { extractWithFallback, ExtractionFailedError } from './extract-with-fallback.js'
+import {
+  extractWithFallback,
+  ExtractionFailedError,
+  ExtractionBudgetExceededError,
+  describeExtractionFailure,
+} from './extract-with-fallback.js'
 import { getUsageSnapshot, type UsageSnapshot } from './ai-usage-stats.js'
 import { parseCopAmount } from './parse-cop.js'
 
 // Key del free tier (proyecto sin facturación): va de primera y se usa hasta
 // que Google le corta la cuota diaria.
+// Misma cascada de tiempos que analyze-invoice-document.ts (ver el comentario
+// allí). OJO: gcloud IGNORA el `timeoutSeconds` del literal → pasar --timeout=90.
+const CALLABLE_BUDGET_MS = 70_000
+const ATTEMPT_TIMEOUT_MS = 20_000
+
 const geminiFreeApiKey = defineSecret('GEMINI_API_KEY_FREE')
 // Key del proyecto con facturación: releva a la gratis cuando esta se agota.
 const geminiApiKey = defineSecret('GEMINI_API_KEY')
@@ -148,10 +158,9 @@ export const analyzePaymentReceipt = onCall(
   {
     region: 'us-central1',
     memory: '512MiB',
-    // 120s y no 60: la key del free tier responde bastante mas lento que la
-    // de pago (picos de ~19s en pruebas), y un documento grande no debe
-    // morir por timeout cuando la esta atendiendo la gratis.
-    timeoutSeconds: 120,
+    // 90s: con el corte por intento de 20s la cadena entera cabe en el
+    // presupuesto interno de 70s.
+    timeoutSeconds: 90,
     secrets: [geminiFreeApiKey, geminiApiKey, groqApiKey, cerebrasApiKey],
   },
   async (request) => {
@@ -174,8 +183,11 @@ export const analyzePaymentReceipt = onCall(
       '(ej. "$1.197.773,00" o "10.200,40"); no conviertas ni quites separadores. ' +
       'Si algún campo no está claro, déjalo vacío. NO inventes datos.'
 
+    const startedAt = Date.now()
     let extracted: Extraction = EMPTY_EXTRACTION
     let extractionFailed = false
+    let failureReason: string | undefined
+    let failureCode: 'timeout' | 'providers' | undefined
     let provider = 'none'
     let fallbackUsed = false
 
@@ -190,6 +202,8 @@ export const analyzePaymentReceipt = onCall(
         // o marcar fallo en vez de devolver un comprobante vacío.
         isResultEmpty: (o) =>
           !o.supplierName.trim() && !o.amountRaw.trim() && !o.date.trim(),
+        deadlineAt: startedAt + CALLABLE_BUDGET_MS,
+        attemptTimeoutMs: ATTEMPT_TIMEOUT_MS,
       })
       extracted = result.object
       provider = result.provider
@@ -197,7 +211,14 @@ export const analyzePaymentReceipt = onCall(
       console.log(`[analyzePaymentReceipt] extracted via ${provider} (fallback=${fallbackUsed})`)
     } catch (err) {
       extractionFailed = true
-      if (err instanceof ExtractionFailedError) {
+      failureReason = describeExtractionFailure(err)
+      failureCode = err instanceof ExtractionBudgetExceededError ? 'timeout' : 'providers'
+      if (err instanceof ExtractionBudgetExceededError) {
+        console.error(
+          `[analyzePaymentReceipt] presupuesto agotado en ${Date.now() - startedAt}ms:`,
+          err.attempts,
+        )
+      } else if (err instanceof ExtractionFailedError) {
         console.error('[analyzePaymentReceipt] all providers failed:', err.attempts)
       } else {
         console.error('[analyzePaymentReceipt] unexpected error:', err)
@@ -320,6 +341,8 @@ export const analyzePaymentReceipt = onCall(
         date: c.date,
       })),
       extractionFailed,
+      failureReason,
+      failureCode,
       provider,
       fallbackUsed,
       usage,

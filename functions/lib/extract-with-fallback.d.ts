@@ -19,6 +19,16 @@ interface ExtractParams<T> {
      * vacío) y que el caller muestre el aviso de fallo. Default: nunca vacío.
      */
     isResultEmpty?: (obj: T) => boolean;
+    /**
+     * Instante límite (epoch ms) de TODA la cadena. Al pasarse se lanza
+     * ExtractionBudgetExceededError en vez de arrancar otro intento.
+     */
+    deadlineAt?: number;
+    /**
+     * Corte por intento contra un proveedor. Al vencer se aborta el request en
+     * curso y se releva al siguiente slot de la cadena.
+     */
+    attemptTimeoutMs?: number;
 }
 interface ExtractResult<T> {
     object: T;
@@ -35,6 +45,33 @@ export declare class ExtractionFailedError extends Error {
     attempts: AttemptRecord[];
     constructor(attempts: AttemptRecord[]);
 }
+/** Texto plano: sin imagen los modelos responden en 2-6s; 15s ya es anomalía. */
+export declare const TEXT_ATTEMPT_TIMEOUT_MS = 15000;
+/** Por debajo de esto no vale la pena arrancar un intento: no cabe entero. */
+export declare const MIN_ATTEMPT_MS = 6000;
+/**
+ * Un provider que hoy no respondió a tiempo sigue lento en la request siguiente.
+ * Apagarlo un rato hace que el resto del lote vaya derecho al relevo en vez de
+ * pagar 20s de peaje por documento — importa en la subida masiva de facturas.
+ */
+export declare const SLOW_PROVIDER_COOLDOWN_MS: number;
+/**
+ * Se agotó el presupuesto de tiempo antes de que ningún proveedor contestara.
+ * Existe para NUNCA llegar al timeout del contenedor: un 504 de Cloud Run llega
+ * sin cabecera CORS y el navegador lo reporta como un error de CORS que no
+ * tiene nada que ver (mismo despiste que el bug de Drive de 2026-07-16).
+ */
+export declare class ExtractionBudgetExceededError extends Error {
+    attempts: AttemptRecord[];
+    constructor(attempts: AttemptRecord[]);
+}
+/** ¿El error es nuestro corte por tiempo? El AI SDK re-lanza los abort tal cual. */
+export declare function isAbortError(err: unknown): boolean;
+/**
+ * Cuánto tiempo le queda al intento: el mínimo entre lo que resta del
+ * presupuesto global y el corte por intento.
+ */
+export declare function attemptBudgetMs(deadlineAt: number, attemptTimeoutMs: number): number;
 /**
  * Traduce un fallo total de la cadena a un motivo entendible por el usuario.
  * Sin esto el cliente sólo puede decir "no se pudo leer", y una caída por saldo

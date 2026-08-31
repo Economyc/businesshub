@@ -39,6 +39,8 @@ export declare const analyzePaymentReceipt: import("firebase-functions/v2/https"
         date: string | null;
     }[];
     extractionFailed: boolean;
+    failureReason: string | undefined;
+    failureCode: "providers" | "timeout" | undefined;
     provider: string;
     fallbackUsed: boolean;
     usage: UsageSnapshot | undefined;

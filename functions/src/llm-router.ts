@@ -293,32 +293,46 @@ export function isCreditDepletedError(error: unknown): boolean {
  * Check if a streamText error is a rate limit error (HTTP 429).
  */
 export function isRateLimitError(error: unknown): boolean {
-  if (error instanceof Error) {
-    const msg = error.message.toLowerCase()
-    if (msg.includes('429') || msg.includes('rate limit') || msg.includes('quota')) {
-      return true
+  for (const e of unwrapErrors(error)) {
+    if (e instanceof Error) {
+      const msg = e.message.toLowerCase()
+      if (msg.includes('429') || msg.includes('rate limit') || msg.includes('quota')) {
+        return true
+      }
     }
-  }
-  if (typeof error === 'object' && error !== null) {
-    const statusCode = (error as Record<string, unknown>).status ?? (error as Record<string, unknown>).statusCode
-    if (statusCode === 429) return true
+    const rec = e as Record<string, unknown>
+    if ((rec.status ?? rec.statusCode) === 429) return true
   }
   return false
 }
 
 /**
- * Parse retry-after header from error, returns milliseconds.
+ * Cuánto esperar antes de volver a probar el provider, en ms.
+ *
+ * Dos bugs que tenía esta función y por qué importan: leía `headers`, pero el
+ * APICallError del AI SDK expone `responseHeaders` — el Retry-After no se
+ * encontraba NUNCA y siempre caía al default de 60s. Y Google no manda
+ * Retry-After: pone el RetryInfo dentro del body ("retryDelay":"42s"), que es
+ * el dato que de verdad sirve para saber cuándo vuelve a estar disponible.
  */
 export function parseRetryAfter(error: unknown): number {
-  if (typeof error === 'object' && error !== null) {
-    const headers = (error as Record<string, unknown>).headers as Record<string, string> | undefined
-    const retryAfter = headers?.['retry-after']
+  for (const e of unwrapErrors(error)) {
+    const rec = e as Record<string, unknown>
+    const headers = (rec.responseHeaders ?? rec.headers) as Record<string, string> | undefined
+    const retryAfter = headers?.['retry-after'] ?? headers?.['Retry-After']
     if (retryAfter) {
       const seconds = parseInt(retryAfter, 10)
-      if (!isNaN(seconds)) return seconds * 1000
+      if (!isNaN(seconds)) return clampCooldown(seconds * 1000)
     }
   }
+  const match = /retrydelay["'\s:=]+(\d+)(?:\.\d+)?s/i.exec(errorText(error))
+  if (match) return clampCooldown(Number(match[1]) * 1000)
   return 60_000 // Default 1 minute
+}
+
+/** Un cooldown de 0 quema el provider en bucle; uno de horas lo apaga de más. */
+function clampCooldown(ms: number): number {
+  return Math.min(Math.max(ms, 1_000), 5 * 60_000)
 }
 
 /**
@@ -352,16 +366,41 @@ export const DOC_GEMINI_MODEL = 'gemini-3.6-flash'
 const DAY_MS = 24 * 60 * 60 * 1000
 
 /**
+ * Aplana un error y todos los que lleva adentro.
+ *
+ * El AI SDK envuelve el error real en un RetryError que NO propaga `cause` ni
+ * `headers`: los originales viven en `.errors` / `.lastError`. Sin desenvolver,
+ * isDailyQuotaError nunca ve el nombre de la métrica y el cooldown hasta la
+ * medianoche del Pacífico no se dispara jamás — la key gratis revivía cada 60s
+ * para volver a cobrar el peaje en la lectura siguiente.
+ */
+function unwrapErrors(error: unknown): unknown[] {
+  const out: unknown[] = []
+  const seen = new Set<unknown>()
+  const walk = (e: unknown, depth: number): void => {
+    if (!e || typeof e !== 'object' || depth > 3 || seen.has(e)) return
+    seen.add(e)
+    out.push(e)
+    const rec = e as { errors?: unknown[]; lastError?: unknown; cause?: unknown }
+    if (Array.isArray(rec.errors)) for (const inner of rec.errors) walk(inner, depth + 1)
+    walk(rec.lastError, depth + 1)
+    walk(rec.cause, depth + 1)
+  }
+  walk(error, 0)
+  return out.length > 0 ? out : [error]
+}
+
+/**
  * Junta el texto donde puede venir el detalle del error de la API: el mensaje
  * de la excepción no siempre trae el nombre de la métrica de cuota, pero el
  * body de la respuesta sí.
  */
 function errorText(error: unknown): string {
   const parts: string[] = []
-  if (error instanceof Error) parts.push(error.message)
-  if (typeof error === 'object' && error !== null) {
-    const rec = error as Record<string, unknown>
-    for (const key of ['responseBody', 'body', 'data', 'detail', 'cause']) {
+  for (const e of unwrapErrors(error)) {
+    if (e instanceof Error) parts.push(e.message)
+    const rec = e as Record<string, unknown>
+    for (const key of ['responseBody', 'body', 'data', 'detail']) {
       const value = rec[key]
       if (typeof value === 'string') {
         parts.push(value)

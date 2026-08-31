@@ -49,6 +49,16 @@ interface ExtractParams<T> {
    * vacío) y que el caller muestre el aviso de fallo. Default: nunca vacío.
    */
   isResultEmpty?: (obj: T) => boolean
+  /**
+   * Instante límite (epoch ms) de TODA la cadena. Al pasarse se lanza
+   * ExtractionBudgetExceededError en vez de arrancar otro intento.
+   */
+  deadlineAt?: number
+  /**
+   * Corte por intento contra un proveedor. Al vencer se aborta el request en
+   * curso y se releva al siguiente slot de la cadena.
+   */
+  attemptTimeoutMs?: number
 }
 
 interface ExtractResult<T> {
@@ -76,12 +86,73 @@ export class ExtractionFailedError extends Error {
 const CREDITS_DEPLETED_COOLDOWN_MS = 6 * 60 * 60 * 1000 // 6 horas
 
 /**
+ * Corte por intento. Medido en Cloud Logging (20 jul–19 ago vs. 19–31 ago): con
+ * la key gratis de Gemini de primera, la lectura pasó de p50 4,5s / máx 21s a
+ * p50 12s / p90 32s / máx 110s. A los 20s ya contestaron ~3 de cada 4 lecturas,
+ * así que cortar ahí conserva el caso bueno (gratis y rápido) y le ahorra al
+ * usuario la cola de 50-110s: 20s de peaje + ~7s de la key paga < 30s.
+ */
+const DEFAULT_ATTEMPT_TIMEOUT_MS = 20_000
+/** Texto plano: sin imagen los modelos responden en 2-6s; 15s ya es anomalía. */
+export const TEXT_ATTEMPT_TIMEOUT_MS = 15_000
+/** Por debajo de esto no vale la pena arrancar un intento: no cabe entero. */
+export const MIN_ATTEMPT_MS = 6_000
+/**
+ * Un provider que hoy no respondió a tiempo sigue lento en la request siguiente.
+ * Apagarlo un rato hace que el resto del lote vaya derecho al relevo en vez de
+ * pagar 20s de peaje por documento — importa en la subida masiva de facturas.
+ */
+export const SLOW_PROVIDER_COOLDOWN_MS = 3 * 60_000
+
+/**
+ * Se agotó el presupuesto de tiempo antes de que ningún proveedor contestara.
+ * Existe para NUNCA llegar al timeout del contenedor: un 504 de Cloud Run llega
+ * sin cabecera CORS y el navegador lo reporta como un error de CORS que no
+ * tiene nada que ver (mismo despiste que el bug de Drive de 2026-07-16).
+ */
+export class ExtractionBudgetExceededError extends Error {
+  constructor(public attempts: AttemptRecord[]) {
+    const summary = attempts.map((a) => `${a.provider}: ${a.error}`).join(' | ')
+    super(`Extraction budget exceeded: ${summary}`)
+    this.name = 'ExtractionBudgetExceededError'
+  }
+}
+
+/**
+ * Corta la cadena si ya no queda presupuesto para otra fase. Se llama antes de
+ * los pasos caros (Cloud Vision, tandas de text-only) para que la respuesta la
+ * demos nosotros y no el timeout del contenedor.
+ */
+function assertBudget(deadlineAt: number, attempts: AttemptRecord[]): void {
+  if (deadlineAt - Date.now() < MIN_ATTEMPT_MS) {
+    trackFailure()
+    throw new ExtractionBudgetExceededError(attempts)
+  }
+}
+
+/** ¿El error es nuestro corte por tiempo? El AI SDK re-lanza los abort tal cual. */
+export function isAbortError(err: unknown): boolean {
+  return err instanceof Error && (err.name === 'AbortError' || err.name === 'TimeoutError')
+}
+
+/**
+ * Cuánto tiempo le queda al intento: el mínimo entre lo que resta del
+ * presupuesto global y el corte por intento.
+ */
+export function attemptBudgetMs(deadlineAt: number, attemptTimeoutMs: number): number {
+  return Math.min(attemptTimeoutMs, deadlineAt - Date.now())
+}
+
+/**
  * Traduce un fallo total de la cadena a un motivo entendible por el usuario.
  * Sin esto el cliente sólo puede decir "no se pudo leer", y una caída por saldo
  * o por un modelo retirado se ve igual que un documento borroso — que fue
  * exactamente lo que dejó el lector roto durante 5 días sin que nadie lo notara.
  */
 export function describeExtractionFailure(err: unknown): string {
+  if (err instanceof ExtractionBudgetExceededError) {
+    return 'La IA está respondiendo muy lento en este momento y no alcanzó a leer el documento.'
+  }
   const attempts = err instanceof ExtractionFailedError ? err.attempts : []
   const errors = attempts.map((a) => new Error(a.error))
 
@@ -149,9 +220,12 @@ async function tryTextOnlyProviders<T>(
   textSourceLabel: 'pdf-parse' | 'vision-ocr',
   maxAttempts: number,
   attempts: AttemptRecord[],
+  deadlineAt: number,
 ): Promise<{ object: T; provider: string } | null> {
   const tried = new Set<string>()
   for (let i = 0; i < maxAttempts; i++) {
+    const attemptMs = attemptBudgetMs(deadlineAt, TEXT_ATTEMPT_TIMEOUT_MS)
+    if (attemptMs < MIN_ATTEMPT_MS) break
     let modelInfo
     try {
       modelInfo = await router.getModel({ needsVision: false, exclude: tried })
@@ -159,11 +233,18 @@ async function tryTextOnlyProviders<T>(
       break
     }
     tried.add(modelInfo.provider)
+    const startedAt = Date.now()
 
     try {
       const result = await generateObject({
         model: modelInfo.model,
         schema,
+        // El router YA es el mecanismo de reintento (pasa al siguiente
+        // proveedor). El del SDK lo duplica: 3 requests y 6s de sleep puro
+        // (2s+4s) por slot antes de que nos enteremos del fallo, y envuelve el
+        // error original en un RetryError que rompe la deteccion de cuota.
+        maxRetries: 0,
+        abortSignal: AbortSignal.timeout(attemptMs),
         messages: [
           {
             role: 'user',
@@ -177,10 +258,24 @@ async function tryTextOnlyProviders<T>(
         provider: `${modelInfo.provider}+${textSourceLabel}`,
       }
     } catch (err) {
-      const errMsg = (err as Error).message ?? String(err)
+      const timedOut = isAbortError(err)
+      const errMsg = timedOut
+        ? `sin respuesta en ${attemptMs}ms`
+        : ((err as Error).message ?? String(err))
       attempts.push({ provider: modelInfo.provider, error: errMsg })
-      console.warn(`[extractWithFallback] ${modelInfo.provider} (text) failed:`, errMsg)
+      console.warn(
+        `[extractWithFallback] ${modelInfo.provider} (text) failed (${Date.now() - startedAt}ms):`,
+        errMsg,
+      )
 
+      if (timedOut) {
+        await router.markRateLimited(
+          modelInfo.provider,
+          SLOW_PROVIDER_COOLDOWN_MS,
+          'timeout de intento',
+        )
+        continue
+      }
       if (isCreditDepletedError(err)) {
         await router.markRateLimited(
           modelInfo.provider,
@@ -226,6 +321,8 @@ export async function extractWithFallback<T>(
     maxVisionAttempts = 3,
     maxTextAttempts = 3,
     isResultEmpty = () => false,
+    deadlineAt = Infinity,
+    attemptTimeoutMs = DEFAULT_ATTEMPT_TIMEOUT_MS,
   } = params
 
   const isPdf = mimeType === 'application/pdf'
@@ -236,6 +333,8 @@ export async function extractWithFallback<T>(
   // ── Fase 1: vision providers ──────────────────────────────────────
   const triedVision = new Set<string>()
   for (let i = 0; i < maxVisionAttempts; i++) {
+    const attemptMs = attemptBudgetMs(deadlineAt, attemptTimeoutMs)
+    if (attemptMs < MIN_ATTEMPT_MS) break
     let modelInfo
     try {
       modelInfo = await router.getModel({
@@ -249,11 +348,16 @@ export async function extractWithFallback<T>(
       break
     }
     triedVision.add(modelInfo.provider)
+    const startedAt = Date.now()
 
     try {
       const result = await generateObject({
         model: modelInfo.model,
         schema,
+        // Ver el comentario de tryTextOnlyProviders: el fallback lo hace el
+        // router, el retry del SDK solo agrega 6s de sleep por proveedor.
+        maxRetries: 0,
+        abortSignal: AbortSignal.timeout(attemptMs),
         messages: [
           {
             role: 'user',
@@ -262,16 +366,32 @@ export async function extractWithFallback<T>(
         ],
       })
       trackSuccess(modelInfo.provider)
+      console.log(`[extractWithFallback] ${modelInfo.provider} ok en ${Date.now() - startedAt}ms`)
       return {
         object: result.object,
         provider: modelInfo.provider,
         fallbackUsed: !isPrimary,
       }
     } catch (err) {
-      const errMsg = (err as Error).message ?? String(err)
+      const timedOut = isAbortError(err)
+      const errMsg = timedOut
+        ? `sin respuesta en ${attemptMs}ms`
+        : ((err as Error).message ?? String(err))
       attempts.push({ provider: modelInfo.provider, error: errMsg })
-      console.warn(`[extractWithFallback] ${modelInfo.provider} failed:`, errMsg)
+      console.warn(
+        `[extractWithFallback] ${modelInfo.provider} failed (${Date.now() - startedAt}ms):`,
+        errMsg,
+      )
 
+      if (timedOut) {
+        await router.markRateLimited(
+          modelInfo.provider,
+          SLOW_PROVIDER_COOLDOWN_MS,
+          'timeout de intento',
+        )
+        isPrimary = false
+        continue
+      }
       if (isCreditDepletedError(err)) {
         await router.markRateLimited(
           modelInfo.provider,
@@ -308,6 +428,7 @@ export async function extractWithFallback<T>(
   // y reintentamos. Cloud Vision SOLO se usa cuando pdf-parse no dio resultado
   // útil — así no se gasta OCR cuando no hace falta.
   if (isPdf) {
+    assertBudget(deadlineAt, attempts)
     // 2a — texto embebido vía pdf-parse. La mayoría de facturas genéricas son
     // PDFs con texto, así que esto las resuelve sin tocar Cloud Vision.
     let pdfText = ''
@@ -340,6 +461,7 @@ export async function extractWithFallback<T>(
         'pdf-parse',
         maxTextAttempts,
         attempts,
+        deadlineAt,
       )
       if (success && !isResultEmpty(success.object)) {
         return { object: success.object, provider: success.provider, fallbackUsed: true }
@@ -357,6 +479,7 @@ export async function extractWithFallback<T>(
 
     // 2b — Cloud Vision OCR: PDF escaneado (pdf-parse vacío) o texto pobre
     // (extracción vacía). Da texto mejor maquetado → reintento.
+    assertBudget(deadlineAt, attempts)
     void recordUsage('cloudVisionOcr')
     let ocrText: string
     try {
@@ -386,6 +509,7 @@ export async function extractWithFallback<T>(
       'vision-ocr',
       maxTextAttempts,
       attempts,
+      deadlineAt,
     )
     if (success && !isResultEmpty(success.object)) {
       return { object: success.object, provider: success.provider, fallbackUsed: true }
@@ -400,6 +524,7 @@ export async function extractWithFallback<T>(
 
   // ── Fase 3: imagen → Cloud Vision OCR → text-only providers ───────
   if (isImage) {
+    assertBudget(deadlineAt, attempts)
     let ocrText: string
     // Contamos contra el free tier antes de invocar — si el shot va a llegar
     // a Cloud Vision aunque luego falle el parsing, igual nos cobra el OCR.
@@ -431,6 +556,7 @@ export async function extractWithFallback<T>(
       'vision-ocr',
       maxTextAttempts,
       attempts,
+      deadlineAt,
     )
     if (success) {
       return { object: success.object, provider: success.provider, fallbackUsed: true }

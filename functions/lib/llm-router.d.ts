@@ -71,7 +71,13 @@ export declare function isCreditDepletedError(error: unknown): boolean;
  */
 export declare function isRateLimitError(error: unknown): boolean;
 /**
- * Parse retry-after header from error, returns milliseconds.
+ * Cuánto esperar antes de volver a probar el provider, en ms.
+ *
+ * Dos bugs que tenía esta función y por qué importan: leía `headers`, pero el
+ * APICallError del AI SDK expone `responseHeaders` — el Retry-After no se
+ * encontraba NUNCA y siempre caía al default de 60s. Y Google no manda
+ * Retry-After: pone el RetryInfo dentro del body ("retryDelay":"42s"), que es
+ * el dato que de verdad sirve para saber cuándo vuelve a estar disponible.
  */
 export declare function parseRetryAfter(error: unknown): number;
 /**
