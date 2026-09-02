@@ -32,10 +32,12 @@ export interface PayableFile {
 // queda undefined y la transaction se comporta como antes.
 export type DocumentKind = 'invoice' | 'purchase'
 
-// Prioridad de pago para facturas/compras pendientes. 'immediate' marca
-// la fila en rojo en la tabla (hay que pagar ya), 'waiting' es el default
-// (gris, sin urgencia). Solo aplica cuando documentKind está presente.
-export type TransactionPriority = 'immediate' | 'waiting'
+// Prioridad de pago para facturas/compras pendientes. 'immediate' marca la fila
+// en rojo (urgente, hay que pagar ya), 'planned' en verde (marcada para pagar,
+// sin urgencia) y 'waiting' es el default sin marca. Solo aplica cuando
+// documentKind está presente. 'planned' lo escribe Ecore desde el menú de la
+// fila y el backend lo trata como "Espera" a propósito.
+export type TransactionPriority = 'immediate' | 'planned' | 'waiting'
 
 export interface Transaction extends BaseEntity {
   concept: string
