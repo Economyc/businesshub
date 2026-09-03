@@ -1,4 +1,4 @@
-import { calcDocCounts, getDocType } from './sales-calculations'
+import { calcDocCounts, getDocType, getPaymentLabel } from './sales-calculations'
 import type { PosVenta } from '../types'
 
 // Solo los campos que mira la clasificación; el resto de PosVenta no interviene.
@@ -60,5 +60,44 @@ describe('calcDocCounts', () => {
 
   it('lista vacía → todo en cero (la UI divide por total)', () => {
     expect(calcDocCounts([])).toEqual({ total: 0, factura: 0, boleta: 0, nota: 0, otro: 0 })
+  })
+})
+
+describe('getPaymentLabel', () => {
+  const conPagos = (pagos: unknown[], tipo_pago = 'Contado'): PosVenta =>
+    ({ tipo_pago, pagosList: pagos }) as PosVenta
+
+  it('usa el nombre documentado de la API', () => {
+    expect(getPaymentLabel(conPagos([{ pagoventa_tipo: 'Efectivo' }]))).toBe('Efectivo')
+  })
+
+  it('acepta el nombre alterno que a veces entrega el proxy', () => {
+    expect(getPaymentLabel(conPagos([{ tipoPago: 'Transferencia' }]))).toBe('Transferencia')
+  })
+
+  it('detalla la tarjeta en vez de decir solo "Tarjeta"', () => {
+    // Un comprobante de salón pagado con datáfono: "Tarjeta" a secas no informa.
+    expect(
+      getPaymentLabel(
+        conPagos([{ pagoventa_tipo: 'Tarjeta', tarjeta: { tarjeta_descripcion: 'Datafono' } }]),
+      ),
+    ).toBe('Datafono')
+  })
+
+  it('marca Mixto cuando la venta se pagó con dos medios', () => {
+    expect(
+      getPaymentLabel(conPagos([{ pagoventa_tipo: 'Efectivo' }, { pagoventa_tipo: 'En linea' }])),
+    ).toBe('Mixto')
+  })
+
+  it('no repite cuando los dos pagos son del mismo medio', () => {
+    expect(
+      getPaymentLabel(conPagos([{ pagoventa_tipo: 'Efectivo' }, { pagoventa_tipo: 'Efectivo' }])),
+    ).toBe('Efectivo')
+  })
+
+  it('cae a tipo_pago cuando no hay pagosList', () => {
+    // Único caso donde "Contado" es lo mejor que tenemos.
+    expect(getPaymentLabel(conPagos([]))).toBe('Contado')
   })
 })

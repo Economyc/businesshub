@@ -1,4 +1,4 @@
-import type { PosVenta } from '../types'
+import type { PosPago, PosVenta } from '../types'
 
 export function num(val: string | number | undefined | null): number {
   return Number(val) || 0
@@ -8,26 +8,49 @@ export function isAnulada(v: PosVenta): boolean {
   return v.estado_txt?.toLowerCase() === 'comprobante anulado'
 }
 
+// Los nombres de campo de `pagosList` dependen de por dónde llegue el payload:
+// la API documentada usa `pagoventa_tipo`/`pagoventa_monto` y el proxy puede
+// entregarlos como `tipoPago`/`monto`. Estos dos helpers son el único lugar que
+// debería conocer esa ambigüedad.
+export function pagoTipo(p: PosPago): string {
+  const raw = p as Record<string, unknown>
+  return String(raw.pagoventa_tipo ?? raw.tipoPago ?? '').trim()
+}
+
+export function pagoMonto(p: PosPago): number {
+  const raw = p as Record<string, unknown>
+  return num((raw.pagoventa_monto ?? raw.monto) as string | number | undefined)
+}
+
+// `tipo_pago` NO es el medio de pago: vale "Contado" en el 100% de los
+// comprobantes de las 4 sedes porque es la condición (contado vs. crédito). El
+// medio real vive en `pagosList`, y cuando el tipo es tarjeta el dato útil es la
+// descripción de la tarjeta (Datafono, Transferencia /Qr, DIDI).
+export function getPaymentLabel(v: PosVenta): string {
+  const labels = new Set<string>()
+  for (const p of v.pagosList ?? []) {
+    const tipo = pagoTipo(p)
+    if (!tipo) continue
+    const detalle = /tarjeta/i.test(tipo) ? (p.tarjeta?.tarjeta_descripcion ?? '').trim() : ''
+    labels.add(detalle || tipo)
+  }
+  if (labels.size === 1) return [...labels][0]
+  if (labels.size > 1) return 'Mixto'
+  return v.tipo_pago?.trim() || '—'
+}
+
 // Algunos POS registran propinas solo en `lista_propinas`, otros las ponen
 // en `pagosList` con tipo = "propina" (típicamente cuando se agregan
 // después de cerrar la cuenta, o en efectivo). Priorizamos `lista_propinas`;
 // si está vacío, caemos al fallback para no perder propinas reales.
-// Chequeamos ambos nombres de campo porque la API documentada usa
-// `pagoventa_tipo`/`pagoventa_monto` pero el proxy puede entregarlos
-// como `tipoPago`/`monto`.
 export function sumPropinas(v: PosVenta): number {
   const list = v.lista_propinas ?? []
   let s = 0
   for (const p of list) s += num(p.montoConIgv)
   if (s > 0) return s
-  const pagos = v.pagosList ?? []
-  for (const p of pagos) {
-    const raw = p as Record<string, unknown>
-    const tipoStr = String(raw.tipoPago ?? raw.pagoventa_tipo ?? '').toLowerCase()
-    if (tipoStr.includes('propina') || tipoStr.includes('tip')) {
-      const monto = raw.monto ?? raw.pagoventa_monto
-      s += num(monto as string | number | undefined)
-    }
+  for (const p of v.pagosList ?? []) {
+    const tipoStr = pagoTipo(p).toLowerCase()
+    if (tipoStr.includes('propina') || tipoStr.includes('tip')) s += pagoMonto(p)
   }
   return s
 }

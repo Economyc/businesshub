@@ -2,6 +2,8 @@ import { useEffect } from 'react'
 import { motion, AnimatePresence, type Variants } from 'framer-motion'
 import { X, User, ShoppingBag, CreditCard, Receipt, MessageSquare } from 'lucide-react'
 import { formatCurrency } from '@/core/utils/format'
+import { pagoMonto, pagoTipo } from '../utils/sales-calculations'
+import { getChannelLabel } from '../utils/sales-channel'
 import type { PosVenta } from '../types'
 
 function num(val: string | number | undefined): number {
@@ -99,7 +101,7 @@ export function VentaDetailDrawer({ venta, onClose }: VentaDetailDrawerProps) {
               <div className="flex items-center gap-3 mt-1 text-caption text-mid-gray">
                 <span>{venta.fecha?.slice(0, 16)}</span>
                 {(venta.canalventa || venta.nombre_canaldelivery) && (
-                  <span>· {venta.canalventa || venta.nombre_canaldelivery}</span>
+                  <span>· {getChannelLabel(venta)}</span>
                 )}
               </div>
             </div>
@@ -174,8 +176,8 @@ export function VentaDetailDrawer({ venta, onClose }: VentaDetailDrawerProps) {
                   <div className="space-y-1">
                     {pagos.map((p, i) => (
                       <div key={i} className="flex items-center justify-between text-body">
-                        <span className="text-graphite">{p.tipoPago || 'Pago'}</span>
-                        <span className="text-dark-graphite font-medium">{formatCurrency(num(p.monto))}</span>
+                        <span className="text-graphite">{pagoTipo(p) || 'Pago'}</span>
+                        <span className="text-dark-graphite font-medium">{formatCurrency(pagoMonto(p))}</span>
                       </div>
                     ))}
                   </div>

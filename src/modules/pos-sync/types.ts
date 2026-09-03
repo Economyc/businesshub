@@ -44,6 +44,7 @@ export interface PosVenta {
   estado: string
   estado_txt: string
   canalventa: string
+  id_canaldelivery: string
   nombre_canaldelivery: string
   venta_observaciones: string | null
   tipo_documento: string // F=Factura, B=Boleta, NV=Nota de Venta
@@ -75,9 +76,14 @@ export interface PosPropina {
   tipoTarjeta: string
 }
 
+// El POS entrega `pagoventa_tipo`/`pagoventa_monto`; el proxy a veces los
+// renombra a `tipoPago`/`monto`. Leerlos con pagoTipo()/pagoMonto().
 export interface PosPago {
+  pagoventa_tipo?: string
+  pagoventa_monto?: string
   tipoPago?: string
   monto?: string
+  tarjeta?: { tarjeta_descripcion?: string; [key: string]: unknown } | null
   [key: string]: unknown
 }
 

@@ -12,11 +12,20 @@ import {
   calcDocCounts,
   calcTotals,
   getDocType,
+  getPaymentLabel,
   num,
   toDateStrLocal,
   type DocType,
   type PosTotals,
 } from '../utils/sales-calculations'
+import {
+  calcChannelBreakdown,
+  getChannelLabel,
+  getChannelStyle,
+  getSalesChannel,
+  type ChannelSlice,
+  type SalesChannel,
+} from '../utils/sales-channel'
 import { VentaDetailDrawer } from './venta-detail-drawer'
 import type { PosVenta, PosLocal } from '../types'
 import type { LucideIcon } from 'lucide-react'
@@ -55,12 +64,6 @@ function getEstadoLabel(estado: string | undefined): string {
   return cleaned.charAt(0).toUpperCase() + cleaned.slice(1).toLowerCase()
 }
 
-function getCanalTone(canal: string | undefined): 'info' | 'neutral' {
-  const c = (canal ?? '').toLowerCase()
-  if (!c) return 'neutral'
-  if (c.includes('delivery') || c.includes('rappi') || c.includes('pedidos') || c.includes('didi') || c.includes('uber')) return 'info'
-  return 'neutral'
-}
 
 const TONE_CLASSES: Record<string, string> = {
   positive: 'bg-positive-bg text-positive-text',
@@ -82,6 +85,7 @@ export function VentasTab({ localIds, allLocalIds, localLabel, localDisplayNames
   const prefersReducedMotion = useReducedMotion()
   const [docFilter, setDocFilter] = useState<DocType | 'todos'>('todos')
   const [cajaFilter, setCajaFilter] = useState<string>('todas')
+  const [canalFilter, setCanalFilter] = useState<SalesChannel | 'todos'>('todos')
   const [search, setSearch] = useState('')
   const [selectedVenta, setSelectedVenta] = useState<PosVenta | null>(null)
   const isMultiLocal = localIds.length > 1
@@ -92,7 +96,9 @@ export function VentasTab({ localIds, allLocalIds, localLabel, localDisplayNames
 
   const localNameMap = localDisplayNames
 
-  const filteredVentas = useMemo(() => {
+  // Base = todos los filtros MENOS el canal. Las tarjetas de canal se calculan
+  // sobre ella para que los porcentajes no se muevan al filtrar por un canal.
+  const ventasBase = useMemo(() => {
     let result = ventas
     result = result.filter((v) => v.estado_txt?.toLowerCase() !== 'comprobante anulado')
     const localSet = new Set(localIds)
@@ -112,6 +118,7 @@ export function VentasTab({ localIds, allLocalIds, localLabel, localDisplayNames
           v.correlativo,
           v.canalventa,
           v.nombre_canaldelivery,
+          getChannelLabel(v),
           v.tipo_pago,
           v.caja_id,
           v.estado_txt,
@@ -125,6 +132,19 @@ export function VentasTab({ localIds, allLocalIds, localLabel, localDisplayNames
     }
     return result
   }, [ventas, localIds, docFilter, cajaFilter, search])
+
+  const channelBreakdown = useMemo(() => calcChannelBreakdown(ventasBase), [ventasBase])
+
+  const filteredVentas = useMemo(
+    () =>
+      canalFilter === 'todos' ? ventasBase : ventasBase.filter((v) => getSalesChannel(v) === canalFilter),
+    [ventasBase, canalFilter],
+  )
+
+  useEffect(() => {
+    if (canalFilter === 'todos') return
+    if (!channelBreakdown.some((c) => c.channel === canalFilter)) setCanalFilter('todos')
+  }, [channelBreakdown, canalFilter])
 
   const cajasDisponibles = useMemo(() => {
     const localSet = new Set(localIds)
@@ -201,22 +221,13 @@ export function VentasTab({ localIds, allLocalIds, localLabel, localDisplayNames
       width: '120px',
       hideOnMobile: true,
       render: (v) => {
-        const isRappi = (v.nombre_canaldelivery ?? '').trim().toLowerCase() === 'rappi'
-        if (isRappi) {
-          return (
-            <span
-              className="inline-flex items-center px-2 py-0.5 rounded-full text-caption font-medium text-white"
-              style={{ backgroundColor: '#FF4219' }}
-            >
-              RAPPI
-            </span>
-          )
-        }
-        const canal = v.canalventa || v.nombre_canaldelivery || '—'
-        const tone = getCanalTone(v.canalventa || v.nombre_canaldelivery)
+        const { className, style } = getChannelStyle(getSalesChannel(v))
         return (
-          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-caption ${TONE_CLASSES[tone]}`}>
-            {canal}
+          <span
+            className={`inline-flex items-center px-2 py-0.5 rounded-full text-caption ${className}`}
+            style={style}
+          >
+            {getChannelLabel(v)}
           </span>
         )
       },
@@ -251,10 +262,10 @@ export function VentasTab({ localIds, allLocalIds, localLabel, localDisplayNames
     {
       key: 'tipoPago',
       header: 'Pago',
-      width: '100px',
+      width: '130px',
       render: (v) => (
         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-caption bg-bone text-graphite">
-          {v.tipo_pago || '—'}
+          {getPaymentLabel(v)}
         </span>
       ),
     },
@@ -283,6 +294,11 @@ export function VentasTab({ localIds, allLocalIds, localLabel, localDisplayNames
     { value: 'boleta', label: 'Boleta', count: docCounts.boleta },
     { value: 'nota', label: 'Nota', count: docCounts.nota },
     { value: 'otro', label: 'Otro', count: docCounts.otro },
+  ]
+
+  const canalOptions: SegmentedFilterOption<SalesChannel | 'todos'>[] = [
+    { value: 'todos', label: 'Todos', count: ventasBase.length },
+    ...channelBreakdown.map((c) => ({ value: c.channel, label: c.label, count: c.count })),
   ]
 
   const cajaOptions: SegmentedFilterOption<string>[] = [
@@ -325,6 +341,11 @@ export function VentasTab({ localIds, allLocalIds, localLabel, localDisplayNames
         <SummaryCards stats={totalStats} prefersReducedMotion={prefersReducedMotion} />
       )}
 
+      {/* Venta por canal — solo aporta cuando hay más de uno */}
+      {hasData && channelBreakdown.length > 1 && (
+        <ChannelCards breakdown={channelBreakdown} prefersReducedMotion={prefersReducedMotion} />
+      )}
+
       {/* Toolbar — filtros + buscador */}
       {hasData && (
         <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
@@ -338,6 +359,16 @@ export function VentasTab({ localIds, allLocalIds, localLabel, localDisplayNames
                 hideZeroCount
               />
             </div>
+            {channelBreakdown.length > 1 && (
+              <div className="inline-flex items-center gap-1 bg-input-bg border border-input-border rounded-lg p-1">
+                <SegmentedFilter
+                  ariaLabel="Canal de venta"
+                  options={canalOptions}
+                  value={canalFilter}
+                  onChange={setCanalFilter}
+                />
+              </div>
+            )}
             {cajasDisponibles.length > 1 && (
               <div className="inline-flex items-center gap-1 bg-input-bg border border-input-border rounded-lg p-1">
                 <SegmentedFilter
@@ -627,6 +658,68 @@ const SummaryCards = memo(function SummaryCards({
               <div className="text-body font-bold text-dark-graphite tabular-nums">
                 {card.format(stats)}
               </div>
+            </div>
+          </motion.div>
+        )
+      })}
+    </motion.div>
+  )
+})
+
+/* ---------- Venta por canal ---------- */
+
+// Tailwind no admite clases dinámicas, así que el número de columnas se elige
+// de un mapa fijo. Con 5 canales (salón, domicilio, web, rappi, didi) entran
+// todas en una fila; un canal desconocido extra baja a la siguiente.
+const CHANNEL_GRID_COLS: Record<number, string> = {
+  2: 'md:grid-cols-2',
+  3: 'md:grid-cols-3',
+  4: 'md:grid-cols-4',
+  5: 'md:grid-cols-5',
+}
+
+const ChannelCards = memo(function ChannelCards({
+  breakdown,
+  prefersReducedMotion,
+}: {
+  breakdown: ChannelSlice[]
+  prefersReducedMotion: boolean | null
+}) {
+  const cols = CHANNEL_GRID_COLS[breakdown.length] ?? 'md:grid-cols-5'
+  return (
+    <motion.div
+      className={`grid grid-cols-2 ${cols} gap-3 mb-5`}
+      aria-live="polite"
+      initial="hidden"
+      animate="visible"
+    >
+      {breakdown.map((slice, i) => {
+        const { className, style } = getChannelStyle(slice.channel)
+        return (
+          <motion.div
+            key={slice.channel}
+            className="bg-surface rounded-xl border border-bone p-4"
+            custom={i}
+            variants={prefersReducedMotion ? undefined : cardVariants}
+            initial={prefersReducedMotion ? undefined : 'hidden'}
+            animate={prefersReducedMotion ? undefined : 'visible'}
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <span
+                className={`inline-flex items-center px-2 py-0.5 rounded-full text-caption ${className}`}
+                style={style}
+              >
+                {slice.label}
+              </span>
+              <span className="ml-auto text-caption text-mid-gray tabular-nums">
+                {slice.pct.toFixed(1)}%
+              </span>
+            </div>
+            <div className="text-body font-semibold text-dark-graphite tabular-nums">
+              {formatCurrency(slice.monto)}
+            </div>
+            <div className="text-caption text-mid-gray tabular-nums">
+              {slice.count} {slice.count === 1 ? 'venta' : 'ventas'}
             </div>
           </motion.div>
         )
