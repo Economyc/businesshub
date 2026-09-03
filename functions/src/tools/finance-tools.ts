@@ -1,6 +1,7 @@
 import { tool } from 'ai'
 import { z } from 'zod'
 import { fetchCollection, fetchSettingsDoc } from '../firestore.js'
+import { payableOf, pendingOf } from '../utils/withholding.js'
 
 // ─── Helpers ───
 
@@ -202,6 +203,10 @@ export function createFinanceTools(companyId: string) {
               documentKind: t.documentKind ?? null,
               docNumber: t.docNumber ?? null,
               payeeName: (t.payeeRef as { name?: string } | undefined)?.name ?? null,
+              // Retefuente: `amount` es el gasto causado, `payableAmount` es lo
+              // que de verdad hay que girarle al proveedor.
+              withholdingAmount: Number(t.withholdingAmount) || 0,
+              payableAmount: payableOf(t as { amount?: number; withholdingAmount?: number }),
             }
           }),
         }
@@ -276,7 +281,10 @@ export function createFinanceTools(companyId: string) {
             overdueCount: 0,
           }
           entry.count += 1
-          entry.total += Number(t.amount) || 0
+          // Lo que falta GIRARLE al proveedor, no el bruto causado: descuenta la
+          // retefuente y los abonos ya hechos (mismo criterio que el PDF de
+          // pendientes de Telegram, para que las dos cifras coincidan).
+          entry.total += pendingOf(t as { amount?: number; paidAmount?: number; remainingAmount?: number; withholdingAmount?: number })
           const d = tsToDate(t.date)
           if (d && (!entry.oldestDate || d < entry.oldestDate)) entry.oldestDate = d
           if (t.priority === 'immediate') entry.immediateCount += 1

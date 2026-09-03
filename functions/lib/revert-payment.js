@@ -33,17 +33,14 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { db } from './firestore.js';
 import { resolveDriveUid, getUserDriveAuth, deleteDriveFile, driveClientId, driveClientSecret, DriveTokenExpiredError, DriveScopeError, } from './services/drive-oauth.js';
 import { assertCompanyMember } from './utils/company-access.js';
+import { payableOf, statusForPayable } from './utils/withholding.js';
 import { regenerateInvoiceSheet } from './invoice-sheet/regenerate.js';
 import { bogotaParts, currentYm, ymKey } from './invoice-sheet/month.js';
 const SECRETS = [driveClientId, driveClientSecret];
-// Estado a partir de lo pagado (misma lógica que payments-service.statusFor).
-function statusFor(amount, paid) {
-    if (paid <= 0)
-        return 'pending';
-    if (paid >= amount)
-        return 'paid';
-    return 'partial';
-}
+// Estado y saldo van contra el NETO a girar (amount − retefuente), igual que
+// payments-service.registerPayment en Ecore. Contra el bruto, revertir un abono
+// de una factura con retención dejaría un saldo inflado por la retención — una
+// deuda con el proveedor que en realidad se le debe a la DIAN.
 // Mes contable (Bogotá) de un Timestamp, o null si no es válido.
 function monthOf(ts) {
     try {
@@ -98,6 +95,8 @@ export const revertPaymentWithAttachments = onCall({ region: 'us-central1', memo
     }
     const tx = snap.data();
     const amount = typeof tx.amount === 'number' ? tx.amount : 0;
+    // Lo que se le gira al proveedor: el bruto menos la retefuente practicada.
+    const payable = payableOf(tx);
     // Leer todos los abonos y localizar el que se revierte.
     const paymentsSnap = await txRef.collection('payments').get();
     const payments = paymentsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
@@ -118,8 +117,8 @@ export const revertPaymentWithAttachments = onCall({ region: 'us-central1', memo
     // Recalcular denormalizados re-sumando los abonos restantes.
     const remainingPayments = payments.filter((p) => p.id !== paymentId);
     const newPaid = remainingPayments.reduce((s, p) => s + (typeof p.amount === 'number' ? p.amount : 0), 0);
-    const remaining = Math.max(0, amount - newPaid);
-    const status = statusFor(amount, newPaid);
+    const remaining = Math.max(0, payable - newPaid);
+    const status = statusForPayable(payable, newPaid);
     // paidDate: si sigue pagada (revertir uno de varios abonos que cubren el total),
     // se ancla al abono restante más reciente; si no, se limpia.
     const latestRemaining = remainingPayments

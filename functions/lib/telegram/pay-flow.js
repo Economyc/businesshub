@@ -43,10 +43,13 @@ async function fetchPendingInvoices(companyId) {
         id: String(t.id),
         concept: String(t.concept ?? ''),
         amount: Number(t.amount) || 0,
+        // getTransactions ya devuelve el neto calculado (ver finance-tools).
+        payable: Number(t.payableAmount ?? t.amount) || 0,
+        withheld: Number(t.withholdingAmount) || 0,
         supplierName: t.payeeName ?? null,
         date: t.date ?? null,
     }))
-        .sort((a, b) => b.amount - a.amount);
+        .sort((a, b) => b.payable - a.payable);
 }
 function buildListKeyboard(stateId, invoices, page) {
     const pages = Math.max(1, Math.ceil(invoices.length / PAGE_SIZE));
@@ -55,7 +58,7 @@ function buildListKeyboard(stateId, invoices, page) {
     const kb = new InlineKeyboard();
     slice.forEach((inv, i) => {
         const idx = safePage * PAGE_SIZE + i;
-        kb.text(invoiceButtonLabel(inv.supplierName, inv.amount), `pf:pick:${stateId}:${idx}`).row();
+        kb.text(invoiceButtonLabel(inv.supplierName, inv.payable), `pf:pick:${stateId}:${idx}`).row();
     });
     if (pages > 1) {
         if (safePage > 0)
@@ -68,7 +71,7 @@ function buildListKeyboard(stateId, invoices, page) {
     return backToMenuKeyboard(kb);
 }
 function listText(invoices) {
-    const total = invoices.reduce((s, i) => s + i.amount, 0);
+    const total = invoices.reduce((s, i) => s + i.payable, 0);
     return `💸 Facturas pendientes (${invoices.length}) — total ${formatCop(total)}\n\nElige una para marcarla pagada:`;
 }
 /** Entrada del flujo: lista las facturas pendientes. Envía un mensaje nuevo. */
@@ -115,7 +118,7 @@ export async function continuePayFlowAfterDate(ctx, deps, state, dateIso) {
     const args = {
         id: inv.id,
         concept: inv.concept,
-        amount: inv.amount,
+        amount: inv.payable,
         supplierName: inv.supplierName ?? undefined,
         paidDate: dateIso,
     };
@@ -176,7 +179,12 @@ export function registerPayFlow(router) {
                 '🧾 Detalle de la factura',
                 `Proveedor: ${inv.supplierName ?? 'Sin proveedor'}`,
                 `Concepto: ${inv.concept}`,
-                `Monto: ${formatCop(inv.amount)}`,
+                `Monto: ${formatCop(inv.payable)}`,
+                // Con retefuente el monto girado no coincide con el de la factura:
+                // decir por qué evita que parezca un error al cruzar contra el banco.
+                ...(inv.withheld > 0
+                    ? [`Factura: ${formatCop(inv.amount)} · retefuente −${formatCop(inv.withheld)}`]
+                    : []),
                 ...(inv.date ? [`Fecha: ${isoLabel(inv.date)}`] : []),
             ];
             const kb = new InlineKeyboard()

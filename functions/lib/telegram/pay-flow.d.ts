@@ -9,7 +9,11 @@ type BotCtx = Context & {
 interface PayInvoice {
     id: string;
     concept: string;
+    /** Bruto de la factura (el gasto causado). */
     amount: number;
+    /** Lo que de verdad hay que girar = amount − retefuente. Es lo que se muestra. */
+    payable: number;
+    withheld: number;
     supplierName: string | null;
     date: string | null;
 }

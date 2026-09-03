@@ -22,6 +22,9 @@ export interface AdminTx {
     accountId?: string;
     paidAmount?: number;
     remainingAmount?: number;
+    withholdingAmount?: number;
+    withholdingConcept?: string;
+    withholdingRate?: number;
     interLocalGroupId?: string;
     splitGroupId?: string;
     splitTotalAmount?: number;

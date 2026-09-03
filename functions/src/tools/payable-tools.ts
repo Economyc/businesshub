@@ -1,6 +1,7 @@
 import { tool } from 'ai'
 import { z } from 'zod'
 import { db } from '../firestore.js'
+import { pendingOf } from '../utils/withholding.js'
 
 // Tools relacionadas a documentos de cuentas por pagar:
 //  - createPayableDocument: crea Factura o Compra (mutation, confirma en cliente).
@@ -90,7 +91,9 @@ export function createPayableTools(companyId: string) {
             const ref = t.payeeRef as { name?: string } | undefined
             const name = (ref?.name ?? '').toLowerCase()
             if (!name.includes(search) && !search.includes(name)) return false
-            const amt = Number(t.amount ?? 0)
+            // Se compara contra el neto por girar (descuenta retefuente y
+            // abonos): es el monto que aparece en el comprobante del banco.
+            const amt = pendingOf(t as { amount?: number; paidAmount?: number; remainingAmount?: number; withholdingAmount?: number })
             return Math.abs(amt - amount) <= amountTolerance
           })
           .map((t) => ({

@@ -3,6 +3,7 @@
 // el cron notifyPendingPayments y el botón/comando on-demand del bot de Telegram.
 import { db } from '../firestore.js';
 import { fmtMoney } from './format-money.js';
+import { pendingOf } from './withholding.js';
 export const PENDING_STATUSES = ['pending', 'overdue', 'partial'];
 /**
  * Lo que falta por pagar. Antes se reportaba `amount`, con lo que una factura
@@ -10,10 +11,9 @@ export const PENDING_STATUSES = ['pending', 'overdue', 'partial'];
  * Prioriza el denormalizado y cae a amount − paidAmount si falta.
  */
 function pendingAmount(t) {
-    const amount = Number(t.amount) || 0;
-    if (typeof t.remainingAmount === 'number')
-        return Math.max(0, t.remainingAmount);
-    return Math.max(0, amount - (Number(t.paidAmount) || 0));
+    // El helper prefiere `remainingAmount` (que Ecore mantiene ya neto de
+    // retefuente) y sólo cae al cálculo cuando falta.
+    return pendingOf(t);
 }
 /** Parte de un gasto compartido entre locales (ver Ecore split-service.ts). */
 function isSharedExpense(t) {

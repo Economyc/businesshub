@@ -21,6 +21,7 @@ import {
 } from './extract-with-fallback.js'
 import { getUsageSnapshot, type UsageSnapshot } from './ai-usage-stats.js'
 import { parseCopAmount } from './parse-cop.js'
+import { pendingOf } from './utils/withholding.js'
 
 // Key del free tier (proyecto sin facturación): va de primera y se usa hasta
 // que Google le corta la cuota diaria.
@@ -253,6 +254,10 @@ export const analyzePaymentReceipt = onCall(
         docNumber: String(t.docNumber ?? ''),
         supplierName: payeeRef?.name ?? '',
         amount: Number(t.amount ?? 0),
+        // El comprobante trae lo que SALIÓ del banco, que con retefuente es el
+        // neto. Cruzar contra el bruto rompería el match: una retención del 4%
+        // ya excede la tolerancia del 2% para auto-emparejar.
+        payable: pendingOf(t as { amount?: number; paidAmount?: number; remainingAmount?: number; withholdingAmount?: number }),
         date: tsToDateStr(t.date),
       }
     })
@@ -260,8 +265,8 @@ export const analyzePaymentReceipt = onCall(
     // 3) Rankear contra el extracted. Combina similitud de nombre + cercanía de monto.
     const candidates: CandidateInternal[] = pendings.map((p) => {
       const nameScore = nameSimilarity(clientExtracted.supplierName, p.supplierName)
-      const amountDeltaPct = p.amount > 0
-        ? Math.abs(clientExtracted.amount - p.amount) / p.amount
+      const amountDeltaPct = p.payable > 0
+        ? Math.abs(clientExtracted.amount - p.payable) / p.payable
         : 1
       const amountScore = Math.max(0, 1 - amountDeltaPct * 4)
       const score = nameScore * 0.6 + amountScore * 0.4

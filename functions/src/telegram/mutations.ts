@@ -14,6 +14,7 @@ import {
   fetchDocument,
 } from '../firestore.js'
 import { assertCompanyMember } from '../utils/company-access.js'
+import { payableOf } from '../utils/withholding.js'
 import { uploadCompanyDocument } from '../upload-document-to-drive.js'
 import {
   resolveCompany,
@@ -165,7 +166,11 @@ export async function executeServerMutation(opts: {
           : new Date().toISOString().slice(0, 10)
         // Mantener los denormalizados que usan la hoja contable y los paneles de
         // saldo: sin ellos, paidParts() cae al fallback y el pendiente sale mal.
-        const invoiceAmount = Number(existing.amount) || 0
+        //
+        // `paidAmount` es lo que SALIÓ de caja, así que con retefuente es el
+        // neto girado, no el bruto de la factura: marcar el bruto inflaría lo
+        // pagado al proveedor y descuadraría contra el banco.
+        const invoiceAmount = payableOf(existing as { amount?: number; withholdingAmount?: number })
         await updateDocumentInCollection(companyId, 'transactions', id, {
           status: 'paid',
           paidDate: toTimestamp(paidDateStr),

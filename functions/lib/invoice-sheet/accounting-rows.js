@@ -47,14 +47,20 @@ function estadoLabel(status) {
         return 'Vencida';
     return 'Pendiente';
 }
-// Abonado / saldo / % a partir de los denormalizados de Ecore, con fallback para
-// data sin abonos (paid → todo abonado; resto → nada abonado).
+// Abonado / retenido / saldo / % a partir de los denormalizados de Ecore, con
+// fallback para data sin abonos (paid → todo abonado; resto → nada abonado).
+//
+// El % y el saldo van contra el NETO a girar (valor − retefuente), no contra el
+// bruto: si no, una factura con retención saldada mostraría saldo fantasma y un
+// "% Pagado" de 98% que nunca llega a 100.
 function paidParts(t) {
     const amount = t.amount ?? 0;
-    const paid = t.paidAmount ?? (t.status === 'paid' ? amount : 0);
-    const saldo = t.remainingAmount ?? Math.max(amount - paid, 0);
-    const pct = amount > 0 ? `${Math.round((paid / amount) * 100)}%` : '0%';
-    return { paid, saldo, pct };
+    const retenido = Math.max(0, t.withholdingAmount ?? 0);
+    const payable = Math.max(0, amount - retenido);
+    const paid = t.paidAmount ?? (t.status === 'paid' ? payable : 0);
+    const saldo = t.remainingAmount ?? Math.max(payable - paid, 0);
+    const pct = payable > 0 ? `${Math.round((paid / payable) * 100)}%` : '0%';
+    return { paid, retenido, saldo, pct };
 }
 // Misma sanitización que doc-naming.sanitizeForFileName para que la Numeración
 // coincida con el nombre real del PDF en Drive.
@@ -77,13 +83,24 @@ function parseCategoryName(value) {
 // exactamente con el nombre del PDF en Drive.
 function conceptoLabel(t) {
     const concepto = t.concept ?? '';
+    const marks = [];
     const id = t.splitGroupId;
     const isShared = !!id && (id.startsWith('split-') || id.startsWith('rsplit-'));
-    if (!isShared || t.splitTotalAmount == null)
-        return concepto;
-    const share = t.splitSharePct != null ? `${t.splitSharePct}% ` : '';
-    const total = t.splitTotalAmount.toLocaleString('es-CO');
-    return `${concepto} [compartida — ${share}de $${total}]`;
+    if (isShared && t.splitTotalAmount != null) {
+        const share = t.splitSharePct != null ? `${t.splitSharePct}% ` : '';
+        marks.push(`compartida — ${share}de $${t.splitTotalAmount.toLocaleString('es-CO')}`);
+    }
+    // Retefuente: en las pestañas Pendientes/Pagadas sólo se ve la columna Valor,
+    // que es el bruto causado. Sin esta marca el egreso del banco no cuadra
+    // contra la fila y parece un error.
+    const retenido = Math.max(0, t.withholdingAmount ?? 0);
+    if (retenido > 0) {
+        const tarifa = t.withholdingRate != null ? ` ${t.withholdingRate}%` : '';
+        const nombre = t.withholdingConcept ? ` ${t.withholdingConcept}` : '';
+        marks.push(`retefuente${nombre}${tarifa} −$${retenido.toLocaleString('es-CO')}` +
+            ` — girado $${Math.max(0, (t.amount ?? 0) - retenido).toLocaleString('es-CO')}`);
+    }
+    return marks.length ? `${concepto} [${marks.join('] [')}]` : concepto;
 }
 export function buildAccountingRows(txs, suppliersById, startIndex = 1) {
     return txs.map((t, i) => {
@@ -123,6 +140,7 @@ function payableFields(terceroHeader) {
         { key: 'categoria', header: 'Categoría', type: 'string' },
         { key: 'numero', header: 'Número', type: 'string' },
         { key: 'valor', header: 'Valor', type: 'number' },
+        { key: 'retefuente', header: 'Retefuente', type: 'number' },
         { key: 'abonado', header: 'Abonado', type: 'number' },
         { key: 'saldo', header: 'Saldo', type: 'number' },
         { key: 'porcentaje', header: '% Pagado', type: 'string' },
@@ -137,7 +155,7 @@ export function buildPayableRows(txs, suppliersById, startIndex = 1) {
         const nit = t.payeeRef?.type === 'supplier' && t.payeeRef.id
             ? suppliersById.get(t.payeeRef.id) ?? ''
             : '';
-        const { paid, saldo, pct } = paidParts(t);
+        const { paid, retenido, saldo, pct } = paidParts(t);
         return {
             numeracion: buildNumeracion(startIndex + i, t),
             fecha: formatDate(t.date),
@@ -148,6 +166,7 @@ export function buildPayableRows(txs, suppliersById, startIndex = 1) {
             categoria: parseCategoryName(t.category ?? ''),
             numero: t.docNumber ?? '',
             valor: t.amount ?? 0,
+            retefuente: retenido,
             abonado: paid,
             saldo,
             porcentaje: pct,
@@ -218,7 +237,8 @@ export const PAYMENT_FIELDS = [
 export function buildPaymentRows(groups) {
     const rows = [];
     for (const { tx, payments } of groups) {
-        const amount = tx.amount ?? 0;
+        // Neto a girar: los abonos cubren esto, no el bruto (ver paidParts).
+        const amount = Math.max(0, (tx.amount ?? 0) - Math.max(0, tx.withholdingAmount ?? 0));
         const facturaLabel = `${tx.concept ?? ''}${tx.docNumber ? ` (${tx.docNumber})` : ''}`.trim();
         const ordered = payments
             .slice()

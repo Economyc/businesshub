@@ -1,6 +1,7 @@
 import { tool } from 'ai';
 import { z } from 'zod';
 import { fetchCollection, fetchSettingsDoc } from '../firestore.js';
+import { payableOf, pendingOf } from '../utils/withholding.js';
 // ─── Helpers ───
 function tsToDate(val) {
     if (!val)
@@ -156,6 +157,10 @@ export function createFinanceTools(companyId) {
                             documentKind: t.documentKind ?? null,
                             docNumber: t.docNumber ?? null,
                             payeeName: t.payeeRef?.name ?? null,
+                            // Retefuente: `amount` es el gasto causado, `payableAmount` es lo
+                            // que de verdad hay que girarle al proveedor.
+                            withholdingAmount: Number(t.withholdingAmount) || 0,
+                            payableAmount: payableOf(t),
                         };
                     }),
                 };
@@ -217,7 +222,10 @@ export function createFinanceTools(companyId) {
                         overdueCount: 0,
                     };
                     entry.count += 1;
-                    entry.total += Number(t.amount) || 0;
+                    // Lo que falta GIRARLE al proveedor, no el bruto causado: descuenta la
+                    // retefuente y los abonos ya hechos (mismo criterio que el PDF de
+                    // pendientes de Telegram, para que las dos cifras coincidan).
+                    entry.total += pendingOf(t);
                     const d = tsToDate(t.date);
                     if (d && (!entry.oldestDate || d < entry.oldestDate))
                         entry.oldestDate = d;

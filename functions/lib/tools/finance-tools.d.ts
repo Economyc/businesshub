@@ -43,6 +43,8 @@ export declare function createFinanceTools(companyId: string): {
             documentKind: {} | null;
             docNumber: {} | null;
             payeeName: string | null;
+            withholdingAmount: number;
+            payableAmount: number;
             id: unknown;
             concept: unknown;
             category: unknown;
@@ -72,6 +74,8 @@ export declare function createFinanceTools(companyId: string): {
                 documentKind: {} | null;
                 docNumber: {} | null;
                 payeeName: string | null;
+                withholdingAmount: number;
+                payableAmount: number;
                 id: unknown;
                 concept: unknown;
                 category: unknown;

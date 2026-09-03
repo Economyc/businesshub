@@ -4,6 +4,7 @@
 
 import { db } from '../firestore.js'
 import { fmtMoney } from './format-money.js'
+import { pendingOf } from './withholding.js'
 import {
   type PendingReport,
   type PendingCompany,
@@ -20,6 +21,8 @@ interface TxData {
   amount?: number
   paidAmount?: number
   remainingAmount?: number
+  // Retefuente practicada al proveedor: baja el neto a girar, no el gasto.
+  withholdingAmount?: number
   concept?: string
   date?: unknown
   dueDate?: unknown
@@ -35,9 +38,9 @@ interface TxData {
  * Prioriza el denormalizado y cae a amount − paidAmount si falta.
  */
 function pendingAmount(t: TxData): number {
-  const amount = Number(t.amount) || 0
-  if (typeof t.remainingAmount === 'number') return Math.max(0, t.remainingAmount)
-  return Math.max(0, amount - (Number(t.paidAmount) || 0))
+  // El helper prefiere `remainingAmount` (que Ecore mantiene ya neto de
+  // retefuente) y sólo cae al cálculo cuando falta.
+  return pendingOf(t)
 }
 
 /** Parte de un gasto compartido entre locales (ver Ecore split-service.ts). */
