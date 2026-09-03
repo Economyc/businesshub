@@ -134,6 +134,15 @@ service cloud.firestore {
       allow write: if isOwnerEmail();
     }
 
+    // Catalogo de conceptos de retencion en la fuente (Ecore, cuentas por pagar).
+    // Global porque las tarifas las fija la DIAN, no el local. Mismo criterio que
+    // documentTemplates: lo lee todo el equipo para aplicar retenciones, pero solo
+    // el owner cambia tarifas -- una tarifa mal puesta afecta a las 6 companias.
+    match /withholdingConcepts/{conceptId} {
+      allow read: if signedIn();
+      allow write: if isOwnerEmail();
+    }
+
     // LLM rate-limits: solo Admin SDK desde Cloud Functions
     match /system/llm-rate-limits/{document=**} {
       allow read, write: if false;
