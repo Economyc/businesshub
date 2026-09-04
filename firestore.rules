@@ -135,12 +135,20 @@ service cloud.firestore {
     }
 
     // Catalogo de conceptos de retencion en la fuente (Ecore, cuentas por pagar).
-    // Global porque las tarifas las fija la DIAN, no el local. Mismo criterio que
-    // documentTemplates: lo lee todo el equipo para aplicar retenciones, pero solo
-    // el owner cambia tarifas -- una tarifa mal puesta afecta a las 6 companias.
+    // Global porque las tarifas las fija la DIAN, no el local.
+    //
+    // Escritura abierta a cualquier cuenta con sesion, a proposito: quien mantiene
+    // estas tarifas cuando hay reforma es contabilidad, no el owner. Es un pelo mas
+    // ancho que "miembro activo de Ecore" -- la coleccion es raiz y no lleva
+    // companyId, asi que la regla no tiene en que compania comprobar la membresia --
+    // pero el universo de cuentas de este proyecto es cerrado (solo se crean por el
+    // callable adminCreateUser) y el bypass F0 de Ecore ya deja a cualquier miembro
+    // activo borrar facturas, que pesa mas que un catalogo de 8 tarifas.
+    // Si ese universo crece, la via correcta es un callable que valide membresia con
+    // Admin SDK y dejar esta regla en false.
     match /withholdingConcepts/{conceptId} {
       allow read: if signedIn();
-      allow write: if isOwnerEmail();
+      allow write: if signedIn();
     }
 
     // LLM rate-limits: solo Admin SDK desde Cloud Functions
