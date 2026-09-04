@@ -86,6 +86,22 @@ export async function getPreviousCountsForRange(companyId, localIds, startDate, 
     }
     return counts;
 }
+const MANUAL_VOIDS = [
+    {
+        localId: 2,
+        serie: 'FVBT',
+        correlativo: '1797',
+        reason: 'Nota de crédito F000-00000008 del 18/08/2026 · motivo "pruebas sistema" · pedido C2-3747 cancelado',
+    },
+];
+function applyManualVoid(v) {
+    const mv = MANUAL_VOIDS.find((m) => Number(v.id_local) === m.localId &&
+        String(v.serie ?? '').trim() === m.serie &&
+        String(v.correlativo ?? '').trim() === m.correlativo);
+    if (!mv)
+        return v;
+    return { ...v, estado: '0', estado_txt: 'Comprobante anulado', hubVoidReason: mv.reason };
+}
 // Escribe ventas al mismo schema que el cliente. `ventas` debe venir ya
 // filtrado a los `localIds` relevantes para la company. `startDate`/`endDate`
 // definen qué días cubre la escritura (aunque no haya ventas en ese día — el
@@ -94,10 +110,11 @@ export async function getPreviousCountsForRange(companyId, localIds, startDate, 
 export async function saveVentasToCacheServer(companyId, ventas, localIds, startDate, endDate, previousCounts, options = {}) {
     const { stampEmpty = false } = options;
     const groups = new Map();
-    for (const v of ventas) {
-        const date = typeof v.fecha === 'string' ? v.fecha.slice(0, 10) : undefined;
+    for (const rawVenta of ventas) {
+        const date = typeof rawVenta.fecha === 'string' ? rawVenta.fecha.slice(0, 10) : undefined;
         if (!date)
             continue;
+        const v = applyManualVoid(rawVenta);
         const key = `${date}_${v.id_local}`;
         if (!groups.has(key))
             groups.set(key, []);

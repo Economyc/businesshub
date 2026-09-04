@@ -11,6 +11,7 @@ import {
   Timestamp,
 } from 'firebase/firestore'
 import type { PosVenta, PosProducto } from './types'
+import { applyManualVoid } from './utils/manual-voids'
 
 const SALES_COLLECTION = 'pos-sales-cache'
 const META_COLLECTION = 'pos-sales-cache-meta'
@@ -282,9 +283,14 @@ async function saveVentasToCacheImpl(
   previousCountByKey?: Map<string, number>,
 ): Promise<void> {
   const groups = new Map<string, PosVenta[]>()
-  for (const v of ventas) {
-    const date = v.fecha?.slice(0, 10)
+  for (const raw of ventas) {
+    const date = raw.fecha?.slice(0, 10)
     if (!date) continue
+    // El POS deja activos comprobantes que su propio panel da por anulados
+    // (nota crédito / pedido cancelado) y no lo expone por la API: ver
+    // utils/manual-voids.ts. Se corrige al escribir para que un rebuild del
+    // mes no lo revierta.
+    const v = applyManualVoid(raw)
     const key = `${date}_${v.id_local}`
     if (!groups.has(key)) groups.set(key, [])
     groups.get(key)!.push(v)

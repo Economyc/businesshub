@@ -130,6 +130,43 @@ export interface SaveOptions {
   stampEmpty?: boolean
 }
 
+// ESPEJO de `src/modules/pos-sync/utils/manual-voids.ts`: comprobantes que el
+// POS deja como "Comprobante activo" pero que en su propio panel figuran
+// anulados (nota crédito emitida y/o pedido de delivery cancelado). La API de
+// integración no expone ninguno de esos dos estados —verificado el 2026-09-03:
+// 30 endpoints candidatos responden 404 y el comprobante llega sin ninguna
+// referencia—, así que la anulación se aplica acá a mano, al escribir, para que
+// sobreviva a un rebuild del mes. Si cambia una lista, cambiar la otra.
+//
+// Se marcan anulados en vez de borrarlos porque toda la app ya ignora
+// `estado_txt === "comprobante anulado"`.
+interface ManualVoid {
+  localId: number
+  serie: string
+  correlativo: string
+  reason: string
+}
+
+const MANUAL_VOIDS: ManualVoid[] = [
+  {
+    localId: 2,
+    serie: 'FVBT',
+    correlativo: '1797',
+    reason: 'Nota de crédito F000-00000008 del 18/08/2026 · motivo "pruebas sistema" · pedido C2-3747 cancelado',
+  },
+]
+
+function applyManualVoid(v: PosVentaLike): PosVentaLike {
+  const mv = MANUAL_VOIDS.find(
+    (m) =>
+      Number(v.id_local) === m.localId &&
+      String(v.serie ?? '').trim() === m.serie &&
+      String(v.correlativo ?? '').trim() === m.correlativo,
+  )
+  if (!mv) return v
+  return { ...v, estado: '0', estado_txt: 'Comprobante anulado', hubVoidReason: mv.reason }
+}
+
 // Escribe ventas al mismo schema que el cliente. `ventas` debe venir ya
 // filtrado a los `localIds` relevantes para la company. `startDate`/`endDate`
 // definen qué días cubre la escritura (aunque no haya ventas en ese día — el
@@ -146,9 +183,10 @@ export async function saveVentasToCacheServer(
 ): Promise<SaveStats> {
   const { stampEmpty = false } = options
   const groups = new Map<string, PosVentaLike[]>()
-  for (const v of ventas) {
-    const date = typeof v.fecha === 'string' ? v.fecha.slice(0, 10) : undefined
+  for (const rawVenta of ventas) {
+    const date = typeof rawVenta.fecha === 'string' ? rawVenta.fecha.slice(0, 10) : undefined
     if (!date) continue
+    const v = applyManualVoid(rawVenta)
     const key = `${date}_${v.id_local}`
     if (!groups.has(key)) groups.set(key, [])
     groups.get(key)!.push(v)
