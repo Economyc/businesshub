@@ -87,6 +87,7 @@ export const DEFAULT_ROLES: RoleDefinition[] = [
       [
         'home',
         'analytics',
+        'reports',
         'closings',
         'discounts',
         'talent',

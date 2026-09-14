@@ -9,6 +9,7 @@ const CHUNK_BY_PATH: Record<string, () => Promise<unknown>> = {
   '/home': () => import('@/modules/home/components/home-page'),
   '/analytics': () => import('@/modules/analytics/components/pos-dashboard'),
   '/pos-sync': () => import('@/modules/pos-sync/components/pos-sync-page'),
+  '/informes': () => import('@/modules/reports/components/reports-page'),
   '/settings/companies': () => import('@/core/ui/settings-companies'),
   '/settings/categories': () => import('@/core/ui/settings-categories'),
   '/settings/roles': () => import('@/core/ui/settings-roles'),

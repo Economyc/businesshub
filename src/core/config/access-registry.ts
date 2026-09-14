@@ -84,6 +84,7 @@ export const ACCESS_REGISTRY: AccessModule[] = [
     pages: [
       { id: 'home', label: 'Home', path: '/home', actions: ['read'], nav: { group: 'main', order: 1 } },
       { id: 'analytics', label: 'Análisis', path: '/analytics', actions: ['read'], nav: { group: 'main', order: 2 } },
+      { id: 'reports', label: 'Informes', path: '/informes', actions: ['read'], nav: { group: 'main', order: 3 } },
     ],
   },
   {

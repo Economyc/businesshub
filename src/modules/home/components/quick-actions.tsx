@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
-import { BarChart3, RefreshCw, Building2 } from 'lucide-react'
+import { BarChart3, RefreshCw, Building2, FileText } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import { usePermissions } from '@/core/hooks/use-permissions'
 
 interface QuickActionButtonProps {
   icon: LucideIcon
@@ -36,6 +37,7 @@ function QuickActionButton({ icon: Icon, label, to }: QuickActionButtonProps) {
 }
 
 export function QuickActions() {
+  const { canAccessPage } = usePermissions()
   return (
     <div className="bg-surface rounded-xl card-elevated p-[18px]">
       <h2 className="text-body font-bold text-dark-graphite mb-3">Acciones rápidas</h2>
@@ -43,6 +45,7 @@ export function QuickActions() {
           esa operación vive en Ecore. Quedan los destinos que BusinessHub monta. */}
       <div className="grid grid-cols-2 sm:grid-cols-2 gap-y-5 gap-x-2 sm:gap-2">
         <QuickActionButton icon={BarChart3} label="Análisis" to="/analytics" />
+        {canAccessPage('reports') && <QuickActionButton icon={FileText} label="Informes" to="/informes" />}
         <QuickActionButton icon={RefreshCw} label="POS Sync" to="/pos-sync" />
         <QuickActionButton icon={Building2} label="Compañías" to="/settings/companies" />
       </div>

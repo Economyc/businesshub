@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   Search, Home, BarChart3, Building2, Tags, BadgeCheck, Network,
-  ArrowRight, Clock, CornerDownLeft,
+  ArrowRight, Clock, CornerDownLeft, FileText,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { usePermissions } from '@/core/hooks/use-permissions'
@@ -34,6 +34,7 @@ const STROKE = 1.5
 const NAV_RESULTS: SearchResult[] = [
   { id: 'nav-home', type: 'navigation', label: 'Home', icon: <Home size={ICON_SIZE} strokeWidth={STROKE} />, to: '/home', keywords: 'inicio home dashboard' },
   { id: 'nav-analytics', type: 'navigation', label: 'Analisis', icon: <BarChart3 size={ICON_SIZE} strokeWidth={STROKE} />, to: '/analytics', keywords: 'reportes estadisticas graficos kpi metricas analytics analisis pos ventas' },
+  { id: 'nav-reports', type: 'navigation', label: 'Informes', icon: <FileText size={ICON_SIZE} strokeWidth={STROKE} />, to: '/informes', keywords: 'informes reportes domicilios rappi didi web canales productos pedidos excel csv descargar' },
   { id: 'nav-settings-companies', type: 'navigation', label: 'Companias', icon: <Building2 size={ICON_SIZE} strokeWidth={STROKE} />, to: '/settings/companies', keywords: 'ajustes configuracion companias empresas settings' },
   { id: 'nav-settings-categories', type: 'navigation', label: 'Categorias', icon: <Tags size={ICON_SIZE} strokeWidth={STROKE} />, to: '/settings/categories', keywords: 'ajustes configuracion categorias financieras settings' },
   { id: 'nav-settings-roles', type: 'navigation', label: 'Cargos', icon: <BadgeCheck size={ICON_SIZE} strokeWidth={STROKE} />, to: '/settings/roles', keywords: 'ajustes configuracion cargos puestos roles settings' },

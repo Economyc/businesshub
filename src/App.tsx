@@ -12,6 +12,7 @@ import { HomePage } from '@/modules/home/routes'
 import { CompanySelectorPage } from '@/modules/home/company-selector-page'
 import { DateRangeProvider } from '@/core/ui/date-range-context'
 import { PosSyncPage } from '@/modules/pos-sync/routes'
+import { ReportsPage, ReportDetailPage } from '@/modules/reports/routes'
 import { PermissionsProvider } from '@/core/ui/permissions-provider'
 import { PermissionRoute } from '@/core/ui/permission-route'
 import { ErrorBoundary } from '@/core/ui/error-boundary'
@@ -91,6 +92,14 @@ export default function App() {
               <Route element={<DateRangeProvider><Outlet /></DateRangeProvider>}>
                 <Route element={<PermissionRoute pageId="pos-sync" />}>
                   <Route path="/pos-sync" element={<Suspense fallback={<Loading />}><PosSyncPage /></Suspense>} />
+                </Route>
+              </Route>
+              {/* Un solo DateRangeProvider para lista y detalle: el periodo elegido
+                  se conserva al abrir un informe y al volver. */}
+              <Route element={<DateRangeProvider defaultPreset="lastMonth"><Outlet /></DateRangeProvider>}>
+                <Route element={<PermissionRoute pageId="reports" />}>
+                  <Route path="/informes" element={<Suspense fallback={<Loading />}><ReportsPage /></Suspense>} />
+                  <Route path="/informes/:reportId" element={<Suspense fallback={<Loading />}><ReportDetailPage /></Suspense>} />
                 </Route>
               </Route>
               <Route path="/settings" element={<Navigate to="/settings/companies" replace />} />

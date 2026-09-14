@@ -16,6 +16,15 @@ export interface FieldDef {
   enumValues?: string[]
   format?: (value: unknown) => string
   parse?: (raw: string) => unknown
+  /** Numérico que puede faltar: null/undefined/'' sale como celda vacía en vez de 0. */
+  blankNull?: boolean
+}
+
+export interface CsvOptions {
+  /** Separador de columnas. Default ','. Excel en es-CO espera ';'. */
+  delimiter?: string
+  /** Escribe los campos numéricos con coma decimal (60,8 en vez de 60.8). */
+  decimalComma?: boolean
 }
 
 export interface RowError {
@@ -42,6 +51,7 @@ export interface SheetSpec {
 function cellValue(item: Record<string, unknown>, f: FieldDef): string | number {
   const val = item[f.key]
   if (f.format) return f.format(val)
+  if (f.blankNull && (val === null || val === undefined || val === '')) return ''
   if (f.type === 'number') {
     const n = typeof val === 'number' ? val : Number(val)
     return Number.isFinite(n) ? n : ''
@@ -84,18 +94,20 @@ export async function exportToExcel<T>(data: T[], fields: FieldDef[], filename: 
   )
 }
 
-export async function exportToCSV<T>(data: T[], fields: FieldDef[], filename: string) {
+export async function exportToCSV<T>(data: T[], fields: FieldDef[], filename: string, opts: CsvOptions = {}) {
   const rows = data.map((item) => {
     const row: Record<string, string> = {}
     for (const f of fields) {
       const val = (item as Record<string, unknown>)[f.key]
-      row[f.header] = f.format ? f.format(val) : String(val ?? '')
+      if (f.format) row[f.header] = f.format(val)
+      else if (opts.decimalComma && f.type === 'number' && typeof val === 'number') row[f.header] = String(val).replace('.', ',')
+      else row[f.header] = String(val ?? '')
     }
     return row
   })
 
   const Papa = await loadPapa()
-  const csv = Papa.unparse(rows, { columns: fields.map((f) => f.header) })
+  const csv = Papa.unparse(rows, { columns: fields.map((f) => f.header), delimiter: opts.delimiter ?? ',' })
   const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' })
   saveAs(blob, `${filename}.csv`)
 }

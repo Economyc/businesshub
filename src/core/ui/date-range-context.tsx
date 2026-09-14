@@ -145,11 +145,18 @@ function formatRangeLabel(start: Date, end: Date): string {
   return `${fmt(start)} – ${fmt(end)}`
 }
 
-export function DateRangeProvider({ children }: { children: ReactNode }) {
-  const defaultRange = getPresetRange('thisMonth')
+export function DateRangeProvider({
+  children,
+  defaultPreset = 'thisMonth',
+}: {
+  children: ReactNode
+  /** Preset inicial. Informes arranca en 'lastMonth': un mes cerrado. */
+  defaultPreset?: string
+}) {
+  const [defaultRange] = useState(() => getPresetRange(defaultPreset))
   const [startDate, setStartDate] = useState(defaultRange.start)
   const [endDate, setEndDate] = useState(defaultRange.end)
-  const [activePreset, setActivePreset] = useState('thisMonth')
+  const [activePreset, setActivePreset] = useState(defaultPreset)
 
   const setPreset = useCallback((key: string) => {
     const range = getPresetRange(key)

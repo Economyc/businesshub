@@ -13,6 +13,11 @@ const LABELS: Record<string, string> = {
   roles: 'Roles',
   departments: 'Departamentos',
   team: 'Equipo',
+  informes: 'Informes',
+  'ventas-por-canal': 'Ventas por canal',
+  'franja-horaria': 'Pedidos por franja horaria',
+  'productos-por-canal': 'Productos por canal',
+  'detalle-pedidos': 'Detalle de pedidos',
 }
 
 const ID_PATTERN = /^[a-zA-Z0-9]{10,}$|^[0-9a-f-]{36}$/
