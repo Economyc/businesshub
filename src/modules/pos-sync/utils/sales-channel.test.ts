@@ -41,6 +41,25 @@ describe('getSalesChannel', () => {
     expect(getSalesChannel(venta('DELIVERY', '512', 'Delivery Telefónico', ['En linea']))).toBe('web')
   })
 
+  it('reconoce la web pagada contra entrega por la dirección que manda la web', () => {
+    // Caso real: nota de venta 000-1142 (pedido web BSB-2314), pagado en efectivo.
+    const v = {
+      ...venta('DELIVERY', '512', 'Delivery Telefónico', ['Efectivo']),
+      cliente: {
+        direccion: 'Carrera 29e #11 Sur - 50, Edificio Saint Marteen Apto Dejar en portería, Los Balsos n. 1, Medellín',
+      },
+    } as PosVenta
+    expect(getSalesChannel(v)).toBe('web')
+  })
+
+  it('una dirección escrita a mano en caja no vuelve web al domicilio', () => {
+    const v = {
+      ...venta('DELIVERY', '512', 'Delivery Telefónico', ['Transferencia']),
+      cliente: { direccion: 'CLL 16A SUR 48 125' },
+    } as PosVenta
+    expect(getSalesChannel(v)).toBe('domicilio')
+  })
+
   it('la plataforma gana sobre la heurística de web', () => {
     // Rappi y DiDi también liquidan "En linea"; no deben volverse web.
     expect(getSalesChannel(venta('DELIVERY', '516', 'Rappi', ['En linea']))).toBe('rappi')

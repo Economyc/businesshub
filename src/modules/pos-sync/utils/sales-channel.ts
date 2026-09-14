@@ -30,12 +30,24 @@ function hasOnlinePayment(v: PosVenta): boolean {
   return (v.pagosList ?? []).some((p) => ONLINE_PAYMENT_RE.test(pagoTipo(p)))
 }
 
+// La web manda la dirección de entrega armada con comas: "Calle 5 sur 35-65,
+// Casa 106, Poblado, Medellín". Las que escribe la caja a mano no las llevan
+// ("calle 20 sur 26c66", "CLL 16A SUR 48 125").
+function hasWebAddress(v: PosVenta): boolean {
+  return String(v.cliente?.direccion ?? '').includes(',')
+}
+
 // HEURÍSTICA: el POS no marca el origen web. Los pedidos de la web propia caen
-// en "Delivery Telefónico" junto al teléfono y WhatsApp, y sólo se distinguen
-// por el medio de pago: "En linea" aparece por primera vez en agosto de 2026
-// —cero en abril-julio— exactamente cuando arrancó la web (66 pedidos,
-// $5.760.050 en Blue Escondite). Un pedido web pagado contraentrega queda como
-// `domicilio`: es el límite conocido y aceptado de esta inferencia.
+// en "Delivery Telefónico" junto al teléfono y WhatsApp. Se reconocen por dos
+// señales, cualquiera basta:
+//   1. Pago "En linea": nace en agosto de 2026 con la web (cero en abril-julio).
+//   2. Dirección con el formato de la web: cubre los pedidos web pagados en
+//      efectivo o transferencia contra entrega (ej. nota de venta 000-1142).
+// Verificado sobre el caché del 2026-09-14: en Blue Escondite todo pedido pagado
+// en línea trae dirección con comas; agosto queda en 118 pedidos web (66 en línea
+// + 52 contra entrega) y septiembre en 99 de 99. Las únicas direcciones sin comas
+// del canal son 2 escritas en caja (Escondite jun-jul, Filipo Belén ago-sep), y
+// siguen como `domicilio`.
 export function getSalesChannel(v: PosVenta): SalesChannel {
   const nombre = String(v.nombre_canaldelivery ?? '')
   let channel = CHANNEL_BY_ID[String(v.id_canaldelivery ?? '').trim()]
@@ -52,7 +64,7 @@ export function getSalesChannel(v: PosVenta): SalesChannel {
     else return 'otro'
   }
 
-  if (channel === 'domicilio' && hasOnlinePayment(v)) return 'web'
+  if (channel === 'domicilio' && (hasOnlinePayment(v) || hasWebAddress(v))) return 'web'
   return channel
 }
 

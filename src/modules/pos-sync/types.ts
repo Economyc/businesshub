@@ -88,6 +88,11 @@ export interface PosPago {
 }
 
 export interface PosCliente {
+  /** Así llega en los comprobantes del caché (2026): nombre completo y dirección de entrega. */
+  cliente?: string
+  direccion?: string
+  numerodocumento?: string
+  tipodocumento?: string
   cliente_nombres?: string
   cliente_apellidos?: string
   cliente_dniruc?: string
