@@ -30,9 +30,9 @@ function hasOnlinePayment(v: PosVenta): boolean {
   return (v.pagosList ?? []).some((p) => ONLINE_PAYMENT_RE.test(pagoTipo(p)))
 }
 
-// La web manda la dirección de entrega armada con comas: "Calle 5 sur 35-65,
-// Casa 106, Poblado, Medellín". Las que escribe la caja a mano no las llevan
-// ("calle 20 sur 26c66", "CLL 16A SUR 48 125").
+// La web manda la dirección de entrega armada con comas, del estilo "Calle 10
+// #20-30, Torre 1 Apto 101, Barrio, Medellín". Las que escribe la caja a mano
+// no las llevan (del estilo "CLL 10A SUR 20 30").
 function hasWebAddress(v: PosVenta): boolean {
   return String(v.cliente?.direccion ?? '').includes(',')
 }

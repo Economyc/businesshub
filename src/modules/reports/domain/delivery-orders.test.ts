@@ -72,10 +72,10 @@ describe('toDeliveryOrders', () => {
 
   it('toma el nombre del cliente como lo manda el POS', () => {
     const [o] = toDeliveryOrders(
-      [venta({ cliente: { cliente: 'Ana Sofía Campuzano Duque', direccion: 'Carrera 29e #11 Sur - 50, Medellín' } })],
+      [venta({ cliente: { cliente: 'Cliente de Prueba', direccion: 'Carrera 10 #20-30, Medellín' } })],
       [2],
     )
-    expect(o.customer).toBe('Ana Sofía Campuzano Duque')
+    expect(o.customer).toBe('Cliente de Prueba')
   })
 
   it('normaliza el nombre de producto del detalle', () => {

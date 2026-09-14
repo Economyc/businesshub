@@ -42,11 +42,11 @@ describe('getSalesChannel', () => {
   })
 
   it('reconoce la web pagada contra entrega por la dirección que manda la web', () => {
-    // Caso real: nota de venta 000-1142 (pedido web BSB-2314), pagado en efectivo.
+    // Caso real: pedido web pagado en efectivo que el POS registró como Delivery Telefónico.
     const v = {
       ...venta('DELIVERY', '512', 'Delivery Telefónico', ['Efectivo']),
       cliente: {
-        direccion: 'Carrera 29e #11 Sur - 50, Edificio Saint Marteen Apto Dejar en portería, Los Balsos n. 1, Medellín',
+        direccion: 'Carrera 10 #20 Sur - 30, Edificio Ejemplo Apto 101, Barrio Ejemplo, Medellín',
       },
     } as PosVenta
     expect(getSalesChannel(v)).toBe('web')
@@ -55,7 +55,7 @@ describe('getSalesChannel', () => {
   it('una dirección escrita a mano en caja no vuelve web al domicilio', () => {
     const v = {
       ...venta('DELIVERY', '512', 'Delivery Telefónico', ['Transferencia']),
-      cliente: { direccion: 'CLL 16A SUR 48 125' },
+      cliente: { direccion: 'CLL 10A SUR 20 30' },
     } as PosVenta
     expect(getSalesChannel(v)).toBe('domicilio')
   })
