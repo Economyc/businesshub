@@ -13,6 +13,7 @@ export { uploadDiscountPhotoToDrive } from './upload-discount-photo.js';
 export { combineInvoicePaymentToDrive } from './combine-invoice-payment.js';
 export { deleteTransactionWithAttachments } from './delete-transaction.js';
 export { moveInvoiceToCompany } from './move-transaction.js';
+export { copyInvoiceDocumentToCompany } from './copy-invoice-document.js';
 export { deleteTransferWithAttachments } from './delete-transfer.js';
 export { revertPaymentWithAttachments } from './revert-payment.js';
 export { saveInvoiceSheetToDrive } from './save-invoice-sheet.js';
