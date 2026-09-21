@@ -1,5 +1,5 @@
 import type { RoleDefinition, PermissionAction, RolePermissions } from '@/core/types/permissions'
-import { getMatrixPages, defaultPermissionsFull } from '@/core/config/access-registry'
+import { getMatrixPages, defaultPermissionsFull, TAB_IDS } from '@/core/config/access-registry'
 
 /** Permisos para un conjunto de páginas, con las acciones indicadas (acotadas a las
  *  disponibles de cada página) y todos sus tabs habilitados. */
@@ -15,6 +15,19 @@ function permsFor(pageIds: string[], actions: PermissionAction[]): RolePermissio
     if (p.tabs) for (const t of p.tabs) tabs[t.id] = true
   }
   return { pages, tabs }
+}
+
+/**
+ * Quita tabs puntuales de un conjunto de permisos.
+ *
+ * `permsFor` habilita TODOS los tabs de cada pagina concedida, que es lo
+ * razonable por defecto pero no siempre correcto: dar acceso a una pagina no
+ * implica dar acceso a todo lo que vive dentro de ella.
+ */
+function withoutTabs(perms: RolePermissions, ...tabIds: string[]): RolePermissions {
+  const tabs = { ...perms.tabs }
+  for (const id of tabIds) delete tabs[id]
+  return { pages: perms.pages, tabs }
 }
 
 function merge(...parts: RolePermissions[]): RolePermissions {
@@ -83,18 +96,24 @@ export const DEFAULT_ROLES: RoleDefinition[] = [
     description: 'Puede ver información pero no crear, editar ni eliminar',
     color: '#6b7280',
     isSystem: true,
-    permissions: permsFor(
-      [
-        'home',
-        'analytics',
-        'reports',
-        'closings',
-        'discounts',
-        'talent',
-        'suppliers',
-        'pos-sync',
-      ],
-      READ,
+    // El cierre mensual queda fuera: /informes lo usa tambien gente de mercadeo
+    // para los informes de domicilios, y ahi dentro vive el Estado de Resultados
+    // con la utilidad y la caja del negocio.
+    permissions: withoutTabs(
+      permsFor(
+        [
+          'home',
+          'analytics',
+          'reports',
+          'closings',
+          'discounts',
+          'talent',
+          'suppliers',
+          'pos-sync',
+        ],
+        READ,
+      ),
+      TAB_IDS.reportsCierre,
     ),
     canManageUsers: false,
     canManageCompany: false,

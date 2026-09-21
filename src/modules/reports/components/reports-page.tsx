@@ -1,10 +1,17 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronRight, Download, Loader2 } from 'lucide-react'
+import { ChevronRight, Download, Loader2, Bike, Calculator } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/core/ui/page-header'
 import { PageTransition } from '@/core/ui/page-transition'
 import { DateRangePicker } from '@/core/ui/date-range-picker'
+import { UnderlineButtonTabs } from '@/core/ui/underline-tabs'
+import { currentYm } from '@/core/ui/month-picker'
+import { prevMonthOf } from '@/core/pnl/month.ts'
 import { useCompany } from '@/core/hooks/use-company'
+import { usePermissions } from '@/core/hooks/use-permissions'
+import { TAB_IDS } from '@/core/config/access-registry'
+import { ClosingView } from '../closing/closing-view'
 import { companyDisplayName } from '../domain/export'
 import { formatPeriodLabel } from '../domain/period'
 import { useDeliveryReportData } from '../hooks/use-delivery-report-data'
@@ -13,11 +20,23 @@ import { REPORTS, REPORT_CATEGORIES, type ReportDefinition } from '../registry'
 import { ReportDataStatus } from './report-data-status'
 
 export function ReportsPage() {
-  const navigate = useNavigate()
   const { selectedCompany } = useCompany()
-  const data = useDeliveryReportData()
-  const downloads = useReportDownloads(data.context)
-  const orderCount = data.context.orders.length
+  const { can, canAccessTab } = usePermissions()
+  const [tab, setTab] = useState('domicilios')
+  // El cierre arranca en el mes anterior: el corriente todavía no está cerrado.
+  const [ym, setYm] = useState(() => prevMonthOf(currentYm()))
+
+  // /informes lo usa también gente de mercadeo para los informes de domicilios.
+  // El cierre trae el Estado de Resultados completo —utilidad, caja, gastos— así
+  // que es una pestaña aparte con su propio permiso, no algo que venga incluido
+  // por tener acceso a la página.
+  const verCierre = canAccessTab(TAB_IDS.reportsCierre)
+  const tabs = [
+    { value: 'domicilios', label: 'Domicilios', icon: Bike },
+    ...(verCierre ? [{ value: 'cierre', label: 'Cierre mensual', icon: Calculator }] : []),
+  ]
+  // Si alguien pierde el permiso con la pestaña abierta, vuelve a domicilios.
+  const activo = tab === 'cierre' && !verCierre ? 'domicilios' : tab
 
   return (
     <PageTransition>
@@ -25,9 +44,35 @@ export function ReportsPage() {
         title="Informes"
         subtitle={<span className="text-body text-mid-gray">{companyDisplayName(selectedCompany)}</span>}
       >
-        <DateRangePicker />
+        {/* El cierre trae su propio selector: siempre es un mes completo. */}
+        {activo === 'domicilios' && <DateRangePicker />}
       </PageHeader>
 
+      {tabs.length > 1 && (
+        <UnderlineButtonTabs tabs={tabs} active={activo} onChange={setTab} />
+      )}
+
+      {activo === 'cierre' ? (
+        <ClosingView ym={ym} onMonthChange={setYm} canEdit={can('reports', 'update')} />
+      ) : (
+        <DeliveryReports />
+      )}
+    </PageTransition>
+  )
+}
+
+/**
+ * Los informes de domicilios viven en su propio componente para que sus queries
+ * al POS sólo corran cuando la pestaña está abierta.
+ */
+function DeliveryReports() {
+  const navigate = useNavigate()
+  const data = useDeliveryReportData()
+  const downloads = useReportDownloads(data.context)
+  const orderCount = data.context.orders.length
+
+  return (
+    <>
       <ReportDataStatus data={data} />
 
       {REPORT_CATEGORIES.map((category) => (
@@ -61,7 +106,7 @@ export function ReportsPage() {
           {downloads.error && <p className="text-caption text-negative-text">{downloads.error}</p>}
         </section>
       ))}
-    </PageTransition>
+    </>
   )
 }
 

@@ -84,7 +84,18 @@ export const ACCESS_REGISTRY: AccessModule[] = [
     pages: [
       { id: 'home', label: 'Home', path: '/home', actions: ['read'], nav: { group: 'main', order: 1 } },
       { id: 'analytics', label: 'Análisis', path: '/analytics', actions: ['read'], nav: { group: 'main', order: 2 } },
-      { id: 'reports', label: 'Informes', path: '/informes', actions: ['read'], nav: { group: 'main', order: 3 } },
+      {
+        id: 'reports',
+        label: 'Informes',
+        path: '/informes',
+        // El cierre mensual se captura aqui, asi que la pagina ya no es solo lectura.
+        actions: ['read', 'create', 'update'],
+        tabs: [
+          { id: 'reports.domicilios', label: 'Domicilios' },
+          { id: 'reports.cierre', label: 'Cierre mensual' },
+        ],
+        nav: { group: 'main', order: 3 },
+      },
     ],
   },
   {
@@ -194,6 +205,8 @@ export const ACCESS_REGISTRY: AccessModule[] = [
 
 /** Ids de tabs estables — importar desde aquí en los componentes (nunca string suelto). */
 export const TAB_IDS = {
+  reportsDomicilios: 'reports.domicilios',
+  reportsCierre: 'reports.cierre',
   closingsForm: 'closings.form',
   closingsHistory: 'closings.history',
   closingsAccumulated: 'closings.accumulated',
