@@ -69,3 +69,4 @@ scripts/lib/ventas-manuales.mjs
 # reales de cada quincena, con nombre y monto por empleado. El repo es PUBLICO.
 # Quedan en disco como registro de lo que se cargo, fuera de git.
 scripts/jobs/
+scripts/lib/closing-companies.mjs
