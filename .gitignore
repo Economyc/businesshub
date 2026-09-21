@@ -57,3 +57,15 @@ cors.json
 # Respaldos de la unificacion de empleados duplicados: llevan PII (cedulas,
 # salarios, pagos). Se generan con functions/scripts/backup-duplicate-employees.mjs
 functions/scripts/backup-duplicados-*.json
+
+# Tablas del cierre mensual con datos financieros reales (numeros de cuenta
+# bancaria, montos y proveedores de los 4 locales). El repo es PUBLICO.
+# Son el fallback mientras la captura en /informes las reemplaza; se borran
+# cuando dos o mas cierres hayan salido desde Firestore (pnl-closings).
+scripts/lib/legacy-closings.mjs
+scripts/lib/ventas-manuales.mjs
+
+# Job files de cargar-nomina-quincena.mjs: llevan la nomina y las propinas
+# reales de cada quincena, con nombre y monto por empleado. El repo es PUBLICO.
+# Quedan en disco como registro de lo que se cargo, fuera de git.
+scripts/jobs/
