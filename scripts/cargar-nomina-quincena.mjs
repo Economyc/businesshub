@@ -12,7 +12,10 @@
 // OJO: el doc id de transactions es aleatorio y Firestore no tiene ninguna
 // proteccion contra duplicar. Cargar dos veces la misma quincena NO falla: el
 // empleado pasa a "N registros" en solo-lectura en la card. De ahi el chequeo
-// anti-duplicado, que replica filterHalfRecords (payroll-period.ts:143-153).
+// anti-duplicado, que replica filterHalfRecords (payroll-period.ts:143-153):
+// lo que ya esta cargado se omite (SKIP) y solo entra lo nuevo, asi que el job
+// file de una quincena se puede volver a correr cuando llega una fuente que
+// faltaba. Si el monto ya cargado no coincide con el del job file, se avisa.
 //
 // Uso:
 //   node scripts/cargar-nomina-quincena.mjs scripts/jobs/nomina-2026-09-Q1.json           # DRY-RUN
@@ -166,7 +169,9 @@ for (const j of jobs) {
       const d = (t.accrualDate ?? t.paidDate ?? t.date)?.toDate?.()
       return d && d >= MES_INICIO && d < MES_FIN
     })
-    if (dup) fail(`${j.label}: ${empId} ya tiene ${j.kind} de Q${half} ${PERIOD_LABEL} (tx ${dup.id}, ${fmt(dup.amount)})`)
+    // Duplicado = SKIP, no error: asi el job file de la quincena se puede
+    // volver a correr cuando llega una fuente que faltaba, y solo entra lo
+    // nuevo. Lo omitido sale igual en el informe para que no pase de agache.
 
     // El nombre sale del historico para no cambiar como aparece escrito entre
     // quincenas; si no tiene, de la ficha normalizada. Nunca el nombre de
@@ -185,6 +190,7 @@ for (const j of jobs) {
       cedula: f.cedula ?? d?.identification ?? '',
       status: ficha ? d.status : '(sin ficha aquí)',
       siigoName: f.siigoName,
+      skip: dup ? { id: dup.id, amount: dup.amount } : null,
     })
   }
 
@@ -193,24 +199,38 @@ for (const j of jobs) {
 
 // --- Informe ---
 let granTotal = 0
+let granCount = 0
+let granSkip = 0
 for (const p of plan) {
-  const total = p.items.reduce((s, r) => s + r.amount, 0)
+  const nuevos = p.items.filter((r) => !r.skip)
+  const omitidos = p.items.filter((r) => r.skip)
+  const total = nuevos.reduce((s, r) => s + r.amount, 0)
   granTotal += total
-  console.log(`## ${p.label} — ${p.kind} — ${p.paymentMethod} — ${p.items.length} registros`)
+  granCount += nuevos.length
+  granSkip += omitidos.length
+  console.log(`## ${p.label} — ${p.kind} — ${p.paymentMethod} — ${nuevos.length} nuevos` +
+    (omitidos.length ? `, ${omitidos.length} ya cargados` : ''))
   for (const r of p.items) {
     const alias = r.siigoName && normalizarNombre(r.siigoName) !== r.name ? `  (Siigo: ${r.siigoName})` : ''
-    console.log(`   ${r.name.padEnd(34)} ${String(r.cedula).padStart(11)}  ${fmt(r.amount).padStart(12)}  ${String(r.status).padEnd(16)}${alias}`)
+    // Mismo empleado y quincena pero otro monto: puede ser una correccion que
+    // toca aplicar a mano (el script no pisa lo que ya esta escrito).
+    const nota = r.skip && r.skip.amount !== r.amount ? `  <-- OJO: cargado ${fmt(r.skip.amount)}` : ''
+    console.log(`   ${r.skip ? 'SKIP ' : 'NUEVO'} ${r.name.padEnd(34)} ${String(r.cedula).padStart(11)}  ${fmt(r.amount).padStart(12)}  ${String(r.status).padEnd(16)}${alias}${nota}`)
   }
-  console.log(`   ${'TOTAL'.padEnd(34)} ${''.padStart(11)}  ${fmt(total).padStart(12)}\n`)
+  console.log(`   ${'      A ESCRIBIR'.padEnd(40)} ${fmt(total).padStart(12)}\n`)
 }
-console.log(`TOTAL GENERAL: ${plan.reduce((s, p) => s + p.items.length, 0)} registros, ${fmt(granTotal)}\n`)
+console.log(`TOTAL GENERAL: ${granCount} registros a escribir, ${fmt(granTotal)}` +
+  (granSkip ? `  (${granSkip} omitidos por estar ya cargados)` : '') + '\n')
+if (granCount === 0) { console.log('No hay nada nuevo que cargar.'); process.exit(0) }
 
 if (!APPLY) { console.log('(dry-run: no se escribió nada)'); process.exit(0) }
 
 for (const p of plan) {
+  const nuevos = p.items.filter((r) => !r.skip)
+  if (!nuevos.length) continue
   const batch = db.batch()
   const now = Timestamp.now()
-  for (const r of p.items) {
+  for (const r of nuevos) {
     batch.set(p.ref.collection('transactions').doc(), {
       concept: `${p.cfg.conceptPrefix} Q${half} ${PERIOD_LABEL} — ${r.name}`,
       category: p.cfg.category,
@@ -230,6 +250,6 @@ for (const p of plan) {
     })
   }
   await batch.commit()
-  console.log(`ESCRITO  ${p.label} — ${p.items.length} registros`)
+  console.log(`ESCRITO  ${p.label} — ${nuevos.length} registros`)
 }
 process.exit(0)
