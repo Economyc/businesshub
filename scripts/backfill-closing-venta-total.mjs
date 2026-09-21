@@ -39,7 +39,7 @@ const num = (v) => Number(v) || 0
 const COP = (n) => '$' + Math.round(Number(n) || 0).toLocaleString('es-CO')
 
 function computeVentaTotal(c) {
-  return num(c.qr) + num(c.datafono) + num(c.rappiVentas) + Math.max(num(c.efectivo) - num(c.ap), 0)
+  return num(c.qr) + num(c.datafono) + num(c.rappiVentas) + num(c.didiVentas) + Math.max(num(c.efectivo) - num(c.ap), 0)
 }
 
 // ───────── Init ─────────

@@ -76,6 +76,9 @@ export async function syncClosingTransactions(
     { amount: closing.datafono ?? 0, concept: `Ventas Datáfono - ${formatClosingDate(closing.date)}`, category: 'Ventas', type: 'income', status: 'paid' },
     { amount: closing.qr ?? 0, concept: `Ventas QR - ${formatClosingDate(closing.date)}`, category: 'Ventas', type: 'income', status: 'paid' },
     { amount: closing.rappiVentas ?? 0, concept: `Ventas Rappi - ${formatClosingDate(closing.date)}`, category: 'Ventas', type: 'income', status: 'pending' },
+    // DiDi sólo la operan algunas sedes; en las demás el monto es 0 y el filtro de
+    // más abajo evita crear la transacción, así que no hace falta condicionar por empresa.
+    { amount: closing.didiVentas ?? 0, concept: `Ventas Didi - ${formatClosingDate(closing.date)}`, category: 'Ventas', type: 'income', status: 'pending' },
     { amount: closing.propinas ?? 0, concept: `Propinas - ${formatClosingDate(closing.date)}`, category: 'Propinas', type: 'income', status: 'paid' },
     { amount: closing.gastos ?? 0, concept: `Gastos cierre - ${formatClosingDate(closing.date)}`, category: 'Gastos Operacionales', type: 'expense', status: 'paid' },
   ]

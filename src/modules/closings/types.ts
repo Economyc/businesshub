@@ -6,6 +6,7 @@ export interface Closing extends BaseEntity {
   qr: number
   datafono: number
   rappiVentas: number
+  didiVentas: number
   efectivo: number
   ventaTotal: number
   propinas: number

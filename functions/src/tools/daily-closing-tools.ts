@@ -13,11 +13,12 @@ function formatClosing(c: Record<string, unknown>) {
   const qr = Number(c.qr) || 0
   const datafono = Number(c.datafono) || 0
   const rappiVentas = Number(c.rappiVentas) || 0
+  const didiVentas = Number(c.didiVentas) || 0
   const efectivo = Number(c.efectivo) || 0
   const propinas = Number(c.propinas) || 0
   const gastos = Number(c.gastos) || 0
-  // Fórmula canónica: QR + Datáfono + Rappi + efectivo neto (efectivo − apertura, sin negativos).
-  const ventaTotal = Number(c.ventaTotal) || qr + datafono + rappiVentas + Math.max(efectivo - ap, 0)
+  // Fórmula canónica: QR + Datáfono + Rappi + DiDi + efectivo neto (efectivo − apertura, sin negativos).
+  const ventaTotal = Number(c.ventaTotal) || qr + datafono + rappiVentas + didiVentas + Math.max(efectivo - ap, 0)
   return {
     id: c.id,
     date: c.date,
@@ -25,6 +26,7 @@ function formatClosing(c: Record<string, unknown>) {
     qr,
     datafono,
     rappiVentas,
+    didiVentas,
     efectivo,
     ventaTotal,
     propinas,
@@ -39,7 +41,7 @@ export function createDailyClosingTools(companyId: string) {
   return {
     getDailyClosings: tool({
       description:
-        'Lista los cierres de caja diarios en un rango de fechas. Cada cierre incluye venta por método de pago (AP, QR, datáfono, Rappi, efectivo), propinas y gastos del día.',
+        'Lista los cierres de caja diarios en un rango de fechas. Cada cierre incluye venta por método de pago (AP, QR, datáfono, Rappi, DiDi, efectivo), propinas y gastos del día.',
       parameters: z.object({
         startDate: z.string().describe('Fecha inicio (YYYY-MM-DD)'),
         endDate: z.string().describe('Fecha fin (YYYY-MM-DD)'),
@@ -56,13 +58,14 @@ export function createDailyClosingTools(companyId: string) {
             acc.qr += c.qr
             acc.datafono += c.datafono
             acc.rappiVentas += c.rappiVentas
+            acc.didiVentas += c.didiVentas
             acc.efectivo += c.efectivo
             acc.ventaTotal += c.ventaTotal
             acc.propinas += c.propinas
             acc.gastos += c.gastos
             return acc
           },
-          { ap: 0, qr: 0, datafono: 0, rappiVentas: 0, efectivo: 0, ventaTotal: 0, propinas: 0, gastos: 0 },
+          { ap: 0, qr: 0, datafono: 0, rappiVentas: 0, didiVentas: 0, efectivo: 0, ventaTotal: 0, propinas: 0, gastos: 0 },
         )
         return {
           count: filtered.length,
@@ -162,6 +165,7 @@ export function createDailyClosingTools(companyId: string) {
         qr: z.number().describe('Monto pagado vía QR'),
         datafono: z.number().describe('Monto pagado vía datáfono'),
         rappiVentas: z.number().describe('Ventas Rappi'),
+        didiVentas: z.number().optional().describe('Ventas DiDi (sólo sedes que operan DiDi)'),
         efectivo: z.number().describe('Ventas en efectivo'),
         propinas: z.number().describe('Total de propinas'),
         gastos: z.number().describe('Gastos del día'),

@@ -14,6 +14,8 @@ function formatDate(dateStr: string): string {
 interface ClosingReceiptProps {
   closing: Closing | null
   companyName: string
+  /** La sede opera DiDi. Si un cierre viejo trae monto, la línea se muestra igual. */
+  showDidi?: boolean
   onClose: () => void
 }
 
@@ -34,7 +36,7 @@ function Separator({ double }: { double?: boolean }) {
   )
 }
 
-export function ClosingReceipt({ closing, companyName, onClose }: ClosingReceiptProps) {
+export function ClosingReceipt({ closing, companyName, showDidi, onClose }: ClosingReceiptProps) {
   useEffect(() => {
     if (!closing) return
     function handleKey(e: KeyboardEvent) {
@@ -109,6 +111,9 @@ export function ClosingReceipt({ closing, companyName, onClose }: ClosingReceipt
                 <ReceiptLine label="QR" amount={closing.qr ?? 0} />
                 <ReceiptLine label="Datafono" amount={closing.datafono ?? 0} />
                 <ReceiptLine label="Rappi" amount={closing.rappiVentas ?? 0} danger />
+                {(showDidi || (closing.didiVentas ?? 0) > 0) && (
+                  <ReceiptLine label="Didi" amount={closing.didiVentas ?? 0} danger />
+                )}
                 <ReceiptLine label="Efectivo" amount={closing.efectivo ?? 0} />
               </div>
 

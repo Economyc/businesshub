@@ -22,6 +22,7 @@ import { TAB_IDS } from '@/core/config/access-registry'
 import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { usePaginatedClosings, useClosings } from '../hooks'
 import { closingService } from '../services'
+import { companyHasDidi } from '../channels'
 import { computeVentaTotal } from '../compute'
 import { ClosingForm } from './closing-form'
 import { ClosingReceipt } from './closing-receipt'
@@ -40,8 +41,9 @@ function formatShortDate(dateStr: string): string {
 }
 
 // Cuadre: el cierre cuadra si el ventaTotal guardado coincide con la fórmula canónica
-// (QR + Datáfono + Rappi + efectivo neto). Los cierres viejos sin Rappi quedan marcados
-// como descuadre hasta recalcular su ventaTotal.
+// (QR + Datáfono + Rappi + DiDi + efectivo neto). Los cierres viejos sin Rappi quedan
+// marcados como descuadre hasta recalcular su ventaTotal; los que no tienen DiDi suman 0,
+// así que no se ven afectados.
 function isReconciled(c: Closing): boolean {
   return Math.abs(computeVentaTotal(c) - (c.ventaTotal ?? 0)) < 1
 }
@@ -171,12 +173,13 @@ function buildMonthOptions(count = 18): SelectOption[] {
 
 interface AccumulatedTabProps {
   canEdit: boolean
+  showDidi: boolean
   onEdit: (c: Closing) => void
   onDelete: (c: Closing) => void
   onRowClick: (c: Closing) => void
 }
 
-function AccumulatedTab({ canEdit, onEdit, onDelete, onRowClick }: AccumulatedTabProps) {
+function AccumulatedTab({ canEdit, showDidi, onEdit, onDelete, onRowClick }: AccumulatedTabProps) {
   const { data: closings, loading } = useClosings()
   const monthOptions = useMemo(() => buildMonthOptions(), [])
   const [month, setMonth] = useState(() => monthValue(new Date()))
@@ -198,17 +201,34 @@ function AccumulatedTab({ canEdit, onEdit, onDelete, onRowClick }: AccumulatedTa
         ap: acc.ap + (c.ap ?? 0),
         qr: acc.qr + (c.qr ?? 0),
         rappiVentas: acc.rappiVentas + (c.rappiVentas ?? 0),
+        didiVentas: acc.didiVentas + (c.didiVentas ?? 0),
         propinas: acc.propinas + (c.propinas ?? 0),
         gastos: acc.gastos + (c.gastos ?? 0),
         entregaEfectivo: acc.entregaEfectivo + (c.entregaEfectivo ?? 0),
         totalFaltante: acc.totalFaltante + (c.totalFaltante ?? 0),
         totalSobrante: acc.totalSobrante + (c.totalSobrante ?? 0),
       }),
-      { ventaTotal: 0, efectivo: 0, datafono: 0, ap: 0, qr: 0, rappiVentas: 0, propinas: 0, gastos: 0, entregaEfectivo: 0, totalFaltante: 0, totalSobrante: 0 },
+      { ventaTotal: 0, efectivo: 0, datafono: 0, ap: 0, qr: 0, rappiVentas: 0, didiVentas: 0, propinas: 0, gastos: 0, entregaEfectivo: 0, totalFaltante: 0, totalSobrante: 0 },
     )
   }, [monthClosings])
 
   const isCurrentMonth = month === monthValue(new Date())
+
+  const breakdownStats = useMemo(() => {
+    const stats: { label: string; value: number; icon: LucideIcon }[] = [
+      { label: 'QR', value: totals.qr, icon: QrCode },
+      { label: 'Rappi', value: totals.rappiVentas, icon: Bike },
+    ]
+    if (showDidi || totals.didiVentas > 0) {
+      stats.push({ label: 'Didi', value: totals.didiVentas, icon: Bike })
+    }
+    stats.push(
+      { label: 'Propinas', value: totals.propinas, icon: Coins },
+      { label: 'Gastos', value: totals.gastos, icon: Receipt },
+      { label: 'Efectivo Entregado', value: totals.entregaEfectivo, icon: HandCoins },
+    )
+    return stats
+  }, [totals, showDidi])
 
   const columns = [
     {
@@ -294,12 +314,13 @@ function AccumulatedTab({ canEdit, onEdit, onDelete, onRowClick }: AccumulatedTa
             <div className="px-6 py-4 border-b border-border">
               <span className="text-caption font-semibold text-mid-gray uppercase tracking-wider">Otros medios y movimientos del mes</span>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-px bg-border/60">
-              <BreakdownStat label="QR" value={totals.qr} icon={QrCode} />
-              <BreakdownStat label="Rappi" value={totals.rappiVentas} icon={Bike} />
-              <BreakdownStat label="Propinas" value={totals.propinas} icon={Coins} />
-              <BreakdownStat label="Gastos" value={totals.gastos} icon={Receipt} />
-              <BreakdownStat label="Efectivo Entregado" value={totals.entregaEfectivo} icon={HandCoins} />
+            {/* El contenedor pinta las separaciones con gap-px sobre fondo de borde:
+                una celda vacía se vería como un bloque gris, así que las columnas
+                cambian con la cantidad de stats (5 → 5 columnas, 6 → dos filas de 3). */}
+            <div className={`grid grid-cols-2 gap-px bg-border/60 ${breakdownStats.length === 6 ? 'md:grid-cols-3' : 'md:grid-cols-5'}`}>
+              {breakdownStats.map((stat) => (
+                <BreakdownStat key={stat.label} label={stat.label} value={stat.value} icon={stat.icon} />
+              ))}
             </div>
           </div>
 
@@ -336,6 +357,7 @@ function AccumulatedTab({ canEdit, onEdit, onDelete, onRowClick }: AccumulatedTa
 
 export function ClosingList({ accumulatedOwnerOnly = false }: { accumulatedOwnerOnly?: boolean } = {}) {
   const { selectedCompany } = useCompany()
+  const hasDidi = companyHasDidi(selectedCompany?.id)
   const { can, canAccessTab, isOwner } = usePermissions()
   const canEdit = can('closings', 'create')
   const visibleTabs = useMemo(
@@ -554,6 +576,7 @@ export function ClosingList({ accumulatedOwnerOnly = false }: { accumulatedOwner
       {tab === 'accumulated' && (
         <AccumulatedTab
           canEdit={canEdit}
+          showDidi={hasDidi}
           onEdit={(c) => { setEditingClosing(c); setTab('form') }}
           onDelete={(c) => setDeleteTarget(c)}
           onRowClick={(c) => setReceiptClosing(c)}
@@ -571,6 +594,7 @@ export function ClosingList({ accumulatedOwnerOnly = false }: { accumulatedOwner
       <ClosingReceipt
         closing={receiptClosing}
         companyName={selectedCompany?.name ?? ''}
+        showDidi={hasDidi}
         onClose={() => setReceiptClosing(null)}
       />
     </PageTransition>

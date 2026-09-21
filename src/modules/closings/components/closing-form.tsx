@@ -2,13 +2,18 @@ import { useState, useEffect } from 'react'
 import { CurrencyInput } from '@/core/ui/currency-input'
 import { DateInput } from '@/core/ui/date-input'
 import { useFirestoreMutation } from '@/core/query/use-mutation'
+import { useCompany } from '@/core/hooks/use-company'
 import { closingService } from '../services'
+import { companyHasDidi } from '../channels'
 import { computeVentaTotal } from '../compute'
 import type { Closing } from '../types'
 
 const inputClass =
   'w-full px-3 py-2.5 rounded-lg border border-input-border bg-input-bg text-body text-graphite placeholder:text-mid-gray/60 focus:border-input-focus focus:ring-[3px] focus:ring-graphite/5 outline-none transition-all duration-200'
 const labelClass = 'block text-caption uppercase tracking-wider font-semibold text-mid-gray mb-1'
+
+// Rappi y DiDi entran a la Venta Total pero la plataforma las consigna después.
+const DELIVERY_NOTE = 'Suma a la Venta Total · se liquida aparte'
 
 interface ClosingFormProps {
   onSaved: () => void
@@ -22,6 +27,7 @@ const emptyForm = {
   qr: '',
   datafono: '',
   rappiVentas: '',
+  didiVentas: '',
   efectivo: '',
   propinas: '',
   gastos: '',
@@ -39,6 +45,7 @@ function closingToForm(c: Closing) {
     qr: c.qr ? String(c.qr) : '',
     datafono: c.datafono ? String(c.datafono) : '',
     rappiVentas: c.rappiVentas ? String(c.rappiVentas) : '',
+    didiVentas: c.didiVentas ? String(c.didiVentas) : '',
     efectivo: c.efectivo ? String(c.efectivo) : '',
     propinas: c.propinas ? String(c.propinas) : '',
     gastos: c.gastos ? String(c.gastos) : '',
@@ -52,6 +59,8 @@ function closingToForm(c: Closing) {
 
 export function ClosingForm({ onSaved, editing, onCancelEdit }: ClosingFormProps) {
   const [success, setSuccess] = useState(false)
+  const { selectedCompany } = useCompany()
+  const hasDidi = companyHasDidi(selectedCompany?.id)
 
   const createMutation = useFirestoreMutation(
     'closings',
@@ -81,6 +90,7 @@ export function ClosingForm({ onSaved, editing, onCancelEdit }: ClosingFormProps
     qr: Number(form.qr || 0),
     datafono: Number(form.datafono || 0),
     rappiVentas: Number(form.rappiVentas || 0),
+    didiVentas: Number(form.didiVentas || 0),
     efectivo: Number(form.efectivo || 0),
     ap: Number(form.ap || 0),
   })
@@ -93,6 +103,7 @@ export function ClosingForm({ onSaved, editing, onCancelEdit }: ClosingFormProps
       qr: Number(form.qr || 0),
       datafono: Number(form.datafono || 0),
       rappiVentas: Number(form.rappiVentas || 0),
+      didiVentas: Number(form.didiVentas || 0),
       efectivo: Number(form.efectivo || 0),
       ventaTotal,
       propinas: Number(form.propinas || 0),
@@ -171,10 +182,22 @@ export function ClosingForm({ onSaved, editing, onCancelEdit }: ClosingFormProps
           {currencyField('AP (Apertura)', 'ap')}
           {currencyField('QR', 'qr')}
           {currencyField('Datáfono', 'datafono')}
-          {currencyField('Rappi', 'rappiVentas', { danger: true, note: 'Suma a la Venta Total · se liquida aparte' })}
-          <div className="col-span-2">
-            {currencyField('Efectivo en Caja', 'efectivo')}
-          </div>
+          {/* Con DiDi son 6 campos: Efectivo deja de ser ancho completo para que
+              Rappi y DiDi queden emparejados y no sobre media fila vacía. */}
+          {hasDidi ? (
+            <>
+              {currencyField('Efectivo en Caja', 'efectivo')}
+              {currencyField('Rappi', 'rappiVentas', { danger: true, note: DELIVERY_NOTE })}
+              {currencyField('Didi', 'didiVentas', { danger: true, note: DELIVERY_NOTE })}
+            </>
+          ) : (
+            <>
+              {currencyField('Rappi', 'rappiVentas', { danger: true, note: DELIVERY_NOTE })}
+              <div className="col-span-2">
+                {currencyField('Efectivo en Caja', 'efectivo')}
+              </div>
+            </>
+          )}
         </div>
 
         {/* Venta Total - highlighted result */}

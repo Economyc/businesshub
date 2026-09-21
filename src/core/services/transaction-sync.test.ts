@@ -81,6 +81,7 @@ describe('syncClosingTransactions', () => {
     datafono: 200000,
     qr: 50000,
     rappiVentas: 80000,
+    didiVentas: 0,
     propinas: 15000,
     gastos: 30000,
     cajaMenor: 0,
@@ -147,6 +148,27 @@ describe('syncClosingTransactions', () => {
     })
 
     const setCall = mockBatchSet.mock.calls[0][1]
+    expect(setCall.status).toBe('pending')
+    expect(setCall.category).toBe('Ventas')
+  })
+
+  it('sets Didi as "pending" status', async () => {
+    await syncClosingTransactions('company1', 'closing1', {
+      ...baseClosing,
+      efectivo: 0,
+      ap: 0,
+      datafono: 0,
+      qr: 0,
+      propinas: 0,
+      gastos: 0,
+      rappiVentas: 0,
+      didiVentas: 60000,  // only Didi
+    })
+
+    expect(mockBatchSet).toHaveBeenCalledTimes(1)
+    const setCall = mockBatchSet.mock.calls[0][1]
+    expect(setCall.concept).toBe('Ventas Didi - 15/06/2024')
+    expect(setCall.amount).toBe(60000)
     expect(setCall.status).toBe('pending')
     expect(setCall.category).toBe('Ventas')
   })
