@@ -25,6 +25,9 @@ const PROFILES = 'faceProfiles';
 const PUNCHES = 'attendancePunches';
 const TZ = 'America/Bogota';
 const MAX_PHOTO_BYTES = 400 * 1024;
+// Explicito: desplegado con gcloud (no firebase-tools) el runtime no trae
+// FIREBASE_CONFIG y `bucket()` sin nombre falla.
+const BUCKET = 'empresas-bf.firebasestorage.app';
 async function assertCompanyMember(uid, companyId) {
     const snap = await db.collection('companies').doc(companyId).collection('members').doc(uid).get();
     if (!snap.exists || snap.data().status !== 'active') {
@@ -100,6 +103,10 @@ export const attendancePunch = onCall({ region: 'us-central1', memory: '512MiB',
     const profileRef = profilesRef.doc(match.employeeId);
     const punchRef = db.collection('companies').doc(companyId).collection(PUNCHES).doc();
     const photoPath = `attendance/${companyId}/${date}/${punchRef.id}.jpg`;
+    const photoFile = getStorage().bucket(BUCKET).file(photoPath);
+    // La foto va antes que la marcacion: una marcacion nunca queda sin su
+    // evidencia. Si al final no se registra (duplicado), se borra.
+    await photoFile.save(photo, { contentType: 'image/jpeg', resumable: false });
     // Transaccion: dos taps seguidos en la tablet no pueden dejar dos entradas.
     const outcome = await db.runTransaction(async (tx) => {
         const snap = await tx.get(profileRef);
@@ -134,14 +141,10 @@ export const attendancePunch = onCall({ region: 'us-central1', memory: '512MiB',
         tx.update(profileRef, update);
         return { duplicate: false, type, atMs: nowMs };
     });
+    if (!outcome || outcome.duplicate)
+        await photoFile.delete().catch(() => undefined);
     if (!outcome)
         return { matched: false };
-    if (!outcome.duplicate) {
-        await getStorage().bucket().file(photoPath).save(photo, {
-            contentType: 'image/jpeg',
-            resumable: false,
-        });
-    }
     return {
         matched: true,
         duplicate: outcome.duplicate,
