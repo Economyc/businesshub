@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Camera, CheckCircle2, Loader2, XCircle } from 'lucide-react'
+import { Camera, CheckCircle2, Loader2, MapPin, XCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { CompanyLogo } from '@/core/ui/company-logo'
 import { cn } from '@/lib/utils'
@@ -130,7 +130,12 @@ function Kiosk({
       <header className="grid grid-cols-1 items-center gap-4 border-b border-border/60 bg-card-bg px-6 py-4 sm:grid-cols-3">
         <div className="min-w-0 text-center sm:text-left">
           <p className="truncate text-heading font-medium text-dark-graphite">{info.companyName}</p>
-          {info.location && <p className="truncate text-body text-mid-gray">Sede {info.location}</p>}
+          {info.location && (
+            <p className="mt-1 flex items-center justify-center gap-1 text-body text-mid-gray sm:justify-start">
+              <MapPin size={14} strokeWidth={1.5} className="shrink-0" />
+              <span className="truncate">{info.location}</span>
+            </p>
+          )}
         </div>
         <div className="flex justify-center">
           {logo ? (
