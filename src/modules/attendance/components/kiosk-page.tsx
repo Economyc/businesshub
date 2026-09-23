@@ -129,10 +129,10 @@ function Kiosk({
     <div className="flex min-h-dvh flex-col bg-surface">
       <header className="grid grid-cols-1 items-center gap-4 border-b border-border/60 bg-card-bg px-6 py-4 sm:grid-cols-3">
         <div className="min-w-0 text-center sm:text-left">
-          <p className="truncate text-heading font-medium text-dark-graphite">{info.companyName}</p>
+          <p className="truncate text-heading font-semibold text-dark-graphite">{info.companyName}</p>
           {info.location && (
-            <p className="mt-1 flex items-center justify-center gap-1 text-body text-mid-gray sm:justify-start">
-              <MapPin size={14} strokeWidth={1.5} className="shrink-0" />
+            <p className="mt-1 flex items-center justify-center gap-1 text-body font-semibold text-graphite sm:justify-start">
+              <MapPin size={16} strokeWidth={2} className="shrink-0" />
               <span className="truncate">{info.location}</span>
             </p>
           )}
