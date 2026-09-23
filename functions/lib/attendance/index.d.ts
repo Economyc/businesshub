@@ -4,6 +4,7 @@ export declare const attendanceKioskLink: import("firebase-functions/v2/https").
 }>, unknown>;
 export declare const attendanceKioskInfo: import("firebase-functions/v2/https").CallableFunction<any, Promise<{
     companyName: string;
+    location: string | null;
     logo: string | null;
     logoThumb: string | null;
     color: string | null;

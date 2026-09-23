@@ -36,6 +36,8 @@ export interface AttendancePunch {
 
 export interface KioskInfo {
   companyName: string
+  /** Sede (campo `location` de la company). */
+  location: string | null
   logo: string | null
   logoThumb: string | null
   color: string | null

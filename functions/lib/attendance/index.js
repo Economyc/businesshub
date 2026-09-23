@@ -75,7 +75,13 @@ export const attendanceKioskInfo = onCall({ region: 'us-central1', memory: '256M
     const companyId = await companyFromToken((request.data ?? {}).token);
     const snap = await db.collection('companies').doc(companyId).get();
     const c = (snap.data() ?? {});
-    return { companyName: c.name ?? '', logo: c.logo ?? null, logoThumb: c.logoThumb ?? null, color: c.color ?? null };
+    return {
+        companyName: c.name ?? '',
+        location: c.location ?? null,
+        logo: c.logo ?? null,
+        logoThumb: c.logoThumb ?? null,
+        color: c.color ?? null,
+    };
 });
 // ── Link publico: registrar una marcacion ────────────────────────────────────
 export const attendancePunch = onCall({ region: 'us-central1', memory: '512MiB', timeoutSeconds: 30, cors: CALLABLE_CORS_ORIGINS }, async (request) => {

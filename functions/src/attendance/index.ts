@@ -104,8 +104,14 @@ export const attendanceKioskInfo = onCall(
   async (request) => {
     const companyId = await companyFromToken((request.data ?? {}).token)
     const snap = await db.collection('companies').doc(companyId).get()
-    const c = (snap.data() ?? {}) as { name?: string; logo?: string; logoThumb?: string; color?: string }
-    return { companyName: c.name ?? '', logo: c.logo ?? null, logoThumb: c.logoThumb ?? null, color: c.color ?? null }
+    const c = (snap.data() ?? {}) as { name?: string; location?: string; logo?: string; logoThumb?: string; color?: string }
+    return {
+      companyName: c.name ?? '',
+      location: c.location ?? null,
+      logo: c.logo ?? null,
+      logoThumb: c.logoThumb ?? null,
+      color: c.color ?? null,
+    }
   },
 )
 

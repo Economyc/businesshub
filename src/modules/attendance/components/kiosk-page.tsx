@@ -8,7 +8,9 @@ import { cn } from '@/lib/utils'
 import { useCamera, captureFrame, canvasToJpegBase64, CAMERA_ERROR } from '../camera'
 import { describeFace, loadFaceApi, DESCRIBE_ERROR } from '../face'
 import { attendanceService, formatTimeBogota } from '../services'
-import { PUNCH_TYPE_LABEL, type PunchType } from '../types'
+import { PUNCH_TYPE_LABEL, type KioskInfo, type PunchType } from '../types'
+import logoBlue from '../assets/logo-blue-smash.png'
+import logoFilipo from '../assets/logo-filipo.png'
 
 // Pantalla publica de marcacion (`/marcar/:token`). Se deja abierta en la tablet
 // o PC fijo del local: no tiene sesion ni menu, solo la camara y "Tomar foto".
@@ -17,6 +19,19 @@ import { PUNCH_TYPE_LABEL, type PunchType } from '../types'
 const RESULT_MS = 4000
 /** Intentos fallidos seguidos antes de sugerir avisar al administrador. */
 const FAILS_BEFORE_HELP = 3
+
+// Logo en texto de cada marca, por la primera palabra del nombre de la company
+// ("Blue Smash Brgr", "Filipo"). `logoClass` iguala el peso visual: el de Blue es
+// un bloque de tres lineas y el de Filipo una sola palabra ancha.
+const BRAND_LOGOS: Record<string, { src: string; className: string }> = {
+  blue: { src: logoBlue, className: 'h-16' },
+  filipo: { src: logoFilipo, className: 'h-10' },
+}
+
+function brandLogo(companyName: string) {
+  const first = companyName.trim().split(/\s+/)[0] ?? ''
+  return BRAND_LOGOS[first.toLowerCase()] ?? null
+}
 
 type Result =
   | { kind: 'ok'; name: string; type: PunchType; at: Date; duplicate: boolean }
@@ -59,7 +74,7 @@ function Kiosk({
   modelsError,
 }: {
   token: string
-  info: { companyName: string; logo: string | null; logoThumb: string | null; color: string | null }
+  info: KioskInfo
   modelsReady: boolean
   modelsError: boolean
 }) {
@@ -108,18 +123,23 @@ function Kiosk({
   }
 
   const ready = status === 'ready' && modelsReady
+  const logo = brandLogo(info.companyName)
 
   return (
     <div className="flex min-h-dvh flex-col bg-surface">
-      <header className="flex items-center justify-between gap-4 border-b border-border/60 bg-card-bg px-6 py-4">
-        <div className="flex min-w-0 items-center gap-4">
-          <CompanyLogo company={{ name: info.companyName, color: info.color ?? undefined, logo: info.logo ?? undefined, logoThumb: info.logoThumb ?? undefined }} size="xl" />
-          <div className="min-w-0">
-            <p className="truncate text-heading font-medium text-dark-graphite">{info.companyName}</p>
-            <p className="text-body text-mid-gray">Marcación de entrada y salida</p>
-          </div>
+      <header className="grid grid-cols-1 items-center gap-4 border-b border-border/60 bg-card-bg px-6 py-4 sm:grid-cols-3">
+        <div className="min-w-0 text-center sm:text-left">
+          <p className="truncate text-heading font-medium text-dark-graphite">{info.companyName}</p>
+          {info.location && <p className="truncate text-body text-mid-gray">Sede {info.location}</p>}
         </div>
-        <div className="text-right">
+        <div className="flex justify-center">
+          {logo ? (
+            <img src={logo.src} alt={info.companyName} className={cn('w-auto dark:invert', logo.className)} />
+          ) : (
+            <CompanyLogo company={{ name: info.companyName, color: info.color ?? undefined, logo: info.logo ?? undefined, logoThumb: info.logoThumb ?? undefined }} size="xl" />
+          )}
+        </div>
+        <div className="text-center sm:text-right">
           <p className="text-kpi font-semibold tabular-nums text-dark-graphite">{formatTimeBogota(now)}</p>
           <p className="text-body capitalize text-mid-gray">
             {new Intl.DateTimeFormat('es-CO', { timeZone: 'America/Bogota', weekday: 'long', day: 'numeric', month: 'long' }).format(now)}
