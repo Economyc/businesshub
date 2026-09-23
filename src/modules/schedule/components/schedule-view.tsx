@@ -53,6 +53,7 @@ import { NoveltyTypeManager } from './novelty-type-manager'
 import { NOVELTY_COLORS } from './novelty-colors'
 import { WeekNav } from './week-nav'
 import { ScheduleExport } from './schedule-export'
+import { ScheduleRangeExport } from './schedule-range-export'
 
 // Tope de horas semanales para la alerta blanda (referencia legal Colombia).
 // Configurable a futuro por empresa; por ahora constante.
@@ -150,6 +151,7 @@ export function ScheduleView({ allowedDepartments }: { allowedDepartments?: stri
   )
 
   const groups = useMemo(() => groupByDepartment(employees, allowedDepartments), [employees, allowedDepartments])
+  const [rangeExportOpen, setRangeExportOpen] = useState(false)
 
   // Índice empId|date → turnos, para pintar cada celda en O(1).
   const byCell = useMemo(() => {
@@ -394,6 +396,7 @@ export function ScheduleView({ allowedDepartments }: { allowedDepartments?: stri
         <ScheduleExport
           targetRef={gridRef}
           fileName={`horario-${weekKey}`}
+          onRangeExport={() => setRangeExportOpen(true)}
           getExcelSheets={() =>
             buildScheduleSheet({
               weekName: `Semana ${weekLabel(monday)}`,
@@ -461,11 +464,14 @@ export function ScheduleView({ allowedDepartments }: { allowedDepartments?: stri
         >
         <div className="min-w-[760px] xl:min-w-[940px] 2xl:min-w-[1100px]">
           {/* Fila de días */}
-          <div className={`grid border-b border-border/60 ${gridColsClass}`}>
-            <div className="sticky left-0 bg-card-bg px-3 py-2 text-body font-semibold text-mid-gray">Empleado</div>
+          {/* Fondo propio (bone) para separarla de la cabecera de la tarjeta y de la
+              franja del departamento. El sticky lleva el mismo fondo o se veria
+              el contenido pasar por debajo al hacer scroll horizontal. */}
+          <div className={`grid border-b border-border/60 bg-bone ${gridColsClass}`}>
+            <div className="sticky left-0 bg-bone px-3 py-2 text-body font-semibold text-graphite">Empleado</div>
             {dates.map((d, i) => (
               <div key={d} className="px-3 py-2 text-center">
-                <p className="text-body font-semibold text-mid-gray">{WEEKDAY_LABELS[i]}</p>
+                <p className="text-body font-semibold text-graphite">{WEEKDAY_LABELS[i]}</p>
                 <p className="text-body text-graphite">{parseDateStr(d).getDate()}</p>
               </div>
             ))}
@@ -615,6 +621,13 @@ export function ScheduleView({ allowedDepartments }: { allowedDepartments?: stri
         onClose={() => setNoveltyTypesOpen(false)}
         noveltyTypes={noveltyTypes}
         onChanged={() => { /* React Query invalida solo vía mutación */ }}
+      />
+      <ScheduleRangeExport
+        open={rangeExportOpen}
+        onClose={() => setRangeExportOpen(false)}
+        groups={groups}
+        defaultFrom={dates[0]}
+        defaultTo={dates[6]}
       />
     </div>
   )

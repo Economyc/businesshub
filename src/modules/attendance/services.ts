@@ -1,9 +1,10 @@
-import { Timestamp, where, setDoc, deleteDoc } from 'firebase/firestore'
+import { Timestamp, where, setDoc, deleteDoc, deleteField, getDoc } from 'firebase/firestore'
 import { httpsCallable } from 'firebase/functions'
 import { getDownloadURL, ref as storageRef } from 'firebase/storage'
 import { getAppFunctions, getAppStorage } from '@/core/firebase/config'
-import { companyDoc, fetchCollection } from '@/core/firebase/helpers'
-import type { AttendancePunch, FaceProfile, KioskInfo, PunchResponse } from './types'
+import { companyDoc, createDocument, fetchCollection, updateDocument } from '@/core/firebase/helpers'
+import type { AttendanceConfig, AttendancePunch, FaceProfile, KioskInfo, PunchResponse, PunchType } from './types'
+import type { Novelty } from '@/modules/schedule/types'
 import type { ScheduledShift } from './shifts'
 
 const PROFILES = 'faceProfiles'
@@ -34,6 +35,53 @@ export const attendanceService = {
    *  campo: no necesita indice compuesto. El filtro por empleado va en el cliente. */
   getPunchesByRange: (companyId: string, from: string, to: string) =>
     fetchCollection<AttendancePunch>(companyId, PUNCHES, where('date', '>=', from), where('date', '<=', to)),
+
+  // ── Correcciones a mano (todas dejan quien y por que) ──
+  addManualPunch: (
+    companyId: string,
+    data: { employeeId: string; employeeName: string; type: PunchType; at: Date; reason: string; by: string },
+  ) =>
+    createDocument(companyId, PUNCHES, {
+      employeeId: data.employeeId,
+      employeeName: data.employeeName,
+      type: data.type,
+      at: Timestamp.fromDate(data.at),
+      date: toBogotaDate(data.at),
+      photoPath: '',
+      source: 'manual',
+      createdBy: data.by,
+      reason: data.reason,
+    }),
+
+  editPunchTime: (companyId: string, punch: AttendancePunch, at: Date, reason: string, by: string) =>
+    updateDocument(companyId, PUNCHES, punch.id, {
+      at: Timestamp.fromDate(at),
+      date: toBogotaDate(at),
+      editedBy: by,
+      editReason: reason,
+      // Se conserva la hora de la primera version, no la de cada edicion.
+      originalAt: punch.originalAt ?? punch.at,
+    }),
+
+  voidPunch: (companyId: string, punchId: string, reason: string, by: string) =>
+    updateDocument(companyId, PUNCHES, punchId, { voided: true, voidedBy: by, voidReason: reason }),
+
+  approveExtra: (companyId: string, inPunchId: string, by: string) =>
+    updateDocument(companyId, PUNCHES, inPunchId, { extraApprovedBy: by, extraApprovedAt: Timestamp.now() }),
+
+  revokeExtra: (companyId: string, inPunchId: string) =>
+    updateDocument(companyId, PUNCHES, inPunchId, { extraApprovedBy: deleteField(), extraApprovedAt: deleteField() }),
+
+  getNoveltiesByRange: (companyId: string, from: string, to: string) =>
+    fetchCollection<Novelty>(companyId, 'novelties', where('date', '>=', from), where('date', '<=', to)),
+
+  getConfig: async (companyId: string): Promise<AttendanceConfig> => {
+    const snap = await getDoc(companyDoc(companyId, 'attendanceConfig', 'main'))
+    return { scheduleOnlyEmployeeIds: [], ...(snap.data() as Partial<AttendanceConfig> | undefined) }
+  },
+
+  saveConfig: (companyId: string, config: AttendanceConfig) =>
+    setDoc(companyDoc(companyId, 'attendanceConfig', 'main'), config, { merge: true }),
 
   /** Turnos programados en Horarios entre dos fechas, para medir puntualidad. */
   getScheduledShifts: (companyId: string, from: string, to: string) =>
@@ -83,4 +131,9 @@ export function formatTimeBogota(d: Date): string {
   return new Intl.DateTimeFormat('es-CO', {
     timeZone: 'America/Bogota', hour: 'numeric', minute: '2-digit', hour12: true,
   }).format(d)
+}
+
+/** Fecha 'YYYY-MM-DD' + hora 'HH:mm' en hora de Colombia -> Date. */
+export function bogotaDateTime(date: string, time: string): Date {
+  return new Date(`${date}T${time}:00-05:00`)
 }

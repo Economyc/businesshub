@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useCompany } from '@/core/hooks/use-company'
 import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { attendanceService, todayBogota } from './services'
+import type { AttendanceConfig, AttendancePunch } from './types'
 
 export function useFaceProfiles() {
   const { selectedCompany } = useCompany()
@@ -72,4 +73,49 @@ export function useRemoveFaceProfile() {
   return useFirestoreMutation<string>('faceProfiles', (cid, employeeId) =>
     attendanceService.removeProfile(cid, employeeId),
   )
+}
+
+// Correcciones: invalidan `attendancePunches`, que por prefijo cubre todos los rangos.
+export function useAddManualPunch() {
+  return useFirestoreMutation<Parameters<typeof attendanceService.addManualPunch>[1]>(
+    'attendancePunches',
+    (cid, data) => attendanceService.addManualPunch(cid, data),
+  )
+}
+
+export function useEditPunchTime() {
+  return useFirestoreMutation<{ punch: AttendancePunch; at: Date; reason: string; by: string }>(
+    'attendancePunches',
+    (cid, { punch, at, reason, by }) => attendanceService.editPunchTime(cid, punch, at, reason, by),
+  )
+}
+
+export function useVoidPunch() {
+  return useFirestoreMutation<{ punchId: string; reason: string; by: string }>(
+    'attendancePunches',
+    (cid, { punchId, reason, by }) => attendanceService.voidPunch(cid, punchId, reason, by),
+  )
+}
+
+export function useApproveExtra() {
+  return useFirestoreMutation<{ inPunchId: string; by: string; approve: boolean }>(
+    'attendancePunches',
+    (cid, { inPunchId, by, approve }) =>
+      approve ? attendanceService.approveExtra(cid, inPunchId, by) : attendanceService.revokeExtra(cid, inPunchId),
+  )
+}
+
+export function useAttendanceConfig() {
+  const { selectedCompany } = useCompany()
+  const companyId = selectedCompany?.id
+  const { data, isLoading } = useQuery({
+    queryKey: ['firestore', companyId, 'attendanceConfig'],
+    queryFn: () => attendanceService.getConfig(companyId!),
+    enabled: !!companyId,
+  })
+  return { config: data ?? { scheduleOnlyEmployeeIds: [] }, loading: isLoading }
+}
+
+export function useSaveAttendanceConfig() {
+  return useFirestoreMutation<AttendanceConfig>('attendanceConfig', (cid, config) => attendanceService.saveConfig(cid, config))
 }

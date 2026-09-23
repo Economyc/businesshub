@@ -113,15 +113,23 @@ export const attendancePunch = onCall({ region: 'us-central1', memory: '512MiB',
     // La foto va antes que la marcacion: una marcacion nunca queda sin su
     // evidencia. Si al final no se registra (duplicado), se borra.
     await photoFile.save(photo, { contentType: 'image/jpeg', resumable: false });
+    // Ultimas marcaciones: ayer y hoy alcanzan (una entrada abierta caduca a las
+    // 18 h). Se lee la coleccion y no el `lastPunch*` del perfil porque un admin
+    // puede agregar, corregir o anular marcaciones a mano desde el panel.
+    const recentQuery = db.collection('companies').doc(companyId).collection(PUNCHES)
+        .where('date', 'in', [localDate(new Date(nowMs - 24 * 60 * 60 * 1000)), date]);
     // Transaccion: dos taps seguidos en la tablet no pueden dejar dos entradas.
     const outcome = await db.runTransaction(async (tx) => {
         const snap = await tx.get(profileRef);
         if (!snap.exists)
             return null;
         const p = snap.data();
-        const last = p.lastPunchType && p.lastPunchAt
-            ? { type: p.lastPunchType, atMs: p.lastPunchAt.toMillis() }
-            : null;
+        const recent = await tx.get(recentQuery);
+        const last = recent.docs
+            .map((d) => d.data())
+            .filter((x) => x.employeeId === match.employeeId && !x.voided && x.at.toMillis() <= nowMs)
+            .map((x) => ({ type: x.type, atMs: x.at.toMillis() }))
+            .sort((a, b) => b.atMs - a.atMs)[0] ?? null;
         if (isDuplicate(last, nowMs)) {
             return { duplicate: true, type: last.type, atMs: last.atMs };
         }

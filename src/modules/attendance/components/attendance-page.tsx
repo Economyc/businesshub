@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Check, Copy, ExternalLink, RefreshCw, ScanFace, Clock, Tablet, UserRound } from 'lucide-react'
+import { Check, Copy, ExternalLink, Percent, RefreshCw, ScanFace, Clock, Tablet, UserRound, type LucideIcon } from 'lucide-react'
 import { HoverHint } from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -7,23 +7,31 @@ import { PageHeader } from '@/core/ui/page-header'
 import { EmptyState } from '@/core/ui/empty-state'
 import { ConfirmDialog } from '@/core/ui/confirm-dialog'
 import { Skeleton } from '@/core/ui/skeleton'
-import { UnderlineButtonTabs } from '@/core/ui/underline-tabs'
+import { cn } from '@/lib/utils'
 import { useCompany } from '@/core/hooks/use-company'
 import { useActiveEmployees } from '@/modules/talent/hooks'
 import { useFaceProfiles, useKioskLink, useRemoveFaceProfile } from '../hooks'
 import { attendanceService } from '../services'
 import { EnrollDialog } from './enroll-dialog'
 import { WorkdaysTab } from './workdays-tab'
+import { PunctualityTab } from './punctuality-tab'
 
 interface AttendancePageProps {
   /** Departamentos que marcan (mismos que la grilla de Horarios). */
   allowedDepartments?: string[]
 }
 
-type Tab = 'workdays' | 'employees'
+type Tab = 'workdays' | 'punctuality' | 'employees'
+
+const TABS: { value: Tab; label: string; icon: LucideIcon }[] = [
+  { value: 'workdays', label: 'Marcaciones', icon: Clock },
+  { value: 'punctuality', label: 'Puntualidad', icon: Percent },
+  { value: 'employees', label: 'Empleados', icon: UserRound },
+]
 
 export function AttendancePage({ allowedDepartments }: AttendancePageProps) {
   const [tab, setTab] = useState<Tab>('workdays')
+  const { data: profiles } = useFaceProfiles()
 
   return (
     <div className="space-y-6">
@@ -32,17 +40,47 @@ export function AttendancePage({ allowedDepartments }: AttendancePageProps) {
         subtitle={<span className="text-body text-mid-gray">Entrada y salida con reconocimiento facial</span>}
       />
       <KioskLinkCard />
-      <div>
-        <UnderlineButtonTabs
-          tabs={[
-            { value: 'workdays', label: 'Marcaciones', icon: Clock },
-            { value: 'employees', label: 'Empleados', icon: UserRound },
-          ]}
-          active={tab}
-          onChange={(v) => setTab(v as Tab)}
-        />
-        {tab === 'workdays' ? <WorkdaysTab /> : <EmployeesTab allowedDepartments={allowedDepartments} />}
+      <div className="space-y-6">
+        <SegmentedTabs active={tab} onChange={setTab} counts={{ employees: profiles.length }} />
+        {tab === 'workdays' && <WorkdaysTab />}
+        {tab === 'punctuality' && <PunctualityTab />}
+        {tab === 'employees' && <EmployeesTab allowedDepartments={allowedDepartments} />}
       </div>
+    </div>
+  )
+}
+
+/** Pestanas tipo control segmentado: bloque beige, la activa como pastilla clara con borde. */
+function SegmentedTabs({ active, onChange, counts }: { active: Tab; onChange: (t: Tab) => void; counts: Partial<Record<Tab, number>> }) {
+  return (
+    <div role="tablist" className="flex w-full gap-1 overflow-x-auto rounded-xl bg-bone p-1 scrollbar-hide sm:inline-flex sm:w-auto">
+      {TABS.map(({ value, label, icon: Icon }) => {
+        const isActive = value === active
+        const count = counts[value]
+        return (
+          <button
+            key={value}
+            type="button"
+            role="tab"
+            aria-selected={isActive}
+            onClick={() => onChange(value)}
+            className={cn(
+              'flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-lg border px-4 py-2 text-body font-medium transition-colors sm:flex-none',
+              isActive
+                ? 'border-border bg-card-bg text-dark-graphite'
+                : 'border-transparent text-mid-gray hover:text-graphite',
+            )}
+          >
+            <Icon size={16} strokeWidth={1.5} />
+            {label}
+            {count != null && count > 0 && (
+              <span className={cn('rounded-full px-2 text-caption tabular-nums', isActive ? 'bg-bone text-graphite' : 'bg-smoke text-mid-gray')}>
+                {count}
+              </span>
+            )}
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -78,10 +116,7 @@ function KioskLinkCard() {
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-bone text-graphite">
           <Tablet size={18} strokeWidth={1.5} />
         </div>
-        <div className="min-w-0">
-          <p className="text-body font-medium text-dark-graphite">Link de la tablet</p>
-          <p className="truncate text-caption text-mid-gray">Solo sirve para marcar; no da acceso a nada más</p>
-        </div>
+        <p className="text-body font-medium text-dark-graphite">Link de la tablet</p>
       </div>
 
       <div className="flex min-w-0 flex-1 items-center gap-2 sm:justify-end">
@@ -157,7 +192,7 @@ function EmployeesTab({ allowedDepartments }: { allowedDepartments?: string[] })
   return (
     <div className="space-y-4">
       <p className="text-body text-mid-gray">
-        {enrolledCount} de {rows.length} empleados registrados. Los que no estén registrados no pueden marcar.
+        {enrolledCount} de {rows.length} empleados registrados
       </p>
       <div className="card-elevated rounded-xl bg-card-bg divide-y divide-border/60">
         {rows.map((e) => {

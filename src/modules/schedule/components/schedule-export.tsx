@@ -1,6 +1,6 @@
 import { useRef, type RefObject } from 'react'
 import { saveAs } from 'file-saver'
-import { Download, FileSpreadsheet, FileText, Image } from 'lucide-react'
+import { CalendarRange, Download, FileSpreadsheet, FileText, Image } from 'lucide-react'
 import { ActionMenu } from '@/core/ui/action-menu'
 import { exportSheetsToExcel, type SheetSpec } from '@/core/utils/data-transfer'
 
@@ -9,6 +9,8 @@ interface Props {
   fileName?: string
   /** Construye las hojas del Excel solo al clickear (lazy, evita trabajo si no se usa). */
   getExcelSheets: () => SheetSpec[]
+  /** Abre la descarga por rango de fechas (opcional). */
+  onRangeExport?: () => void
 }
 
 // Botón "Descargar" del horario con menú de formatos. Los empleados no entran a
@@ -16,7 +18,7 @@ interface Props {
 // grilla (html2canvas, ≈250KB cargados solo al exportar); Excel replica la
 // grilla con datos estructurados. Usa ActionMenu (no Popover: Base UI no abre
 // en App2/Horarios).
-export function ScheduleExport({ targetRef, fileName = 'horario', getExcelSheets }: Props) {
+export function ScheduleExport({ targetRef, fileName = 'horario', getExcelSheets, onRangeExport }: Props) {
   // Los export de imagen tardan ~1–2s y el menú cierra al clickear (sin estado
   // de carga visible); el ref ignora clics concurrentes.
   const exportingRef = useRef(false)
@@ -85,6 +87,7 @@ export function ScheduleExport({ targetRef, fileName = 'horario', getExcelSheets
         { label: 'Excel', icon: FileSpreadsheet, onClick: run(exportExcel) },
         { label: 'PDF', icon: FileText, onClick: run(exportPDF) },
         { label: 'PNG', icon: Image, onClick: run(exportPNG) },
+        ...(onRangeExport ? [{ label: 'Excel por fechas…', icon: CalendarRange, onClick: onRangeExport }] : []),
       ]}
     />
   )

@@ -280,3 +280,114 @@ export function buildScheduleSheet(args: {
     { name: 'Novedades', data: noveltyData, fields: noveltyFields },
   ]
 }
+
+/** Dias 'YYYY-MM-DD' de `from` a `to`, ambos inclusive. */
+export function datesBetween(from: string, to: string): string[] {
+  const out: string[] = []
+  const d = parseDateStr(from)
+  const end = parseDateStr(to)
+  while (d <= end) {
+    out.push(toDateStr(d))
+    d.setDate(d.getDate() + 1)
+  }
+  return out
+}
+
+/**
+ * Excel del horario para un rango libre de fechas (no una semana): mismas
+ * columnas que `buildScheduleSheet` pero con un dia por columna del rango y el
+ * encabezado con dia/mes ("Lun 21/9"), porque el rango puede cruzar meses.
+ * Solo empleados con algo en el rango. Mas la hoja Novedades.
+ */
+export function buildScheduleRangeSheet(args: {
+  title: string
+  dates: string[]
+  groups: { department: string; employees: Employee[] }[]
+  shifts: Shift[]
+  novelties: Novelty[]
+}): SheetSpec[] {
+  const { title, dates, groups, shifts, novelties } = args
+  const byCell = new Map<string, Shift[]>()
+  for (const s of shifts) {
+    const k = `${s.employeeId}|${s.date}`
+    byCell.set(k, [...(byCell.get(k) ?? []), s].sort((a, b) => a.start.localeCompare(b.start)))
+  }
+  const noveltyByCell = new Map(novelties.map((n) => [`${n.employeeId}|${n.date}`, n]))
+  const dayKeys = dates.map((_, i) => `d${i}`)
+  const fields: FieldDef[] = [
+    { key: 'empleado', header: 'Empleado', type: 'string' },
+    { key: 'documento', header: 'Documento', type: 'string' },
+    { key: 'departamento', header: 'Departamento', type: 'string' },
+    ...dates.map((d, i) => {
+      const day = parseDateStr(d)
+      return { key: dayKeys[i], header: `${DAY_LABELS[(day.getDay() + 6) % 7]} ${day.getDate()}/${day.getMonth() + 1}`, type: 'string' as const }
+    }),
+    { key: 'total', header: 'Total', type: 'string' },
+  ]
+
+  const data: Record<string, unknown>[] = []
+  const empById = new Map<string, { name: string; identification: string; department: string }>()
+  let grandTotal = 0
+  for (const group of groups) {
+    for (const emp of group.employees) {
+      empById.set(emp.id, { name: emp.name, identification: emp.identification ?? '', department: group.department })
+      const row: Record<string, unknown> = { empleado: emp.name, documento: emp.identification ?? '', departamento: group.department }
+      let hours = 0
+      let hasContent = false
+      dates.forEach((d, i) => {
+        const key = `${emp.id}|${d}`
+        const novelty = noveltyByCell.get(key)
+        const cell = byCell.get(key) ?? []
+        if (novelty) {
+          row[dayKeys[i]] = novelty.typeName
+          hasContent = true
+        } else if (cell.length) {
+          row[dayKeys[i]] = cell.map((s) => formatShiftRange(s.start, s.end)).join(' / ')
+          hours += totalHours(cell)
+          hasContent = true
+        } else {
+          row[dayKeys[i]] = ''
+        }
+      })
+      if (!hasContent) continue
+      row.total = formatHours(hours)
+      grandTotal += hours
+      data.push(row)
+    }
+  }
+  const totalRow: Record<string, unknown> = { empleado: 'Total', documento: '', departamento: '', total: formatHours(grandTotal) }
+  dates.forEach((d, i) => {
+    const h = totalHours(shifts.filter((s) => s.date === d && empById.has(s.employeeId)))
+    totalRow[dayKeys[i]] = h > 0 ? formatHours(h) : ''
+  })
+  data.push(totalRow)
+
+  const noveltyFields: FieldDef[] = [
+    { key: 'fecha', header: 'Fecha', type: 'string' },
+    { key: 'empleado', header: 'Empleado', type: 'string' },
+    { key: 'documento', header: 'Documento', type: 'string' },
+    { key: 'departamento', header: 'Departamento', type: 'string' },
+    { key: 'novedad', header: 'Novedad', type: 'string' },
+    { key: 'notas', header: 'Notas', type: 'string' },
+  ]
+  const noveltyData = novelties
+    .filter((n) => empById.has(n.employeeId))
+    .map((n) => {
+      const emp = empById.get(n.employeeId)!
+      const day = parseDateStr(n.date)
+      return {
+        fecha: `${n.date} (${DAY_LABELS[(day.getDay() + 6) % 7]})`,
+        empleado: emp.name,
+        documento: emp.identification,
+        departamento: emp.department,
+        novedad: n.typeName,
+        notas: n.notes ?? '',
+      }
+    })
+    .sort((a, b) => a.fecha.localeCompare(b.fecha) || a.empleado.localeCompare(b.empleado))
+
+  return [
+    { name: title, data, fields },
+    { name: 'Novedades', data: noveltyData, fields: noveltyFields },
+  ]
+}

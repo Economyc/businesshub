@@ -101,7 +101,7 @@ function EnrollBody({ employee, profiles, onClose }: { employee: { id: string; n
       <DialogHeader>
         <DialogTitle>Registrar a {employee.name}</DialogTitle>
         <DialogDescription>
-          Una selfie de frente, con buena luz y sin gafas oscuras. Tómala con la cámara o sube una foto que ya tengas. Con esta foto el sistema lo reconoce al marcar.
+          Selfie de frente y con buena luz.
         </DialogDescription>
       </DialogHeader>
 

@@ -111,6 +111,14 @@ export const scheduleService = {
   removeTemplate: (companyId: string, id: string) => removeDocument(companyId, TEMPLATES, id),
 
   // ── Novelties (novedades aplicadas en la grilla) ──
+  /** Turnos y novedades entre dos fechas 'YYYY-MM-DD' (inclusive), para la
+   *  descarga por rango. Rango sobre un solo campo: sin indice compuesto. */
+  getShiftsByRange: (companyId: string, from: string, to: string) =>
+    fetchCollection<Shift>(companyId, SHIFTS, where('date', '>=', from), where('date', '<=', to)),
+
+  getNoveltiesByRange: (companyId: string, from: string, to: string) =>
+    fetchCollection<Novelty>(companyId, NOVELTIES, where('date', '>=', from), where('date', '<=', to)),
+
   getNoveltiesByWeek: (companyId: string, weekKey: string) =>
     fetchCollection<Novelty>(companyId, NOVELTIES, where('weekKey', '==', weekKey)),
 

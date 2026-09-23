@@ -29,9 +29,34 @@ export interface AttendancePunch {
   at: Timestamp
   /** 'YYYY-MM-DD' en hora de Colombia. */
   date: string
-  distance: number
+  /** Solo en marcaciones por cara. */
+  distance?: number
+  /** Vacio en las manuales (no hay foto). */
   photoPath: string
-  source: 'face'
+  /** 'face': tablet. 'manual': agregada por un admin desde el panel. */
+  source: 'face' | 'manual'
+  /** Quien la agrego (manual) y por que. */
+  createdBy?: string
+  reason?: string
+  /** Hora corregida por un admin: la original queda en `originalAt`. */
+  editedBy?: string
+  editReason?: string
+  originalAt?: Timestamp
+  /** Anulada (p.ej. marco quien no era). No cuenta en jornadas ni en nomina,
+   *  pero no se borra: queda como rastro. */
+  voided?: boolean
+  voidedBy?: string
+  voidReason?: string
+  /** Solo en la ENTRADA de una jornada: un admin aprobo pagar todo lo marcado,
+   *  incluido lo que cae fuera del turno programado. */
+  extraApprovedBy?: string
+  extraApprovedAt?: Timestamp
+}
+
+/** Configuracion de marcacion del local (doc `attendanceConfig/main`). */
+export interface AttendanceConfig {
+  /** Empleados que no marcan y se liquidan por su horario programado (jefes). */
+  scheduleOnlyEmployeeIds: string[]
 }
 
 export interface KioskInfo {
