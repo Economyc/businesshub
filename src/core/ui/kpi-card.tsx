@@ -1,3 +1,4 @@
+import { cn } from '@/lib/utils'
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { ChevronUp, ChevronDown } from 'lucide-react'
@@ -15,6 +16,10 @@ interface KPICardProps {
   icon?: LucideIcon
   inverse?: boolean
   tone?: 'positive' | 'negative'
+  /** Clases extra del contenedor (p.ej. otro fondo). Opcional; por defecto bg-surface. */
+  className?: string
+  /** Clases extra del titulo (p.ej. peso). Opcional. */
+  labelClassName?: string
 }
 
 function useCountUp(target: number, duration = 800) {
@@ -38,7 +43,7 @@ function useCountUp(target: number, duration = 800) {
   return count
 }
 
-export function KPICard({ label, value, format = 'number', change, trend, comparison, icon: Icon, inverse = false, tone }: KPICardProps) {
+export function KPICard({ label, value, format = 'number', change, trend, comparison, icon: Icon, inverse = false, tone, className, labelClassName }: KPICardProps) {
   const animatedValue = useCountUp(value)
 
   const valueColor = tone === 'positive' ? 'text-positive-text' : tone === 'negative' ? 'text-negative-text' : 'text-dark-graphite'
@@ -52,10 +57,10 @@ export function KPICard({ label, value, format = 'number', change, trend, compar
   return (
     <motion.div
       variants={staggerItem}
-      className="bg-surface rounded-xl p-3 sm:p-[18px] card-elevated overflow-hidden"
+      className={cn('bg-surface rounded-xl p-3 sm:p-[18px] card-elevated overflow-hidden', className)}
     >
       <div className="flex justify-between items-center mb-2">
-        <span className="text-caption text-mid-gray truncate mr-1">{label}</span>
+        <span className={cn('text-caption text-mid-gray truncate mr-1', labelClassName)}>{label}</span>
         {Icon && <Icon size={16} strokeWidth={1.5} className="text-smoke" />}
       </div>
       <div className={`text-lg sm:text-kpi font-extrabold truncate ${valueColor}`}>{formattedValue}</div>

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
-import { Check, Copy, ExternalLink, Loader2, RefreshCw, ScanFace, Clock, UserRound } from 'lucide-react'
-import { useQuery } from '@tanstack/react-query'
+import { Check, Copy, ExternalLink, RefreshCw, ScanFace, Clock, Tablet, UserRound } from 'lucide-react'
+import { HoverHint } from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { PageHeader } from '@/core/ui/page-header'
@@ -10,20 +10,20 @@ import { Skeleton } from '@/core/ui/skeleton'
 import { UnderlineButtonTabs } from '@/core/ui/underline-tabs'
 import { useCompany } from '@/core/hooks/use-company'
 import { useActiveEmployees } from '@/modules/talent/hooks'
-import { useFaceProfiles, useKioskLink, usePunchesByDate, useRemoveFaceProfile } from '../hooks'
-import { attendanceService, formatTimeBogota, todayBogota } from '../services'
-import { PUNCH_TYPE_LABEL, type AttendancePunch } from '../types'
+import { useFaceProfiles, useKioskLink, useRemoveFaceProfile } from '../hooks'
+import { attendanceService } from '../services'
 import { EnrollDialog } from './enroll-dialog'
+import { WorkdaysTab } from './workdays-tab'
 
 interface AttendancePageProps {
   /** Departamentos que marcan (mismos que la grilla de Horarios). */
   allowedDepartments?: string[]
 }
 
-type Tab = 'employees' | 'today'
+type Tab = 'workdays' | 'employees'
 
 export function AttendancePage({ allowedDepartments }: AttendancePageProps) {
-  const [tab, setTab] = useState<Tab>('employees')
+  const [tab, setTab] = useState<Tab>('workdays')
 
   return (
     <div className="space-y-6">
@@ -35,13 +35,13 @@ export function AttendancePage({ allowedDepartments }: AttendancePageProps) {
       <div>
         <UnderlineButtonTabs
           tabs={[
+            { value: 'workdays', label: 'Marcaciones', icon: Clock },
             { value: 'employees', label: 'Empleados', icon: UserRound },
-            { value: 'today', label: 'Marcaciones de hoy', icon: Clock },
           ]}
           active={tab}
           onChange={(v) => setTab(v as Tab)}
         />
-        {tab === 'employees' ? <EmployeesTab allowedDepartments={allowedDepartments} /> : <TodayTab />}
+        {tab === 'workdays' ? <WorkdaysTab /> : <EmployeesTab allowedDepartments={allowedDepartments} />}
       </div>
     </div>
   )
@@ -68,42 +68,60 @@ function KioskLinkCard() {
     setConfirmRotate(false)
   }
 
+  const iconButton = 'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-mid-gray transition-colors hover:bg-bone hover:text-graphite'
+
+  // Barra compacta de una linea: el link se usa una vez por local (abrirlo en la
+  // tablet), asi que no merece una card grande encima del historial.
   return (
-    <div className="card-elevated rounded-xl bg-card-bg p-6 space-y-4">
-      <div>
-        <h2 className="text-subheading font-medium text-dark-graphite">Link de marcación de {selectedCompany?.name}</h2>
-        <p className="text-body text-mid-gray mt-1">
-          Ábrelo en la tablet o el PC fijo del local y déjalo abierto. Solo sirve para tomarse la foto; no da acceso a nada más.
-        </p>
-      </div>
-      {loading ? (
-        <Skeleton className="h-9 rounded-lg" />
-      ) : error ? (
-        <p className="text-body text-negative-text">No se pudo obtener el link. Recarga la página.</p>
-      ) : (
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <code className="flex-1 min-w-0 truncate rounded-lg border border-border/60 bg-bone px-4 py-2 text-body text-graphite">
-            {url}
-          </code>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={copy}>
-              {copied ? <Check size={16} strokeWidth={1.5} /> : <Copy size={16} strokeWidth={1.5} />}
-              {copied ? 'Copiado' : 'Copiar'}
-            </Button>
-            <Button variant="outline" render={<a href={url} target="_blank" rel="noreferrer" />}>
-              <ExternalLink size={16} strokeWidth={1.5} /> Abrir
-            </Button>
-            <Button variant="ghost" onClick={() => setConfirmRotate(true)}>
-              <RefreshCw size={16} strokeWidth={1.5} /> Generar nuevo
-            </Button>
-          </div>
+    <div className="card-elevated flex flex-col gap-4 rounded-xl bg-card-bg p-4 sm:flex-row sm:items-center">
+      <div className="flex min-w-0 items-center gap-4">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-bone text-graphite">
+          <Tablet size={18} strokeWidth={1.5} />
         </div>
-      )}
+        <div className="min-w-0">
+          <p className="text-body font-medium text-dark-graphite">Link de la tablet</p>
+          <p className="truncate text-caption text-mid-gray">Solo sirve para marcar; no da acceso a nada más</p>
+        </div>
+      </div>
+
+      <div className="flex min-w-0 flex-1 items-center gap-2 sm:justify-end">
+        {loading ? (
+          <Skeleton className="h-9 flex-1 rounded-lg sm:max-w-md" />
+        ) : error ? (
+          <p className="text-body text-negative-text">No se pudo obtener el link. Recarga la página.</p>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={copy}
+              className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-lg border border-border/60 bg-bone px-4 text-left transition-colors hover:border-border-hover sm:max-w-md"
+            >
+              <span className="min-w-0 flex-1 truncate text-caption text-graphite">{url}</span>
+              {copied ? (
+                <span className="flex shrink-0 items-center gap-1 text-caption text-positive-text"><Check size={14} strokeWidth={1.5} /> Copiado</span>
+              ) : (
+                <Copy size={14} strokeWidth={1.5} className="shrink-0 text-mid-gray" />
+              )}
+            </button>
+            <HoverHint label="Abrir en otra pestaña">
+              <a href={url} target="_blank" rel="noreferrer" className={iconButton} aria-label="Abrir link">
+                <ExternalLink size={16} strokeWidth={1.5} />
+              </a>
+            </HoverHint>
+            <HoverHint label="Generar un link nuevo">
+              <button type="button" onClick={() => setConfirmRotate(true)} className={iconButton} aria-label="Generar un link nuevo">
+                <RefreshCw size={16} strokeWidth={1.5} />
+              </button>
+            </HoverHint>
+          </>
+        )}
+      </div>
+
       <ConfirmDialog
         open={confirmRotate}
-        title="Generar un link nuevo"
-        description="El link actual deja de funcionar de inmediato. Úsalo si el link se compartió fuera del local; después hay que abrir el nuevo en la tablet."
-        confirmLabel="Generar link nuevo"
+        title="¿Seguro que quieres cambiar el link?"
+        description="El link actual deja de funcionar de inmediato y la tablet del local no podrá marcar hasta que abras el nuevo en ella. Hazlo solo si el link se compartió fuera del local."
+        confirmLabel="Sí, cambiar el link"
         loadingLabel="Generando..."
         variant="neutral"
         onConfirm={rotate}
@@ -187,49 +205,6 @@ function EmployeesTab({ allowedDepartments }: { allowedDepartments?: string[] })
         }}
         onCancel={() => setRemoving(null)}
       />
-    </div>
-  )
-}
-
-// ── Marcaciones de hoy ────────────────────────────────────────────────────
-function TodayTab() {
-  const { data: punches, loading } = usePunchesByDate(todayBogota())
-
-  if (loading) return <Skeleton className="h-64 rounded-xl" />
-  if (punches.length === 0) {
-    return <EmptyState icon={Clock} title="Nadie ha marcado hoy" description="Las marcaciones del link del local aparecen aquí en cuanto se registran." />
-  }
-
-  return (
-    <div className="card-elevated rounded-xl bg-card-bg divide-y divide-border/60">
-      {punches.map((p) => <PunchRow key={p.id} punch={p} />)}
-    </div>
-  )
-}
-
-function PunchRow({ punch }: { punch: AttendancePunch }) {
-  const { data: photo, isError } = useQuery({
-    queryKey: ['attendancePhoto', punch.photoPath],
-    queryFn: () => attendanceService.photoUrl(punch.photoPath),
-    staleTime: Infinity,
-    retry: false,
-  })
-
-  return (
-    <div className="flex items-center gap-4 p-4">
-      {photo ? (
-        <a href={photo} target="_blank" rel="noreferrer" className="shrink-0">
-          <img src={photo} alt="" className="h-10 w-10 rounded-full object-cover" />
-        </a>
-      ) : (
-        // Sin foto: aun cargando, o ya borrada (se guardan 45 dias).
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-bone text-mid-gray">
-          {isError ? <UserRound size={16} strokeWidth={1.5} /> : <Loader2 size={16} strokeWidth={1.5} className="animate-spin" />}
-        </div>
-      )}
-      <p className="min-w-0 flex-1 truncate text-body font-medium text-dark-graphite">{punch.employeeName}</p>
-      <Badge variant={punch.type === 'in' ? 'positive' : 'info'}>{PUNCH_TYPE_LABEL[punch.type]}</Badge>
-      <span className="w-20 text-right text-body tabular-nums text-graphite">{formatTimeBogota(punch.at.toDate())}</span>
     </div>
   )
 }

@@ -4,6 +4,7 @@ import { getDownloadURL, ref as storageRef } from 'firebase/storage'
 import { getAppFunctions, getAppStorage } from '@/core/firebase/config'
 import { companyDoc, fetchCollection } from '@/core/firebase/helpers'
 import type { AttendancePunch, FaceProfile, KioskInfo, PunchResponse } from './types'
+import type { ScheduledShift } from './shifts'
 
 const PROFILES = 'faceProfiles'
 const PUNCHES = 'attendancePunches'
@@ -29,8 +30,14 @@ export const attendanceService = {
   removeProfile: (companyId: string, employeeId: string) =>
     deleteDoc(companyDoc(companyId, PROFILES, employeeId)),
 
-  getPunchesByDate: (companyId: string, date: string) =>
-    fetchCollection<AttendancePunch>(companyId, PUNCHES, where('date', '==', date)),
+  /** Marcaciones entre dos fechas 'YYYY-MM-DD' (inclusive). Rango sobre un solo
+   *  campo: no necesita indice compuesto. El filtro por empleado va en el cliente. */
+  getPunchesByRange: (companyId: string, from: string, to: string) =>
+    fetchCollection<AttendancePunch>(companyId, PUNCHES, where('date', '>=', from), where('date', '<=', to)),
+
+  /** Turnos programados en Horarios entre dos fechas, para medir puntualidad. */
+  getScheduledShifts: (companyId: string, from: string, to: string) =>
+    fetchCollection<ScheduledShift>(companyId, 'shifts', where('date', '>=', from), where('date', '<=', to)),
 
   photoUrl: async (path: string): Promise<string> => {
     const storage = await getAppStorage()
@@ -61,11 +68,15 @@ export const attendanceService = {
   },
 }
 
-/** Fecha de hoy 'YYYY-MM-DD' en hora de Colombia (igual que la guarda el servidor). */
-export function todayBogota(): string {
+/** 'YYYY-MM-DD' en hora de Colombia (igual que la guarda el servidor). */
+export function toBogotaDate(d: Date): string {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit',
-  }).format(new Date())
+  }).format(d)
+}
+
+export function todayBogota(): string {
+  return toBogotaDate(new Date())
 }
 
 export function formatTimeBogota(d: Date): string {

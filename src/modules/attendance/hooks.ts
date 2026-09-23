@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useCompany } from '@/core/hooks/use-company'
 import { useFirestoreMutation } from '@/core/query/use-mutation'
-import { attendanceService } from './services'
+import { attendanceService, todayBogota } from './services'
 
 export function useFaceProfiles() {
   const { selectedCompany } = useCompany()
@@ -16,20 +16,35 @@ export function useFaceProfiles() {
   return { data: data ?? [], loading: isLoading, refetch }
 }
 
-export function usePunchesByDate(date: string) {
+/** Marcaciones entre dos fechas 'YYYY-MM-DD'. Si el rango incluye hoy se
+ *  refresca cada 30 s: las marcaciones llegan desde la tablet. */
+export function usePunchesByRange(from: string, to: string) {
+  const { selectedCompany } = useCompany()
+  const companyId = selectedCompany?.id
+  const includesToday = to >= todayBogota()
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['firestore', companyId, 'attendancePunches', from, to],
+    queryFn: () => attendanceService.getPunchesByRange(companyId!, from, to),
+    enabled: !!companyId,
+    refetchInterval: includesToday ? 30_000 : false,
+  })
+
+  return { data: data ?? [], loading: isLoading }
+}
+
+export function useScheduledShifts(from: string, to: string) {
   const { selectedCompany } = useCompany()
   const companyId = selectedCompany?.id
 
-  const { data, isLoading, refetch } = useQuery({
-    queryKey: ['firestore', companyId, 'attendancePunches', date],
-    queryFn: () => attendanceService.getPunchesByDate(companyId!, date),
+  const { data } = useQuery({
+    queryKey: ['firestore', companyId, 'shifts', 'range', from, to],
+    queryFn: () => attendanceService.getScheduledShifts(companyId!, from, to),
     enabled: !!companyId,
-    // Las marcaciones llegan desde la tablet: refrescar solo mientras se mira.
-    refetchInterval: 30_000,
+    staleTime: 5 * 60 * 1000,
   })
 
-  const sorted = (data ?? []).slice().sort((a, b) => b.at.toMillis() - a.at.toMillis())
-  return { data: sorted, loading: isLoading, refetch }
+  return data ?? []
 }
 
 export function useKioskLink() {
