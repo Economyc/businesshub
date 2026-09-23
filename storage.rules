@@ -61,6 +61,15 @@ service firebase.storage {
       allow delete: if signedIn();
     }
 
+    // Fotos de marcacion (modulo Marcacion de App2). Solo las escribe la Cloud
+    // Function `attendancePunch` con el Admin SDK (que no pasa por reglas); el
+    // cliente unicamente las lee para mostrarlas. Se borran solas a los 45 dias
+    // por la regla de lifecycle del bucket (prefijo attendance/).
+    match /attendance/{companyId}/{allPaths=**} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
     // Todo lo demas: denegado. Si aparece un prefijo nuevo hay que agregarlo
     // arriba explicitamente.
     match /{allPaths=**} {

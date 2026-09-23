@@ -20,6 +20,7 @@ import { EmployeeList, EmployeeProfile } from '@/modules/talent/routes'
 import { ClosingList } from '@/modules/closings/routes'
 import { DiscountsPage } from '@/modules/discounts/routes'
 import { InventoryPage } from '@/modules/inventory/routes'
+import { AttendancePage, KioskPage } from '@/modules/attendance/routes'
 
 // Departamentos que manejan horarios: la grilla de Horarios en App2 sólo
 // muestra empleados de estos, y en este orden (Administración va junto a
@@ -57,11 +58,17 @@ export default function App() {
             <TooltipProvider delayDuration={250} skipDelayDuration={300}>
               <Routes>
                 <Route path="/login" element={<LoginPage />} />
+                {/* Link publico de marcacion del local: sin sesion ni layout. El
+                    token identifica el local; todo pasa por Cloud Functions. */}
+                <Route path="/marcar/:token" element={<Suspense fallback={null}><KioskPage /></Suspense>} />
                 <Route element={<Protected />}>
                   <Route index element={<DefaultRedirect />} />
 
                   <Route element={<PermissionRoute pageId="schedule" />}>
                     <Route path="/horarios" element={<Suspense fallback={<Loading />}><ScheduleView allowedDepartments={SCHEDULE_DEPARTMENTS} /></Suspense>} />
+                    {/* Marcacion va con el permiso de Horarios: quien arma el horario
+                        es quien registra las caras y revisa las marcaciones. */}
+                    <Route path="/marcacion" element={<Suspense fallback={<Loading />}><AttendancePage allowedDepartments={SCHEDULE_DEPARTMENTS} /></Suspense>} />
                   </Route>
 
                   {/* Equipo (Talent): mismas rutas que App1 (/talent, /talent/:id) porque
