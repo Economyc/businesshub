@@ -147,9 +147,11 @@ function Kiosk({
         {modelsError ? (
           <p className="text-body text-negative-text">No se pudo cargar el reconocimiento facial. Revisa la conexión y recarga la página.</p>
         ) : (
-          <Button size="lg" className="h-16 w-full max-w-sm rounded-2xl text-subheading" onClick={takePhoto} disabled={!ready || busy || result !== null}>
+          // El tamano va en el <span>: en el className del Button, tailwind-merge
+          // toma `text-subheading` por un color y borra el text-primary-foreground.
+          <Button size="lg" className="h-16 w-full max-w-sm rounded-2xl" onClick={takePhoto} disabled={!ready || busy || result !== null}>
             {busy || !modelsReady ? <Loader2 size={20} strokeWidth={1.5} className="animate-spin" /> : <Camera size={20} strokeWidth={1.5} />}
-            {!modelsReady ? 'Preparando…' : busy ? 'Reconociendo…' : 'Tomar foto'}
+            <span className="text-subheading">{!modelsReady ? 'Preparando…' : busy ? 'Reconociendo…' : 'Tomar foto'}</span>
           </Button>
         )}
       </main>
