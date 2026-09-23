@@ -50,9 +50,16 @@ export const db = initializeFirestore(app, {
 let functionsPromise: Promise<Functions> | null = null
 export function getAppFunctions(): Promise<Functions> {
   if (!functionsPromise) {
-    functionsPromise = import('firebase/functions').then((mod) =>
-      mod.getFunctions(app),
-    )
+    functionsPromise = import('firebase/functions').then((mod) => {
+      const fns = mod.getFunctions(app)
+      // Solo dev: `VITE_FUNCTIONS_EMULATOR=1` apunta los callables al emulador
+      // local (firebase emulators:start --only functions) para probar funciones
+      // antes de publicarlas.
+      if (import.meta.env.DEV && import.meta.env.VITE_FUNCTIONS_EMULATOR) {
+        mod.connectFunctionsEmulator(fns, '127.0.0.1', 5001)
+      }
+      return fns
+    })
   }
   return functionsPromise
 }

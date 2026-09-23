@@ -77,3 +77,22 @@ export function canvasToDataUrl(canvas: HTMLCanvasElement, maxSide: number, qual
   out.getContext('2d')!.drawImage(canvas, 0, 0, out.width, out.height)
   return out.toDataURL('image/jpeg', quality)
 }
+
+/** Carga una imagen de archivo en un canvas (a lo sumo `maxSide` px). El
+ *  navegador ya aplica la orientacion EXIF de las fotos de celular. */
+export async function fileToCanvas(file: File, maxSide: number): Promise<HTMLCanvasElement> {
+  const url = URL.createObjectURL(file)
+  try {
+    const img = new Image()
+    img.src = url
+    await img.decode()
+    const scale = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight))
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.round(img.naturalWidth * scale)
+    canvas.height = Math.round(img.naturalHeight * scale)
+    canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
+    return canvas
+  } finally {
+    URL.revokeObjectURL(url)
+  }
+}

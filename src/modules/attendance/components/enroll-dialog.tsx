@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Camera, Loader2, RotateCcw } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { Camera, Loader2, RotateCcw, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -9,7 +9,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog'
-import { useCamera, captureFrame, canvasToDataUrl, CAMERA_ERROR } from '../camera'
+import { useCamera, captureFrame, canvasToDataUrl, fileToCanvas, CAMERA_ERROR } from '../camera'
 import { describeFace, euclidean, DESCRIBE_ERROR } from '../face'
 import { useEnrollFace } from '../hooks'
 import type { FaceProfile } from '../types'
@@ -24,7 +24,9 @@ interface EnrollDialogProps {
   onClose: () => void
 }
 
-type Captured = { descriptor: number[]; thumb: string }
+/** `mirrored`: la foto de camara se muestra en espejo (como la ve el empleado);
+ *  una foto subida se muestra tal cual. */
+type Captured = { descriptor: number[]; thumb: string; mirrored: boolean }
 
 export function EnrollDialog({ employee, profiles, onClose }: EnrollDialogProps) {
   const open = employee !== null
@@ -43,14 +45,26 @@ function EnrollBody({ employee, profiles, onClose }: { employee: { id: string; n
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const enroll = useEnrollFace()
+  const fileRef = useRef<HTMLInputElement>(null)
 
-  async function takePhoto() {
+  function takePhoto() {
     const video = videoRef.current
     if (!video) return
+    void analyze(() => Promise.resolve(captureFrame(video)), true)
+  }
+
+  // Foto existente (p.ej. las selfies que ya se tenian en Clonk).
+  function uploadPhoto(file: File | undefined) {
+    if (fileRef.current) fileRef.current.value = ''
+    if (!file) return
+    void analyze(() => fileToCanvas(file, 1280), false)
+  }
+
+  async function analyze(getFrame: () => Promise<HTMLCanvasElement>, mirrored: boolean) {
     setBusy(true)
     setError(null)
     try {
-      const frame = captureFrame(video)
+      const frame = await getFrame()
       const result = await describeFace(frame, { single: true })
       if (!result.ok) {
         setError(DESCRIBE_ERROR[result.reason])
@@ -63,7 +77,7 @@ function EnrollBody({ employee, profiles, onClose }: { employee: { id: string; n
         setError(`Esta cara se parece demasiado a la de ${clash.employeeName}, que ya está registrado. Si es la misma persona, quita primero ese registro.`)
         return
       }
-      setCaptured({ descriptor: result.descriptor, thumb: canvasToDataUrl(frame, 160, 0.8) })
+      setCaptured({ descriptor: result.descriptor, thumb: canvasToDataUrl(frame, 160, 0.8), mirrored })
     } catch {
       setError('No se pudo cargar el reconocimiento facial. Revisa la conexión a internet e intenta de nuevo.')
     } finally {
@@ -87,17 +101,17 @@ function EnrollBody({ employee, profiles, onClose }: { employee: { id: string; n
       <DialogHeader>
         <DialogTitle>Registrar a {employee.name}</DialogTitle>
         <DialogDescription>
-          Una selfie de frente, con buena luz y sin gorra ni gafas oscuras. Con esta foto el sistema lo reconoce al marcar.
+          Una selfie de frente, con buena luz y sin gafas oscuras. Tómala con la cámara o sube una foto que ya tengas. Con esta foto el sistema lo reconoce al marcar.
         </DialogDescription>
       </DialogHeader>
 
       <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl border border-border/60 bg-smoke">
         {captured ? (
-          <img src={captured.thumb} alt="" className="h-full w-full object-cover -scale-x-100" />
+          <img src={captured.thumb} alt="" className={captured.mirrored ? 'h-full w-full object-cover -scale-x-100' : 'h-full w-full object-cover'} />
         ) : (
           <video ref={videoRef} muted playsInline className="h-full w-full object-cover -scale-x-100" />
         )}
-        {!captured && status !== 'ready' && (
+        {!captured && status !== 'ready' && !busy && (
           <div className="absolute inset-0 flex items-center justify-center p-6 text-center text-body text-mid-gray">
             {status === 'starting' ? <Loader2 className="animate-spin" size={20} strokeWidth={1.5} /> : CAMERA_ERROR[status]}
           </div>
@@ -119,10 +133,16 @@ function EnrollBody({ employee, profiles, onClose }: { employee: { id: string; n
             </Button>
           </>
         ) : (
+          <>
+          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => uploadPhoto(e.target.files?.[0])} />
+          <Button variant="outline" onClick={() => fileRef.current?.click()} disabled={busy}>
+            <Upload size={16} strokeWidth={1.5} /> Subir foto
+          </Button>
           <Button onClick={takePhoto} disabled={busy || status !== 'ready'}>
             {busy ? <Loader2 className="animate-spin" size={16} strokeWidth={1.5} /> : <Camera size={16} strokeWidth={1.5} />}
             {busy ? 'Analizando…' : 'Tomar foto'}
           </Button>
+          </>
         )}
       </DialogFooter>
     </>
