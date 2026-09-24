@@ -114,6 +114,13 @@ export const attendanceService = {
     )
     return (await fn({ token, descriptor, photoBase64 })).data
   },
+
+  /** Despierta la funcion de marcar (sin registrar nada) para que la foto del
+   *  empleado no pague el arranque en frio. */
+  warmPunch: async (token: string): Promise<void> => {
+    const fns = await getAppFunctions()
+    await httpsCallable<{ token: string; warm: true }, unknown>(fns, 'attendancePunch')({ token, warm: true })
+  },
 }
 
 /** 'YYYY-MM-DD' en hora de Colombia (igual que la guarda el servidor). */

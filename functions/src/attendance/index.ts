@@ -119,7 +119,9 @@ export const attendanceKioskInfo = onCall(
 export const attendancePunch = onCall(
   { region: 'us-central1', memory: '512MiB', timeoutSeconds: 30, cors: CALLABLE_CORS_ORIGINS },
   async (request) => {
-    const data = (request.data ?? {}) as { token?: string; descriptor?: unknown; photoBase64?: string }
+    const data = (request.data ?? {}) as { token?: string; descriptor?: unknown; photoBase64?: string; warm?: boolean }
+    // Ping del kiosco para mantener la instancia caliente: no toca nada.
+    if (data.warm === true) return { matched: false as const }
     const companyId = await companyFromToken(data.token)
     if (!isValidDescriptor(data.descriptor)) throw new HttpsError('invalid-argument', 'Descriptor de cara inválido')
     const probe = data.descriptor
@@ -129,25 +131,38 @@ export const attendancePunch = onCall(
     }
 
     const profilesRef = db.collection('companies').doc(companyId).collection(PROFILES)
-    const profiles = await profilesRef.get()
+    const now = new Date()
+    const nowMs = now.getTime()
+    const date = localDate(now)
+    const punchRef = db.collection('companies').doc(companyId).collection(PUNCHES).doc()
+    const photoPath = `attendance/${companyId}/${date}/${punchRef.id}.jpg`
+    const photoFile = getStorage().bucket(BUCKET).file(photoPath)
+
+    // La foto sube en paralelo con la lectura de perfiles (es lo mas lento). Va
+    // antes que la marcacion: una marcacion nunca queda sin su evidencia. Si al
+    // final no se registra (sin match o duplicado), se borra.
+    const photoSaved = photoFile.save(photo, { contentType: 'image/jpeg', resumable: false })
+    // Marca la promesa como manejada: si falla mientras se leen los perfiles, el
+    // error sale en el `await photoSaved` de abajo y no como rechazo suelto.
+    photoSaved.catch(() => undefined)
+    const discardPhoto = () => photoSaved.then(() => photoFile.delete()).catch(() => undefined)
+
+    const profiles = await profilesRef.get().catch(async (err: unknown) => {
+      await discardPhoto()
+      throw err
+    })
     const candidates: FaceCandidate[] = profiles.docs.map((d) => {
       const p = d.data() as ProfileDoc
       return { employeeId: d.id, employeeName: p.employeeName, descriptors: (p.descriptors ?? []).map((x) => x.v) }
     })
     const match = findMatch(probe, candidates)
-    if (!match) return { matched: false as const }
+    if (!match) {
+      await discardPhoto()
+      return { matched: false as const }
+    }
 
-    const now = new Date()
-    const nowMs = now.getTime()
-    const date = localDate(now)
     const profileRef = profilesRef.doc(match.employeeId)
-    const punchRef = db.collection('companies').doc(companyId).collection(PUNCHES).doc()
-    const photoPath = `attendance/${companyId}/${date}/${punchRef.id}.jpg`
-    const photoFile = getStorage().bucket(BUCKET).file(photoPath)
-
-    // La foto va antes que la marcacion: una marcacion nunca queda sin su
-    // evidencia. Si al final no se registra (duplicado), se borra.
-    await photoFile.save(photo, { contentType: 'image/jpeg', resumable: false })
+    await photoSaved
 
     // Ultimas marcaciones: ayer y hoy alcanzan (una entrada abierta caduca a las
     // 18 h). Se lee la coleccion y no el `lastPunch*` del perfil porque un admin

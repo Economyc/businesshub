@@ -48,6 +48,18 @@ export function useCamera(enabled = true) {
   return { videoRef, status }
 }
 
+/** true mientras la pestana se ve. Oculta (otra pestana, ventana minimizada,
+ *  pantalla bloqueada) conviene soltar la camara: consume bateria y CPU. */
+export function usePageVisible(): boolean {
+  const [visible, setVisible] = useState(() => document.visibilityState === 'visible')
+  useEffect(() => {
+    const onChange = () => setVisible(document.visibilityState === 'visible')
+    document.addEventListener('visibilitychange', onChange)
+    return () => document.removeEventListener('visibilitychange', onChange)
+  }, [])
+  return visible
+}
+
 export const CAMERA_ERROR: Record<'denied' | 'unavailable', string> = {
   denied: 'El navegador no tiene permiso para usar la cámara. Actívalo en la configuración del sitio y recarga la página.',
   unavailable: 'No se encontró una cámara en este equipo.',

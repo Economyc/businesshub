@@ -5,7 +5,7 @@ import { Camera, CheckCircle2, Loader2, MapPin, XCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { CompanyLogo } from '@/core/ui/company-logo'
 import { cn } from '@/lib/utils'
-import { useCamera, captureFrame, canvasToJpegBase64, CAMERA_ERROR } from '../camera'
+import { useCamera, usePageVisible, captureFrame, canvasToJpegBase64, CAMERA_ERROR } from '../camera'
 import { describeFace, loadFaceApi, DESCRIBE_ERROR } from '../face'
 import { attendanceService, formatTimeBogota } from '../services'
 import { PUNCH_TYPE_LABEL, type KioskInfo, type PunchType } from '../types'
@@ -17,6 +17,9 @@ import logoFilipo from '../assets/logo-filipo.png'
 
 /** Cuanto se muestra el resultado antes de volver a la camara. */
 const RESULT_MS = 4000
+/** Cada cuanto se despierta la funcion de marcar mientras el link se ve. Cloud
+ *  Run apaga las instancias ociosas a los ~15 min. */
+const WARM_MS = 5 * 60 * 1000
 /** Intentos fallidos seguidos antes de sugerir avisar al administrador. */
 const FAILS_BEFORE_HELP = 3
 
@@ -78,12 +81,15 @@ function Kiosk({
   modelsReady: boolean
   modelsError: boolean
 }) {
-  const { videoRef, status } = useCamera()
+  // La camara solo corre con la pestana a la vista.
+  const visible = usePageVisible()
+  const { videoRef, status } = useCamera(visible)
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<Result | null>(null)
   const fails = useRef(0)
   const now = useClock()
   useWakeLock()
+  useWarmPunch(token, visible)
 
   useEffect(() => {
     if (!result) return
@@ -206,6 +212,16 @@ function ResultOverlay({ result }: { result: Result }) {
       )}
     </div>
   )
+}
+
+function useWarmPunch(token: string, visible: boolean) {
+  useEffect(() => {
+    if (!visible) return
+    const warm = () => { attendanceService.warmPunch(token).catch(() => undefined) }
+    warm()
+    const t = setInterval(warm, WARM_MS)
+    return () => clearInterval(t)
+  }, [token, visible])
 }
 
 function useClock(): Date {

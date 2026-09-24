@@ -1,4 +1,7 @@
-import { useQuery } from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { onSnapshot, query, where } from 'firebase/firestore'
+import { companyCollection } from '@/core/firebase/helpers'
 import { useCompany } from '@/core/hooks/use-company'
 import { useFirestoreMutation } from '@/core/query/use-mutation'
 import { attendanceService, todayBogota } from './services'
@@ -17,18 +20,45 @@ export function useFaceProfiles() {
   return { data: data ?? [], loading: isLoading, refetch }
 }
 
-/** Marcaciones entre dos fechas 'YYYY-MM-DD'. Si el rango incluye hoy se
- *  refresca cada 30 s: las marcaciones llegan desde la tablet. */
+/** Marcaciones entre dos fechas 'YYYY-MM-DD'. Si el rango incluye hoy escucha
+ *  en vivo las de hoy (llegan desde la tablet) y refresca el rango al llegar
+ *  una. Si el listener falla (adblockers cortan el canal de Firestore) queda
+ *  el sondeo cada 30 s de respaldo. */
 export function usePunchesByRange(from: string, to: string) {
   const { selectedCompany } = useCompany()
   const companyId = selectedCompany?.id
-  const includesToday = to >= todayBogota()
+  const queryClient = useQueryClient()
+  const today = todayBogota()
+  const includesToday = to >= today
+  const [live, setLive] = useState(false)
+
+  useEffect(() => {
+    if (!companyId || !includesToday) return
+    let first = true
+    const unsub = onSnapshot(
+      query(companyCollection(companyId, 'attendancePunches'), where('date', '==', today)),
+      () => {
+        setLive(true)
+        // El primer snapshot es el estado inicial: ya lo trae la query.
+        if (first) {
+          first = false
+          return
+        }
+        queryClient.invalidateQueries({ queryKey: ['firestore', companyId, 'attendancePunches'] })
+      },
+      () => setLive(false),
+    )
+    return () => {
+      unsub()
+      setLive(false)
+    }
+  }, [companyId, includesToday, today, queryClient])
 
   const { data, isLoading } = useQuery({
     queryKey: ['firestore', companyId, 'attendancePunches', from, to],
     queryFn: () => attendanceService.getPunchesByRange(companyId!, from, to),
     enabled: !!companyId,
-    refetchInterval: includesToday ? 30_000 : false,
+    refetchInterval: includesToday && !live ? 30_000 : false,
   })
 
   return { data: data ?? [], loading: isLoading }

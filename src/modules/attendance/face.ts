@@ -27,12 +27,31 @@ export function loadFaceApi(): Promise<FaceApi> {
         faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
         faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
       ])
+      await warmUp(faceapi)
       return faceapi
     })()
     // Si falla (sin red), permitir reintentar en vez de cachear el error.
     loading.catch(() => { loading = null })
   }
   return loading
+}
+
+/** La primera inferencia compila los shaders de WebGL y tarda varios segundos.
+ *  Se paga aqui, mientras la pantalla dice "Preparando…", y no en la primera
+ *  foto. Con un canvas en blanco no hay cara, pero la red corre completa. */
+async function warmUp(faceapi: FaceApi): Promise<void> {
+  const canvas = document.createElement('canvas')
+  canvas.width = 640
+  canvas.height = 480
+  const ctx = canvas.getContext('2d')!
+  ctx.fillStyle = '#808080'
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
+  const options = new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 })
+  try {
+    await faceapi.detectAllFaces(canvas, options).withFaceLandmarks().withFaceDescriptors()
+  } catch {
+    // Si el calentamiento falla, la primera foto solo tarda mas.
+  }
 }
 
 export type DescribeResult =
