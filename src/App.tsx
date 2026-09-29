@@ -12,7 +12,7 @@ import { HomePage } from '@/modules/home/routes'
 import { CompanySelectorPage } from '@/modules/home/company-selector-page'
 import { DateRangeProvider } from '@/core/ui/date-range-context'
 import { PosSyncPage } from '@/modules/pos-sync/routes'
-import { ReportsPage, ReportDetailPage } from '@/modules/reports/routes'
+import { ReportsPage, DeliveryReportsPage, ClosingPage, ReportDetailPage, LegacyReportRedirect } from '@/modules/reports/routes'
 import { PermissionsProvider } from '@/core/ui/permissions-provider'
 import { PermissionRoute } from '@/core/ui/permission-route'
 import { ErrorBoundary } from '@/core/ui/error-boundary'
@@ -99,7 +99,11 @@ export default function App() {
               <Route element={<DateRangeProvider defaultPreset="lastMonth"><Outlet /></DateRangeProvider>}>
                 <Route element={<PermissionRoute pageId="reports" />}>
                   <Route path="/informes" element={<Suspense fallback={<Loading />}><ReportsPage /></Suspense>} />
-                  <Route path="/informes/:reportId" element={<Suspense fallback={<Loading />}><ReportDetailPage /></Suspense>} />
+                  <Route path="/informes/domicilios" element={<Suspense fallback={<Loading />}><DeliveryReportsPage /></Suspense>} />
+                  <Route path="/informes/domicilios/:reportId" element={<Suspense fallback={<Loading />}><ReportDetailPage /></Suspense>} />
+                  <Route path="/informes/cierre" element={<Suspense fallback={<Loading />}><ClosingPage /></Suspense>} />
+                  {/* Enlaces viejos (/informes/ventas-por-canal) de antes de las secciones. */}
+                  <Route path="/informes/:reportId" element={<Suspense fallback={<Loading />}><LegacyReportRedirect /></Suspense>} />
                 </Route>
               </Route>
               <Route path="/settings" element={<Navigate to="/settings/companies" replace />} />

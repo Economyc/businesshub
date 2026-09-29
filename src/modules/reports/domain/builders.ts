@@ -25,7 +25,7 @@ export type ColumnType = 'text' | 'channel' | 'integer' | 'currency' | 'percent'
 
 export interface ReportColumn {
   key: string
-  /** Encabezado del archivo: completo, porque en Excel cada columna va sola ("Rappi · venta"). */
+  /** Encabezado del archivo: completo, porque en Excel cada columna va sola ("Rappi | venta"). */
   header: string
   type: ColumnType
   /** En pantalla: encabezado superior compartido por columnas contiguas ("Rappi"). */
@@ -97,7 +97,7 @@ function channelPairColumns(
     for (const part of [first, second]) {
       cols.push({
         key: `${id}_${part.suffix}`,
-        header: `${name} · ${part.label.toLowerCase()}`,
+        header: `${name} | ${part.label.toLowerCase()}`,
         type: part.type,
         group: name,
         label: part.label,
@@ -107,7 +107,7 @@ function channelPairColumns(
   return cols
 }
 
-// ── Ventas por canal · Resumen ──
+// ── Ventas por canal | Resumen ──
 
 export function buildChannelSummary(ctx: ReportContext): ReportTableData {
   const columns: ReportColumn[] = [

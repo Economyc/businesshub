@@ -1,155 +1,172 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { ChevronRight, Download, Loader2, Bike, Calculator } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { useMemo, useState, type ReactNode } from 'react'
+import { Link, Navigate } from 'react-router-dom'
+import { Bike, Calculator, ChevronRight, FileSpreadsheet, Scale, ListChecks, SearchX } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 import { PageHeader } from '@/core/ui/page-header'
 import { PageTransition } from '@/core/ui/page-transition'
-import { DateRangePicker } from '@/core/ui/date-range-picker'
-import { UnderlineButtonTabs } from '@/core/ui/underline-tabs'
+import { SearchInput } from '@/core/ui/search-input'
+import { EmptyState } from '@/core/ui/empty-state'
 import { currentYm } from '@/core/ui/month-picker'
-import { prevMonthOf } from '@/core/pnl/month.ts'
+import { prevMonthOf, monthRange } from '@/core/pnl/month.ts'
 import { useCompany } from '@/core/hooks/use-company'
 import { usePermissions } from '@/core/hooks/use-permissions'
 import { TAB_IDS } from '@/core/config/access-registry'
-import { ClosingView } from '../closing/closing-view'
+import { useClosing } from '../closing/use-closing'
 import { companyDisplayName } from '../domain/export'
-import { formatPeriodLabel } from '../domain/period'
-import { useDeliveryReportData } from '../hooks/use-delivery-report-data'
-import { useReportDownloads } from '../hooks/use-report-downloads'
-import { REPORTS, REPORT_CATEGORIES, type ReportDefinition } from '../registry'
-import { ReportDataStatus } from './report-data-status'
+import { REPORTS } from '../registry'
 
+interface SectionItem {
+  label: string
+  icon: LucideIcon
+  to: string
+  /** Texto extra por el que también se encuentra (p. ej. las hojas del Excel). */
+  keywords?: string
+}
+
+interface Section {
+  id: string
+  to: string
+  icon: LucideIcon
+  title: string
+  description: string
+  items: SectionItem[]
+}
+
+/** Minúsculas y sin tildes: "franja" encuentra "Franja", "dia" encuentra "día". */
+const normalize = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+
+/**
+ * Índice de /informes: una tarjeta por sección y un buscador que filtra los
+ * informes de todas a la vez. Cada sección vive en su propia subruta, así que el
+ * hub no carga las ventas del POS; sólo el cierre, que son dos documentos.
+ */
 export function ReportsPage() {
   const { selectedCompany } = useCompany()
-  const { can, canAccessTab } = usePermissions()
-  const [tab, setTab] = useState('domicilios')
-  // El cierre arranca en el mes anterior: el corriente todavía no está cerrado.
-  const [ym, setYm] = useState(() => prevMonthOf(currentYm()))
+  const { canAccessTab } = usePermissions()
+  const [query, setQuery] = useState('')
+  const closingYm = prevMonthOf(currentYm())
 
-  // /informes lo usa también gente de mercadeo para los informes de domicilios.
-  // El cierre trae el Estado de Resultados completo —utilidad, caja, gastos— así
-  // que es una pestaña aparte con su propio permiso, no algo que venga incluido
-  // por tener acceso a la página.
+  // El cierre trae el Estado de Resultados completo y tiene permiso propio:
+  // quien sólo ve domicilios (mercadeo) no necesita el índice.
   const verCierre = canAccessTab(TAB_IDS.reportsCierre)
-  const tabs = [
-    { value: 'domicilios', label: 'Domicilios', icon: Bike },
-    ...(verCierre ? [{ value: 'cierre', label: 'Cierre mensual', icon: Calculator }] : []),
-  ]
-  // Si alguien pierde el permiso con la pestaña abierta, vuelve a domicilios.
-  const activo = tab === 'cierre' && !verCierre ? 'domicilios' : tab
+
+  const sections = useMemo<Section[]>(() => {
+    const closingTo = `/informes/cierre?mes=${closingYm}`
+    return [
+      {
+        id: 'domicilios',
+        to: '/informes/domicilios',
+        icon: Bike,
+        title: 'Domicilios',
+        description: 'Ventas, horarios y productos por canal: Rappi, DiDi, Web y teléfono.',
+        items: REPORTS.map((r) => ({
+          label: r.title,
+          icon: r.icon,
+          to: `/informes/domicilios/${r.id}`,
+          keywords: r.sheets.map((s) => s.label).join(' '),
+        })),
+      },
+      {
+        id: 'cierre',
+        to: closingTo,
+        icon: Calculator,
+        title: 'Cierre mensual',
+        description: 'Estado de Resultados, puente a la caja y ajustes del mes.',
+        items: [
+          { label: 'Estado de Resultados', icon: FileSpreadsheet, to: closingTo, keywords: 'p&l pyg utilidad ebitda ventas' },
+          { label: 'Puente a la caja', icon: Scale, to: closingTo, keywords: 'caja flujo' },
+          { label: 'Ajustes del mes', icon: ListChecks, to: closingTo, keywords: 'captura manual' },
+        ],
+      },
+    ]
+  }, [closingYm])
+
+  const q = normalize(query.trim())
+  const visible = useMemo(() => {
+    if (!q) return sections
+    return sections
+      .map((section) => {
+        // Si coincide la sección, se ven todos sus informes.
+        if (normalize(section.title).includes(q)) return section
+        const items = section.items.filter((i) => normalize(`${i.label} ${i.keywords ?? ''}`).includes(q))
+        return { ...section, items }
+      })
+      .filter((section) => section.items.length > 0)
+  }, [sections, q])
+
+  if (!verCierre) return <Navigate to="/informes/domicilios" replace />
 
   return (
     <PageTransition>
       <PageHeader
         title="Informes"
         subtitle={<span className="text-body text-mid-gray">{companyDisplayName(selectedCompany)}</span>}
-      >
-        {/* El cierre trae su propio selector: siempre es un mes completo. */}
-        {activo === 'domicilios' && <DateRangePicker />}
-      </PageHeader>
+      />
 
-      {tabs.length > 1 && (
-        <UnderlineButtonTabs tabs={tabs} active={activo} onChange={setTab} />
-      )}
+      <div className="mb-6 max-w-md">
+        <SearchInput value={query} onChange={setQuery} placeholder="Buscar informe…" />
+      </div>
 
-      {activo === 'cierre' ? (
-        <ClosingView ym={ym} onMonthChange={setYm} canEdit={can('reports', 'update')} />
+      {visible.length === 0 ? (
+        <div className="bg-card-bg rounded-xl card-elevated">
+          <EmptyState icon={SearchX} title="Sin resultados" description={`Ningún informe coincide con “${query.trim()}”.`} />
+        </div>
       ) : (
-        <DeliveryReports />
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 auto-rows-fr">
+          {visible.map((section) => (
+            <SectionCard
+              key={section.id}
+              section={section}
+              badge={section.id === 'cierre' ? <ClosingBadge ym={closingYm} /> : null}
+            />
+          ))}
+        </div>
       )}
     </PageTransition>
   )
 }
 
-/**
- * Los informes de domicilios viven en su propio componente para que sus queries
- * al POS sólo corran cuando la pestaña está abierta.
- */
-function DeliveryReports() {
-  const navigate = useNavigate()
-  const data = useDeliveryReportData()
-  const downloads = useReportDownloads(data.context)
-  const orderCount = data.context.orders.length
-
-  return (
-    <>
-      <ReportDataStatus data={data} />
-
-      {REPORT_CATEGORIES.map((category) => (
-        <section key={category.id} className="space-y-2">
-          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-            <h2 className="text-subheading font-medium text-dark-graphite">{category.title}</h2>
-            <span className="text-caption text-mid-gray tabular-nums">
-              {data.isPending ? 'Cargando ventas…' : `${orderCount.toLocaleString('es-CO')} pedidos · ${formatPeriodLabel(data.period)}`}
-            </span>
-          </div>
-
-          <div className="bg-surface rounded-xl card-elevated overflow-hidden">
-            <div className="hidden md:grid grid-cols-[minmax(0,2.6fr)_minmax(0,1.2fr)_200px] px-[18px] py-3 bg-bone border-b border-border-hover text-caption font-medium text-mid-gray">
-              <div>Informe</div>
-              <div className="px-3">Hojas del archivo</div>
-              <div className="text-right">Descargar</div>
-            </div>
-            {REPORTS.filter((r) => r.category === category.id).map((report) => (
-              <ReportListRow
-                key={report.id}
-                report={report}
-                ready={data.ready}
-                busy={downloads.busy}
-                onOpen={() => navigate(`/informes/${report.id}`)}
-                onExcel={() => downloads.downloadExcel(report)}
-                onCsv={() => downloads.downloadCsv(report)}
-              />
-            ))}
-          </div>
-
-          {downloads.error && <p className="text-caption text-negative-text">{downloads.error}</p>}
-        </section>
-      ))}
-    </>
-  )
+/** Mes del cierre: verde si ya hay base calculada. */
+function ClosingBadge({ ym }: { ym: string }) {
+  const { snapshot, loading } = useClosing(ym)
+  if (loading) return null
+  return <Badge variant={snapshot ? 'positive' : 'outline'}>{monthRange(ym).label}</Badge>
 }
 
-interface ReportListRowProps {
-  report: ReportDefinition
-  ready: boolean
-  busy: string | null
-  onOpen: () => void
-  onExcel: () => void
-  onCsv: () => void
-}
-
-function ReportListRow({ report, ready, busy, onOpen, onExcel, onCsv }: ReportListRowProps) {
-  const Icon = report.icon
-  const downloadIcon = (format: 'xlsx' | 'csv') =>
-    busy === `${report.id}:${format}` ? <Loader2 className="animate-spin" /> : <Download strokeWidth={1.5} />
-
+function SectionCard({ section, badge }: { section: Section; badge: ReactNode }) {
+  const { to, icon: Icon, title, description, items } = section
   return (
-    <div className="grid grid-cols-1 md:grid-cols-[minmax(0,2.6fr)_minmax(0,1.2fr)_200px] items-center gap-4 md:gap-0 px-[18px] py-3 border-b border-border last:border-b-0">
-      <button type="button" onClick={onOpen} className="group flex items-center gap-3 text-left min-w-0 md:pr-3">
-        <span className="size-8 rounded-lg bg-bone text-mid-gray flex items-center justify-center shrink-0">
-          <Icon size={16} strokeWidth={1.5} />
-        </span>
-        <span className="min-w-0 text-body font-medium text-dark-graphite group-hover:underline underline-offset-4">
-          {report.title}
-        </span>
-      </button>
-      <div className="hidden md:block px-3 text-caption text-graphite">
-        {report.sheets.map((s) => s.label).join(' · ')}
-      </div>
-      <div className="flex items-center gap-2 md:justify-end">
-        <Button variant="outline" size="sm" onClick={onExcel} disabled={!ready || busy !== null}>
-          {downloadIcon('xlsx')}
-          Excel
-        </Button>
-        <Button variant="outline" size="sm" onClick={onCsv} disabled={!ready || busy !== null}>
-          {downloadIcon('csv')}
-          CSV
-        </Button>
-        <Button variant="ghost" size="icon-sm" onClick={onOpen} aria-label={`Abrir ${report.title}`}>
-          <ChevronRight strokeWidth={1.5} />
-        </Button>
-      </div>
+    <div className="flex h-full flex-col gap-4 rounded-2xl card-elevated bg-card-bg p-6">
+      <Link to={to} className="group space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <span className="size-10 rounded-xl bg-bone text-mid-gray flex items-center justify-center shrink-0">
+            <Icon size={20} strokeWidth={1.5} />
+          </span>
+          {badge}
+        </div>
+        <div className="space-y-1">
+          <h2 className="flex items-center gap-1 text-subheading font-medium text-dark-graphite">
+            {title}
+            <ChevronRight size={16} strokeWidth={1.5} className="text-mid-gray transition-transform group-hover:translate-x-0.5" />
+          </h2>
+          <p className="text-caption text-mid-gray">{description}</p>
+        </div>
+      </Link>
+
+      <ul className="-mx-2 space-y-1">
+        {items.map(({ label, icon: ItemIcon, to: itemTo }) => (
+          <li key={label}>
+            <Link
+              to={itemTo}
+              className="flex items-center gap-2 rounded-lg px-2 py-1 text-caption text-graphite transition-colors hover:bg-bone hover:text-dark-graphite"
+            >
+              <ItemIcon size={14} strokeWidth={1.5} className="text-mid-gray shrink-0" />
+              {label}
+            </Link>
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }

@@ -20,9 +20,16 @@ import { ReportTable } from './report-table'
 export function ReportDetailPage() {
   const { reportId } = useParams()
   const report = getReport(reportId)
-  if (!report) return <Navigate to="/informes" replace />
+  if (!report) return <Navigate to="/informes/domicilios" replace />
   // key: al saltar de un informe a otro se reinicia la pestaña activa.
   return <ReportDetail key={report.id} report={report} />
+}
+
+/** /informes/:reportId era la ruta del detalle antes de separar las secciones. */
+export function LegacyReportRedirect() {
+  const { reportId } = useParams()
+  const report = getReport(reportId)
+  return <Navigate to={report ? `/informes/domicilios/${report.id}` : '/informes'} replace />
 }
 
 function ReportDetail({ report }: { report: ReportDefinition }) {
@@ -40,24 +47,24 @@ function ReportDetail({ report }: { report: ReportDefinition }) {
     report.comparesPrevious ? `comparado con ${formatPeriodLabel(data.previousPeriod)}` : null,
   ]
     .filter(Boolean)
-    .join(' · ')
+    .join(' | ')
 
   return (
     <PageTransition>
-      <PageHeader title={report.title} backTo="/informes" subtitle={<span className="text-body text-mid-gray">{subtitle}</span>}>
+      <PageHeader title={report.title} backTo="/informes/domicilios" subtitle={<span className="text-body text-mid-gray">{subtitle}</span>}>
         <DateRangePicker />
         <ActionMenu
           label={downloads.busy ? 'Generando…' : 'Descargar'}
           icon={Download}
           items={[
             {
-              label: `Excel (.xlsx) · ${report.sheets.length === 1 ? '1 hoja' : `${report.sheets.length} hojas`}`,
+              label: `Excel (.xlsx) | ${report.sheets.length === 1 ? '1 hoja' : `${report.sheets.length} hojas`}`,
               icon: FileSpreadsheet,
               onClick: () => void downloads.downloadExcel(report),
               disabled,
             },
             {
-              label: `CSV (.csv) · ${sheet.label}`,
+              label: `CSV (.csv) | ${sheet.label}`,
               icon: FileText,
               onClick: () => void downloads.downloadCsv(report, sheet),
               disabled,

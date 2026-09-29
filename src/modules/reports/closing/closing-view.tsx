@@ -104,11 +104,11 @@ export function ClosingView({ ym, onMonthChange, canEdit }: ClosingViewProps) {
             <Clock size={14} strokeWidth={1.5} />
             <span>
               Base de Ecore y del POS calculada {stale ?? 'en una corrida anterior'}
-              {snapshot.sales.source === 'override' && ' · venta cargada a mano (sede sin POS)'}
+              {snapshot.sales.source === 'override' && ' | venta cargada a mano (sede sin POS)'}
             </span>
             {snapshot.sales.daysMissing?.length > 0 && (
               <span className="text-warning-text">
-                · POS sin datos en {snapshot.sales.daysMissing.length} día(s)
+                | POS sin datos en {snapshot.sales.daysMissing.length} día(s)
               </span>
             )}
           </div>

@@ -14,6 +14,8 @@ const LABELS: Record<string, string> = {
   departments: 'Departamentos',
   team: 'Equipo',
   informes: 'Informes',
+  domicilios: 'Domicilios',
+  cierre: 'Cierre mensual',
   'ventas-por-canal': 'Ventas por canal',
   'franja-horaria': 'Pedidos por franja horaria',
   'productos-por-canal': 'Productos por canal',
@@ -34,8 +36,8 @@ export function Breadcrumb() {
 
   const crumbs = segments.map((segment, index) => {
     const path = '/' + segments.slice(0, index + 1).join('/')
-    const isId = isIdSegment(segment)
-    const label = isId ? 'Detalle' : (LABELS[segment] ?? segment)
+    // Las etiquetas conocidas ganan: 'domicilios' tiene 10 letras y pasaría por ID.
+    const label = LABELS[segment] ?? (isIdSegment(segment) ? 'Detalle' : segment)
     const isLast = index === segments.length - 1
 
     return { path, label, isLast }

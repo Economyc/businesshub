@@ -24,7 +24,7 @@ export function BridgeCard({ bridge, monthLabel }: BridgeCardProps) {
           De la utilidad a la caja
         </h3>
         <p className="text-caption text-mid-gray">
-          {monthLabel} · qué pasó entre lo que se ganó y lo que quedó
+          {monthLabel} | qué pasó entre lo que se ganó y lo que quedó
         </p>
       </div>
 

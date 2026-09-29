@@ -55,9 +55,9 @@ function slugify(s: string): string {
     .replace(/^-+|-+$/g, '')
 }
 
-/** "Blue Smash Brgr · Escondite", para títulos en pantalla. */
+/** "Blue Smash Brgr | Escondite", para títulos en pantalla. */
 export function companyDisplayName(company: { name?: string; location?: string | null } | null | undefined): string {
-  return [company?.name, company?.location].filter(Boolean).join(' · ')
+  return [company?.name, company?.location].filter(Boolean).join(' | ')
 }
 
 /** "Blue Smash Brgr" + "Escondite" → "Blue-Escondite". */
