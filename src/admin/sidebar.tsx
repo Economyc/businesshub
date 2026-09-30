@@ -48,7 +48,7 @@ export function AdminSidebar({ onNavClick, mobile = false, onClose }: AdminSideb
   const userMenuRef = useRef<HTMLDivElement>(null)
   const userDropdownRef = useRef<HTMLDivElement>(null)
 
-  const items = ADMIN_NAV.filter((i) => canAccessPage(i.pageId))
+  const items = ADMIN_NAV.filter((i) => !i.pageId || canAccessPage(i.pageId))
 
   // Cerrar dropdowns al click fuera / Escape
   useEffect(() => {

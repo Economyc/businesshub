@@ -21,6 +21,7 @@ import { ClosingList } from '@/modules/closings/routes'
 import { DiscountsPage } from '@/modules/discounts/routes'
 import { InventoryPage } from '@/modules/inventory/routes'
 import { AttendancePage, KioskPage } from '@/modules/attendance/routes'
+import { TutorialsPage, TutorialSectionPage } from '@/modules/tutorials/routes'
 
 // Departamentos que manejan horarios: la grilla de Horarios en App2 sólo
 // muestra empleados de estos, y en este orden (Administración va junto a
@@ -91,6 +92,10 @@ export default function App() {
                       <Route path="/descuentos" element={<Suspense fallback={<Loading />}><DiscountsPage /></Suspense>} />
                     </Route>
                   </Route>
+
+                  {/* Tutoriales: los ve cualquier miembro, sin permiso de pagina. */}
+                  <Route path="/tutoriales" element={<Suspense fallback={<Loading />}><TutorialsPage /></Suspense>} />
+                  <Route path="/tutoriales/:sectionId" element={<Suspense fallback={<Loading />}><TutorialSectionPage /></Suspense>} />
 
                   {/* Rutas inexistentes (logueado) → redirect inteligente.
                       Sin sesión, Protected redirige antes a /login. */}

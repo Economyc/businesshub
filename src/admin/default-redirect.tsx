@@ -21,7 +21,7 @@ export function DefaultRedirect() {
     )
   }
 
-  const first = ADMIN_NAV.find((item) => canAccessPage(item.pageId))
+  const first = ADMIN_NAV.find((item) => item.pageId && canAccessPage(item.pageId))
   if (first) return <Navigate to={first.path} replace />
 
   return <NoAccessPage />

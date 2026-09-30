@@ -70,6 +70,13 @@ service firebase.storage {
       allow write: if false;
     }
 
+    // Videos de la seccion Tutoriales de App2 (src/modules/tutorials/catalog.ts).
+    // Lectura con sesion; se suben por consola/gcloud con credenciales de admin.
+    match /tutorials/{allPaths=**} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
     // Todo lo demas: denegado. Si aparece un prefijo nuevo hay que agregarlo
     // arriba explicitamente.
     match /{allPaths=**} {

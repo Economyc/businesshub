@@ -1,6 +1,8 @@
 node_modules
 dist
 dist-admin
+# Videos de tutoriales para la vista previa local (en produccion viven en Storage)
+public/tutorials-local
 .env.local
 .env
 .superpowers
