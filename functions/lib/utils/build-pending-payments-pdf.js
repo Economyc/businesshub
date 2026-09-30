@@ -1,5 +1,5 @@
 // Genera el PDF consolidado de "pagos pendientes por compañía" con pdf-lib
-// (dibujo manual de tablas, mismo enfoque que build-count-diff-pdf.ts). Una sección
+// (dibujo manual de tablas, mismo enfoque que el antiguo PDF de conteo de inventario). Una sección
 // por compañía con dos bloques: (A) facturas por pagar agrupadas por proveedor y
 // (B) otras obligaciones pendientes. Cierra con el gran total. Devuelve un Buffer.
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';

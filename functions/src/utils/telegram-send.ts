@@ -1,5 +1,5 @@
 // Helpers de envío a la API de Telegram (texto y documentos adjuntos).
-// Compartidos por notify-count-diff.ts y notify-pending-payments.ts.
+// Usados por notify-pending-payments.ts.
 
 export async function sendMessage(
   token: string,

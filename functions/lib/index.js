@@ -28,7 +28,6 @@ export { analyzeInvoiceDocument } from './analyze-invoice-document.js';
 export { analyzePayrollDocument } from './analyze-payroll-document.js';
 export { reconcileBankStatement } from './bank-reconcile.js';
 export { telegramBot, telegramLinkStart } from './telegram/index.js';
-export { notifyCountDiff } from './notify-count-diff.js';
 export { notifyPendingPayments } from './notify-pending-payments.js';
 export { seedGlobalMembersOnCompanyCreate } from './seed-global-members.js';
 export { attendanceKioskLink, attendanceKioskInfo, attendancePunch } from './attendance/index.js';
