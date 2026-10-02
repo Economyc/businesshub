@@ -87,6 +87,6 @@ export function buildPunctualityReport(rows: RowLike[]): EmployeePunctuality[] {
       (b.rate ?? -1) - (a.rate ?? -1) ||
       a.lateMinutes - b.lateMinutes ||
       a.absences - b.absences ||
-      a.employeeName.localeCompare(b.employeeName, 'es'),
+      (a.employeeName ?? '').localeCompare(b.employeeName ?? '', 'es'),
   )
 }

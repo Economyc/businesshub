@@ -12,6 +12,7 @@ import { useCompany } from '@/core/hooks/use-company'
 import { useActiveEmployees } from '@/modules/talent/hooks'
 import { useFaceProfiles, useKioskLink, useRemoveFaceProfile } from '../hooks'
 import { attendanceService } from '../services'
+import { employeeDisplayName } from '../use-attendance-rows'
 import { EnrollDialog } from './enroll-dialog'
 import { WorkdaysTab } from './workdays-tab'
 import { PunctualityTab } from './punctuality-tab'
@@ -179,6 +180,7 @@ function EmployeesTab({ allowedDepartments }: { allowedDepartments?: string[] })
     () =>
       employees
         .filter((e) => !allowedDepartments || (e.department && allowedDepartments.includes(e.department)))
+        .map((e) => ({ ...e, name: employeeDisplayName(e) }))
         .sort((a, b) => a.name.localeCompare(b.name, 'es')),
     [employees, allowedDepartments],
   )

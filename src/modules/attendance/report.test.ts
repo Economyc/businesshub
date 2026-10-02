@@ -57,4 +57,9 @@ describe('levelOf', () => {
     expect(levelOf(79.9)).toBe('bad')
     expect(levelOf(null)).toBeNull()
   })
+
+  it('no se cae si una jornada viene sin nombre de empleado', () => {
+    const rows = [row('ana', '2026-09-21', onTime()), { ...row('beto', '2026-09-21', onTime()), employeeName: undefined as unknown as string }]
+    expect(() => buildPunctualityReport(rows)).not.toThrow()
+  })
 })

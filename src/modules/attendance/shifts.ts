@@ -85,7 +85,7 @@ function workday(inPunch: PunchLike | undefined, outPunch: PunchLike | undefined
   return {
     id: `${ref.employeeId}-${ref.id}`,
     employeeId: ref.employeeId,
-    employeeName: ref.employeeName,
+    employeeName: ref.employeeName || 'Empleado',
     date: ref.date,
     inPunch: inPunch as AttendancePunch | undefined,
     outPunch: outPunch as AttendancePunch | undefined,

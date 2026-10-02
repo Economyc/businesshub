@@ -71,7 +71,7 @@ function Workdays() {
     const names = new Map(workdays.map((w) => [w.employeeId, w.employeeName]))
     return [
       { value: ALL, label: 'Todos los empleados' },
-      ...[...names].sort((a, b) => a[1].localeCompare(b[1], 'es')).map(([value, label]) => ({ value, label })),
+      ...[...names].sort((a, b) => (a[1] ?? '').localeCompare(b[1] ?? '', 'es')).map(([value, label]) => ({ value, label })),
     ]
   }, [workdays])
 

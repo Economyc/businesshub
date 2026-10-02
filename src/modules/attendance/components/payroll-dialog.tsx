@@ -17,7 +17,7 @@ import { useEmployees } from '@/modules/talent/hooks'
 import { cn } from '@/lib/utils'
 import { useAttendanceConfig, useSaveAttendanceConfig } from '../hooks'
 import { attendanceService } from '../services'
-import { normalizeName } from '../use-attendance-rows'
+import { employeeDisplayName, normalizeName } from '../use-attendance-rows'
 import { buildWorkdays, WORKDAY_STATUS_LABEL } from '../shifts'
 import {
   breakRuleFor,
@@ -64,7 +64,8 @@ export function PayrollDialog({ open, onClose }: { open: boolean; onClose: () =>
 
 function Body({ onClose }: { onClose: () => void }) {
   const { selectedCompany } = useCompany()
-  const { data: employees } = useEmployees()
+  const { data: rawEmployees } = useEmployees()
+  const employees = useMemo(() => rawEmployees.map((e) => ({ ...e, name: employeeDisplayName(e) })), [rawEmployees])
   const { config } = useAttendanceConfig()
   const saveConfig = useSaveAttendanceConfig()
   const months = useMemo(() => monthOptions(), [])

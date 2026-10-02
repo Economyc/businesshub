@@ -20,12 +20,12 @@ export function useAttendanceRows(from: string, to: string) {
   const { data: employees } = useEmployees()
 
   const thumbs = useMemo(() => new Map(profiles.map((p) => [p.id, p.thumb])), [profiles])
-  const employeeNames = useMemo(() => new Map(employees.map((e) => [e.id, e.name])), [employees])
+  const employeeNames = useMemo(() => new Map(employees.map((e) => [e.id, employeeDisplayName(e)])), [employees])
   const activeEmployees = useMemo(
     () =>
       employees
         .filter((e) => e.status === 'active')
-        .map((e) => ({ id: e.id, name: e.name }))
+        .map((e) => ({ id: e.id, name: employeeDisplayName(e) }))
         .sort((a, b) => a.name.localeCompare(b.name, 'es')),
     [employees],
   )
@@ -42,7 +42,7 @@ export function useAttendanceRows(from: string, to: string) {
         extraApproved: !!w.inPunch?.extraApprovedBy,
       })),
       ...absences.map((a) => ({ ...a, punctuality: null, outsideMinutes: 0, extraApproved: false })),
-    ].sort((a, b) => b.date.localeCompare(a.date) || a.employeeName.localeCompare(b.employeeName, 'es'))
+    ].sort((a, b) => b.date.localeCompare(a.date) || (a.employeeName ?? '').localeCompare(b.employeeName ?? '', 'es'))
   }, [punches, shifts, employeeNames])
 
   return { rows, loading, thumbs, activeEmployees, hasSchedule: shifts.length > 0 }
@@ -50,4 +50,11 @@ export function useAttendanceRows(from: string, to: string) {
 
 export function normalizeName(s: string): string {
   return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+}
+
+/** Nombre visible del empleado. La coleccion la comparte Ecore (RR.HH.), que
+ *  guarda firstName/lastName y espeja `name`; si un doc quedo sin `name` no
+ *  debe tumbar la pagina. */
+export function employeeDisplayName(e: { name?: string; firstName?: string; lastName?: string }): string {
+  return e.name?.trim() || `${e.firstName ?? ''} ${e.lastName ?? ''}`.trim() || 'Empleado'
 }
