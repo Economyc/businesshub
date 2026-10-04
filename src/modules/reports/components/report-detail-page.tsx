@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Navigate, useParams } from 'react-router-dom'
-import { Download, FileSpreadsheet, FileText, PackageOpen } from 'lucide-react'
+import { ChevronRight, Download, FileSpreadsheet, FileText, PackageOpen } from 'lucide-react'
 import { PageHeader } from '@/core/ui/page-header'
 import { PageTransition } from '@/core/ui/page-transition'
 import { DateRangePicker } from '@/core/ui/date-range-picker'
@@ -98,15 +98,19 @@ function ReportDetail({ report }: { report: ReportDefinition }) {
         <ReportTable table={table} previousPending={data.previousPending} detail={sheet.kind === 'detail'} />
       )}
 
-      <div className="mt-6 max-w-3xl">
-        <h2 className="text-caption font-medium text-mid-gray mb-2">Notas</h2>
-        <ol className="space-y-1 text-caption text-mid-gray list-decimal pl-4">
+      {/* Cerradas por defecto: son referencia, no algo que se lea cada vez. */}
+      <details className="group mt-6 max-w-3xl">
+        <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-caption font-medium text-mid-gray hover:text-graphite [&::-webkit-details-marker]:hidden">
+          <ChevronRight className="size-3.5 transition-transform group-open:rotate-90" />
+          Cómo se calcula
+        </summary>
+        <ol className="mt-2 space-y-1 text-caption text-mid-gray list-decimal pl-4">
           {report.sheets.length > 1 && <li>Cada pestaña es una hoja del Excel; el CSV descarga solo la pestaña que estás viendo.</li>}
           {report.notes.map((note) => (
             <li key={note}>{note}</li>
           ))}
         </ol>
-      </div>
+      </details>
     </PageTransition>
   )
 }

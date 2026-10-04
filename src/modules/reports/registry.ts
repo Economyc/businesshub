@@ -113,12 +113,9 @@ export const REPORTS: ReportDefinition[] = [
       { id: 'categorias', label: 'Top categorías', icon: Tags, kind: 'summary', build: buildTopCategories },
     ],
     notes: [
-      'Suma todos los canales de domicilio: Rappi, DiDi, Web y Domicilio telefónico. Para verlo por canal usa Productos por canal.',
+      'Suma Rappi, DiDi, Web y Domicilio telefónico. Para verlo por canal usa Productos por canal.',
       NOTE_ITEM_UNITS,
-      NOTE_ITEM_SALES,
-      NOTE_WEB,
-      'Pedidos cuenta cuántos pedidos traen el producto, una vez por pedido aunque venga en varias líneas.',
-      'La variación compara las unidades con el periodo anterior de igual duración; si el producto no se vendió entonces, se marca como Nuevo.',
+      'Pedidos: en cuántos pedidos aparece el producto. La variación compara unidades con el periodo anterior.',
     ],
   },
   {
