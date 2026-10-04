@@ -51,6 +51,8 @@ export interface ReportDefinition {
   icon: LucideIcon
   /** El resumen compara contra el periodo anterior. */
   comparesPrevious: boolean
+  /** Muestra el filtro de categorías: solo tiene sentido en informes por producto. */
+  filtersByCategory?: boolean
   sheets: ReportSheet[]
   notes: string[]
 }
@@ -108,6 +110,7 @@ export const REPORTS: ReportDefinition[] = [
     title: 'Top productos',
     icon: Trophy,
     comparesPrevious: true,
+    filtersByCategory: true,
     sheets: [
       { id: 'productos', label: 'Top productos', icon: Package, kind: 'summary', build: buildTopProducts },
       { id: 'categorias', label: 'Top categorías', icon: Tags, kind: 'summary', build: buildTopCategories },
@@ -124,6 +127,7 @@ export const REPORTS: ReportDefinition[] = [
     title: 'Productos por canal',
     icon: Package,
     comparesPrevious: false,
+    filtersByCategory: true,
     sheets: [
       { id: 'por-producto', label: 'Por producto', icon: Package, kind: 'summary', build: buildProductsByChannel },
       { id: 'por-categoria', label: 'Por categoría', icon: Tags, kind: 'summary', build: buildProductsByCategory },

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Navigate, useParams } from 'react-router-dom'
-import { ChevronRight, Download, FileSpreadsheet, FileText, PackageOpen } from 'lucide-react'
+import { CalendarDays, ChevronRight, Download, FileSpreadsheet, FileText, PackageOpen, Store, X } from 'lucide-react'
 import { PageHeader } from '@/core/ui/page-header'
 import { PageTransition } from '@/core/ui/page-transition'
 import { DateRangePicker } from '@/core/ui/date-range-picker'
@@ -9,11 +9,18 @@ import { EmptyState } from '@/core/ui/empty-state'
 import { TableSkeleton } from '@/core/ui/skeleton'
 import { UnderlineButtonTabs } from '@/core/ui/underline-tabs'
 import { useCompany } from '@/core/hooks/use-company'
+import {
+  applyCategoryFilter,
+  categoryOptions,
+  EMPTY_CATEGORY_FILTER,
+  type CategoryFilter,
+} from '../domain/category-filter'
 import { companyDisplayName } from '../domain/export'
 import { formatPeriodLabel } from '../domain/period'
 import { useDeliveryReportData } from '../hooks/use-delivery-report-data'
 import { useReportDownloads } from '../hooks/use-report-downloads'
 import { getReport, type ReportDefinition } from '../registry'
+import { CategoryFilterControl, describeCategoryFilter } from './category-filter-control'
 import { ReportDataStatus } from './report-data-status'
 import { ReportTable } from './report-table'
 
@@ -35,23 +42,44 @@ export function LegacyReportRedirect() {
 function ReportDetail({ report }: { report: ReportDefinition }) {
   const { selectedCompany } = useCompany()
   const data = useDeliveryReportData()
-  const downloads = useReportDownloads(data.context)
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>(EMPTY_CATEGORY_FILTER)
+  const categories = useMemo(() => categoryOptions(data.context.orders), [data.context.orders])
+  // El filtro también va al Excel/CSV: el archivo muestra lo mismo que la pantalla.
+  const context = useMemo(
+    () => (report.filtersByCategory ? applyCategoryFilter(data.context, categoryFilter) : data.context),
+    [report.filtersByCategory, data.context, categoryFilter],
+  )
+  const downloads = useReportDownloads(context)
   const [sheetId, setSheetId] = useState(report.sheets[0].id)
   const sheet = report.sheets.find((s) => s.id === sheetId) ?? report.sheets[0]
-  const table = useMemo(() => sheet.build(data.context), [sheet, data.context])
+  const table = useMemo(() => sheet.build(context), [sheet, context])
+  const filterLabel = report.filtersByCategory ? describeCategoryFilter(categoryFilter, categories) : null
 
   const disabled = !data.ready || downloads.busy !== null
-  const subtitle = [
-    companyDisplayName(selectedCompany),
-    formatPeriodLabel(data.period),
-    report.comparesPrevious ? `comparado con ${formatPeriodLabel(data.previousPeriod)}` : null,
-  ]
-    .filter(Boolean)
-    .join(' | ')
+  const subtitle = (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-body text-mid-gray">
+      <span className="inline-flex items-center gap-1.5">
+        <Store className="size-4" strokeWidth={1.5} />
+        {companyDisplayName(selectedCompany).replace(' | ', ' · ')}
+      </span>
+      <span className="inline-flex items-center gap-1.5">
+        <CalendarDays className="size-4" strokeWidth={1.5} />
+        <span className="text-graphite">{capitalize(formatPeriodLabel(data.period))}</span>
+        {report.comparesPrevious && (
+          <span className="rounded-full bg-smoke px-2 py-0.5 text-caption text-graphite">
+            vs {formatPeriodLabel(data.previousPeriod)}
+          </span>
+        )}
+      </span>
+    </div>
+  )
 
   return (
     <PageTransition>
-      <PageHeader title={report.title} backTo="/informes/domicilios" subtitle={<span className="text-body text-mid-gray">{subtitle}</span>}>
+      <PageHeader title={report.title} backTo="/informes/domicilios" subtitle={subtitle}>
+        {report.filtersByCategory && (
+          <CategoryFilterControl options={categories} value={categoryFilter} onChange={setCategoryFilter} />
+        )}
         <DateRangePicker />
         <ActionMenu
           label={downloads.busy ? 'Generando…' : 'Descargar'}
@@ -84,6 +112,23 @@ function ReportDetail({ report }: { report: ReportDefinition }) {
         />
       )}
 
+      {filterLabel && (
+        <div className="mb-4 flex items-center gap-2 text-caption text-mid-gray">
+          <span>Filtrado:</span>
+          <span className="inline-flex items-center gap-1 rounded-full bg-smoke py-0.5 pl-2 pr-1 text-graphite">
+            {filterLabel}
+            <button
+              type="button"
+              onClick={() => setCategoryFilter({ ...categoryFilter, categories: [] })}
+              className="rounded-full p-0.5 hover:bg-bone"
+              aria-label="Quitar filtro"
+            >
+              <X className="size-3" />
+            </button>
+          </span>
+        </div>
+      )}
+
       {data.isPending ? (
         <TableSkeleton rows={6} columns={Math.min(table.columns.length, 6)} />
       ) : data.context.orders.length === 0 ? (
@@ -114,3 +159,5 @@ function ReportDetail({ report }: { report: ReportDefinition }) {
     </PageTransition>
   )
 }
+
+const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
