@@ -6,16 +6,20 @@ interface FilterPopoverProps {
   activeCount: number
   onClear: () => void
   children: ReactNode
+  /** Solo el ícono, sin el texto "Filtros" (para encabezados con varios botones). */
+  iconOnly?: boolean
 }
 
-export function FilterPopover({ activeCount, onClear, children }: FilterPopoverProps) {
+export function FilterPopover({ activeCount, onClear, children, iconOnly = false }: FilterPopoverProps) {
   return (
     <Popover>
       <PopoverTrigger
+        aria-label="Filtros"
+        title="Filtros"
         className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg border border-input-border bg-input-bg text-body text-graphite transition-all duration-200 hover:bg-bone cursor-pointer"
       >
         <SlidersHorizontal size={15} strokeWidth={1.5} />
-        <span>Filtros</span>
+        {!iconOnly && <span>Filtros</span>}
         {activeCount > 0 && (
           <span className="ml-0.5 flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full btn-primary text-[11px] font-medium leading-none">
             {activeCount}

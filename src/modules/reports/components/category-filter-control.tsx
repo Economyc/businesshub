@@ -23,7 +23,7 @@ export function CategoryFilterControl({ options, value, onChange }: CategoryFilt
   }
 
   return (
-    <FilterPopover activeCount={value.categories.length} onClear={() => onChange({ ...value, categories: [] })}>
+    <FilterPopover iconOnly activeCount={value.categories.length} onClear={() => onChange({ ...value, categories: [] })}>
       <div className="flex flex-col gap-2">
         <span className="text-caption text-mid-gray">Categorías</span>
         <div className="self-start rounded-lg bg-smoke p-0.5">
