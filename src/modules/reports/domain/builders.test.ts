@@ -7,6 +7,8 @@ import {
   buildOrdersByWeekday,
   buildProductsByCategory,
   buildProductsByChannel,
+  buildTopCategories,
+  buildTopProducts,
   type ReportContext,
   type ReportRow,
 } from './builders'
@@ -166,5 +168,50 @@ describe('exportación', () => {
     expect(label).toBe('Blue-Escondite')
     expect(reportFileName(label, 'ventas-por-canal', period)).toBe('Blue-Escondite_ventas-por-canal_2026-08')
     expect(reportFileName(label, 'ventas-por-canal', period, 'resumen')).toBe('Blue-Escondite_ventas-por-canal_resumen_2026-08')
+  })
+})
+
+describe('top productos', () => {
+  const item = (product: string, units: number, sales: number, category = 'Hamburguesas') => ({
+    product,
+    productKey: product.toLowerCase(),
+    category,
+    units,
+    sales,
+  })
+  const current = [
+    order('rappi', 0, undefined, undefined, [item('Red Smash', 2, 64_000), item('Papas', 1, 9_000, 'Acompañamientos')]),
+    order('didi', 0, undefined, undefined, [item('Red Smash', 1, 32_000), item('Red Smash', 1, 32_000)]),
+    order('web', 0, undefined, undefined, [item('Blue Smash', 2, 70_000)]),
+    order('domicilio', 0, undefined, undefined, [item('Papas', 1, 9_000, 'Acompañamientos')]),
+  ]
+  const previous = [order('rappi', 0, '2026-07-07', undefined, [item('Red Smash', 2, 64_000)])]
+
+  it('suma todos los canales en una fila por producto, ordenada por unidades y luego venta', () => {
+    const { rows } = buildTopProducts(ctx(current, previous))
+    expect(rows.map((r) => r.values.producto)).toEqual(['Red Smash', 'Blue Smash', 'Papas', 'Total'])
+    expect(rows.map((r) => r.values.rank)).toEqual([1, 2, 3, null])
+    expect(rows[0].values).toMatchObject({ unidades: 4, venta: 128_000, pctUnidades: 50, pedidos: 2 })
+  })
+
+  it('compara unidades con el periodo anterior y marca sin base como null', () => {
+    const { rows } = buildTopProducts(ctx(current, previous))
+    expect(rows[0].values).toMatchObject({ unidadesAnterior: 2, variacion: 100 })
+    expect(rows[1].values).toMatchObject({ unidadesAnterior: 0, variacion: null })
+  })
+
+  it('cierra con el total de unidades, venta y pedidos', () => {
+    const { rows } = buildTopProducts(ctx(current, previous))
+    expect(rows[rows.length - 1]).toMatchObject({
+      kind: 'total',
+      values: { unidades: 8, venta: 216_000, pctUnidades: 100, pctVenta: 100, pedidos: 4, unidadesAnterior: 2, variacion: 300 },
+    })
+  })
+
+  it('agrupa por categoría', () => {
+    const { rows } = buildTopCategories(ctx(current))
+    expect(rows.map((r) => r.values.categoria)).toEqual(['Hamburguesas', 'Acompañamientos', 'Total'])
+    expect(rows[0].values).toMatchObject({ unidades: 6, pedidos: 3 })
+    expect(rows[1].values).toMatchObject({ unidades: 2, pedidos: 2 })
   })
 })

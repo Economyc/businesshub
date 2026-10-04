@@ -368,6 +368,134 @@ export function buildProductsByCategory(ctx: ReportContext): ReportTableData {
   return { columns, rows }
 }
 
+// ── Top productos (todos los canales) ──
+
+interface TotalTally {
+  label: string
+  category: string
+  units: number
+  sales: number
+  /** Pedidos que traen el ítem: 1 por pedido aunque venga en varias líneas. */
+  orders: number
+}
+
+type ItemKeyFn = (item: DeliveryOrder['items'][number]) => string
+
+function tallyTotals(orders: DeliveryOrder[], keyOf: ItemKeyFn): Map<string, TotalTally> {
+  const map = new Map<string, TotalTally>()
+  for (const o of orders) {
+    const inOrder = new Set<string>()
+    for (const it of o.items) {
+      const key = keyOf(it)
+      const t = map.get(key) ?? { label: it.product, category: it.category, units: 0, sales: 0, orders: 0 }
+      t.units += it.units
+      t.sales += it.sales
+      if (!inOrder.has(key)) {
+        t.orders += 1
+        inOrder.add(key)
+      }
+      map.set(key, t)
+    }
+  }
+  return map
+}
+
+function topRows(ctx: ReportContext, keyOf: ItemKeyFn, labelOf: (t: TotalTally) => Record<string, CellValue>, totalLabel: Record<string, CellValue>): ReportRow[] {
+  const cur = tallyTotals(ctx.orders, keyOf)
+  const prev = tallyTotals(ctx.previousOrders, keyOf)
+  const list = [...cur.entries()].sort(
+    ([, a], [, b]) => b.units - a.units || b.sales - a.sales || a.label.localeCompare(b.label, 'es'),
+  )
+  const units = list.reduce((s, [, t]) => s + t.units, 0)
+  const sales = list.reduce((s, [, t]) => s + t.sales, 0)
+  const prevUnits = [...prev.values()].reduce((s, t) => s + t.units, 0)
+
+  const rows: ReportRow[] = list.map(([key, t], i) => {
+    const base = prev.get(key)?.units ?? 0
+    return {
+      kind: 'data',
+      values: {
+        rank: i + 1,
+        ...labelOf(t),
+        unidades: t.units,
+        pctUnidades: ratio(t.units, units),
+        venta: t.sales,
+        pctVenta: ratio(t.sales, sales),
+        pedidos: t.orders,
+        unidadesAnterior: base,
+        variacion: variation(t.units, base),
+      },
+    }
+  })
+  rows.push({
+    kind: 'total',
+    values: {
+      rank: null,
+      ...totalLabel,
+      unidades: units,
+      pctUnidades: units > 0 ? 100 : null,
+      venta: sales,
+      pctVenta: sales > 0 ? 100 : null,
+      pedidos: ctx.orders.filter((o) => o.items.length > 0).length,
+      unidadesAnterior: prevUnits,
+      variacion: variation(units, prevUnits),
+    },
+  })
+  return rows
+}
+
+const topColumns = (first: ReportColumn[]): ReportColumn[] => [
+  { key: 'rank', header: '#', type: 'integer' },
+  ...first,
+  { key: 'unidades', header: 'Unidades', type: 'integer' },
+  { key: 'pctUnidades', header: '% unidades', type: 'percent', group: 'Participación', label: 'Unidades' },
+  { key: 'venta', header: 'Venta', type: 'currency' },
+  { key: 'pctVenta', header: '% venta', type: 'percent', group: 'Participación', label: 'Venta' },
+  { key: 'pedidos', header: 'Pedidos', type: 'integer' },
+  {
+    key: 'unidadesAnterior',
+    header: 'Unidades periodo anterior',
+    type: 'integer',
+    group: 'Periodo anterior',
+    label: 'Unidades',
+    dependsOnPrevious: true,
+  },
+  {
+    key: 'variacion',
+    header: 'Variación %',
+    type: 'variation',
+    group: 'Periodo anterior',
+    label: 'Variación',
+    currentKey: 'unidades',
+    dependsOnPrevious: true,
+  },
+]
+
+export function buildTopProducts(ctx: ReportContext): ReportTableData {
+  const columns = topColumns([
+    { key: 'producto', header: 'Producto', type: 'text' },
+    { key: 'categoria', header: 'Categoría', type: 'text' },
+  ])
+  const rows = topRows(
+    ctx,
+    (it) => it.productKey,
+    (t) => ({ producto: t.label, categoria: t.category }),
+    { producto: 'Total', categoria: '' },
+  )
+  return { columns, rows }
+}
+
+export function buildTopCategories(ctx: ReportContext): ReportTableData {
+  const columns = topColumns([{ key: 'categoria', header: 'Categoría', type: 'text' }])
+  const rows = topRows(
+    ctx,
+    (it) => it.category.toLowerCase(),
+    (t) => ({ categoria: t.category }),
+    { categoria: 'Total' },
+  )
+  return { columns, rows }
+}
+
 // ── Detalle de pedidos ──
 
 export function buildOrderDetail(ctx: ReportContext): ReportTableData {

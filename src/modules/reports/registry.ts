@@ -9,6 +9,7 @@ import {
   Table2,
   Tags,
   CalendarClock,
+  Trophy,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import {
@@ -20,11 +21,18 @@ import {
   buildOrdersByWeekday,
   buildProductsByCategory,
   buildProductsByChannel,
+  buildTopCategories,
+  buildTopProducts,
   type ReportContext,
   type ReportTableData,
 } from './domain/builders'
 
-export type ReportId = 'ventas-por-canal' | 'franja-horaria' | 'productos-por-canal' | 'detalle-pedidos'
+export type ReportId =
+  | 'ventas-por-canal'
+  | 'franja-horaria'
+  | 'top-productos'
+  | 'productos-por-canal'
+  | 'detalle-pedidos'
 
 export interface ReportSheet {
   id: string
@@ -50,6 +58,11 @@ export interface ReportDefinition {
 const NOTE_NET_SALES = 'Venta neta del POS: no incluye propinas ni costo de envío. Los pedidos anulados no se cuentan.'
 const NOTE_WEB =
   'Web incluye los pedidos de la web pagados en línea o contra entrega. El POS los registra como Delivery Telefónico; se reconocen por el pago en línea o por la dirección que envía la web.'
+
+const NOTE_ITEM_UNITS =
+  'Unidades y venta según el detalle del comprobante. Las adiciones que el POS cobra dentro del precio del producto no aparecen como línea aparte.'
+const NOTE_ITEM_SALES =
+  'La suma de venta por producto sale del detalle y puede diferir de la venta neta: para el total de ventas usa el informe Ventas por canal.'
 
 export const REPORT_CATEGORIES = [
   {
@@ -90,6 +103,25 @@ export const REPORTS: ReportDefinition[] = [
     notes: [NOTE_NET_SALES, NOTE_WEB, 'La hora es la de emisión del comprobante en el POS, no la de entrega.'],
   },
   {
+    id: 'top-productos',
+    category: 'domicilios',
+    title: 'Top productos',
+    icon: Trophy,
+    comparesPrevious: true,
+    sheets: [
+      { id: 'productos', label: 'Top productos', icon: Package, kind: 'summary', build: buildTopProducts },
+      { id: 'categorias', label: 'Top categorías', icon: Tags, kind: 'summary', build: buildTopCategories },
+    ],
+    notes: [
+      'Suma todos los canales de domicilio: Rappi, DiDi, Web y Domicilio telefónico. Para verlo por canal usa Productos por canal.',
+      NOTE_ITEM_UNITS,
+      NOTE_ITEM_SALES,
+      NOTE_WEB,
+      'Pedidos cuenta cuántos pedidos traen el producto, una vez por pedido aunque venga en varias líneas.',
+      'La variación compara las unidades con el periodo anterior de igual duración; si el producto no se vendió entonces, se marca como Nuevo.',
+    ],
+  },
+  {
     id: 'productos-por-canal',
     category: 'domicilios',
     title: 'Productos por canal',
@@ -100,8 +132,8 @@ export const REPORTS: ReportDefinition[] = [
       { id: 'por-categoria', label: 'Por categoría', icon: Tags, kind: 'summary', build: buildProductsByCategory },
     ],
     notes: [
-      'Unidades y venta según el detalle del comprobante. Las adiciones que el POS cobra dentro del precio del producto no aparecen como línea aparte.',
-      'La suma de venta por producto sale del detalle y puede diferir de la venta neta: para el total de ventas usa el informe Ventas por canal.',
+      NOTE_ITEM_UNITS,
+      NOTE_ITEM_SALES,
       NOTE_WEB,
     ],
   },
