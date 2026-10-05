@@ -36,40 +36,38 @@ export function faceBackend(): FaceBackendInfo | null {
 }
 
 /**
- * WebGL es lo mas rapido, pero muchas GPUs de tablets Android no renderizan
- * texturas float32 y tfjs cae a float16: la red de deteccion pierde precision y
- * devuelve cero caras sin lanzar error. En esos equipos se usa WASM (CPU,
- * ~1 s por foto) y, si tampoco carga, el backend cpu puro.
- * `?backend=wasm|cpu` en la URL fuerza uno (para probar en PC).
+ * WASM primero: corre en CPU y da el mismo resultado en cualquier equipo
+ * (~0.5 s por foto). WebGL es apenas mas rapido pero no es confiable: en una
+ * tablet Android que reporta float32 la red devolvia cero caras sin lanzar
+ * error. WebGL queda de respaldo si el navegador no soporta WASM, y cpu puro de
+ * ultimo recurso. `?backend=webgl|cpu` en la URL fuerza uno (para probar).
  */
 async function pickBackend(tf: Tf): Promise<FaceBackendInfo> {
   const forced = new URLSearchParams(window.location.search).get('backend')
-  let float32: boolean | null = null
-  if (!forced || forced === 'webgl') {
-    try {
-      if (await tf.setBackend('webgl')) {
-        await tf.ready()
-        float32 = tf.env().getBool('WEBGL_RENDER_FLOAT32_CAPABLE')
-        if (float32 || forced === 'webgl') return { backend: 'webgl', float32 }
-      }
-    } catch {
-      // Sin WebGL: sigue con WASM.
-    }
-  }
-  if (forced !== 'cpu') {
+  if (!forced || forced === 'wasm') {
     try {
       tf.setWasmPaths(WASM_URL)
       if (await tf.setBackend('wasm')) {
         await tf.ready()
-        return { backend: 'wasm', float32 }
+        return { backend: 'wasm', float32: null }
       }
     } catch {
-      // Sin WASM: queda cpu.
+      // Sin WASM: sigue con WebGL.
+    }
+  }
+  if (forced !== 'cpu') {
+    try {
+      if (await tf.setBackend('webgl')) {
+        await tf.ready()
+        return { backend: 'webgl', float32: tf.env().getBool('WEBGL_RENDER_FLOAT32_CAPABLE') }
+      }
+    } catch {
+      // Sin WebGL: queda cpu.
     }
   }
   await tf.setBackend('cpu')
   await tf.ready()
-  return { backend: 'cpu', float32 }
+  return { backend: 'cpu', float32: null }
 }
 
 export function loadFaceApi(): Promise<FaceApi> {
@@ -91,7 +89,8 @@ export function loadFaceApi(): Promise<FaceApi> {
   return loading
 }
 
-/** La primera inferencia compila los shaders de WebGL y tarda varios segundos.
+/** La primera inferencia prepara el backend (kernels de WASM o shaders de
+ *  WebGL) y tarda varios segundos.
  *  Se paga aqui, mientras la pantalla dice "Preparando…", y no en la primera
  *  foto. Con un canvas en blanco no hay cara, pero la red corre completa. */
 async function warmUp(faceapi: FaceApi): Promise<void> {
