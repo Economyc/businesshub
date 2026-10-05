@@ -11,17 +11,72 @@ const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/mode
  *  pequena es alguien lejos de la camara y el descriptor sale poco confiable. */
 const MIN_FACE_PX = 110
 
+/** Binarios del backend WASM, con la version de tfjs que trae face-api 1.7.15. */
+const WASM_URL = 'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm@4.22.0/dist/'
+
 type FaceApi = typeof import('@vladmandic/face-api')
 
+// El tipado de face-api no expone estas funciones de tfjs; en runtime existen.
+type Tf = {
+  ready: () => Promise<void>
+  setBackend: (name: string) => Promise<boolean>
+  getBackend: () => string
+  setWasmPaths: (prefix: string) => void
+  env: () => { getBool: (flag: string) => boolean }
+}
+
+export type FaceBackendInfo = { backend: string; float32: boolean | null }
+
 let loading: Promise<FaceApi> | null = null
+let backendInfo: FaceBackendInfo | null = null
+
+/** Backend con el que quedo corriendo la deteccion (para el diagnostico). */
+export function faceBackend(): FaceBackendInfo | null {
+  return backendInfo
+}
+
+/**
+ * WebGL es lo mas rapido, pero muchas GPUs de tablets Android no renderizan
+ * texturas float32 y tfjs cae a float16: la red de deteccion pierde precision y
+ * devuelve cero caras sin lanzar error. En esos equipos se usa WASM (CPU,
+ * ~1 s por foto) y, si tampoco carga, el backend cpu puro.
+ * `?backend=wasm|cpu` en la URL fuerza uno (para probar en PC).
+ */
+async function pickBackend(tf: Tf): Promise<FaceBackendInfo> {
+  const forced = new URLSearchParams(window.location.search).get('backend')
+  let float32: boolean | null = null
+  if (!forced || forced === 'webgl') {
+    try {
+      if (await tf.setBackend('webgl')) {
+        await tf.ready()
+        float32 = tf.env().getBool('WEBGL_RENDER_FLOAT32_CAPABLE')
+        if (float32 || forced === 'webgl') return { backend: 'webgl', float32 }
+      }
+    } catch {
+      // Sin WebGL: sigue con WASM.
+    }
+  }
+  if (forced !== 'cpu') {
+    try {
+      tf.setWasmPaths(WASM_URL)
+      if (await tf.setBackend('wasm')) {
+        await tf.ready()
+        return { backend: 'wasm', float32 }
+      }
+    } catch {
+      // Sin WASM: queda cpu.
+    }
+  }
+  await tf.setBackend('cpu')
+  await tf.ready()
+  return { backend: 'cpu', float32 }
+}
 
 export function loadFaceApi(): Promise<FaceApi> {
   if (!loading) {
     loading = (async () => {
       const faceapi = await import('@vladmandic/face-api')
-      // El tipado de face-api no expone tf.ready(); en runtime existe y deja lista
-      // la GPU (webgl) antes de cargar los modelos.
-      await (faceapi.tf as unknown as { ready: () => Promise<void> }).ready()
+      backendInfo = await pickBackend(faceapi.tf as unknown as Tf)
       await Promise.all([
         faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
         faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
@@ -54,9 +109,12 @@ async function warmUp(faceapi: FaceApi): Promise<void> {
   }
 }
 
+/** Lo que vio el detector, para el diagnostico de la pantalla de marcacion. */
+export type DetectionStats = { faces: number; score: number | null; facePx: number | null }
+
 export type DescribeResult =
-  | { ok: true; descriptor: number[] }
-  | { ok: false; reason: 'no-face' | 'multiple-faces' | 'too-far' }
+  | { ok: true; descriptor: number[]; stats: DetectionStats }
+  | { ok: false; reason: 'no-face' | 'multiple-faces' | 'too-far'; stats: DetectionStats }
 
 /**
  * Detecta la cara y calcula su descriptor (128 numeros).
@@ -68,15 +126,19 @@ export async function describeFace(
   { single }: { single: boolean },
 ): Promise<DescribeResult> {
   const faceapi = await loadFaceApi()
-  const options = new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 })
+  // 0.4 y no 0.5: luz de local y camaras frontales flojas de tablet. El umbral
+  // que decide QUIEN es (match) es otro y no cambia.
+  const options = new faceapi.SsdMobilenetv1Options({ minConfidence: 0.4 })
   const results = await faceapi.detectAllFaces(input, options).withFaceLandmarks().withFaceDescriptors()
-  if (results.length === 0) return { ok: false, reason: 'no-face' }
-  if (single && results.length > 1) return { ok: false, reason: 'multiple-faces' }
+  if (results.length === 0) return { ok: false, reason: 'no-face', stats: { faces: 0, score: null, facePx: null } }
 
   const largest = results.reduce((a, b) => (b.detection.box.area > a.detection.box.area ? b : a))
   const box = largest.detection.box
-  if (Math.min(box.width, box.height) < MIN_FACE_PX) return { ok: false, reason: 'too-far' }
-  return { ok: true, descriptor: Array.from(largest.descriptor) }
+  const facePx = Math.round(Math.min(box.width, box.height))
+  const stats = { faces: results.length, score: largest.detection.score, facePx }
+  if (single && results.length > 1) return { ok: false, reason: 'multiple-faces', stats }
+  if (facePx < MIN_FACE_PX) return { ok: false, reason: 'too-far', stats }
+  return { ok: true, descriptor: Array.from(largest.descriptor), stats }
 }
 
 export const DESCRIBE_ERROR: Record<Exclude<DescribeResult, { ok: true }>['reason'], string> = {

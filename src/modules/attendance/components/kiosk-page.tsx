@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Camera, CheckCircle2, Loader2, MapPin, XCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { CompanyLogo } from '@/core/ui/company-logo'
 import { cn } from '@/lib/utils'
 import { useCamera, usePageVisible, captureFrame, canvasToJpegBase64, CAMERA_ERROR } from '../camera'
-import { describeFace, loadFaceApi, DESCRIBE_ERROR } from '../face'
+import { describeFace, faceBackend, loadFaceApi, DESCRIBE_ERROR, type DetectionStats } from '../face'
 import { attendanceService, formatTimeBogota } from '../services'
 import { PUNCH_TYPE_LABEL, type KioskInfo, type PunchType } from '../types'
 import logoBlue from '../assets/logo-blue-smash.png'
@@ -87,6 +87,10 @@ function Kiosk({
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<Result | null>(null)
   const fails = useRef(0)
+  // `?diag=1`: muestra que motor de deteccion uso el equipo y que vio en la foto.
+  const [params] = useSearchParams()
+  const diag = params.get('diag') === '1'
+  const [lastStats, setLastStats] = useState<DetectionStats | null>(null)
   const now = useClock()
   useWakeLock()
   useWarmPunch(token, visible)
@@ -110,6 +114,7 @@ function Kiosk({
     try {
       const frame = captureFrame(video)
       const face = await describeFace(frame, { single: false })
+      setLastStats(face.stats)
       if (!face.ok) {
         fail(DESCRIBE_ERROR[face.reason])
         return
@@ -185,6 +190,7 @@ function Kiosk({
             <span className="text-subheading">{!modelsReady ? 'Preparando…' : busy ? 'Reconociendo…' : 'Tomar foto'}</span>
           </Button>
         )}
+        {diag && <DiagLine video={videoRef.current} modelsReady={modelsReady} stats={lastStats} />}
       </main>
     </div>
   )
@@ -212,6 +218,19 @@ function ResultOverlay({ result }: { result: Result }) {
       )}
     </div>
   )
+}
+
+function DiagLine({ video, modelsReady, stats }: { video: HTMLVideoElement | null; modelsReady: boolean; stats: DetectionStats | null }) {
+  const backend = faceBackend()
+  const parts = [
+    modelsReady && backend ? `motor ${backend.backend}` : 'motor cargando',
+    backend?.float32 == null ? null : `float32 ${backend.float32 ? 'sí' : 'no'}`,
+    video?.videoWidth ? `video ${video.videoWidth}×${video.videoHeight}` : null,
+    stats ? `caras ${stats.faces}` : null,
+    stats?.score != null ? `score ${stats.score.toFixed(2)}` : null,
+    stats?.facePx != null ? `cara ${stats.facePx}px` : null,
+  ].filter(Boolean)
+  return <p className="text-caption tabular-nums text-mid-gray">{parts.join(' · ')}</p>
 }
 
 function useWarmPunch(token: string, visible: boolean) {
