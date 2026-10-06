@@ -15,11 +15,16 @@ export declare const attendancePunch: import("firebase-functions/v2/https").Call
     employeeName?: undefined;
     type?: undefined;
     at?: undefined;
+    punchId?: undefined;
 } | {
     matched: true;
     duplicate: boolean;
     employeeName: string;
     type: PunchType;
     at: string;
+    punchId: string | null;
+}>, unknown>;
+export declare const attendanceFlipPunch: import("firebase-functions/v2/https").CallableFunction<any, Promise<{
+    type: PunchType;
 }>, unknown>;
 //# sourceMappingURL=index.d.ts.map

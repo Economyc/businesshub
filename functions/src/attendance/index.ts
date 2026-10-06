@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import { onCall, HttpsError } from 'firebase-functions/v2/https'
 import { getStorage } from 'firebase-admin/storage'
-import { Timestamp } from 'firebase-admin/firestore'
+import { FieldValue, Timestamp } from 'firebase-admin/firestore'
 import { db } from '../firestore.js'
 import { CALLABLE_CORS_ORIGINS } from '../cors-origins.js'
 import {
@@ -9,10 +9,11 @@ import {
   isDuplicate,
   isValidDescriptor,
   learnDescriptor,
-  nextPunchType,
+  decidePunch,
   LEARN_MAX_DISTANCE,
   type FaceCandidate,
   type PunchType,
+  type ScheduledShift,
 } from './match.js'
 
 // Marcacion de entrada/salida con reconocimiento facial.
@@ -29,11 +30,16 @@ import {
 //   attendanceKiosks/{token}                     { companyId, createdAt, createdBy }
 //   companies/{cid}/faceProfiles/{employeeId}    { employeeName, descriptors: [{v}], lastPunchType, lastPunchAt }
 //   companies/{cid}/attendancePunches/{id}       { employeeId, employeeName, type, at, date, distance, photoPath, source }
+//   companies/{cid}/shifts/{id}                  turnos de Horarios (solo lectura: deciden entrada vs salida)
 //   Storage attendance/{cid}/{date}/{id}.jpg     foto de la marcacion (se borra a los 45 dias por lifecycle del bucket)
 
 const KIOSKS = 'attendanceKiosks'
 const PROFILES = 'faceProfiles'
 const PUNCHES = 'attendancePunches'
+const SHIFTS = 'shifts'
+/** El empleado puede corregir entrada/salida desde el kiosco hasta esto despues
+ *  de marcar (boton "No, es mi entrada" del resultado). */
+const FLIP_WINDOW_MS = 2 * 60 * 1000
 const TZ = 'America/Bogota'
 const MAX_PHOTO_BYTES = 400 * 1024
 // Explicito: desplegado con gcloud (no firebase-tools) el runtime no trae
@@ -170,6 +176,17 @@ export const attendancePunch = onCall(
     const recentQuery = db.collection('companies').doc(companyId).collection(PUNCHES)
       .where('date', 'in', [localDate(new Date(nowMs - 24 * 60 * 60 * 1000)), date])
 
+    // Turnos de Horarios de antier a hoy: deciden si una entrada abierta todavia
+    // se puede cerrar (ver nextPunchType). Fuera de la transaccion: no cambian
+    // por la marcacion y no hace falta bloquearlos.
+    const dayMs = 24 * 60 * 60 * 1000
+    const shiftDates = [localDate(new Date(nowMs - 2 * dayMs)), localDate(new Date(nowMs - dayMs)), date]
+    const shiftsSnap = await db.collection('companies').doc(companyId).collection(SHIFTS)
+      .where('date', 'in', shiftDates).get()
+    const shifts: ScheduledShift[] = shiftsSnap.docs
+      .map((d) => d.data() as ScheduledShift & { employeeId: string })
+      .filter((s) => s.employeeId === match.employeeId && s.start && s.end)
+
     // Transaccion: dos taps seguidos en la tablet no pueden dejar dos entradas.
     const outcome = await db.runTransaction(async (tx) => {
       const snap = await tx.get(profileRef)
@@ -184,7 +201,7 @@ export const attendancePunch = onCall(
       if (isDuplicate(last, nowMs)) {
         return { duplicate: true as const, type: last!.type, atMs: last!.atMs }
       }
-      const type = nextPunchType(last, nowMs)
+      const { type, missedIn } = decidePunch(last, nowMs, shifts)
       const at = Timestamp.fromDate(now)
       tx.set(punchRef, {
         employeeId: match.employeeId,
@@ -195,6 +212,9 @@ export const attendancePunch = onCall(
         distance: Math.round(match.distance * 1000) / 1000,
         photoPath,
         source: 'face',
+        // Salida sin entrada (olvido marcar al llegar): el panel no la empareja
+        // con una entrada vieja que haya quedado abierta.
+        ...(missedIn ? { missedIn: true } : {}),
         createdAt: at,
         updatedAt: at,
       })
@@ -216,6 +236,44 @@ export const attendancePunch = onCall(
       employeeName: match.employeeName,
       type: outcome.type,
       at: new Date(outcome.atMs).toISOString(),
+      // Solo en marcaciones nuevas: habilita la correccion desde el kiosco.
+      punchId: outcome.duplicate ? null : punchRef.id,
     }
+  },
+)
+
+// ── Link publico: corregir entrada <-> salida recien marcada ────────────────
+// El kiosco adivina si es entrada o salida; si se equivoca (p. ej. olvido la
+// salida de ayer), el empleado lo corrige en la misma pantalla. Solo la
+// marcacion facial recien hecha, para que el link publico no edite historia.
+export const attendanceFlipPunch = onCall(
+  { region: 'us-central1', memory: '256MiB', timeoutSeconds: 30, cors: CALLABLE_CORS_ORIGINS },
+  async (request) => {
+    const { token, punchId } = (request.data ?? {}) as { token?: string; punchId?: unknown }
+    const companyId = await companyFromToken(token)
+    if (typeof punchId !== 'string' || !/^[A-Za-z0-9]{1,40}$/.test(punchId)) {
+      throw new HttpsError('invalid-argument', 'Marcación inválida')
+    }
+    const company = db.collection('companies').doc(companyId)
+    const punchRef = company.collection(PUNCHES).doc(punchId)
+
+    const type = await db.runTransaction(async (tx) => {
+      const snap = await tx.get(punchRef)
+      if (!snap.exists) throw new HttpsError('not-found', 'Marcación no encontrada')
+      const p = snap.data() as { employeeId: string; type: PunchType; source?: string; voided?: boolean; createdAt?: Timestamp }
+      const age = Date.now() - (p.createdAt?.toMillis() ?? 0)
+      if (p.source !== 'face' || p.voided || age > FLIP_WINDOW_MS) {
+        throw new HttpsError('failed-precondition', 'Ya no se puede corregir esta marcación')
+      }
+      const profileRef = company.collection(PROFILES).doc(p.employeeId)
+      const profile = await tx.get(profileRef)
+      const next: PunchType = p.type === 'in' ? 'out' : 'in'
+      const now = Timestamp.now()
+      // `missedIn` solo aplica a salidas; al volverla entrada se quita.
+      tx.update(punchRef, { type: next, flippedFrom: p.type, flippedAt: now, updatedAt: now, missedIn: FieldValue.delete() })
+      if (profile.exists) tx.update(profileRef, { lastPunchType: next })
+      return next
+    })
+    return { type }
   },
 )

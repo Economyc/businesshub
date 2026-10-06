@@ -30,5 +30,5 @@ export { reconcileBankStatement } from './bank-reconcile.js';
 export { telegramBot, telegramLinkStart } from './telegram/index.js';
 export { notifyPendingPayments } from './notify-pending-payments.js';
 export { seedGlobalMembersOnCompanyCreate } from './seed-global-members.js';
-export { attendanceKioskLink, attendanceKioskInfo, attendancePunch } from './attendance/index.js';
+export { attendanceKioskLink, attendanceKioskInfo, attendancePunch, attendanceFlipPunch } from './attendance/index.js';
 //# sourceMappingURL=index.js.map

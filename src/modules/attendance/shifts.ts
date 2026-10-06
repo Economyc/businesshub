@@ -4,7 +4,8 @@ import type { AttendancePunch } from './types'
 // Logica pura para poder probarla sin Firestore.
 
 /** Entrada sin salida mas vieja que esto: se asume que olvido marcar la salida.
- *  Mismo umbral que usa el servidor (OPEN_SHIFT_MAX_MS en functions/src/attendance). */
+ *  Es el tope del servidor (OPEN_SHIFT_MAX_MS en functions/src/attendance/match.ts);
+ *  alla ademas se corta antes segun el turno de Horarios o el cambio de dia. */
 export const OPEN_SHIFT_MAX_MS = 18 * 60 * 60 * 1000
 
 export type WorkdayStatus = 'complete' | 'open' | 'missing-out' | 'missing-in' | 'absent'
@@ -36,6 +37,8 @@ export interface Workday {
 type PunchLike = Pick<AttendancePunch, 'id' | 'employeeId' | 'employeeName' | 'type' | 'date'> & {
   at: { toMillis(): number }
   voided?: boolean
+  missedIn?: boolean
+  source?: AttendancePunch['source']
 }
 
 export function buildWorkdays<P extends PunchLike>(punches: P[], nowMs: number): Workday[] {
@@ -67,10 +70,15 @@ export function buildWorkdays<P extends PunchLike>(punches: P[], nowMs: number):
           days.push(workday(open, undefined, 'missing-out'))
         }
         open = p
-      } else if (open) {
+      } else if (open && closes(open, p)) {
         days.push(workday(open, p, 'complete'))
         open = null
       } else {
+        // Salida sin entrada: si quedo una entrada abierta, esa no tuvo salida.
+        if (open) {
+          days.push(workday(open, undefined, 'missing-out'))
+          open = null
+        }
         days.push(workday(undefined, p, 'missing-in'))
       }
     }
@@ -78,6 +86,15 @@ export function buildWorkdays<P extends PunchLike>(punches: P[], nowMs: number):
   }
 
   return days.sort((a, b) => b.date.localeCompare(a.date) || startMs(a) - startMs(b))
+}
+
+/** Si una salida cierra la entrada abierta. No la cierra si paso el tope de
+ *  horas, ni si el kiosco la marco como salida sin entrada (`missedIn`) y la
+ *  abierta es otra marcacion del kiosco; una entrada que un admin agrego a mano
+ *  para completar esa jornada si la cierra. */
+function closes(open: PunchLike, out: PunchLike): boolean {
+  if (out.at.toMillis() - open.at.toMillis() > OPEN_SHIFT_MAX_MS) return false
+  return !out.missedIn || open.source === 'manual'
 }
 
 function workday(inPunch: PunchLike | undefined, outPunch: PunchLike | undefined, status: WorkdayStatus): Workday {

@@ -51,6 +51,11 @@ export interface AttendancePunch {
    *  incluido lo que cae fuera del turno programado. */
   extraApprovedBy?: string
   extraApprovedAt?: Timestamp
+  /** Salida que el kiosco registro sin entrada (olvido marcar al llegar): no se
+   *  empareja con una entrada anterior que haya quedado abierta. */
+  missedIn?: boolean
+  /** Corregida por el empleado en el kiosco ("No, es mi entrada/salida"). */
+  flippedFrom?: PunchType
 }
 
 /** Configuracion de marcacion del local (doc `attendanceConfig/main`). */
@@ -70,4 +75,12 @@ export interface KioskInfo {
 
 export type PunchResponse =
   | { matched: false }
-  | { matched: true; duplicate: boolean; employeeName: string; type: PunchType; at: string }
+  | {
+      matched: true
+      duplicate: boolean
+      employeeName: string
+      type: PunchType
+      at: string
+      /** Marcacion nueva: se puede corregir entrada/salida desde el kiosco. */
+      punchId?: string | null
+    }

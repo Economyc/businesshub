@@ -17,6 +17,8 @@ import logoFilipo from '../assets/logo-filipo.png'
 
 /** Cuanto se muestra el resultado antes de volver a la camara. */
 const RESULT_MS = 4000
+/** Con el boton de corregir entrada/salida visible, un poco mas para alcanzar a tocarlo. */
+const RESULT_FLIP_MS = 8000
 /** Cada cuanto se despierta la funcion de marcar mientras el link se ve. Cloud
  *  Run apaga las instancias ociosas a los ~15 min. */
 const WARM_MS = 5 * 60 * 1000
@@ -37,7 +39,7 @@ function brandLogo(companyName: string) {
 }
 
 type Result =
-  | { kind: 'ok'; name: string; type: PunchType; at: Date; duplicate: boolean }
+  | { kind: 'ok'; name: string; type: PunchType; at: Date; duplicate: boolean; punchId: string | null }
   | { kind: 'error'; message: string }
 
 export function KioskPage() {
@@ -93,13 +95,15 @@ function Kiosk({
   const [helpShown, setHelpShown] = useState(false)
   const diag = params.get('diag') === '1' || helpShown
   const [lastStats, setLastStats] = useState<DetectionStats | null>(null)
+  const [flipping, setFlipping] = useState(false)
   const now = useClock()
   useWakeLock()
   useWarmPunch(token, visible)
 
   useEffect(() => {
     if (!result) return
-    const t = setTimeout(() => setResult(null), RESULT_MS)
+    const ms = result.kind === 'ok' && result.punchId ? RESULT_FLIP_MS : RESULT_MS
+    const t = setTimeout(() => setResult(null), ms)
     return () => clearTimeout(t)
   }, [result])
 
@@ -129,11 +133,32 @@ function Kiosk({
         return
       }
       fails.current = 0
-      setResult({ kind: 'ok', name: res.employeeName, type: res.type, at: new Date(res.at), duplicate: res.duplicate })
+      setResult({
+        kind: 'ok',
+        name: res.employeeName,
+        type: res.type,
+        at: new Date(res.at),
+        duplicate: res.duplicate,
+        punchId: res.punchId ?? null,
+      })
     } catch {
       fail('No hay conexión. Intenta de nuevo en un momento.')
     } finally {
       setBusy(false)
+    }
+  }
+
+  // El kiosco adivina entrada/salida; si se equivoco, el empleado lo corrige.
+  async function flipPunch() {
+    if (result?.kind !== 'ok' || !result.punchId || flipping) return
+    setFlipping(true)
+    try {
+      const { type } = await attendanceService.flipPunch(token, result.punchId)
+      setResult({ ...result, type, punchId: null })
+    } catch {
+      setResult({ kind: 'error', message: 'No se pudo corregir. Avisa al administrador.' })
+    } finally {
+      setFlipping(false)
     }
   }
 
@@ -181,7 +206,7 @@ function Kiosk({
               {status === 'starting' ? <Loader2 size={24} strokeWidth={1.5} className="animate-spin" /> : CAMERA_ERROR[status]}
             </div>
           )}
-          {result && <ResultOverlay result={result} />}
+          {result && <ResultOverlay result={result} flipping={flipping} onFlip={flipPunch} />}
         </div>
 
         {modelsError ? (
@@ -200,7 +225,7 @@ function Kiosk({
   )
 }
 
-function ResultOverlay({ result }: { result: Result }) {
+function ResultOverlay({ result, flipping, onFlip }: { result: Result; flipping: boolean; onFlip: () => void }) {
   const ok = result.kind === 'ok'
   return (
     <div className={cn('absolute inset-0 flex flex-col items-center justify-center gap-4 p-6 text-center', ok ? 'bg-positive-bg' : 'bg-negative-bg')}>
@@ -213,6 +238,14 @@ function ResultOverlay({ result }: { result: Result }) {
               ? `Tu ${PUNCH_TYPE_LABEL[result.type].toLowerCase()} ya quedó registrada a las ${formatTimeBogota(result.at)}`
               : `${PUNCH_TYPE_LABEL[result.type]} registrada · ${formatTimeBogota(result.at)}`}
           </p>
+          {result.punchId && (
+            <Button variant="outline" size="lg" className="h-12 rounded-2xl" onClick={onFlip} disabled={flipping}>
+              {flipping && <Loader2 size={20} strokeWidth={1.5} className="animate-spin" />}
+              <span className="text-body">
+                {result.type === 'out' ? 'No, es mi entrada' : 'No, es mi salida'}
+              </span>
+            </Button>
+          )}
         </>
       ) : (
         <>

@@ -27,6 +27,26 @@ describe('buildWorkdays', () => {
     expect(days[0].minutes).toBe(480)
   })
 
+  it('salida sin entrada del kiosco no cierra una entrada vieja abierta', () => {
+    const out = { ...punch('ana', 'out', 32, '2026-09-23'), missedIn: true, source: 'face' as const }
+    const days = buildWorkdays([{ ...punch('ana', 'in', 9), source: 'face' as const }, out], LATER)
+    expect(days.map((d) => [d.date, d.status])).toEqual([
+      ['2026-09-23', 'missing-in'],
+      ['2026-09-22', 'missing-out'],
+    ])
+  })
+
+  it('salida sin entrada se completa con una entrada agregada a mano', () => {
+    const out = { ...punch('ana', 'out', 32, '2026-09-23'), missedIn: true, source: 'face' as const }
+    const days = buildWorkdays([{ ...punch('ana', 'in', 24, '2026-09-23'), source: 'manual' as const }, out], LATER)
+    expect(days.map((d) => d.status)).toEqual(['complete'])
+  })
+
+  it('una salida mas de 18 h despues de la entrada no la cierra', () => {
+    const days = buildWorkdays([punch('ana', 'in', 0), punch('ana', 'out', 20, '2026-09-23')], LATER)
+    expect(days.map((d) => d.status).sort()).toEqual(['missing-in', 'missing-out'])
+  })
+
   it('entrada seguida de otra entrada deja la primera sin salida', () => {
     const days = buildWorkdays(
       [punch('ana', 'in', 0), punch('ana', 'in', 24, '2026-09-23'), punch('ana', 'out', 32, '2026-09-23')],

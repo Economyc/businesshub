@@ -115,6 +115,13 @@ export const attendanceService = {
     return (await fn({ token, descriptor, photoBase64 })).data
   },
 
+  /** Invierte entrada <-> salida de una marcacion recien hecha en el kiosco. */
+  flipPunch: async (token: string, punchId: string): Promise<{ type: PunchType }> => {
+    const fns = await getAppFunctions()
+    const fn = httpsCallable<{ token: string; punchId: string }, { type: PunchType }>(fns, 'attendanceFlipPunch')
+    return (await fn({ token, punchId })).data
+  },
+
   /** Despierta la funcion de marcar (sin registrar nada) para que la foto del
    *  empleado no pague el arranque en frio. */
   warmPunch: async (token: string): Promise<void> => {
