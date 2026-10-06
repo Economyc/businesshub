@@ -2,6 +2,13 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!-- Cloudflare tambien sirve http:// sin redirigir. En http el navegador
+         bloquea la camara y Firebase rechaza el origen (CORS): forzar https. -->
+    <script>
+      if (location.protocol === 'http:' && /(^|\.)economyc\.cc$/.test(location.hostname)) {
+        location.replace('https://' + location.host + location.pathname + location.search + location.hash)
+      }
+    </script>
     <link rel="icon" type="image/png" href="/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />

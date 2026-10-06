@@ -88,8 +88,10 @@ function Kiosk({
   const [result, setResult] = useState<Result | null>(null)
   const fails = useRef(0)
   // `?diag=1`: muestra que motor de deteccion uso el equipo y que vio en la foto.
+  // Tambien aparece sola tras varios fallos, para que el local mande captura.
   const [params] = useSearchParams()
-  const diag = params.get('diag') === '1'
+  const [helpShown, setHelpShown] = useState(false)
+  const diag = params.get('diag') === '1' || helpShown
   const [lastStats, setLastStats] = useState<DetectionStats | null>(null)
   const now = useClock()
   useWakeLock()
@@ -103,7 +105,9 @@ function Kiosk({
 
   function fail(message: string) {
     fails.current += 1
-    const help = fails.current >= FAILS_BEFORE_HELP ? ' Si sigue sin funcionar, avisa al administrador.' : ''
+    const needsHelp = fails.current >= FAILS_BEFORE_HELP
+    if (needsHelp) setHelpShown(true)
+    const help = needsHelp ? ' Si sigue sin funcionar, avisa al administrador.' : ''
     setResult({ kind: 'error', message: message + help })
   }
 
@@ -224,8 +228,10 @@ function DiagLine({ video, modelsReady, stats }: { video: HTMLVideoElement | nul
   const backend = faceBackend()
   const parts = [
     modelsReady && backend ? `motor ${backend.backend}` : 'motor cargando',
+    backend?.fallbackFrom ? `(antes ${backend.fallbackFrom})` : null,
     backend?.float32 == null ? null : `float32 ${backend.float32 ? 'sí' : 'no'}`,
     video?.videoWidth ? `video ${video.videoWidth}×${video.videoHeight}` : null,
+    stats?.blank ? 'foto vacía' : null,
     stats ? `caras ${stats.faces}` : null,
     stats?.score != null ? `score ${stats.score.toFixed(2)}` : null,
     stats?.facePx != null ? `cara ${stats.facePx}px` : null,

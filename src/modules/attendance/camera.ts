@@ -28,10 +28,16 @@ export function useCamera(enabled = true) {
         stream = s
         const video = videoRef.current
         if (video) {
+          // Safari en iPhone solo reproduce inline y en silencio si los atributos
+          // estan en el DOM (React no escribe `muted` como atributo).
+          video.muted = true
+          video.setAttribute('muted', '')
+          video.setAttribute('playsinline', '')
           video.srcObject = s
           await video.play().catch(() => undefined)
+          await waitForFrames(video)
         }
-        setStatus('ready')
+        if (!cancelled) setStatus('ready')
       })
       .catch((err: unknown) => {
         if (cancelled) return
@@ -46,6 +52,21 @@ export function useCamera(enabled = true) {
   }, [enabled])
 
   return { videoRef, status }
+}
+
+/** Espera a que el video tenga cuadros reales: hasta entonces `videoWidth` es 0
+ *  y una foto saldria vacia. Tope de 5 s para no dejar la pantalla colgada. */
+function waitForFrames(video: HTMLVideoElement): Promise<void> {
+  if (video.readyState >= video.HAVE_CURRENT_DATA && video.videoWidth > 0) return Promise.resolve()
+  return new Promise((resolve) => {
+    const done = () => {
+      video.removeEventListener('loadeddata', done)
+      clearTimeout(timer)
+      resolve()
+    }
+    const timer = setTimeout(done, 5000)
+    video.addEventListener('loadeddata', done)
+  })
 }
 
 /** true mientras la pestana se ve. Oculta (otra pestana, ventana minimizada,
@@ -73,6 +94,25 @@ export function captureFrame(video: HTMLVideoElement, maxSide = 640): HTMLCanvas
   canvas.height = Math.round(video.videoHeight * scale)
   canvas.getContext('2d')!.drawImage(video, 0, 0, canvas.width, canvas.height)
   return canvas
+}
+
+/** true si el cuadro es un solo color (negro o gris): pasa en iPhone cuando el
+ *  video aun no entrega imagen. Muestrea una grilla de 8x8 puntos. */
+export function isBlankFrame(canvas: HTMLCanvasElement): boolean {
+  const { data } = canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height)
+  let min = 255
+  let max = 0
+  for (let gy = 0; gy < 8; gy++) {
+    for (let gx = 0; gx < 8; gx++) {
+      const x = Math.floor(((gx + 0.5) * canvas.width) / 8)
+      const y = Math.floor(((gy + 0.5) * canvas.height) / 8)
+      const i = (y * canvas.width + x) * 4
+      const luma = (data[i] + data[i + 1] + data[i + 2]) / 3
+      if (luma < min) min = luma
+      if (luma > max) max = luma
+    }
+  }
+  return max - min < 8
 }
 
 /** JPEG en base64 (sin el prefijo data:) de un canvas, reducido a `maxSide`. */
