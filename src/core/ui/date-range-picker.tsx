@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Calendar, ChevronDown, Check } from 'lucide-react'
-import { DateInput } from '@/core/ui/date-input'
+import { DateRangeCalendar } from '@/core/ui/date-range-calendar'
 import { useDateRange, DATE_PRESETS } from './date-range-context'
 
 function toISO(d: Date): string {
@@ -15,8 +15,6 @@ export function DateRangePicker() {
   const { activePreset, presetLabel, setPreset, setCustomRange, startDate, endDate } = useDateRange()
   const [open, setOpen] = useState(false)
   const [showCustom, setShowCustom] = useState(activePreset === 'custom')
-  const [customFrom, setCustomFrom] = useState(toISO(startDate))
-  const [customTo, setCustomTo] = useState(toISO(endDate))
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -24,7 +22,6 @@ export function DateRangePicker() {
     function handleClickOutside(e: MouseEvent) {
       const target = e.target as Element | null
       if (ref.current && target && ref.current.contains(target)) return
-      if (target?.closest('[data-dateinput-panel]')) return
       setOpen(false)
     }
     function handleKey(e: KeyboardEvent) {
@@ -46,15 +43,11 @@ export function DateRangePicker() {
 
   const handleCustomClick = () => {
     setShowCustom(true)
-    setCustomFrom(toISO(startDate))
-    setCustomTo(toISO(endDate))
   }
 
-  const applyCustom = () => {
-    if (customFrom && customTo) {
-      setCustomRange(new Date(customFrom + 'T00:00:00'), new Date(customTo + 'T00:00:00'))
-      setOpen(false)
-    }
+  const applyCustom = (from: string, to: string) => {
+    setCustomRange(new Date(from + 'T00:00:00'), new Date(to + 'T00:00:00'))
+    setOpen(false)
   }
 
   return (
@@ -79,7 +72,7 @@ export function DateRangePicker() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 4 }}
             transition={{ duration: 0.15, ease: 'easeOut' }}
-            className="fixed left-2 right-2 bottom-2 sm:bottom-auto sm:left-auto sm:right-0 sm:absolute sm:top-full sm:mt-1.5 bg-surface-elevated border border-border rounded-xl shadow-lg z-50 flex flex-col sm:flex-row overflow-hidden sm:overflow-visible sm:max-w-none"
+            className="fixed left-2 right-2 bottom-2 sm:bottom-auto sm:left-auto sm:right-0 sm:absolute sm:top-full sm:mt-1.5 bg-surface-elevated border border-border rounded-xl shadow-lg z-50 flex flex-col sm:flex-row max-h-[85vh] overflow-y-auto sm:max-h-none sm:overflow-visible sm:max-w-none"
           >
             {/* Presets list */}
             <div className="w-full sm:w-[200px] py-2 border-b sm:border-b-0 sm:border-r border-border">
@@ -127,22 +120,12 @@ export function DateRangePicker() {
                   className="overflow-hidden sm:overflow-visible sm:!h-auto"
                   style={{ width: 'auto' }}
                 >
-                  <div className="w-full sm:w-[260px] p-4 flex flex-col gap-3">
-                    <div>
-                      <label className="block text-caption text-mid-gray mb-1.5">Desde</label>
-                      <DateInput value={customFrom} onChange={setCustomFrom} />
-                    </div>
-                    <div>
-                      <label className="block text-caption text-mid-gray mb-1.5">Hasta</label>
-                      <DateInput value={customTo} onChange={setCustomTo} />
-                    </div>
-                    <button
-                      onClick={applyCustom}
-                      disabled={!customFrom || !customTo}
-                      className="w-full py-2 rounded-lg btn-primary text-body font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed mt-1"
-                    >
-                      Aplicar
-                    </button>
+                  <div className="w-full p-4">
+                    <DateRangeCalendar
+                      start={toISO(startDate)}
+                      end={toISO(endDate)}
+                      onSelect={applyCustom}
+                    />
                   </div>
                 </motion.div>
               )}

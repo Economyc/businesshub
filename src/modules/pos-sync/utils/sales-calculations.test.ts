@@ -1,4 +1,4 @@
-import { calcDocCounts, getDocType, getPaymentLabel } from './sales-calculations'
+import { calcDocCounts, calcTotals, getDocType, getPaymentLabel } from './sales-calculations'
 import type { PosVenta } from '../types'
 
 // Solo los campos que mira la clasificación; el resto de PosVenta no interviene.
@@ -99,5 +99,20 @@ describe('getPaymentLabel', () => {
   it('cae a tipo_pago cuando no hay pagosList', () => {
     // Único caso donde "Contado" es lo mejor que tenemos.
     expect(getPaymentLabel(conPagos([]))).toBe('Contado')
+  })
+})
+
+describe('calcTotals — autorretención', () => {
+  const v = (tipo_documento: string, total: number, impuestos: number): PosVenta =>
+    ({ tipo_documento, documento: '', total: String(total), impuestos: String(impuestos) }) as PosVenta
+
+  it('aplica 3.5% sobre facturas sin impoconsumo', () => {
+    expect(calcTotals([v('F', 108_000, 8_000)]).autorretencion).toBeCloseTo(3_500)
+  })
+
+  it('ignora notas de venta y boletas', () => {
+    const t = calcTotals([v('F', 108_000, 8_000), v('', 50_000, 0), v('B', 20_000, 0)])
+    expect(t.autorretencion).toBeCloseTo(3_500)
+    expect(t.impuestos).toBe(8_000)
   })
 })

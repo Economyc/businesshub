@@ -123,6 +123,11 @@ export function toDateStrLocal(d: Date): string {
   return `${y}-${m}-${day}`
 }
 
+// Autorretención de renta: 3.5% sobre la venta facturada (solo tipo F) sin el
+// impoconsumo. El `total` del POS trae el impoconsumo incluido (8/108), por eso
+// la base es `total - impuestos`. Propinas y envío ya están fuera de `total`.
+export const AUTORRETENCION_RATE = 0.035
+
 export interface PosTotals {
   count: number
   ventas: number
@@ -130,6 +135,8 @@ export interface PosTotals {
   propinas: number
   envio: number
   impuestos: number
+  /** Autorretención estimada: AUTORRETENCION_RATE × (total − impuestos) de facturas. */
+  autorretencion: number
   descuento: number
   ticket: number
 }
@@ -139,6 +146,7 @@ export function calcTotals(list: PosVenta[]): PosTotals {
   let propinas = 0
   let envio = 0
   let impuestos = 0
+  let baseAutorretencion = 0
   let descuento = 0
   for (const v of list) {
     ventasNetas += num(v.total)
@@ -146,6 +154,7 @@ export function calcTotals(list: PosVenta[]): PosTotals {
     envio += num(v.costoenvio)
     impuestos += num(v.impuestos)
     descuento += num(v.descuento)
+    if (getDocType(v) === 'factura') baseAutorretencion += num(v.total) - num(v.impuestos)
   }
   // `ventas` representa el total principal mostrado en KPIs y debe cuadrar
   // con el reporte del POS: solo neto. Propinas y envío quedan como campos
@@ -158,6 +167,7 @@ export function calcTotals(list: PosVenta[]): PosTotals {
     propinas,
     envio,
     impuestos,
+    autorretencion: baseAutorretencion * AUTORRETENCION_RATE,
     descuento,
     ticket: list.length > 0 ? ventas / list.length : 0,
   }

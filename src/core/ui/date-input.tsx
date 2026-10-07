@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useLayoutEffect, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { Calendar, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { MONTHS_FULL, DAYS, toISO, todayISO as getTodayISO, buildCalendarDays } from '@/core/ui/calendar-utils'
 
 interface DateInputProps {
   value: string
@@ -9,12 +10,6 @@ interface DateInputProps {
   required?: boolean
   className?: string
 }
-
-const MONTHS_FULL = [
-  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
-]
-const DAYS = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa', 'Do']
 
 const PANEL_WIDTH = 280
 const PANEL_HEIGHT = 330
@@ -29,14 +24,6 @@ const YEAR_OPTIONS = (() => {
   for (let y = max; y >= MIN_YEAR; y--) years.push(y)
   return years
 })()
-
-function pad(n: number) {
-  return n.toString().padStart(2, '0')
-}
-
-function toISO(year: number, month: number, day: number) {
-  return `${year}-${pad(month + 1)}-${pad(day)}`
-}
 
 // ISO (YYYY-MM-DD) -> "dd/mm/aaaa" para el campo editable.
 function formatTyped(iso: string): string {
@@ -139,39 +126,7 @@ export function DateInput({ value, onChange, required, className }: DateInputPro
   }, [open])
 
   // Build calendar grid
-  const calendarDays = useMemo(() => {
-    const firstDay = new Date(viewYear, viewMonth, 1)
-    const lastDay = new Date(viewYear, viewMonth + 1, 0)
-    // Monday = 0, Sunday = 6
-    let startDow = firstDay.getDay() - 1
-    if (startDow < 0) startDow = 6
-
-    const days: { day: number; current: boolean; iso: string }[] = []
-
-    // Previous month padding
-    const prevLastDay = new Date(viewYear, viewMonth, 0).getDate()
-    for (let i = startDow - 1; i >= 0; i--) {
-      const d = prevLastDay - i
-      const m = viewMonth === 0 ? 11 : viewMonth - 1
-      const y = viewMonth === 0 ? viewYear - 1 : viewYear
-      days.push({ day: d, current: false, iso: toISO(y, m, d) })
-    }
-
-    // Current month
-    for (let d = 1; d <= lastDay.getDate(); d++) {
-      days.push({ day: d, current: true, iso: toISO(viewYear, viewMonth, d) })
-    }
-
-    // Next month padding
-    const remaining = 42 - days.length
-    for (let d = 1; d <= remaining; d++) {
-      const m = viewMonth === 11 ? 0 : viewMonth + 1
-      const y = viewMonth === 11 ? viewYear + 1 : viewYear
-      days.push({ day: d, current: false, iso: toISO(y, m, d) })
-    }
-
-    return days
-  }, [viewYear, viewMonth])
+  const calendarDays = useMemo(() => buildCalendarDays(viewYear, viewMonth), [viewYear, viewMonth])
 
   function prevMonth() {
     if (viewMonth === 0) {
@@ -226,7 +181,7 @@ export function DateInput({ value, onChange, required, className }: DateInputPro
     }
   }
 
-  const todayISO = toISO(new Date().getFullYear(), new Date().getMonth(), new Date().getDate())
+  const todayISO = getTodayISO()
 
   return (
     <div

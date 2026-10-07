@@ -1,5 +1,5 @@
 import { memo, useCallback, useMemo, useState, useEffect, useRef } from 'react'
-import { Search, RefreshCw, Loader2, MapPin, Receipt, Heart, Clock, TrendingUp } from 'lucide-react'
+import { Search, RefreshCw, Loader2, MapPin, Receipt, Heart, Clock, TrendingUp, Landmark } from 'lucide-react'
 import { motion, useReducedMotion, useMotionValue, useTransform, animate, type Variants } from 'framer-motion'
 import { DataTable, type Column } from '@/core/ui/data-table'
 import { EmptyState } from '@/core/ui/empty-state'
@@ -587,14 +587,23 @@ interface CardConfig {
   icon: LucideIcon
   tone: 'info' | 'warning' | 'neutral'
   format: (stats: PosTotals) => string
+  /** Explicación del cálculo, como tooltip nativo. */
+  hint?: string
 }
 
 const CARDS_CONFIG: CardConfig[] = [
   {
-    label: 'Impuestos',
+    label: 'Impoconsumo',
     icon: Receipt,
     tone: 'info',
     format: (s) => formatCurrency(s.impuestos),
+  },
+  {
+    label: 'Autorretención',
+    icon: Landmark,
+    tone: 'info',
+    hint: '3.5% sobre las facturas, sin impoconsumo',
+    format: (s) => formatCurrency(s.autorretencion),
   },
   {
     label: 'Propinas',
@@ -634,7 +643,7 @@ const SummaryCards = memo(function SummaryCards({
 }) {
   return (
     <motion.div
-      className="grid grid-cols-3 gap-3 mb-5"
+      className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5"
       aria-live="polite"
       initial="hidden"
       animate="visible"
@@ -645,6 +654,7 @@ const SummaryCards = memo(function SummaryCards({
           <motion.div
             key={card.label}
             className="bg-surface rounded-xl border border-bone p-4 flex items-center gap-3"
+            title={card.hint}
             custom={i}
             variants={prefersReducedMotion ? undefined : cardVariants}
             initial={prefersReducedMotion ? undefined : 'hidden'}
