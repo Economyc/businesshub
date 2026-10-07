@@ -622,7 +622,7 @@ const CARDS_CONFIG: CardConfig[] = [
 const TONE_ICON: Record<string, string> = {
   info: 'text-info-text bg-info-bg',
   warning: 'text-warning-text bg-warning-bg',
-  neutral: 'text-dark-graphite bg-surface',
+  neutral: 'text-dark-graphite bg-bone',
 }
 
 const cardVariants: Variants = {
@@ -653,7 +653,7 @@ const SummaryCards = memo(function SummaryCards({
         return (
           <motion.div
             key={card.label}
-            className="bg-bone rounded-xl border border-border/60 p-4 flex items-center gap-3"
+            className="bg-card-bg rounded-xl border border-border p-4 flex items-center gap-3"
             title={card.hint}
             custom={i}
             variants={prefersReducedMotion ? undefined : cardVariants}
@@ -708,7 +708,7 @@ const ChannelCards = memo(function ChannelCards({
         return (
           <motion.div
             key={slice.channel}
-            className="bg-surface rounded-xl border border-bone p-4"
+            className="bg-card-bg rounded-xl border border-border p-4"
             custom={i}
             variants={prefersReducedMotion ? undefined : cardVariants}
             initial={prefersReducedMotion ? undefined : 'hidden'}
