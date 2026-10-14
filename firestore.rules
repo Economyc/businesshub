@@ -151,6 +151,21 @@ service cloud.firestore {
       allow write: if signedIn();
     }
 
+    // Modulo Costeo de Ecore: recetario, insumos y compras por MARCA (Manila y
+    // Escondite comparten). Raiz y sin companyId -- mismo criterio que suppliers:
+    // abierto a cualquier cuenta con sesion del universo cerrado de este proyecto.
+    match /costingIngredients/{id} {
+      allow read, write: if signedIn();
+    }
+
+    match /costingRecipes/{id} {
+      allow read, write: if signedIn();
+    }
+
+    match /costingPurchases/{id} {
+      allow read, write: if signedIn();
+    }
+
     // LLM rate-limits: solo Admin SDK desde Cloud Functions
     match /system/llm-rate-limits/{document=**} {
       allow read, write: if false;
