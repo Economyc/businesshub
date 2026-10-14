@@ -33,9 +33,28 @@ describe('nextPunchType', () => {
     expect(nextPunchType(inAt('2026-10-05T18:00'), t('2026-10-06T01:30'), shifts)).toBe('out')
   })
 
-  it('con turno, pasada la gracia despues del fin ya no cierra', () => {
+  it('con turno, quien se queda hasta el cierre sale bien aunque pase la gracia', () => {
     const shifts = [shift('2026-10-05', '12:00', '20:00')]
-    expect(nextPunchType(inAt('2026-10-05T12:00'), t('2026-10-06T00:30'), shifts)).toBe('in')
+    expect(nextPunchType(inAt('2026-10-05T12:00'), t('2026-10-06T00:30'), shifts)).toBe('out')
+  })
+
+  it('doble turno: entra 11:02 con turno 11-16 y sale 22:17', () => {
+    const shifts = [shift('2026-10-12', '11:00', '16:00')]
+    expect(nextPunchType(inAt('2026-10-12T11:02'), t('2026-10-12T22:17'), shifts)).toBe('out')
+  })
+
+  it('horas extra: entra 11:10 con turno 11-18 y sale 22:44', () => {
+    const shifts = [shift('2026-10-07', '11:00', '18:00')]
+    expect(nextPunchType(inAt('2026-10-07T11:10'), t('2026-10-07T22:44'), shifts)).toBe('out')
+  })
+
+  it('un turno que termina despues del corte alarga la vigencia', () => {
+    const shifts = [shift('2026-10-05', '22:00', '06:00')]
+    expect(nextPunchType(inAt('2026-10-05T22:00'), t('2026-10-06T07:30'), shifts)).toBe('out')
+  })
+
+  it('entrada de ayer sin salida y hoy llega sin turno en Horarios: entrada', () => {
+    expect(nextPunchType(inAt('2026-10-09T15:12'), t('2026-10-10T16:00'))).toBe('in')
   })
 
   it('sin horario, entrada de noche cierra antes del corte', () => {
@@ -74,6 +93,32 @@ describe('nextPunchType', () => {
 
     it('sin horario no puede saberlo: entrada', () => {
       expect(nextPunchType(null, t('2026-10-06T18:05'))).toBe('in')
+    })
+
+    it('llega tarde a las 4 pm con turno 11-18: entrada, no salida sin entrada', () => {
+      const s = [shift('2026-10-11', '11:00', '18:00')]
+      const lastOut = { type: 'out' as const, atMs: t('2026-10-10T22:57') }
+      expect(nextPunchType(lastOut, t('2026-10-11T16:08'), s)).toBe('in')
+      expect(nextPunchType(lastOut, t('2026-10-11T16:24'), s)).toBe('in')
+    })
+
+    it('llega a las 4 pm a un turno de tarde aunque otro turno suyo termine a esa hora', () => {
+      const s = [shift('2026-10-10', '09:00', '16:00'), shift('2026-10-10', '16:00', '23:00')]
+      expect(nextPunchType(null, t('2026-10-10T16:00'), s)).toBe('in')
+    })
+
+    it('olvido entrar y sale al cierre: salida sin entrada (casos reales)', () => {
+      const lastOutYesterday = { type: 'out' as const, atMs: t('2026-10-11T23:44') }
+      expect(decidePunch(lastOutYesterday, t('2026-10-12T23:02'), [shift('2026-10-12', '16:00', '23:00')]))
+        .toEqual({ type: 'out', missedIn: true })
+      expect(decidePunch(null, t('2026-10-12T15:04'), [shift('2026-10-12', '11:00', '15:00')]))
+        .toEqual({ type: 'out', missedIn: true })
+      expect(decidePunch(null, t('2026-10-10T16:14'), [shift('2026-10-10', '09:00', '16:00')]))
+        .toEqual({ type: 'out', missedIn: true })
+    })
+
+    it('una hora antes del fin todavia no adivina salida', () => {
+      expect(nextPunchType(null, t('2026-10-06T17:00'), shifts)).toBe('in')
     })
 
     it('turno partido: al final del primero es salida, al empezar el segundo entrada', () => {

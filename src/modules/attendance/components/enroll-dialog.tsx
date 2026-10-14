@@ -28,6 +28,14 @@ interface EnrollDialogProps {
  *  una foto subida se muestra tal cual. */
 type Captured = { descriptor: number[]; thumb: string; mirrored: boolean }
 
+/** Fotos de registro con la camara: varias poses dan referencias que aguantan
+ *  mejor cuando el empleado no mira perfecto de frente al marcar. */
+const POSES = [
+  'Mira de frente a la cámara.',
+  'Gira la cabeza un poco hacia tu izquierda.',
+  'Ahora un poco hacia tu derecha.',
+] as const
+
 export function EnrollDialog({ employee, profiles, onClose }: EnrollDialogProps) {
   const open = employee !== null
   return (
@@ -40,8 +48,10 @@ export function EnrollDialog({ employee, profiles, onClose }: EnrollDialogProps)
 }
 
 function EnrollBody({ employee, profiles, onClose }: { employee: { id: string; name: string }; profiles: FaceProfile[]; onClose: () => void }) {
-  const [captured, setCaptured] = useState<Captured | null>(null)
-  const { videoRef, status } = useCamera(captured === null)
+  const [shots, setShots] = useState<Captured[]>([])
+  // Una foto subida es un registro completo (no se piden poses).
+  const done = shots.length >= POSES.length || (shots.length > 0 && !shots[0].mirrored)
+  const { videoRef, status } = useCamera(!done)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const enroll = useEnrollFace()
@@ -50,7 +60,7 @@ function EnrollBody({ employee, profiles, onClose }: { employee: { id: string; n
   function takePhoto() {
     const video = videoRef.current
     if (!video) return
-    void analyze(() => Promise.resolve(captureFrame(video)), true)
+    void analyze(() => Promise.resolve(captureFrame(video, 1280)), true)
   }
 
   // Foto existente (p.ej. las selfies que ya se tenian en Clonk).
@@ -77,7 +87,8 @@ function EnrollBody({ employee, profiles, onClose }: { employee: { id: string; n
         setError(`Esta cara se parece demasiado a la de ${clash.employeeName}, que ya está registrado. Si es la misma persona, quita primero ese registro.`)
         return
       }
-      setCaptured({ descriptor: result.descriptor, thumb: canvasToDataUrl(frame, 160, 0.8), mirrored })
+      const shot = { descriptor: result.descriptor, thumb: canvasToDataUrl(frame, 160, 0.8), mirrored }
+      setShots((prev) => (mirrored ? [...prev, shot] : [shot]))
     } catch {
       setError('No se pudo cargar el reconocimiento facial. Revisa la conexión a internet e intenta de nuevo.')
     } finally {
@@ -86,62 +97,88 @@ function EnrollBody({ employee, profiles, onClose }: { employee: { id: string; n
   }
 
   async function save() {
-    if (!captured) return
+    if (shots.length === 0) return
     setError(null)
     try {
-      await enroll.mutateAsync({ employeeId: employee.id, employeeName: employee.name, ...captured })
+      await enroll.mutateAsync({
+        employeeId: employee.id,
+        employeeName: employee.name,
+        descriptors: shots.map((s) => s.descriptor),
+        thumb: shots[0].thumb,
+      })
       onClose()
     } catch {
       setError('No se pudo guardar el registro. Intenta de nuevo.')
     }
   }
 
+  const last = shots[shots.length - 1]
+
   return (
     <>
       <DialogHeader>
         <DialogTitle>Registrar a {employee.name}</DialogTitle>
         <DialogDescription>
-          Selfie de frente y con buena luz.
+          {done
+            ? 'Revisa las fotos y guarda el registro.'
+            : `Foto ${shots.length + 1} de ${POSES.length}: ${POSES[shots.length]} Con buena luz y, si se puede, en la tablet del local.`}
         </DialogDescription>
       </DialogHeader>
 
       <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl border border-border/60 bg-smoke">
-        {captured ? (
-          <img src={captured.thumb} alt="" className={captured.mirrored ? 'h-full w-full object-cover -scale-x-100' : 'h-full w-full object-cover'} />
+        {done && last ? (
+          <img src={last.thumb} alt="" className={last.mirrored ? 'h-full w-full object-cover -scale-x-100' : 'h-full w-full object-cover'} />
         ) : (
           <video ref={videoRef} muted playsInline className="h-full w-full object-cover -scale-x-100" />
         )}
-        {!captured && status !== 'ready' && !busy && (
+        {!done && status !== 'ready' && !busy && (
           <div className="absolute inset-0 flex items-center justify-center p-6 text-center text-body text-mid-gray">
             {status === 'starting' ? <Loader2 className="animate-spin" size={20} strokeWidth={1.5} /> : CAMERA_ERROR[status]}
           </div>
         )}
       </div>
 
+      {shots.length > 0 && (
+        <div className="flex gap-2">
+          {shots.map((s, i) => (
+            <img
+              key={i}
+              src={s.thumb}
+              alt=""
+              className={`h-16 w-16 rounded-lg border border-border/60 object-cover ${s.mirrored ? '-scale-x-100' : ''}`}
+            />
+          ))}
+        </div>
+      )}
+
       {error && <p className="rounded-lg bg-negative-bg p-4 text-body text-negative-text">{error}</p>}
 
       <DialogFooter>
         <Button variant="outline" onClick={onClose}>Cancelar</Button>
-        {captured ? (
-          <>
-            <Button variant="outline" onClick={() => { setCaptured(null); setError(null) }}>
-              <RotateCcw size={16} strokeWidth={1.5} /> Repetir
-            </Button>
-            <Button onClick={save} disabled={enroll.isPending}>
-              {enroll.isPending && <Loader2 className="animate-spin" size={16} strokeWidth={1.5} />}
-              Guardar registro
-            </Button>
-          </>
+        {shots.length > 0 && (
+          <Button variant="outline" onClick={() => { setShots([]); setError(null) }} disabled={busy}>
+            <RotateCcw size={16} strokeWidth={1.5} /> Repetir
+          </Button>
+        )}
+        {done ? (
+          <Button onClick={save} disabled={enroll.isPending}>
+            {enroll.isPending && <Loader2 className="animate-spin" size={16} strokeWidth={1.5} />}
+            Guardar registro
+          </Button>
         ) : (
           <>
-          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => uploadPhoto(e.target.files?.[0])} />
-          <Button variant="outline" onClick={() => fileRef.current?.click()} disabled={busy}>
-            <Upload size={16} strokeWidth={1.5} /> Subir foto
-          </Button>
-          <Button onClick={takePhoto} disabled={busy || status !== 'ready'}>
-            {busy ? <Loader2 className="animate-spin" size={16} strokeWidth={1.5} /> : <Camera size={16} strokeWidth={1.5} />}
-            {busy ? 'Analizando…' : 'Tomar foto'}
-          </Button>
+            {shots.length === 0 && (
+              <>
+                <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => uploadPhoto(e.target.files?.[0])} />
+                <Button variant="outline" onClick={() => fileRef.current?.click()} disabled={busy}>
+                  <Upload size={16} strokeWidth={1.5} /> Subir foto
+                </Button>
+              </>
+            )}
+            <Button onClick={takePhoto} disabled={busy || status !== 'ready'}>
+              {busy ? <Loader2 className="animate-spin" size={16} strokeWidth={1.5} /> : <Camera size={16} strokeWidth={1.5} />}
+              {busy ? 'Analizando…' : `Tomar foto ${shots.length + 1} de ${POSES.length}`}
+            </Button>
           </>
         )}
       </DialogFooter>

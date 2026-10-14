@@ -93,7 +93,7 @@ export function useKioskLink() {
 }
 
 export function useEnrollFace() {
-  return useFirestoreMutation<{ employeeId: string; employeeName: string; descriptor: number[]; thumb: string }>(
+  return useFirestoreMutation<{ employeeId: string; employeeName: string; descriptors: number[][]; thumb: string }>(
     'faceProfiles',
     (cid, { employeeId, ...data }) => attendanceService.enroll(cid, employeeId, data),
   )

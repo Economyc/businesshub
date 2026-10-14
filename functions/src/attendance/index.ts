@@ -5,12 +5,14 @@ import { FieldValue, Timestamp } from 'firebase-admin/firestore'
 import { db } from '../firestore.js'
 import { CALLABLE_CORS_ORIGINS } from '../cors-origins.js'
 import {
+  euclidean,
   findMatch,
   isDuplicate,
   isValidDescriptor,
   learnDescriptor,
   decidePunch,
-  LEARN_MAX_DISTANCE,
+  shouldLearn,
+  MAX_PROBES,
   type FaceCandidate,
   type PunchType,
   type ScheduledShift,
@@ -28,15 +30,25 @@ import {
 //
 // Datos:
 //   attendanceKiosks/{token}                     { companyId, createdAt, createdBy }
-//   companies/{cid}/faceProfiles/{employeeId}    { employeeName, descriptors: [{v}], lastPunchType, lastPunchAt }
+//   companies/{cid}/faceProfiles/{employeeId}    { employeeName, descriptors: [{v}], enrolledCount, recentDistance, lastPunchType, lastPunchAt }
 //   companies/{cid}/attendancePunches/{id}       { employeeId, employeeName, type, at, date, distance, photoPath, source }
+//   companies/{cid}/attendanceAttempts/{id}      cada intento del kiosco, bueno o malo (diagnostico; TTL por expireAt)
 //   companies/{cid}/shifts/{id}                  turnos de Horarios (solo lectura: deciden entrada vs salida)
 //   Storage attendance/{cid}/{date}/{id}.jpg     foto de la marcacion (se borra a los 45 dias por lifecycle del bucket)
 
 const KIOSKS = 'attendanceKiosks'
 const PROFILES = 'faceProfiles'
 const PUNCHES = 'attendancePunches'
+const ATTEMPTS = 'attendanceAttempts'
 const SHIFTS = 'shifts'
+/** Los intentos se borran solos (politica TTL de Firestore sobre `expireAt`). */
+const ATTEMPT_TTL_MS = 30 * 24 * 60 * 60 * 1000
+/** Tope de intentos fallidos que el kiosco puede reportar por local, por
+ *  instancia y por ventana: el link es publico. */
+const ATTEMPT_REPORTS_PER_WINDOW = 60
+const ATTEMPT_WINDOW_MS = 10 * 60 * 1000
+/** Peso de la marcacion nueva en `recentDistance` (promedio movil del perfil). */
+const RECENT_DISTANCE_WEIGHT = 0.3
 /** El empleado puede corregir entrada/salida desde el kiosco hasta esto despues
  *  de marcar (boton "No, es mi entrada" del resultado). */
 const FLIP_WINDOW_MS = 2 * 60 * 1000
@@ -53,8 +65,83 @@ interface MemberDoc {
 interface ProfileDoc {
   employeeName: string
   descriptors?: { v: number[] }[]
+  /** Cuantas de `descriptors` (las primeras) son fotos de registro. */
+  enrolledCount?: number
+  /** Promedio movil de la distancia al marcar: alto = perfil flojo. */
+  recentDistance?: number
   lastPunchType?: PunchType
   lastPunchAt?: Timestamp
+}
+
+/** Lo que el kiosco vio en la foto (diagnostico). Solo campos conocidos y
+ *  cortos: el link es publico. */
+type ClientStats = Record<string, number | string | boolean>
+
+const CLIENT_NUMBERS = ['faces', 'score', 'facePx', 'brightness', 'tensors', 'uptimeMin', 'frames', 'ms'] as const
+const CLIENT_STRINGS = ['reason', 'video', 'backend'] as const
+
+function sanitizeClient(raw: unknown): ClientStats {
+  if (!raw || typeof raw !== 'object') return {}
+  const src = raw as Record<string, unknown>
+  const out: ClientStats = {}
+  for (const k of CLIENT_NUMBERS) {
+    const v = src[k]
+    if (typeof v === 'number' && Number.isFinite(v)) out[k] = Math.round(v * 1000) / 1000
+  }
+  for (const k of CLIENT_STRINGS) {
+    const v = src[k]
+    if (typeof v === 'string') out[k] = v.slice(0, 40)
+  }
+  return out
+}
+
+const attemptCounters = new Map<string, { since: number; count: number }>()
+
+/** true si el local todavia puede reportar intentos en esta ventana. */
+function allowAttemptReport(companyId: string, nowMs: number): boolean {
+  const c = attemptCounters.get(companyId)
+  if (!c || nowMs - c.since > ATTEMPT_WINDOW_MS) {
+    attemptCounters.set(companyId, { since: nowMs, count: 1 })
+    return true
+  }
+  c.count += 1
+  return c.count <= ATTEMPT_REPORTS_PER_WINDOW
+}
+
+/** Guarda un intento del kiosco. Nunca hace fallar la marcacion. */
+async function logAttempt(companyId: string, data: Record<string, unknown>): Promise<void> {
+  const now = Date.now()
+  await db.collection('companies').doc(companyId).collection(ATTEMPTS).add({
+    ...data,
+    at: Timestamp.fromMillis(now),
+    expireAt: Timestamp.fromMillis(now + ATTEMPT_TTL_MS),
+  }).catch(() => undefined)
+}
+
+const round3 = (n: number) => (Number.isFinite(n) ? Math.round(n * 1000) / 1000 : null)
+
+/** Los dos empleados mas cercanos de un intento sin match (para entender por
+ *  que no reconocio: lejos de todos, o empate entre dos). */
+function nearestForLog(probes: number[][], candidates: FaceCandidate[]) {
+  const ranked = candidates
+    .filter((c) => c.descriptors.length > 0)
+    .map((c) => ({
+      employeeId: c.employeeId,
+      distance: Math.min(...probes.flatMap((p) => c.descriptors.map((d) => euclidean(p, d)))),
+    }))
+    .sort((a, b) => a.distance - b.distance)
+  return {
+    employeeId: ranked[0]?.employeeId ?? null,
+    distance: ranked[0] ? round3(ranked[0].distance) : null,
+    secondDistance: ranked[1] ? round3(ranked[1].distance) : null,
+  }
+}
+
+/** Fotos de la rafaga: `descriptors` (kiosco nuevo) o `descriptor` (bundle viejo). */
+function readProbes(data: { descriptor?: unknown; descriptors?: unknown }): number[][] | null {
+  const list = Array.isArray(data.descriptors) ? data.descriptors : data.descriptor !== undefined ? [data.descriptor] : []
+  if (list.length === 0 || list.length > MAX_PROBES || !list.every(isValidDescriptor)) return null
+  return list as number[][]
 }
 
 async function assertCompanyMember(uid: string, companyId: string): Promise<void> {
@@ -125,12 +212,26 @@ export const attendanceKioskInfo = onCall(
 export const attendancePunch = onCall(
   { region: 'us-central1', memory: '512MiB', timeoutSeconds: 30, cors: CALLABLE_CORS_ORIGINS },
   async (request) => {
-    const data = (request.data ?? {}) as { token?: string; descriptor?: unknown; photoBase64?: string; warm?: boolean }
+    const data = (request.data ?? {}) as {
+      token?: string
+      descriptor?: unknown
+      descriptors?: unknown
+      photoBase64?: string
+      warm?: boolean
+      /** Intento que fallo en el navegador (sin cara, muy lejos...): solo se registra. */
+      attempt?: unknown
+      client?: unknown
+    }
     // Ping del kiosco para mantener la instancia caliente: no toca nada.
     if (data.warm === true) return { matched: false as const }
     const companyId = await companyFromToken(data.token)
-    if (!isValidDescriptor(data.descriptor)) throw new HttpsError('invalid-argument', 'Descriptor de cara inválido')
-    const probe = data.descriptor
+    if (data.attempt !== undefined) {
+      if (allowAttemptReport(companyId, Date.now())) await logAttempt(companyId, { result: 'client', client: sanitizeClient(data.attempt) })
+      return { matched: false as const }
+    }
+    const probes = readProbes(data)
+    if (!probes) throw new HttpsError('invalid-argument', 'Descriptor de cara inválido')
+    const client = sanitizeClient(data.client)
     const photo = typeof data.photoBase64 === 'string' ? Buffer.from(data.photoBase64, 'base64') : null
     if (!photo || photo.length === 0 || photo.length > MAX_PHOTO_BYTES) {
       throw new HttpsError('invalid-argument', 'Foto inválida')
@@ -161,9 +262,12 @@ export const attendancePunch = onCall(
       const p = d.data() as ProfileDoc
       return { employeeId: d.id, employeeName: p.employeeName, descriptors: (p.descriptors ?? []).map((x) => x.v) }
     })
-    const match = findMatch(probe, candidates)
+    const match = findMatch(probes, candidates)
     if (!match) {
-      await discardPhoto()
+      await Promise.all([
+        discardPhoto(),
+        logAttempt(companyId, { result: 'no-match', probes: probes.length, ...nearestForLog(probes, candidates), client }),
+      ])
       return { matched: false as const }
     }
 
@@ -218,16 +322,31 @@ export const attendancePunch = onCall(
         createdAt: at,
         updatedAt: at,
       })
-      const update: Record<string, unknown> = { lastPunchType: type, lastPunchAt: at }
-      if (match.distance <= LEARN_MAX_DISTANCE) {
+      const prevDistance = typeof p.recentDistance === 'number' ? p.recentDistance : match.distance
+      const update: Record<string, unknown> = {
+        lastPunchType: type,
+        lastPunchAt: at,
+        recentDistance: round3(prevDistance * (1 - RECENT_DISTANCE_WEIGHT) + match.distance * RECENT_DISTANCE_WEIGHT),
+      }
+      const learned = shouldLearn(match)
+      if (learned) {
         const current = (p.descriptors ?? []).map((x) => x.v)
-        update.descriptors = learnDescriptor(current, probe).map((v) => ({ v }))
+        update.descriptors = learnDescriptor(current, match.probe, p.enrolledCount ?? 1).map((v) => ({ v }))
       }
       tx.update(profileRef, update)
-      return { duplicate: false as const, type, atMs: nowMs }
+      return { duplicate: false as const, type, atMs: nowMs, missedIn, learned }
     })
 
     if (!outcome || outcome.duplicate) await photoFile.delete().catch(() => undefined)
+    await logAttempt(companyId, {
+      result: !outcome ? 'no-profile' : outcome.duplicate ? 'duplicate' : 'ok',
+      employeeId: match.employeeId,
+      distance: round3(match.distance),
+      secondDistance: round3(match.secondDistance),
+      probes: probes.length,
+      ...(outcome && !outcome.duplicate ? { type: outcome.type, missedIn: outcome.missedIn, learned: outcome.learned, punchId: punchRef.id } : {}),
+      client,
+    })
     if (!outcome) return { matched: false as const }
 
     return {

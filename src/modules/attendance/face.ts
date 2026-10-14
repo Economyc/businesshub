@@ -5,13 +5,26 @@
 // Los modelos (~12MB) se sirven desde jsDelivr con la version fija del paquete
 // instalado; la tablet los baja una vez y quedan en cache del navegador.
 
-import { isBlankFrame } from './camera'
+import { fitCanvas, isBlankFrame, meanLuma } from './camera'
 
 const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model/'
 
-/** Cara minima (en px del lado corto del recuadro) para aceptar la foto: mas
- *  pequena es alguien lejos de la camara y el descriptor sale poco confiable. */
-const MIN_FACE_PX = 110
+/** Cara minima en px de la CAMARA (lado corto del recuadro). Antes eran 110 px
+ *  medidos sobre la foto reducida a 640, que en una tablet a distancia normal
+ *  no se alcanzaba ("Estas muy lejos"). Como el descriptor sale de un recorte
+ *  a resolucion completa, 80 px de camara alcanzan. */
+export const MIN_FACE_PX = 80
+
+/** Lado de la foto donde se busca la cara (rapido) y del recorte cuadrado de
+ *  donde sale el descriptor. Tamanos fijos: tfjs acumula memoria si cada
+ *  inferencia llega con un tamano distinto, y el kiosco pasa dias abierto. */
+const DETECT_SIDE = 640
+const CHIP_SIDE = 320
+/** El recorte toma la cara y su contorno (frente, menton, orejas). */
+const CHIP_FACE_RATIO = 2.2
+
+/** Brillo medio (0-255) de la cara por debajo del cual la foto no sirve. */
+export const DARK_LUMA = 55
 
 /** Binarios del backend WASM, con la version de tfjs que trae face-api 1.7.15. */
 const WASM_URL = 'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm@4.22.0/dist/'
@@ -44,6 +57,8 @@ const BACKEND_KEY = 'attendance.faceBackend'
 export type FaceBackendInfo = { backend: string; float32: boolean | null; fallbackFrom: string | null }
 
 let loading: Promise<FaceApi> | null = null
+/** El modulo ya cargado (para leer la memoria de tfjs sin esperar). */
+let loaded: FaceApi | null = null
 let backendInfo: FaceBackendInfo | null = null
 /** Motores que ya se probaron sin encontrar cara en esta sesion. */
 const failedBackends = new Set<string>()
@@ -118,6 +133,7 @@ export function loadFaceApi(): Promise<FaceApi> {
         faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
       ])
       await warmUp(faceapi)
+      loaded = faceapi
       return faceapi
     })()
     // Si falla (sin red), permitir reintentar en vez de cachear el error.
@@ -131,34 +147,64 @@ export function loadFaceApi(): Promise<FaceApi> {
  *  Se paga aqui, mientras la pantalla dice "Preparando…", y no en la primera
  *  foto. Con un canvas en blanco no hay cara, pero la red corre completa. */
 async function warmUp(faceapi: FaceApi): Promise<void> {
-  const canvas = document.createElement('canvas')
-  canvas.width = 640
-  canvas.height = 480
-  const ctx = canvas.getContext('2d')!
-  ctx.fillStyle = '#808080'
-  ctx.fillRect(0, 0, canvas.width, canvas.height)
   const options = new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 })
   try {
-    await faceapi.detectAllFaces(canvas, options).withFaceLandmarks().withFaceDescriptors()
+    // Los dos tamanos que se usan: la foto reducida y el recorte de la cara.
+    await faceapi.detectAllFaces(grayCanvas(DETECT_SIDE, Math.round((DETECT_SIDE * 3) / 4)), options)
+    await faceapi.detectSingleFace(grayCanvas(CHIP_SIDE, CHIP_SIDE), options).withFaceLandmarks().withFaceDescriptor()
   } catch {
     // Si el calentamiento falla, la primera foto solo tarda mas.
   }
 }
 
-/** Lo que vio el detector, para el diagnostico de la pantalla de marcacion. */
-export type DetectionStats = { faces: number; score: number | null; facePx: number | null; blank: boolean }
+function grayCanvas(width: number, height: number): HTMLCanvasElement {
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const ctx = canvas.getContext('2d')!
+  ctx.fillStyle = '#808080'
+  ctx.fillRect(0, 0, width, height)
+  return canvas
+}
+
+/** Tensores vivos de tfjs (null si los modelos no han cargado). Si crece sin
+ *  parar hay una fuga y el kiosco se recarga solo. */
+export function tensorCount(): number | null {
+  const tf = loaded?.tf as unknown as { memory?: () => { numTensors: number } } | undefined
+  try {
+    return tf?.memory?.().numTensors ?? null
+  } catch {
+    return null
+  }
+}
+
+/** Lo que vio el detector, para el diagnostico y la telemetria del kiosco.
+ *  `facePx` va en px de la camara; `brightness` es el brillo medio de la cara
+ *  (o de toda la foto si no hubo cara). */
+export type DetectionStats = {
+  faces: number
+  score: number | null
+  facePx: number | null
+  blank: boolean
+  brightness: number | null
+}
+
+export type DescribeFailure = 'blank-frame' | 'no-face' | 'multiple-faces' | 'too-far' | 'dark'
 
 export type DescribeResult =
   | { ok: true; descriptor: number[]; stats: DetectionStats }
-  | { ok: false; reason: 'blank-frame' | 'no-face' | 'multiple-faces' | 'too-far'; stats: DetectionStats }
+  | { ok: false; reason: DescribeFailure; stats: DetectionStats }
 
 type Detections = Awaited<ReturnType<typeof detect>>
 
+// 0.4 y no 0.5: luz de local y camaras frontales flojas de tablet. El umbral
+// que decide QUIEN es (match) es otro y no cambia.
+const MIN_CONFIDENCE = 0.4
+
+/** Solo ubica caras (sin landmarks ni descriptor): es lo que se corre sobre la
+ *  foto reducida. */
 async function detect(faceapi: FaceApi, input: HTMLCanvasElement) {
-  // 0.4 y no 0.5: luz de local y camaras frontales flojas de tablet. El umbral
-  // que decide QUIEN es (match) es otro y no cambia.
-  const options = new faceapi.SsdMobilenetv1Options({ minConfidence: 0.4 })
-  return await faceapi.detectAllFaces(input, options).withFaceLandmarks().withFaceDescriptors()
+  return await faceapi.detectAllFaces(input, new faceapi.SsdMobilenetv1Options({ minConfidence: MIN_CONFIDENCE }))
 }
 
 /**
@@ -202,6 +248,11 @@ async function detectWithFallback(faceapi: FaceApi, input: HTMLCanvasElement): P
 
 /**
  * Detecta la cara y calcula su descriptor (128 numeros).
+ *
+ * `input` es la foto a resolucion completa. La cara se busca en una copia
+ * reducida a DETECT_SIDE (rapido) y el descriptor se calcula sobre un recorte
+ * cuadrado de la cara tomado de la foto completa: una cara chica en la copia
+ * reducida sigue teniendo detalle suficiente en la original.
  * - `single`: exige exactamente una cara (registro). Si no, toma la mas grande
  *   (marcacion: puede haber alguien pasando detras).
  */
@@ -210,26 +261,108 @@ export async function describeFace(
   { single }: { single: boolean },
 ): Promise<DescribeResult> {
   const faceapi = await loadFaceApi()
-  if (input.width === 0 || input.height === 0 || isBlankFrame(input)) {
-    return { ok: false, reason: 'blank-frame', stats: { faces: 0, score: null, facePx: null, blank: true } }
-  }
-  const results = await detectWithFallback(faceapi, input)
-  if (results.length === 0) return { ok: false, reason: 'no-face', stats: { faces: 0, score: null, facePx: null, blank: false } }
+  const empty: DetectionStats = { faces: 0, score: null, facePx: null, blank: true, brightness: null }
+  if (input.width === 0 || input.height === 0) return { ok: false, reason: 'blank-frame', stats: empty }
+  const small = fitCanvas(input, DETECT_SIDE)
+  if (isBlankFrame(small)) return { ok: false, reason: 'blank-frame', stats: empty }
 
-  const largest = results.reduce((a, b) => (b.detection.box.area > a.detection.box.area ? b : a))
-  const box = largest.detection.box
+  const found = await detectWithFallback(faceapi, small)
+  if (found.length === 0) {
+    const brightness = Math.round(meanLuma(small, 0, 0, small.width, small.height))
+    const stats = { ...empty, blank: false, brightness }
+    return { ok: false, reason: brightness < DARK_LUMA ? 'dark' : 'no-face', stats }
+  }
+
+  const largest = found.reduce((a, b) => (b.box.area > a.box.area ? b : a))
+  const scale = input.width / small.width
+  const box = { x: largest.box.x * scale, y: largest.box.y * scale, width: largest.box.width * scale, height: largest.box.height * scale }
   const facePx = Math.round(Math.min(box.width, box.height))
-  const stats = { faces: results.length, score: largest.detection.score, facePx, blank: false }
-  if (single && results.length > 1) return { ok: false, reason: 'multiple-faces', stats }
+  const brightness = Math.round(meanLuma(input, box.x + box.width * 0.2, box.y + box.height * 0.2, box.width * 0.6, box.height * 0.6))
+  const stats: DetectionStats = { faces: found.length, score: largest.score, facePx, blank: false, brightness }
+  if (single && found.length > 1) return { ok: false, reason: 'multiple-faces', stats }
   if (facePx < MIN_FACE_PX) return { ok: false, reason: 'too-far', stats }
-  return { ok: true, descriptor: Array.from(largest.descriptor), stats }
+  if (brightness < DARK_LUMA) return { ok: false, reason: 'dark', stats }
+
+  const options = new faceapi.SsdMobilenetv1Options({ minConfidence: MIN_CONFIDENCE })
+  const chip = faceChip(input, box)
+  const described =
+    (await faceapi.detectSingleFace(chip, options).withFaceLandmarks().withFaceDescriptor()) ??
+    // Si en el recorte no la vuelve a encontrar (borde de la imagen), la foto reducida.
+    (await faceapi.detectSingleFace(small, options).withFaceLandmarks().withFaceDescriptor())
+  if (!described) return { ok: false, reason: 'no-face', stats }
+  return { ok: true, descriptor: Array.from(described.descriptor), stats }
 }
 
-export const DESCRIBE_ERROR: Record<Exclude<DescribeResult, { ok: true }>['reason'], string> = {
+/** Recorte cuadrado de CHIP_SIDE px centrado en la cara. Lo que cae fuera de
+ *  la foto queda gris (se recorta a mano: Safari viejo no acepta un origen
+ *  fuera de la imagen en drawImage). */
+function faceChip(input: HTMLCanvasElement, box: { x: number; y: number; width: number; height: number }): HTMLCanvasElement {
+  const side = Math.max(box.width, box.height) * CHIP_FACE_RATIO
+  const sx = box.x + box.width / 2 - side / 2
+  const sy = box.y + box.height / 2 - side / 2
+  const chip = grayCanvas(CHIP_SIDE, CHIP_SIDE)
+  const k = CHIP_SIDE / side
+  const x0 = Math.max(0, sx)
+  const y0 = Math.max(0, sy)
+  const x1 = Math.min(input.width, sx + side)
+  const y1 = Math.min(input.height, sy + side)
+  if (x1 > x0 && y1 > y0) {
+    chip.getContext('2d')!.drawImage(input, x0, y0, x1 - x0, y1 - y0, (x0 - sx) * k, (y0 - sy) * k, (x1 - x0) * k, (y1 - y0) * k)
+  }
+  return chip
+}
+
+export const DESCRIBE_ERROR: Record<DescribeFailure, string> = {
   'blank-frame': 'La foto salió vacía: la cámara todavía no está lista. Intenta de nuevo.',
   'no-face': 'No se ve ninguna cara. Mira de frente a la cámara.',
   'multiple-faces': 'Hay más de una persona en la foto. Debe salir solo el empleado.',
-  'too-far': 'Estás muy lejos. Acércate a la cámara.',
+  'too-far': 'Estás un poco lejos. Acércate un paso a la cámara.',
+  dark: 'Hay muy poca luz en tu cara. Ponte de frente a una luz e intenta de nuevo.',
+}
+
+// ── Guia en vivo ────────────────────────────────────────────────────────────
+// Un detector chico (Tiny Face Detector, ~190 KB) corre cada poco sobre el
+// video para decirle al empleado si esta lejos o descentrado ANTES de tocar el
+// boton. No reconoce a nadie: solo ubica la cara.
+
+const GUIDE_SIDE = 320
+let tinyLoading: Promise<boolean> | null = null
+let guideCanvas: HTMLCanvasElement | null = null
+
+function loadTinyDetector(faceapi: FaceApi): Promise<boolean> {
+  if (!tinyLoading) {
+    tinyLoading = faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL).then(() => true)
+    tinyLoading.catch(() => { tinyLoading = null })
+  }
+  return tinyLoading
+}
+
+export type FaceHint = 'none' | 'far' | 'off-center' | 'ok'
+
+/** Donde esta la cara en el video ahora. null si la guia no esta disponible. */
+export async function quickFaceHint(video: HTMLVideoElement): Promise<FaceHint | null> {
+  const faceapi = loaded
+  if (!faceapi || !video.videoWidth) return null
+  await loadTinyDetector(faceapi)
+  // Canvas reutilizado y de tamano fijo (memoria de tfjs estable).
+  const scale = GUIDE_SIDE / Math.max(video.videoWidth, video.videoHeight)
+  const w = Math.round(video.videoWidth * scale)
+  const h = Math.round(video.videoHeight * scale)
+  if (!guideCanvas || guideCanvas.width !== w || guideCanvas.height !== h) {
+    guideCanvas = document.createElement('canvas')
+    guideCanvas.width = w
+    guideCanvas.height = h
+  }
+  guideCanvas.getContext('2d')!.drawImage(video, 0, 0, w, h)
+  const det = await faceapi.detectSingleFace(guideCanvas, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.4 }))
+  if (!det) return 'none'
+  const { box } = det
+  // Algo de margen sobre el minimo: la foto real se toma un instante despues.
+  if (Math.min(box.width, box.height) / scale < MIN_FACE_PX * 1.15) return 'far'
+  const cx = (box.x + box.width / 2) / w
+  const cy = (box.y + box.height / 2) / h
+  if (Math.abs(cx - 0.5) > 0.22 || Math.abs(cy - 0.5) > 0.25) return 'off-center'
+  return 'ok'
 }
 
 export function euclidean(a: number[], b: number[]): number {

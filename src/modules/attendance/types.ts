@@ -17,6 +17,12 @@ export interface FaceProfile {
   /** Miniatura JPEG en data URL (~96px) para verificar a quien se registro. */
   thumb: string
   enrolledAt: Timestamp
+  /** Cuantas de `descriptors` (las primeras) son fotos de registro. Sin el
+   *  campo, una (registros de antes de la toma de varias fotos). */
+  enrolledCount?: number
+  /** Promedio movil de la distancia con la que marca (lo escribe el servidor).
+   *  Alto = el sistema lo reconoce con dificultad. */
+  recentDistance?: number
   lastPunchType?: PunchType
   lastPunchAt?: Timestamp
 }
@@ -62,6 +68,32 @@ export interface AttendancePunch {
 export interface AttendanceConfig {
   /** Empleados que no marcan y se liquidan por su horario programado (jefes). */
   scheduleOnlyEmployeeIds: string[]
+}
+
+/** Lo que vio el kiosco en un intento (diagnostico; el servidor solo guarda
+ *  estos campos). */
+export interface KioskClientStats {
+  reason?: string
+  faces?: number
+  score?: number
+  facePx?: number
+  brightness?: number
+  /** Resolucion del video, 'ancho x alto'. */
+  video?: string
+  backend?: string
+  tensors?: number
+  uptimeMin?: number
+  /** Fotos de la rafaga que se analizaron. */
+  frames?: number
+  /** Cuanto tardo el analisis en el navegador. */
+  ms?: number
+}
+
+/** Perfil que conviene volver a registrar: el sistema lo reconoce al limite. */
+export function isWeakProfile(p: Pick<FaceProfile, 'descriptors' | 'recentDistance'>): boolean {
+  const d = p.recentDistance
+  if (d == null) return false
+  return d > 0.46 || (p.descriptors.length <= 2 && d > 0.42)
 }
 
 export interface KioskInfo {

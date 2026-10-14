@@ -6,9 +6,20 @@ import { Button } from '@/components/ui/button'
 import { CompanyLogo } from '@/core/ui/company-logo'
 import { cn } from '@/lib/utils'
 import { useCamera, usePageVisible, captureFrame, canvasToJpegBase64, CAMERA_ERROR } from '../camera'
-import { describeFace, faceBackend, loadFaceApi, DESCRIBE_ERROR, type DetectionStats } from '../face'
+import {
+  describeFace,
+  faceBackend,
+  loadFaceApi,
+  quickFaceHint,
+  tensorCount,
+  DARK_LUMA,
+  DESCRIBE_ERROR,
+  type DescribeFailure,
+  type DetectionStats,
+  type FaceHint,
+} from '../face'
 import { attendanceService, formatTimeBogota } from '../services'
-import { PUNCH_TYPE_LABEL, type KioskInfo, type PunchType } from '../types'
+import { PUNCH_TYPE_LABEL, type KioskClientStats, type KioskInfo, type PunchType } from '../types'
 import logoBlue from '../assets/logo-blue-smash.png'
 import logoFilipo from '../assets/logo-filipo.png'
 
@@ -24,6 +35,29 @@ const RESULT_FLIP_MS = 8000
 const WARM_MS = 5 * 60 * 1000
 /** Intentos fallidos seguidos antes de sugerir avisar al administrador. */
 const FAILS_BEFORE_HELP = 3
+/** Fallas seguidas sin ver cara antes de reiniciar la camara en silencio (por
+ *  si quedo congelada sin que el vigilante lo notara). */
+const FAILS_BEFORE_CAMERA_RESTART = 2
+
+/** Rafaga al tocar "Tomar foto": hasta BURST_FRAMES fotos hasta tener una
+ *  buena (una foto movida no hace fallar la marcacion). Si el servidor no
+ *  reconoce, se toman RETRY_GOOD mas y se reintenta con todas: varias fotos que
+ *  coinciden habilitan el segundo nivel de findMatch. Cada analisis tarda ~1 s,
+ *  por eso la rafaga larga solo se paga cuando hace falta. */
+const BURST_FRAMES = 3
+const RETRY_GOOD = 2
+const BURST_GAP_MS = 120
+/** Resolucion de la foto: la cara se recorta de aqui (ver describeFace). */
+const CAPTURE_SIDE = 1280
+
+/** Recarga diaria de la pagina (libera memoria de tfjs y de la camara): a esta
+ *  hora de Colombia, si nadie marco hace un rato. */
+const RELOAD_HOUR = 4
+const RELOAD_IDLE_MS = 10 * 60 * 1000
+/** Tensores de mas sobre lo que habia al arrancar: fuga, recargar. */
+const TENSOR_LEAK = 1500
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 // Logo en texto de cada marca, por la primera palabra del nombre de la company
 // ("Blue Smash Brgr", "Filipo"). `logoClass` iguala el peso visual: el de Blue es
@@ -85,10 +119,12 @@ function Kiosk({
 }) {
   // La camara solo corre con la pestana a la vista.
   const visible = usePageVisible()
-  const { videoRef, status } = useCamera(visible)
+  const { videoRef, status, restart: restartCamera } = useCamera(visible, { watchdog: true })
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<Result | null>(null)
   const fails = useRef(0)
+  const blindFails = useRef(0)
+  const lastActivity = useRef(Date.now())
   // `?diag=1`: muestra que motor de deteccion uso el equipo y que vio en la foto.
   // Tambien aparece sola tras varios fallos, para que el local mande captura.
   const [params] = useSearchParams()
@@ -99,6 +135,9 @@ function Kiosk({
   const now = useClock()
   useWakeLock()
   useWarmPunch(token, visible)
+  useDailyReload(modelsReady, lastActivity)
+  const ready = status === 'ready' && modelsReady
+  const hint = useFaceHint(videoRef, ready && !busy && result === null)
 
   useEffect(() => {
     if (!result) return
@@ -115,21 +154,63 @@ function Kiosk({
     setResult({ kind: 'error', message: message + help })
   }
 
+  /** Lo que se manda al servidor para el diagnostico de cada intento. */
+  function clientStats(stats: DetectionStats | null, extra: KioskClientStats): KioskClientStats {
+    const video = videoRef.current
+    const backend = faceBackend()
+    return {
+      ...(stats?.faces != null ? { faces: stats.faces } : {}),
+      ...(stats?.score != null ? { score: stats.score } : {}),
+      ...(stats?.facePx != null ? { facePx: stats.facePx } : {}),
+      ...(stats?.brightness != null ? { brightness: stats.brightness } : {}),
+      ...(video?.videoWidth ? { video: `${video.videoWidth}x${video.videoHeight}` } : {}),
+      ...(backend ? { backend: backend.backend } : {}),
+      ...(tensorCount() != null ? { tensors: tensorCount()! } : {}),
+      uptimeMin: Math.round(performance.now() / 60000),
+      ...extra,
+    }
+  }
+
   async function takePhoto() {
     const video = videoRef.current
     if (!video || busy) return
     setBusy(true)
+    lastActivity.current = Date.now()
+    const started = performance.now()
     try {
-      const frame = captureFrame(video)
-      const face = await describeFace(frame, { single: false })
-      setLastStats(face.stats)
-      if (!face.ok) {
-        fail(DESCRIBE_ERROR[face.reason])
+      const burst = await captureBurst(video, 1)
+      setLastStats(burst.stats)
+      const ms = Math.round(performance.now() - started)
+      if (!burst.ok) {
+        void attendanceService.reportAttempt(token, clientStats(burst.stats, { reason: burst.reason, frames: burst.frames, ms }))
+        // Sin cara o foto vacia varias veces: puede ser la camara, no la persona.
+        if (burst.reason === 'blank-frame' || burst.reason === 'no-face') {
+          blindFails.current += 1
+          if (blindFails.current >= FAILS_BEFORE_CAMERA_RESTART) {
+            blindFails.current = 0
+            restartCamera()
+          }
+        }
+        fail(DESCRIBE_ERROR[burst.reason])
         return
       }
-      const res = await attendanceService.punch(token, face.descriptor, canvasToJpegBase64(frame, 480, 0.7))
+      blindFails.current = 0
+      const photo = canvasToJpegBase64(burst.frame, 480, 0.7)
+      let res = await attendanceService.punch(token, burst.descriptors, photo, clientStats(burst.stats, { frames: burst.frames, ms }))
       if (!res.matched) {
-        fail('No te reconocí. Mira de frente a la cámara e intenta de nuevo.')
+        // Segundo intento con mas fotos antes de decir "no te reconoci".
+        const more = await captureBurst(video, RETRY_GOOD)
+        if (more.ok) {
+          const descriptors = [...burst.descriptors, ...more.descriptors].slice(0, 1 + RETRY_GOOD)
+          const total = Math.round(performance.now() - started)
+          res = await attendanceService.punch(token, descriptors, photo, clientStats(burst.stats, { frames: burst.frames + more.frames, ms: total }))
+        }
+      }
+      if (!res.matched) {
+        const dark = burst.stats.brightness != null && burst.stats.brightness < DARK_LUMA + 20
+        fail(dark
+          ? 'No te reconocí: hay poca luz en tu cara. Ponte de frente a una luz e intenta de nuevo.'
+          : 'No te reconocí. Mira de frente a la cámara, sin gorra ni tapabocas, e intenta de nuevo.')
         return
       }
       fails.current = 0
@@ -162,7 +243,6 @@ function Kiosk({
     }
   }
 
-  const ready = status === 'ready' && modelsReady
   const logo = brandLogo(info.companyName)
 
   return (
@@ -195,10 +275,24 @@ function Kiosk({
       <main className="flex flex-1 flex-col items-center justify-center gap-6 p-6">
         <div className="relative aspect-[4/3] w-full max-w-2xl overflow-hidden rounded-2xl border border-border/60 bg-smoke">
           <video ref={videoRef} muted playsInline className="h-full w-full object-cover -scale-x-100" />
-          {/* Guia: ovalo donde va la cara. */}
+          {/* Guia: ovalo donde va la cara; verde cuando la cara esta bien puesta. */}
           {status === 'ready' && !result && (
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-              <div className="h-[70%] aspect-[3/4] rounded-full border-2 border-dashed border-card-bg/80" />
+            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+              <div
+                className={cn(
+                  'h-[70%] aspect-[3/4] rounded-full border-2',
+                  hint === 'ok' ? 'border-solid border-positive-text' : 'border-dashed border-card-bg/80',
+                )}
+              />
+              {hint && hint !== 'none' && (
+                <p
+                  className={`absolute bottom-4 rounded-full px-4 py-2 text-body font-medium ${
+                    hint === 'ok' ? 'bg-positive-bg text-positive-text' : 'bg-card-bg/90 text-dark-graphite'
+                  }`}
+                >
+                  {HINT_TEXT[hint]}
+                </p>
+              )}
             </div>
           )}
           {status !== 'ready' && (
@@ -225,36 +319,139 @@ function Kiosk({
   )
 }
 
+const HINT_TEXT: Record<Exclude<FaceHint, 'none'>, string> = {
+  far: 'Acércate un poco',
+  'off-center': 'Pon tu cara dentro del óvalo',
+  ok: 'Listo, toca Tomar foto',
+}
+
 function ResultOverlay({ result, flipping, onFlip }: { result: Result; flipping: boolean; onFlip: () => void }) {
-  const ok = result.kind === 'ok'
+  if (result.kind === 'ok') {
+    // Entrada y salida con color distinto: si el kiosco se equivoco, salta a la vista.
+    // Clases concatenadas sin cn(): tailwind-merge toma `text-kpi` y el color
+    // `text-*-text` por el mismo grupo y borra el tamano.
+    const isIn = result.type === 'in'
+    const tone = isIn ? 'text-positive-text' : 'text-info-text'
+    return (
+      <div className={cn('absolute inset-0 flex flex-col items-center justify-center gap-4 p-6 text-center', isIn ? 'bg-positive-bg' : 'bg-info-bg')}>
+        <CheckCircle2 size={24} strokeWidth={1.5} className={tone} />
+        <p className={`text-heading font-medium ${tone}`}>Hola, {result.name.split(' ')[0]}</p>
+        <p className={`text-kpi font-semibold uppercase tracking-wide ${tone}`}>{PUNCH_TYPE_LABEL[result.type]}</p>
+        <p className={`text-subheading ${tone}`}>
+          {result.duplicate
+            ? `Ya había quedado registrada a las ${formatTimeBogota(result.at)}`
+            : `Registrada a las ${formatTimeBogota(result.at)}`}
+        </p>
+        {result.punchId && (
+          <Button variant="ghost" size="sm" className="mt-2 rounded-2xl" onClick={onFlip} disabled={flipping}>
+            {flipping && <Loader2 size={16} strokeWidth={1.5} className="animate-spin" />}
+            <span className={`text-body underline underline-offset-4 ${tone}`}>
+              {isIn ? '¿Era tu salida? Corregir' : '¿Era tu entrada? Corregir'}
+            </span>
+          </Button>
+        )}
+      </div>
+    )
+  }
   return (
-    <div className={cn('absolute inset-0 flex flex-col items-center justify-center gap-4 p-6 text-center', ok ? 'bg-positive-bg' : 'bg-negative-bg')}>
-      {ok ? (
-        <>
-          <CheckCircle2 size={24} strokeWidth={1.5} className="text-positive-text" />
-          <p className="text-kpi font-semibold text-positive-text">Hola, {result.name.split(' ')[0]}</p>
-          <p className="text-subheading text-positive-text">
-            {result.duplicate
-              ? `Tu ${PUNCH_TYPE_LABEL[result.type].toLowerCase()} ya quedó registrada a las ${formatTimeBogota(result.at)}`
-              : `${PUNCH_TYPE_LABEL[result.type]} registrada · ${formatTimeBogota(result.at)}`}
-          </p>
-          {result.punchId && (
-            <Button variant="outline" size="lg" className="h-12 rounded-2xl" onClick={onFlip} disabled={flipping}>
-              {flipping && <Loader2 size={20} strokeWidth={1.5} className="animate-spin" />}
-              <span className="text-body">
-                {result.type === 'out' ? 'No, es mi entrada' : 'No, es mi salida'}
-              </span>
-            </Button>
-          )}
-        </>
-      ) : (
-        <>
-          <XCircle size={24} strokeWidth={1.5} className="text-negative-text" />
-          <p className="max-w-md text-subheading text-negative-text">{result.message}</p>
-        </>
-      )}
+    <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-negative-bg p-6 text-center">
+      <XCircle size={24} strokeWidth={1.5} className="text-negative-text" />
+      <p className="max-w-md text-subheading text-negative-text">{result.message}</p>
     </div>
   )
+}
+
+type Burst =
+  | { ok: true; descriptors: number[][]; frame: HTMLCanvasElement; stats: DetectionStats; frames: number }
+  | { ok: false; reason: DescribeFailure; stats: DetectionStats; frames: number }
+
+/** Toma hasta BURST_FRAMES fotos seguidas y se queda con hasta `good`
+ *  buenas. Solo falla si ninguna sirvio; el motivo es el de la ultima. */
+async function captureBurst(video: HTMLVideoElement, good: number): Promise<Burst> {
+  const descriptors: number[][] = []
+  let firstGood: { frame: HTMLCanvasElement; stats: DetectionStats } | null = null
+  let lastFail: { reason: DescribeFailure; stats: DetectionStats } | null = null
+  let frames = 0
+  while (frames < BURST_FRAMES && descriptors.length < good) {
+    if (frames > 0) await sleep(BURST_GAP_MS)
+    frames += 1
+    const frame = captureFrame(video, CAPTURE_SIDE)
+    const face = await describeFace(frame, { single: false })
+    if (face.ok) {
+      descriptors.push(face.descriptor)
+      firstGood ??= { frame, stats: face.stats }
+    } else {
+      lastFail = { reason: face.reason, stats: face.stats }
+      // Lejos o con poca luz, la foto de 100 ms despues sale igual: no insistir.
+      if (!firstGood && (face.reason === 'too-far' || face.reason === 'dark')) break
+    }
+  }
+  if (firstGood) return { ok: true, descriptors, frame: firstGood.frame, stats: firstGood.stats, frames }
+  return { ok: false, reason: lastFail!.reason, stats: lastFail!.stats, frames }
+}
+
+/** Guia en vivo mientras el kiosco espera. Si el equipo es lento la consulta
+ *  se espacia, y si es muy lento se apaga (el boton sigue funcionando igual). */
+function useFaceHint(videoRef: React.RefObject<HTMLVideoElement | null>, active: boolean): FaceHint | null {
+  const [hint, setHint] = useState<FaceHint | null>(null)
+  const disabled = useRef(false)
+  const slowRuns = useRef(0)
+
+  useEffect(() => {
+    if (!active || disabled.current) {
+      setHint(null)
+      return
+    }
+    let cancelled = false
+    let timer: ReturnType<typeof setTimeout> | null = null
+    const tick = async () => {
+      const video = videoRef.current
+      const started = performance.now()
+      let next: FaceHint | null = null
+      try {
+        next = video ? await quickFaceHint(video) : null
+      } catch {
+        next = null
+      }
+      if (cancelled) return
+      const took = performance.now() - started
+      slowRuns.current = took > 1200 ? slowRuns.current + 1 : 0
+      if (slowRuns.current >= 3) {
+        disabled.current = true
+        setHint(null)
+        return
+      }
+      setHint(next)
+      timer = setTimeout(tick, took > 400 ? 2000 : 700)
+    }
+    timer = setTimeout(tick, 300)
+    return () => {
+      cancelled = true
+      if (timer) clearTimeout(timer)
+    }
+  }, [active, videoRef])
+
+  return hint
+}
+
+/** El kiosco pasa dias abierto: se recarga solo de madrugada (o antes si tfjs
+ *  esta acumulando memoria), siempre con un rato sin marcaciones. */
+function useDailyReload(modelsReady: boolean, lastActivity: { readonly current: number }) {
+  useEffect(() => {
+    if (!modelsReady) return
+    const baseline = tensorCount()
+    const bootedAt = Date.now()
+    const t = setInterval(() => {
+      const idle = Date.now() - lastActivity.current > RELOAD_IDLE_MS
+      if (!idle) return
+      const hour = Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Bogota', hour: 'numeric', hourCycle: 'h23' }).format(new Date()))
+      const upHours = (Date.now() - bootedAt) / 3_600_000
+      const tensors = tensorCount()
+      const leaking = baseline != null && tensors != null && tensors - baseline > TENSOR_LEAK
+      if ((hour === RELOAD_HOUR && upHours > 2) || upHours > 26 || leaking) window.location.reload()
+    }, 60_000)
+    return () => clearInterval(t)
+  }, [modelsReady, lastActivity])
 }
 
 function DiagLine({ video, modelsReady, stats }: { video: HTMLVideoElement | null; modelsReady: boolean; stats: DetectionStats | null }) {
@@ -268,6 +465,9 @@ function DiagLine({ video, modelsReady, stats }: { video: HTMLVideoElement | nul
     stats ? `caras ${stats.faces}` : null,
     stats?.score != null ? `score ${stats.score.toFixed(2)}` : null,
     stats?.facePx != null ? `cara ${stats.facePx}px` : null,
+    stats?.brightness != null ? `luz ${stats.brightness}` : null,
+    tensorCount() != null ? `tensores ${tensorCount()}` : null,
+    `encendido ${Math.round(performance.now() / 60000)} min`,
   ].filter(Boolean)
   return <p className="text-caption tabular-nums text-mid-gray">{parts.join(' · ')}</p>
 }

@@ -3,7 +3,7 @@ import { httpsCallable } from 'firebase/functions'
 import { getDownloadURL, ref as storageRef } from 'firebase/storage'
 import { getAppFunctions, getAppStorage } from '@/core/firebase/config'
 import { companyDoc, createDocument, fetchCollection, updateDocument } from '@/core/firebase/helpers'
-import type { AttendanceConfig, AttendancePunch, FaceProfile, KioskInfo, PunchResponse, PunchType } from './types'
+import type { AttendanceConfig, AttendancePunch, FaceProfile, KioskClientStats, KioskInfo, PunchResponse, PunchType } from './types'
 import type { Novelty } from '@/modules/schedule/types'
 import type { ScheduledShift } from './shifts'
 
@@ -13,18 +13,21 @@ const PUNCHES = 'attendancePunches'
 export const attendanceService = {
   getProfiles: (companyId: string) => fetchCollection<FaceProfile>(companyId, PROFILES),
 
-  /** Registro (o re-registro) de un empleado: reemplaza sus referencias por la
-   *  selfie nueva, asi que tambien descarta las que el sistema habia aprendido. */
+  /** Registro (o re-registro) de un empleado: reemplaza sus referencias por las
+   *  fotos nuevas, asi que tambien descarta las que el sistema habia aprendido. */
   enroll: async (
     companyId: string,
     employeeId: string,
-    data: { employeeName: string; descriptor: number[]; thumb: string },
+    data: { employeeName: string; descriptors: number[][]; thumb: string },
   ): Promise<void> => {
     await setDoc(companyDoc(companyId, PROFILES, employeeId), {
       employeeName: data.employeeName,
-      descriptors: [{ v: data.descriptor }],
+      descriptors: data.descriptors.map((v) => ({ v })),
+      // Las fotos de registro nunca se descartan al aprender.
+      enrolledCount: data.descriptors.length,
       thumb: data.thumb,
       enrolledAt: Timestamp.now(),
+      recentDistance: deleteField(),
     }, { merge: true })
   },
 
@@ -106,13 +109,26 @@ export const attendanceService = {
     return (await fn({ token })).data
   },
 
-  punch: async (token: string, descriptor: number[], photoBase64: string): Promise<PunchResponse> => {
+  /** `descriptors`: las fotos buenas de la rafaga (1-3). `client`: lo que vio
+   *  el kiosco, para el diagnostico. */
+  punch: async (token: string, descriptors: number[][], photoBase64: string, client: KioskClientStats): Promise<PunchResponse> => {
     const fns = await getAppFunctions()
-    const fn = httpsCallable<{ token: string; descriptor: number[]; photoBase64: string }, PunchResponse>(
-      fns,
-      'attendancePunch',
-    )
-    return (await fn({ token, descriptor, photoBase64 })).data
+    const fn = httpsCallable<
+      { token: string; descriptors: number[][]; photoBase64: string; client: KioskClientStats },
+      PunchResponse
+    >(fns, 'attendancePunch')
+    return (await fn({ token, descriptors, photoBase64, client })).data
+  },
+
+  /** Registra un intento fallido en el navegador (sin cara, muy lejos, poca
+   *  luz...). Nunca falla: es solo diagnostico. */
+  reportAttempt: async (token: string, attempt: KioskClientStats): Promise<void> => {
+    try {
+      const fns = await getAppFunctions()
+      await httpsCallable<{ token: string; attempt: KioskClientStats }, unknown>(fns, 'attendancePunch')({ token, attempt })
+    } catch {
+      // Sin red: el intento no queda registrado.
+    }
   },
 
   /** Invierte entrada <-> salida de una marcacion recien hecha en el kiosco. */

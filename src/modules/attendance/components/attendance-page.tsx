@@ -13,6 +13,7 @@ import { useActiveEmployees } from '@/modules/talent/hooks'
 import { useFaceProfiles, useKioskLink, useRemoveFaceProfile } from '../hooks'
 import { attendanceService } from '../services'
 import { employeeDisplayName } from '../use-attendance-rows'
+import { isWeakProfile } from '../types'
 import { EnrollDialog } from './enroll-dialog'
 import { WorkdaysTab } from './workdays-tab'
 import { PunctualityTab } from './punctuality-tab'
@@ -185,6 +186,7 @@ function EmployeesTab({ allowedDepartments }: { allowedDepartments?: string[] })
     [employees, allowedDepartments],
   )
   const enrolledCount = rows.filter((e) => profileById.has(e.id)).length
+  const weakCount = rows.filter((e) => { const p = profileById.get(e.id); return p && isWeakProfile(p) }).length
 
   if (loadingEmployees || loadingProfiles) return <Skeleton className="h-64 rounded-xl" />
   if (rows.length === 0) {
@@ -195,6 +197,7 @@ function EmployeesTab({ allowedDepartments }: { allowedDepartments?: string[] })
     <div className="space-y-4">
       <p className="text-body text-mid-gray">
         {enrolledCount} de {rows.length} empleados registrados
+        {weakCount > 0 && ` · ${weakCount} conviene volver a registrar en la tablet del local (el sistema los reconoce con dificultad)`}
       </p>
       <div className="card-elevated rounded-xl bg-card-bg divide-y divide-border/60">
         {rows.map((e) => {
@@ -212,7 +215,15 @@ function EmployeesTab({ allowedDepartments }: { allowedDepartments?: string[] })
                 <p className="truncate text-body font-medium text-dark-graphite">{e.name}</p>
                 <p className="text-caption text-mid-gray">{e.department ?? 'Sin departamento'}</p>
               </div>
-              {profile ? <Badge variant="positive">Registrado</Badge> : <Badge variant="warning">Sin registrar</Badge>}
+              {!profile ? (
+                <Badge variant="warning">Sin registrar</Badge>
+              ) : isWeakProfile(profile) ? (
+                <HoverHint label="Lo reconoce con dificultad. Vuelve a registrarlo con la tablet del local y buena luz.">
+                  <Badge variant="warning">Volver a registrar</Badge>
+                </HoverHint>
+              ) : (
+                <Badge variant="positive">Registrado</Badge>
+              )}
               <div className="flex gap-2">
                 <Button variant={profile ? 'outline' : 'default'} size="sm" onClick={() => setEnrolling({ id: e.id, name: e.name })}>
                   <ScanFace size={14} strokeWidth={1.5} />
