@@ -103,21 +103,70 @@ export function ScheduleView({ allowedDepartments }: { allowedDepartments?: stri
   const { data: noveltyTypes } = useNoveltyTypes()
   const updateShift = useUpdateShift()
 
-  // Drag & drop: arrastrar turnos entre celdas (empleado × día).
+  // Drag & drop: arrastrar turnos y novedades (descansos) entre celdas (empleado × día).
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
-  const [activeShift, setActiveShift] = useState<Shift | null>(null)
+  const [activeDrag, setActiveDrag] = useState<
+    { kind: 'shift'; shift: Shift } | { kind: 'novelty'; novelty: Novelty } | null
+  >(null)
 
   function handleDragStart(e: DragStartEvent) {
-    setActiveShift((e.active.data.current?.shift as Shift) ?? null)
+    const data = e.active.data.current
+    if (data?.shift) setActiveDrag({ kind: 'shift', shift: data.shift as Shift })
+    else if (data?.novelty) setActiveDrag({ kind: 'novelty', novelty: data.novelty as Novelty })
+    else setActiveDrag(null)
+  }
+
+  // Mueve una novedad a otra celda. Si el destino está ocupado se intercambia:
+  // sus turnos (o su novedad) pasan a la celda de origen, así las horas se mantienen.
+  function moveNovelty(novelty: Novelty, target: { employeeId: string; date: string }) {
+    if (!selectedCompany) return
+    if (target.employeeId === novelty.employeeId && target.date === novelty.date) return
+    const source = { employeeId: novelty.employeeId, date: novelty.date }
+    const targetKey = `${target.employeeId}|${target.date}`
+    const targetNovelty = noveltyByCell.get(targetKey)
+    const targetShifts = targetNovelty ? [] : (byCell.get(targetKey) ?? [])
+    const movedShiftIds = new Set(targetShifts.map((s) => s.id))
+
+    // Optimista sobre ambas caches; las mutaciones invalidan y reconcilian.
+    queryClient.setQueryData<Novelty[]>(['firestore', selectedCompany.id, 'novelties', weekKey], (old) =>
+      old?.map((n) =>
+        n.id === novelty.id ? { ...n, ...target } : n.id === targetNovelty?.id ? { ...n, ...source } : n,
+      ) ?? [],
+    )
+    if (movedShiftIds.size > 0) {
+      queryClient.setQueryData<Shift[]>(['firestore', selectedCompany.id, 'shifts', weekKey], (old) =>
+        old?.map((s) => (movedShiftIds.has(s.id) ? { ...s, ...source } : s)) ?? [],
+      )
+    }
+
+    // Todas las escrituras juntas y una sola reconciliación al final, para que un
+    // refetch intermedio no pinte el intercambio a medias.
+    const companyId = selectedCompany.id
+    Promise.all([
+      scheduleService.updateNovelty(companyId, novelty.id, target),
+      ...(targetNovelty ? [scheduleService.updateNovelty(companyId, targetNovelty.id, source)] : []),
+      ...targetShifts.map((s) => scheduleService.updateShift(companyId, s.id, source)),
+    ])
+      .catch((err) => console.error('[schedule] mover novedad falló', err))
+      .finally(() => {
+        queryClient.invalidateQueries({ queryKey: ['firestore', companyId, 'novelties'] })
+        queryClient.invalidateQueries({ queryKey: ['firestore', companyId, 'shifts'] })
+      })
   }
 
   function handleDragEnd(e: DragEndEvent) {
-    setActiveShift(null)
+    setActiveDrag(null)
     // Semana publicada = bloqueada (el draggable ya queda disabled, esto es defensa extra).
     if (isPublished) return
-    const shift = e.active.data.current?.shift as Shift | undefined
     const target = e.over?.data.current as { employeeId: string; date: string } | undefined
-    if (!shift || !target || !selectedCompany) return
+    if (!target) return
+    const novelty = e.active.data.current?.novelty as Novelty | undefined
+    if (novelty) {
+      moveNovelty(novelty, { employeeId: target.employeeId, date: target.date })
+      return
+    }
+    const shift = e.active.data.current?.shift as Shift | undefined
+    if (!shift || !selectedCompany) return
     if (target.employeeId === shift.employeeId && target.date === shift.date) return
     // No se permiten turnos en un día marcado como novedad.
     if (noveltyByCell.has(`${target.employeeId}|${target.date}`)) return
@@ -584,9 +633,13 @@ export function ScheduleView({ allowedDepartments }: { allowedDepartments?: stri
           </div>
         </div>
         <DragOverlay>
-          {activeShift ? (
+          {activeDrag?.kind === 'shift' ? (
             <div className="@container/chip rounded-lg border border-positive-text/40 bg-positive-bg px-2 py-1 cursor-grabbing">
-              <ShiftChipContent shift={activeShift} />
+              <ShiftChipContent shift={activeDrag.shift} />
+            </div>
+          ) : activeDrag?.kind === 'novelty' ? (
+            <div className={'rounded-lg border px-2 py-1 cursor-grabbing ' + noveltyChipClass(activeDrag.novelty)}>
+              <NoveltyChipContent novelty={activeDrag.novelty} />
             </div>
           ) : null}
         </DragOverlay>
@@ -675,22 +728,44 @@ function DraggableShift({ shift, canEdit, onEdit }: { shift: Shift; canEdit: boo
   )
 }
 
-// Chip de novedad (ocupa el día completo). Clickeable para editar; NO es
-// arrastrable porque una novedad no se mueve entre celdas como un turno.
-function NoveltyChip({ novelty, canEdit, onEdit }: { novelty: Novelty; canEdit: boolean; onEdit: () => void }) {
-  const chipClass = NOVELTY_COLORS[novelty.color]?.chip ?? NOVELTY_COLORS.gray.chip
+function noveltyChipClass(novelty: Novelty) {
+  return NOVELTY_COLORS[novelty.color]?.chip ?? NOVELTY_COLORS.gray.chip
+}
+
+// Contenido visual de un chip de novedad (chip arrastrable y clon del DragOverlay).
+function NoveltyChipContent({ novelty }: { novelty: Novelty }) {
   return (
-    <button
-      type="button"
-      onClick={canEdit ? (e) => { e.stopPropagation(); onEdit() } : undefined}
-      className={
-        'w-full text-left rounded-lg border px-2 py-1 transition-colors ' +
-        chipClass +
-        (canEdit ? ' cursor-pointer' : '')
-      }
-    >
+    <>
       <span className="block text-caption font-medium whitespace-nowrap truncate">{novelty.typeName}</span>
       {novelty.notes && <span className="block text-caption opacity-70 truncate">{novelty.notes}</span>}
+    </>
+  )
+}
+
+// Chip de novedad (ocupa el día completo). Click = editar; arrastrar = mover a
+// otra celda (si está ocupada, se intercambia con lo que haya en el destino).
+function NoveltyChip({ novelty, canEdit, onEdit }: { novelty: Novelty; canEdit: boolean; onEdit: () => void }) {
+  const { setNodeRef, listeners, attributes, isDragging } = useDraggable({
+    id: `novelty:${novelty.id}`,
+    data: { novelty },
+    disabled: !canEdit,
+  })
+  return (
+    <button
+      ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+      type="button"
+      onClick={canEdit ? (e) => { e.stopPropagation(); onEdit() } : undefined}
+      style={{ touchAction: 'none' }}
+      className={
+        'w-full text-left rounded-lg border px-2 py-1 transition-colors ' +
+        noveltyChipClass(novelty) +
+        (canEdit ? ' cursor-grab' : '') +
+        (isDragging ? ' opacity-40' : '')
+      }
+    >
+      <NoveltyChipContent novelty={novelty} />
     </button>
   )
 }
