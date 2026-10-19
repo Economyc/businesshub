@@ -39,12 +39,14 @@ interface PayableFileLike {
 
 interface TxLike {
   status?: 'paid' | 'pending' | 'overdue'
-  documentKind?: 'invoice' | 'purchase' | 'extra'
+  documentKind?: 'invoice' | 'purchase' | 'extra' | 'severance'
   date?: Timestamp
   paidDate?: Timestamp
   sourceDocument?: PayableFileLike
   paymentProof?: PayableFileLike
   combinedDocument?: PayableFileLike
+  /** Documento de liquidación (documentKind='severance', Ecore). */
+  severanceDocument?: PayableFileLike
   splitGroupId?: string
   sourceType?: 'closing' | 'recurring'
 }
@@ -75,14 +77,15 @@ interface DeleteResult {
 const SECRETS = [driveClientId, driveClientSecret]
 
 // Mes contable de esta tx (si aplica al Sheet).
-//  - paid invoice/purchase/extra → mes de paidDate ?? date, hora Bogotá.
+//  - paid invoice/purchase/extra/severance → mes de paidDate ?? date, hora Bogotá.
 //  - pending/overdue invoice → mes actual (las pendientes solo viven ahí).
 //  - resto → null (no aparece en la hoja).
 function monthForTx(tx: TxLike): { year: number; monthIndex: number } | null {
   if (
     tx.documentKind !== 'invoice' &&
     tx.documentKind !== 'purchase' &&
-    tx.documentKind !== 'extra'
+    tx.documentKind !== 'extra' &&
+    tx.documentKind !== 'severance'
   ) {
     return null
   }
@@ -175,6 +178,7 @@ export const deleteTransactionWithAttachments = onCall(
           tx.sourceDocument?.driveFileId,
           tx.paymentProof?.driveFileId,
           tx.combinedDocument?.driveFileId,
+          tx.severanceDocument?.driveFileId,
         ].filter((id): id is string => typeof id === 'string' && id.length > 0),
       ),
     )

@@ -23,7 +23,7 @@ import { ymKeyFromTs, currentYm } from './invoice-sheet/month.js'
 
 interface TxLike {
   status?: 'paid' | 'pending' | 'overdue' | 'partial'
-  documentKind?: 'invoice' | 'purchase' | 'receivable' | 'extra'
+  documentKind?: 'invoice' | 'purchase' | 'receivable' | 'extra' | 'severance'
   date?: Timestamp
   paidDate?: Timestamp
   interLocalGroupId?: string
@@ -40,11 +40,13 @@ function monthsForTx(tx: TxLike | null, months: Set<string>): void {
     return
   }
   // 'extra' (turno extra de Ecore) nace siempre pagado y sale en "Pagadas",
-  // así que su alta/borrado también tiene que ensuciar el mes.
+  // así que su alta/borrado también tiene que ensuciar el mes. Igual la
+  // liquidación de un empleado ('severance').
   if (
     tx.documentKind !== 'invoice' &&
     tx.documentKind !== 'purchase' &&
-    tx.documentKind !== 'extra'
+    tx.documentKind !== 'extra' &&
+    tx.documentKind !== 'severance'
   ) {
     return
   }

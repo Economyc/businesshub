@@ -29,7 +29,7 @@ export interface AdminTx {
     id: string
     name?: string
   }
-  documentKind?: 'invoice' | 'purchase' | 'receivable' | 'extra'
+  documentKind?: 'invoice' | 'purchase' | 'receivable' | 'extra' | 'severance'
   docNumber?: string
   priority?: 'immediate' | 'waiting'
   paymentMethod?: string
@@ -129,6 +129,7 @@ function tipoLabel(t: AdminTx): string {
   if (t.documentKind === 'receivable') return 'Cuenta por cobrar'
   // Turno extra pagado a una persona (Ecore): no es compra a un proveedor.
   if (t.documentKind === 'extra') return 'Extra'
+  if (t.documentKind === 'severance') return 'Liquidación'
   return t.documentKind === 'invoice' ? 'Factura' : 'Compra'
 }
 

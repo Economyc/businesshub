@@ -36,6 +36,8 @@ function tipoLabel(t) {
     // Turno extra pagado a una persona (Ecore): no es compra a un proveedor.
     if (t.documentKind === 'extra')
         return 'Extra';
+    if (t.documentKind === 'severance')
+        return 'Liquidación';
     return t.documentKind === 'invoice' ? 'Factura' : 'Compra';
 }
 function estadoLabel(status) {

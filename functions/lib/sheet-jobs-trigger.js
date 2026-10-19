@@ -31,10 +31,12 @@ function monthsForTx(tx, months) {
         return;
     }
     // 'extra' (turno extra de Ecore) nace siempre pagado y sale en "Pagadas",
-    // así que su alta/borrado también tiene que ensuciar el mes.
+    // así que su alta/borrado también tiene que ensuciar el mes. Igual la
+    // liquidación de un empleado ('severance').
     if (tx.documentKind !== 'invoice' &&
         tx.documentKind !== 'purchase' &&
-        tx.documentKind !== 'extra') {
+        tx.documentKind !== 'extra' &&
+        tx.documentKind !== 'severance') {
         return;
     }
     if (tx.status === 'paid') {

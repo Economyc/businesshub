@@ -15,7 +15,7 @@ export interface AdminTx {
         id: string;
         name?: string;
     };
-    documentKind?: 'invoice' | 'purchase' | 'receivable' | 'extra';
+    documentKind?: 'invoice' | 'purchase' | 'receivable' | 'extra' | 'severance';
     docNumber?: string;
     priority?: 'immediate' | 'waiting';
     paymentMethod?: string;

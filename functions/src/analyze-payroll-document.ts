@@ -7,6 +7,9 @@
 //   - 'propinas' → una tabla con las propinas de todos los empleados de un
 //                  local (imagen/PDF, o texto ya parseado de Excel/CSV).
 //                  Extrae filas { empleado, valor } + total.
+//   - 'liquidacion' → la liquidación de prestaciones de UN empleado que se
+//                  retira. Extrae trabajador, cédula, fechas de ingreso/retiro,
+//                  motivo, conceptos (cesantías, prima, vacaciones…) y neto.
 //
 // El emparejamiento contra los empleados registrados se hace en el cliente
 // (la vista ya tiene la lista de empleados de la company). Esta callable solo
@@ -70,7 +73,7 @@ const geminiApiKey = defineSecret('GEMINI_API_KEY')
 const groqApiKey = defineSecret('GROQ_API_KEY')
 const cerebrasApiKey = defineSecret('CEREBRAS_API_KEY')
 
-type PayrollKind = 'colilla' | 'propinas'
+type PayrollKind = 'colilla' | 'propinas' | 'liquidacion'
 
 interface AnalyzeInput {
   companyId: string
@@ -142,8 +145,39 @@ const PropinasSchema = z.object({
   total: copNumber.describe('Total de propinas si aparece explícito. 0 si no aparece.'),
 })
 
+const LiquidacionSchema = z.object({
+  employeeName: z.string().describe('Nombre completo del trabajador. Vacío si no es claro.'),
+  identification: z
+    .string()
+    .describe('Número de cédula del trabajador, solo dígitos sin puntos. Vacío si no aparece.'),
+  role: z.string().describe('Cargo del trabajador. Vacío si no aparece.'),
+  hireDate: z
+    .string()
+    .describe('Fecha de ingreso en formato YYYY-MM-DD. Vacío si no aparece.'),
+  terminationDate: z
+    .string()
+    .describe('Fecha de retiro / terminación del contrato en formato YYYY-MM-DD. Vacío si no aparece.'),
+  reason: z
+    .string()
+    .describe(
+      'Motivo del retiro normalizado: "resignation" (renuncia voluntaria), "dismissal" (despido sin justa causa), ' +
+        '"contract_end" (terminación / vencimiento del contrato), "mutual_agreement" (mutuo acuerdo), "other" u otro caso. ' +
+        'Vacío si no aparece.',
+    ),
+  salary: copNumber.describe('Salario pendiente de los últimos días trabajados, pesos enteros. 0 si no aparece.'),
+  cesantias: copNumber.describe('Cesantías en pesos enteros. 0 si no aparece.'),
+  interesesCesantias: copNumber.describe('Intereses sobre cesantías en pesos enteros. 0 si no aparece.'),
+  prima: copNumber.describe('Prima de servicios en pesos enteros. 0 si no aparece.'),
+  vacaciones: copNumber.describe('Vacaciones (compensadas o pendientes) en pesos enteros. 0 si no aparece.'),
+  indemnizacion: copNumber.describe('Indemnización en pesos enteros. 0 si no aparece.'),
+  otros: copNumber.describe('Suma de cualquier otro devengado que no encaje arriba (auxilio de transporte, bonos…). 0 si no hay.'),
+  deducciones: copNumber.describe('Total de deducciones / descuentos (salud, pensión, préstamos…) en pesos enteros. 0 si no hay.'),
+  netoPagar: copNumber.describe('NETO A PAGAR / total a pagar de la liquidación en pesos enteros. 0 si no es claro.'),
+})
+
 type ColillaExtraction = z.infer<typeof ColillaSchema>
 type PropinasExtraction = z.infer<typeof PropinasSchema>
+type LiquidacionExtraction = z.infer<typeof LiquidacionSchema>
 
 const EMPTY_COLILLA: ColillaExtraction = {
   employeeName: '',
@@ -156,6 +190,24 @@ const EMPTY_COLILLA: ColillaExtraction = {
 }
 
 const EMPTY_PROPINAS: PropinasExtraction = { rows: [], total: 0 }
+
+const EMPTY_LIQUIDACION: LiquidacionExtraction = {
+  employeeName: '',
+  identification: '',
+  role: '',
+  hireDate: '',
+  terminationDate: '',
+  reason: '',
+  salary: 0,
+  cesantias: 0,
+  interesesCesantias: 0,
+  prima: 0,
+  vacaciones: 0,
+  indemnizacion: 0,
+  otros: 0,
+  deducciones: 0,
+  netoPagar: 0,
+}
 
 const COLILLA_PROMPT =
   'Este documento es un desprendible/colilla de liquidación de nómina de UN empleado. ' +
@@ -175,6 +227,18 @@ const PROPINAS_PROMPT =
   'Extrae una fila por empleado con employeeName y amount (el valor TAL CUAL aparece, con sus separadores y símbolo si los tiene; no conviertas). ' +
   'NO incluyas la fila de total ni filas vacías. Si hay un total explícito, devuélvelo en "total". ' +
   'NO inventes empleados ni valores.'
+
+const LIQUIDACION_PROMPT =
+  'Este documento es la liquidación de prestaciones sociales / liquidación de contrato de UN empleado en Colombia ' +
+  'que se retira de la empresa. Extrae:\n' +
+  '- employeeName, identification (cédula, solo dígitos) y role (cargo).\n' +
+  '- hireDate (fecha de ingreso) y terminationDate (fecha de retiro), ambas en formato YYYY-MM-DD.\n' +
+  '- reason: el motivo del retiro normalizado (resignation, dismissal, contract_end, mutual_agreement, other).\n' +
+  '- Cada concepto devengado en su campo: salary (salario pendiente), cesantias, interesesCesantias, prima, ' +
+  'vacaciones, indemnizacion; lo que no encaje súmalo en otros.\n' +
+  '- deducciones: el total descontado.\n' +
+  '- netoPagar: el NETO A PAGAR final de la liquidación.\n\n' +
+  'Si algún campo no se puede leer con seguridad, déjalo vacío (string vacío o 0). NO inventes datos.'
 
 // Singleton router (sobrevive entre invocaciones warm).
 let router: LLMRouter | null = null
@@ -298,8 +362,8 @@ export const analyzePayrollDocument = onCall(
     }
     const data = request.data as AnalyzeInput
     if (!data?.companyId) throw new HttpsError('invalid-argument', 'companyId requerido')
-    if (data.kind !== 'colilla' && data.kind !== 'propinas') {
-      throw new HttpsError('invalid-argument', 'kind debe ser colilla o propinas')
+    if (data.kind !== 'colilla' && data.kind !== 'propinas' && data.kind !== 'liquidacion') {
+      throw new HttpsError('invalid-argument', 'kind debe ser colilla, propinas o liquidacion')
     }
     const hasFile = !!data.fileBase64 && !!data.mimeType
     const hasText = !!data.spreadsheetText
@@ -315,11 +379,14 @@ export const analyzePayrollDocument = onCall(
 
     await assertCompanyMember(request.auth.uid, data.companyId)
 
-    const isColilla = data.kind === 'colilla'
+    const MODES = {
+      colilla: { schema: ColillaSchema, prompt: COLILLA_PROMPT, empty: EMPTY_COLILLA },
+      propinas: { schema: PropinasSchema, prompt: PROPINAS_PROMPT, empty: EMPTY_PROPINAS },
+      liquidacion: { schema: LiquidacionSchema, prompt: LIQUIDACION_PROMPT, empty: EMPTY_LIQUIDACION },
+    } as const
+    const mode = MODES[data.kind]
 
-    let extracted: ColillaExtraction | PropinasExtraction = isColilla
-      ? EMPTY_COLILLA
-      : EMPTY_PROPINAS
+    let extracted: ColillaExtraction | PropinasExtraction | LiquidacionExtraction = mode.empty
     const startedAt = Date.now()
     const deadlineAt = startedAt + CALLABLE_BUDGET_MS
     let extractionFailed = false
@@ -329,17 +396,10 @@ export const analyzePayrollDocument = onCall(
     let fallbackUsed = false
 
     try {
-      if (isColilla) {
-        const r = await runExtraction(ColillaSchema, COLILLA_PROMPT, data, hasFile, hasText, deadlineAt)
-        extracted = r.object as ColillaExtraction
-        provider = r.provider
-        fallbackUsed = r.fallbackUsed
-      } else {
-        const r = await runExtraction(PropinasSchema, PROPINAS_PROMPT, data, hasFile, hasText, deadlineAt)
-        extracted = r.object as PropinasExtraction
-        provider = r.provider
-        fallbackUsed = r.fallbackUsed
-      }
+      const r = await runExtraction(mode.schema, mode.prompt, data, hasFile, hasText, deadlineAt)
+      extracted = r.object as typeof extracted
+      provider = r.provider
+      fallbackUsed = r.fallbackUsed
       console.log(`[analyzePayrollDocument] ${data.kind} extraído vía ${provider} (fallback=${fallbackUsed})`)
     } catch (err) {
       extractionFailed = true

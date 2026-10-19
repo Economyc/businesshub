@@ -24,13 +24,14 @@ import { regenerateInvoiceSheet } from './invoice-sheet/regenerate.js';
 import { bogotaParts, currentYm, ymKey } from './invoice-sheet/month.js';
 const SECRETS = [driveClientId, driveClientSecret];
 // Mes contable de esta tx (si aplica al Sheet).
-//  - paid invoice/purchase/extra → mes de paidDate ?? date, hora Bogotá.
+//  - paid invoice/purchase/extra/severance → mes de paidDate ?? date, hora Bogotá.
 //  - pending/overdue invoice → mes actual (las pendientes solo viven ahí).
 //  - resto → null (no aparece en la hoja).
 function monthForTx(tx) {
     if (tx.documentKind !== 'invoice' &&
         tx.documentKind !== 'purchase' &&
-        tx.documentKind !== 'extra') {
+        tx.documentKind !== 'extra' &&
+        tx.documentKind !== 'severance') {
         return null;
     }
     if (tx.status === 'paid') {
@@ -111,6 +112,7 @@ export const deleteTransactionWithAttachments = onCall({ region: 'us-central1', 
         tx.sourceDocument?.driveFileId,
         tx.paymentProof?.driveFileId,
         tx.combinedDocument?.driveFileId,
+        tx.severanceDocument?.driveFileId,
     ].filter((id) => typeof id === 'string' && id.length > 0)));
     // Si hay attachments, validar Drive ANTES de tocar Firestore — un Drive
     // desconectado debe abortar limpio, no dejar tx borrada con archivos vivos.

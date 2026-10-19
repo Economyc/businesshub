@@ -72,12 +72,14 @@ export async function regenerateInvoiceSheet(companyId, year, monthIndex, opts) 
     //    interLocal se excluye: sólo aparece en su pestaña (neutralidad F4).
     //    Los turnos extras ('extra', Ecore) entran acá y NO en pestaña aparte: son
     //    gasto pagado del mes y deben sumar en el total que ve el contador; la
-    //    columna Tipo ("Extra") permite aislarlos.
+    //    columna Tipo ("Extra") permite aislarlos. Las liquidaciones ('severance')
+    //    entran igual, con Tipo "Liquidación".
     const paid = txs.filter((t) => t.status === 'paid' &&
         !t.interLocalGroupId &&
         (t.documentKind === 'invoice' ||
             t.documentKind === 'purchase' ||
-            t.documentKind === 'extra') &&
+            t.documentKind === 'extra' ||
+            t.documentKind === 'severance') &&
         inMonthBogota(t.paidDate ?? t.date, year, monthIndex));
     // 5) Pendientes: snapshot de toda la deuda abierta, solo en el mes actual
     const isCurrent = isCurrentMonthBogota(year, monthIndex);

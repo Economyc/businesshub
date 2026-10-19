@@ -1,5 +1,5 @@
 import { type UsageSnapshot } from './ai-usage-stats.js';
-type PayrollKind = 'colilla' | 'propinas';
+type PayrollKind = 'colilla' | 'propinas' | 'liquidacion';
 export declare const analyzePayrollDocument: import("firebase-functions/v2/https").CallableFunction<any, Promise<{
     kind: PayrollKind;
     extracted: {
@@ -16,6 +16,22 @@ export declare const analyzePayrollDocument: import("firebase-functions/v2/https
             amount: number;
             employeeName: string;
         }[];
+    } | {
+        identification: string;
+        otros: number;
+        employeeName: string;
+        salary: number;
+        reason: string;
+        role: string;
+        hireDate: string;
+        terminationDate: string;
+        cesantias: number;
+        interesesCesantias: number;
+        prima: number;
+        vacaciones: number;
+        indemnizacion: number;
+        deducciones: number;
+        netoPagar: number;
     };
     extractionFailed: boolean;
     failureReason: string | undefined;
