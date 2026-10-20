@@ -45,6 +45,10 @@ export const MISSED_IN_AFTER_END_MS = 2 * 60 * 60 * 1000;
 /** ...y nunca si algun turno del empleado empieza a menos de esto: a esa hora
  *  lo normal es que este llegando (cambio de turno, horario que se movio). */
 export const MISSED_IN_ARRIVAL_GUARD_MS = 90 * 60 * 1000;
+/** Una salida sin entrada seguida de otra marcacion del mismo dia laboral al
+ *  menos esto despues era en realidad la llegada (cambio de turno que Horarios
+ *  no reflejaba): se vuelve entrada y la nueva marcacion es la salida. */
+export const MISSED_IN_RECLASSIFY_MIN_MS = 2 * 60 * 60 * 1000;
 /** Para asociar una entrada a su turno: el inicio no puede quedar mas lejos. */
 const OWN_SHIFT_MAX_GAP_MS = 6 * 60 * 60 * 1000;
 const HOUR_MS = 60 * 60 * 1000;
@@ -115,11 +119,29 @@ export function shouldLearn(match) {
  *
  * Sin entrada vigente, la marcacion es entrada salvo que caiga justo al final
  * de un turno al que no marco entrada (`missedIn`): salida sin entrada.
+ *
+ * Al cambio de turno una llegada y una salida sin entrada se ven iguales. Si
+ * despues de una salida sin entrada vuelve a marcar el mismo dia laboral
+ * (`reclassifyLast`), esa era la llegada: se vuelve entrada y esta es la salida.
  */
 export function decidePunch(last, nowMs, shifts = []) {
     if (last?.type === 'in' && openEntryStillValid(last.atMs, nowMs, shifts))
         return { type: 'out', missedIn: false };
+    if (last?.type === 'out' && last.missedIn && missedInWasArrival(last.atMs, nowMs, shifts)) {
+        return { type: 'out', missedIn: false, reclassifyLast: true };
+    }
     return missedShiftEntry(last, nowMs, shifts) ? { type: 'out', missedIn: true } : { type: 'in', missedIn: false };
+}
+/** La salida sin entrada de `outMs` fue en realidad una llegada: pasaron al
+ *  menos MISSED_IN_RECLASSIFY_MIN_MS, sigue el mismo dia laboral (mismo corte
+ *  que una entrada abierta) y ahora no empieza un turno suyo de hoy. */
+function missedInWasArrival(outMs, nowMs, shifts) {
+    if (nowMs - outMs < MISSED_IN_RECLASSIFY_MIN_MS)
+        return false;
+    const today = bogotaDate(nowMs);
+    if (shifts.some((s) => s.date === today && Math.abs(shiftStartMs(s) - nowMs) <= NEW_SHIFT_WINDOW_MS))
+        return false;
+    return openEntryStillValid(outMs, nowMs, shifts);
 }
 export function nextPunchType(last, nowMs, shifts = []) {
     return decidePunch(last, nowMs, shifts).type;

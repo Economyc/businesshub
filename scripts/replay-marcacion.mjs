@@ -67,11 +67,12 @@ for (const cid of companyIds) {
       const prev = rows
         .filter((r) => r.id !== p.id && r.createdMs < nowMs && r.atMs <= nowMs && nowMs - r.atMs < 2 * DAY)
         .sort((a, b) => b.atMs - a.atMs)[0]
-      const last = prev ? { type: prev.type, atMs: prev.atMs } : null
+      const last = prev ? { type: prev.type, atMs: prev.atMs, missedIn: prev.missedIn === true } : null
       if (isDuplicate(last, nowMs)) continue
       const dates = [0, 1, 2].map((k) => bogotaDate(nowMs - k * DAY))
       const own = shifts.filter((s) => s.employeeId === employeeId && dates.includes(s.date))
       const decided = decidePunch(last, nowMs, own)
+      if (decided.reclassifyLast) console.log(`  ↺ ${fmt(nowMs)} ${p.employeeName?.split(' ')[0]} reclasifica la salida sin entrada de ${fmt(last.atMs)} como entrada`)
       const truth = p.type
       companyTotal += 1
       if (decided.type !== truth) {

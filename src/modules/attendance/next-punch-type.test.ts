@@ -127,4 +127,42 @@ describe('nextPunchType', () => {
       expect(nextPunchType({ type: 'out', atMs: t('2026-10-06T12:00') }, t('2026-10-06T16:00'), split)).toBe('in')
     })
   })
+
+  describe('salida sin entrada que era la llegada', () => {
+    const missedOut = (local: string) => ({ type: 'out' as const, atMs: t(local), missedIn: true })
+
+    it('Horarios 9-16 pero llego a las 15:56 y sale 22:43: reclasifica (caso real)', () => {
+      const s = [shift('2026-10-19', '09:00', '16:00')]
+      expect(decidePunch(null, t('2026-10-19T15:56'), s)).toEqual({ type: 'out', missedIn: true })
+      expect(decidePunch(missedOut('2026-10-19T15:56'), t('2026-10-19T22:43'), s))
+        .toEqual({ type: 'out', missedIn: false, reclassifyLast: true })
+    })
+
+    it('si sale despues de medianoche igual reclasifica', () => {
+      const s = [shift('2026-10-19', '09:00', '16:00')]
+      expect(decidePunch(missedOut('2026-10-19T15:56'), t('2026-10-20T00:30'), s).reclassifyLast).toBe(true)
+    })
+
+    it('menos de 2 h despues no reclasifica', () => {
+      const s = [shift('2026-10-19', '09:00', '16:00')]
+      expect(decidePunch(missedOut('2026-10-19T15:56'), t('2026-10-19T17:30'), s).reclassifyLast).toBeUndefined()
+    })
+
+    it('si llega a un turno de hoy es entrada nueva, no reclasifica', () => {
+      const s = [shift('2026-10-19', '09:00', '16:00'), shift('2026-10-19', '19:00', '23:00')]
+      expect(decidePunch(missedOut('2026-10-19T15:56'), t('2026-10-19T19:05'), s))
+        .toEqual({ type: 'in', missedIn: false })
+    })
+
+    it('al dia siguiente es entrada, no reclasifica', () => {
+      const s = [shift('2026-10-19', '09:00', '16:00')]
+      expect(decidePunch(missedOut('2026-10-19T15:56'), t('2026-10-20T09:02'), s))
+        .toEqual({ type: 'in', missedIn: false })
+    })
+
+    it('una salida normal (sin missedIn) no se toca', () => {
+      expect(decidePunch({ type: 'out', atMs: t('2026-10-19T15:56') }, t('2026-10-19T22:43')))
+        .toEqual({ type: 'in', missedIn: false })
+    })
+  })
 })

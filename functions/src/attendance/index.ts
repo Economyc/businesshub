@@ -298,15 +298,19 @@ export const attendancePunch = onCall(
       const p = snap.data() as ProfileDoc
       const recent = await tx.get(recentQuery)
       const last = recent.docs
-        .map((d) => d.data() as { employeeId: string; type: PunchType; at: Timestamp; voided?: boolean })
+        .map((d) => ({ ref: d.ref, ...(d.data() as { employeeId: string; type: PunchType; at: Timestamp; voided?: boolean; missedIn?: boolean }) }))
         .filter((x) => x.employeeId === match.employeeId && !x.voided && x.at.toMillis() <= nowMs)
-        .map((x) => ({ type: x.type, atMs: x.at.toMillis() }))
+        .map((x) => ({ ref: x.ref, type: x.type, atMs: x.at.toMillis(), missedIn: x.missedIn === true }))
         .sort((a, b) => b.atMs - a.atMs)[0] ?? null
       if (isDuplicate(last, nowMs)) {
         return { duplicate: true as const, type: last!.type, atMs: last!.atMs }
       }
-      const { type, missedIn } = decidePunch(last, nowMs, shifts)
+      const { type, missedIn, reclassifyLast } = decidePunch(last, nowMs, shifts)
       const at = Timestamp.fromDate(now)
+      // La salida sin entrada anterior era la llegada (ver decidePunch).
+      if (reclassifyLast && last) {
+        tx.update(last.ref, { type: 'in', flippedFrom: 'out', autoFlipped: true, flippedAt: at, updatedAt: at, missedIn: FieldValue.delete() })
+      }
       tx.set(punchRef, {
         employeeId: match.employeeId,
         employeeName: p.employeeName,
@@ -334,7 +338,7 @@ export const attendancePunch = onCall(
         update.descriptors = learnDescriptor(current, match.probe, p.enrolledCount ?? 1).map((v) => ({ v }))
       }
       tx.update(profileRef, update)
-      return { duplicate: false as const, type, atMs: nowMs, missedIn, learned }
+      return { duplicate: false as const, type, atMs: nowMs, missedIn, reclassified: !!reclassifyLast, learned }
     })
 
     if (!outcome || outcome.duplicate) await photoFile.delete().catch(() => undefined)
@@ -344,7 +348,7 @@ export const attendancePunch = onCall(
       distance: round3(match.distance),
       secondDistance: round3(match.secondDistance),
       probes: probes.length,
-      ...(outcome && !outcome.duplicate ? { type: outcome.type, missedIn: outcome.missedIn, learned: outcome.learned, punchId: punchRef.id } : {}),
+      ...(outcome && !outcome.duplicate ? { type: outcome.type, missedIn: outcome.missedIn, reclassified: outcome.reclassified, learned: outcome.learned, punchId: punchRef.id } : {}),
       client,
     })
     if (!outcome) return { matched: false as const }

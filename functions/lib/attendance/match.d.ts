@@ -41,6 +41,10 @@ export declare const MISSED_IN_AFTER_END_MS: number;
 /** ...y nunca si algun turno del empleado empieza a menos de esto: a esa hora
  *  lo normal es que este llegando (cambio de turno, horario que se movio). */
 export declare const MISSED_IN_ARRIVAL_GUARD_MS: number;
+/** Una salida sin entrada seguida de otra marcacion del mismo dia laboral al
+ *  menos esto despues era en realidad la llegada (cambio de turno que Horarios
+ *  no reflejaba): se vuelve entrada y la nueva marcacion es la salida. */
+export declare const MISSED_IN_RECLASSIFY_MIN_MS: number;
 export declare const DESCRIPTOR_LENGTH = 128;
 export type PunchType = 'in' | 'out';
 /** Turno programado en Horarios (`companies/{cid}/shifts`). */
@@ -85,13 +89,19 @@ export declare function shouldLearn(match: MatchResult): boolean;
  *
  * Sin entrada vigente, la marcacion es entrada salvo que caiga justo al final
  * de un turno al que no marco entrada (`missedIn`): salida sin entrada.
+ *
+ * Al cambio de turno una llegada y una salida sin entrada se ven iguales. Si
+ * despues de una salida sin entrada vuelve a marcar el mismo dia laboral
+ * (`reclassifyLast`), esa era la llegada: se vuelve entrada y esta es la salida.
  */
 export declare function decidePunch(last: {
     type: PunchType;
     atMs: number;
+    missedIn?: boolean;
 } | null, nowMs: number, shifts?: ScheduledShift[]): {
     type: PunchType;
     missedIn: boolean;
+    reclassifyLast?: true;
 };
 export declare function nextPunchType(last: {
     type: PunchType;
