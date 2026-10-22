@@ -94,7 +94,7 @@ const MANUAL_VOIDS = [
         reason: 'Nota de crédito F000-00000008 del 18/08/2026 · motivo "pruebas sistema" · pedido C2-3747 cancelado',
     },
 ];
-function applyManualVoid(v) {
+export function applyManualVoid(v) {
     const mv = MANUAL_VOIDS.find((m) => Number(v.id_local) === m.localId &&
         String(v.serie ?? '').trim() === m.serie &&
         String(v.correlativo ?? '').trim() === m.correlativo);

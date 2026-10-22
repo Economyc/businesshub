@@ -23,6 +23,7 @@ export interface SaveStats {
 export interface SaveOptions {
     stampEmpty?: boolean;
 }
+export declare function applyManualVoid(v: PosVentaLike): PosVentaLike;
 export declare function saveVentasToCacheServer(companyId: string, ventas: PosVentaLike[], localIds: number[], startDate: string, endDate: string, previousCounts: PreviousCounts, options?: SaveOptions): Promise<SaveStats>;
 export interface DeleteMonthStats {
     month: string;

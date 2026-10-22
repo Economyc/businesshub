@@ -17,6 +17,4 @@ export declare const DATE_PICKER_TEXT = "\uD83D\uDCC5 \u00BFQu\u00E9 fecha?";
 export declare function buildDatePicker(stateId: string, year?: number, month?: number): InlineKeyboard;
 /** Recorta un texto para que entre en una etiqueta de botón. */
 export declare function clampLabel(s: string, max?: number): string;
-/** "Proveedor — $monto" para botones de factura. */
-export declare function invoiceButtonLabel(supplierName: string | null, amount: number): string;
 //# sourceMappingURL=menus.d.ts.map

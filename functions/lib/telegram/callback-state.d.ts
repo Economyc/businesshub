@@ -1,4 +1,4 @@
-export type CallbackStateKind = 'payFlow' | 'quickEntry';
+export type CallbackStateKind = 'quickEntry';
 export interface CallbackState<P = unknown> {
     stateId: string;
     chatId: number;

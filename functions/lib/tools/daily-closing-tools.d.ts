@@ -20,6 +20,7 @@ export declare function createDailyClosingTools(companyId: string): {
             qr: number;
             datafono: number;
             rappiVentas: number;
+            didiVentas: number;
             efectivo: number;
             ventaTotal: number;
             propinas: number;
@@ -32,6 +33,7 @@ export declare function createDailyClosingTools(companyId: string): {
             qr: number;
             datafono: number;
             rappiVentas: number;
+            didiVentas: number;
             efectivo: number;
             ventaTotal: number;
             propinas: number;
@@ -55,6 +57,7 @@ export declare function createDailyClosingTools(companyId: string): {
                 qr: number;
                 datafono: number;
                 rappiVentas: number;
+                didiVentas: number;
                 efectivo: number;
                 ventaTotal: number;
                 propinas: number;
@@ -67,6 +70,7 @@ export declare function createDailyClosingTools(companyId: string): {
                 qr: number;
                 datafono: number;
                 rappiVentas: number;
+                didiVentas: number;
                 efectivo: number;
                 ventaTotal: number;
                 propinas: number;
@@ -97,6 +101,7 @@ export declare function createDailyClosingTools(companyId: string): {
             qr: number;
             datafono: number;
             rappiVentas: number;
+            didiVentas: number;
             efectivo: number;
             ventaTotal: number;
             propinas: number;
@@ -124,6 +129,7 @@ export declare function createDailyClosingTools(companyId: string): {
                 qr: number;
                 datafono: number;
                 rappiVentas: number;
+                didiVentas: number;
                 efectivo: number;
                 ventaTotal: number;
                 propinas: number;
@@ -240,6 +246,7 @@ export declare function createDailyClosingTools(companyId: string): {
         qr: z.ZodNumber;
         datafono: z.ZodNumber;
         rappiVentas: z.ZodNumber;
+        didiVentas: z.ZodOptional<z.ZodNumber>;
         efectivo: z.ZodNumber;
         propinas: z.ZodNumber;
         gastos: z.ZodNumber;
@@ -258,6 +265,7 @@ export declare function createDailyClosingTools(companyId: string): {
         cajaMenor: number;
         entregaEfectivo: number;
         responsable: string;
+        didiVentas?: number | undefined;
     }, {
         date: string;
         propinas: number;
@@ -270,6 +278,7 @@ export declare function createDailyClosingTools(companyId: string): {
         cajaMenor: number;
         entregaEfectivo: number;
         responsable: string;
+        didiVentas?: number | undefined;
     }>, unknown> & {
         execute: undefined;
     };

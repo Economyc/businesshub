@@ -37,17 +37,15 @@ import {
 } from './confirmations.js'
 import { executeServerMutation, type MutationAttachment } from './mutations.js'
 import { downloadTelegramFile, TelegramFileError } from './files.js'
-import { resolveCompany, type CompanyInfo } from './resolve-payee.js'
+import { resolveCompany, resolvePayeeOnCompany, type CompanyInfo } from './resolve-payee.js'
 import { toTelegramText, chunkText } from './format.js'
 import { db, fetchCollection } from '../firestore.js'
 import type { UserAgentMemory } from '../system-prompt.js'
 import { createCallbackRouter, type CallbackDeps } from './callbacks.js'
 import { buildMainMenu, MAIN_MENU_TEXT } from './menus.js'
 import { buildCompanySelector, registerCompanySelect } from './company-select.js'
-import { openPayFlow, registerPayFlow } from './pay-flow.js'
 import { startQuickEntry, registerQuickEntry, loadQuickEntryState, quickEntryInstructions } from './quick-entry.js'
 import { registerDatePicker } from './date-picker.js'
-import { sendPendingPaymentsPdf, registerPendingPdf } from './pending-pdf.js'
 import { patchCallbackState } from './callback-state.js'
 
 export interface BotConfig {
@@ -141,13 +139,13 @@ async function loadSuppliersBlock(companyId: string): Promise<string> {
         s.category ? `- ${s.name} → categoría: ${s.category}` : `- ${s.name}`,
       )
       value = [
-        '## Proveedores registrados',
-        'Al registrar una factura/compra (createPayableDocument), compara el proveedor del documento con esta lista.',
-        'Si encuentras el más parecido (aunque el nombre del documento difiera, ej. "Super Carner Walter" ≈ "Carnes Walter"):',
-        '- usa el nombre EXACTO de la lista en supplierName,',
-        '- usa la categoría registrada de esa línea en el campo category,',
-        '- NO marques customSupplier.',
-        'Solo si ninguno calza razonablemente, trátalo como proveedor ocasional (customSupplier=true) con el nombre del documento.',
+        '## Registro de facturas: proveedor y categoría (IMPORTANTE — anula instrucciones previas)',
+        'El sistema vincula AUTOMÁTICAMENTE la factura al proveedor registrado correcto (tolera diferencias de nombre y errores de OCR, ej. "Super Carner Walter" → "Carnes Walter") y le aplica su categoría registrada. Por eso, al recibir una foto/PDF de factura o compra:',
+        '- Invoca **createPayableDocument DE UNA, sin pedir permiso**, con el nombre del proveedor tal como aparece en el documento y **customSupplier=false** (o sin ese campo). La tarjeta de confirmación que verá el usuario ya traerá el proveedor canónico y su categoría del sistema — no tienes que acertarlos tú.',
+        '- **NO preguntes** "¿lo registro como ocasional?" ni asumas customSupplier=true. Solo si la herramienta responde "No encontré … en proveedores", recién ahí ofrece registrarlo o usarlo como ocasional.',
+        '- En tu resumen de texto, si reconoces el proveedor en la lista de abajo, usa su nombre exacto y su categoría (no inventes una).',
+        '',
+        'Proveedores registrados (referencia, nombre → categoría):',
         ...lines,
       ].join('\n')
     }
@@ -284,6 +282,31 @@ async function deliverAgentResult(
     ]
   }
 
+  // Para facturas/compras: resolvemos el proveedor contra el maestro ANTES de
+  // armar la card y guardar la mutación, y reescribimos los args con el nombre
+  // canónico + la categoría registrada. Es AUTORITATIVO: corre siempre e ignora
+  // lo que el LLM haya decidido (incluido customSupplier=true) — el LLM es poco
+  // fiable matcheando nombres de OCR. Si resuelve, fuerza proveedor registrado;
+  // si NO resuelve, se respetan los args del LLM (proveedor ocasional/desconocido).
+  if (first.toolName === 'createPayableDocument') {
+    try {
+      const resolution = await resolvePayeeOnCompany(
+        tc.activeCompanyId,
+        'supplier',
+        String(first.args.supplierName ?? ''),
+      )
+      if (resolution.ok) {
+        first.args.supplierName = resolution.payee.name
+        first.args.customSupplier = false
+        if (resolution.supplierCategory?.trim()) {
+          first.args.category = resolution.supplierCategory.trim()
+        }
+      }
+    } catch {
+      /* deja los args como están; la mutación reintenta la resolución al confirmar */
+    }
+  }
+
   if (turn.text) await sendAgentText(ctx, turn.text)
 
   const needsFile = FILE_TOOL_NAMES.has(first.toolName)
@@ -320,30 +343,24 @@ async function deliverAgentResult(
 export function createTelegramBot(cfg: BotConfig): Bot<BotContext> {
   const bot = new Bot<BotContext>(cfg.token)
 
-  // Router de callbacks por namespace (m:/co:/pf:/qe:/dp:/pp:). Convive con el
+  // Router de callbacks por namespace (m:/co:/qe:/dp:). Convive con el
   // flujo legacy cf:/cx: — ver el handler callback_query:data más abajo.
   const router = createCallbackRouter()
   registerCompanySelect(router)
-  registerPayFlow(router)
   registerQuickEntry(router)
   registerDatePicker(router)
-  registerPendingPdf(router)
 
   // Menú principal (namespace m:). Reusa los entry points de cada flujo.
   router.register('m', async (ctx, args, deps) => {
     const action = args[0]
     if (action === 'home') {
       await ctx.editMessageText(MAIN_MENU_TEXT, { reply_markup: buildMainMenu() }).catch(() => {})
-    } else if (action === 'pay') {
-      await openPayFlow(ctx, deps)
     } else if (action === 'add') {
       await startQuickEntry(ctx, deps.chatId)
     } else if (action === 'co') {
       const selector = await buildCompanySelector(deps.uid, deps.chatId)
       if (selector) await ctx.editMessageText(selector.text, { reply_markup: selector.keyboard }).catch(() => {})
       else await ctx.editMessageText('Tu usuario no tiene empresas activas.').catch(() => {})
-    } else if (action === 'pdf') {
-      await sendPendingPaymentsPdf(ctx, deps)
     }
   })
 
@@ -419,16 +436,8 @@ export function createTelegramBot(cfg: BotConfig): Bot<BotContext> {
     await ctx.reply(MAIN_MENU_TEXT, { reply_markup: buildMainMenu() })
   })
 
-  bot.command('pagar', async (ctx) => {
-    await openPayFlow(ctx, { cfg, chatId: ctx.chat.id, uid: ctx.state.uid })
-  })
-
   bot.command('registrar', async (ctx) => {
     await startQuickEntry(ctx, ctx.chat.id)
-  })
-
-  bot.command('pendientes', async (ctx) => {
-    await sendPendingPaymentsPdf(ctx, { cfg, chatId: ctx.chat.id, uid: ctx.state.uid })
   })
 
   bot.command('empresa', async (ctx) => {
@@ -462,7 +471,7 @@ export function createTelegramBot(cfg: BotConfig): Bot<BotContext> {
     // answerCallbackQuery YA, antes de ejecutar nada (Telegram exige <15s).
     await ctx.answerCallbackQuery().catch(() => {})
 
-    // Router de menús/botones (m:/co:/pf:/qe:/dp:/pp:). Si lo maneja, terminamos;
+    // Router de menús/botones (m:/co:/qe:/dp:). Si lo maneja, terminamos;
     // si no, cae al flujo legacy cf:/cx: de confirmación de mutaciones.
     const chatId = ctx.chat!.id
     const uid = ctx.state.uid
@@ -483,7 +492,7 @@ export function createTelegramBot(cfg: BotConfig): Bot<BotContext> {
     const mutation = claim.mutation
     await updateChatState(chatId, { pendingMutationId: null })
 
-    // Mutaciones nacidas de botón (pay-flow/quick-entry): el toolCallId es
+    // Mutaciones nacidas de botón (origin 'ui'): el toolCallId es
     // sintético y no hay tool-call en el historial → ejecutar sin LLM ni tocar
     // el historial conversacional. (Las del agente IA siguen el flujo de abajo.)
     if (mutation.origin === 'ui') {

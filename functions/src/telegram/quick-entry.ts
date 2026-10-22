@@ -1,10 +1,9 @@
-// Registro rápido por botones: tipo (gasto/factura/pago) → proveedor → fecha →
+// Registro rápido por botones: tipo (gasto/factura) → proveedor → fecha →
 // el usuario escribe monto y concepto. El último paso reusa el agente IA (parseo
 // robusto de "50 mil") con los campos tipo/proveedor/fecha BLOQUEADOS vía
 // extraSystemContext; el LLM emite createTransaction → tarjeta cf:/cx: normal.
 //
-// "Pagar factura" redirige al pay-flow (unifica). El paso de texto se maneja en
-// bot.ts (bot.on('message')) leyendo el flag chatState.awaitingQuickEntry.
+// El paso de texto se maneja en bot.ts (bot.on('message')) leyendo el flag chatState.awaitingQuickEntry.
 
 import { InlineKeyboard } from 'grammy'
 import type { Context } from 'grammy'
@@ -19,7 +18,6 @@ import {
   type CallbackState,
 } from './callback-state.js'
 import { backToMenuKeyboard, buildDatePicker, DATE_PICKER_TEXT, clampLabel, isoLabel } from './menus.js'
-import { openPayFlow } from './pay-flow.js'
 
 type BotCtx = Context & { state: { uid: string } }
 
@@ -40,9 +38,7 @@ function chooserKeyboard(): InlineKeyboard {
   return backToMenuKeyboard(
     new InlineKeyboard()
       .text('💸 Gasto', 'qe:type:expense')
-      .text('🧾 Factura (CxP)', 'qe:type:invoice')
-      .row()
-      .text('✅ Pagar factura', 'qe:type:pago'),
+      .text('🧾 Factura (CxP)', 'qe:type:invoice'),
   )
 }
 
@@ -147,11 +143,7 @@ export function registerQuickEntry(router: CallbackRouter): void {
     }
 
     if (action === 'type') {
-      const kind = args[1] // 'expense' | 'invoice' | 'pago'
-      if (kind === 'pago') {
-        await openPayFlow(ctx, deps)
-        return
-      }
+      const kind = args[1] // 'expense' | 'invoice'
       if (kind !== 'expense' && kind !== 'invoice') return
       const companyId = await resolveActiveCompanyId(uid, chatId)
       if (!companyId) {

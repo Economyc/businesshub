@@ -29,8 +29,8 @@ export type PayeeResolution = {
 };
 /**
  * Puntaje de similitud entre el proveedor extraído del documento y un
- * proveedor registrado. Misma lógica/umbral que la web (analyze-invoice-document.ts):
- * exact=1.0, inclusión=0.85, tokens compartidos (>2 chars) / max. Rango [0,1].
+ * proveedor registrado. exact=1.0, inclusión=0.85; si no, fracción de tokens
+ * (>2 chars) que tienen un casi-gemelo en el otro (tolera OCR/tipeo). Rango [0,1].
  */
 export declare function similarSupplier(extractedName: string, supplierName: string): number;
 export declare function resolvePayeeOnCompany(companyId: string, type: PayeeType, name: string): Promise<PayeeResolution>;

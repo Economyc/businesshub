@@ -223,8 +223,7 @@ export function createFinanceTools(companyId) {
                     };
                     entry.count += 1;
                     // Lo que falta GIRARLE al proveedor, no el bruto causado: descuenta la
-                    // retefuente y los abonos ya hechos (mismo criterio que el PDF de
-                    // pendientes de Telegram, para que las dos cifras coincidan).
+                    // retefuente y los abonos ya hechos (pendingOf).
                     entry.total += pendingOf(t);
                     const d = tsToDate(t.date);
                     if (d && (!entry.oldestDate || d < entry.oldestDate))

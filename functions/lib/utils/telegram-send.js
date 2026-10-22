@@ -1,5 +1,5 @@
 // Helpers de envío a la API de Telegram (texto y documentos adjuntos).
-// Usados por notify-pending-payments.ts.
+// Usados por notify-daily-provisions.ts.
 export async function sendMessage(token, chatId, text, replyMarkup) {
     const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
         method: 'POST',

@@ -156,7 +156,7 @@ const MANUAL_VOIDS: ManualVoid[] = [
   },
 ]
 
-function applyManualVoid(v: PosVentaLike): PosVentaLike {
+export function applyManualVoid(v: PosVentaLike): PosVentaLike {
   const mv = MANUAL_VOIDS.find(
     (m) =>
       Number(v.id_local) === m.localId &&

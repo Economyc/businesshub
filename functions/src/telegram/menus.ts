@@ -1,26 +1,20 @@
 // Builders de teclados inline y helpers de fecha. Módulo "puro": no importa los
-// flujos (pay-flow/quick-entry) para evitar ciclos — ellos importan de aquí.
+// flujos (quick-entry) para evitar ciclos — ellos importan de aquí.
 
 import { InlineKeyboard } from 'grammy'
-import { formatCop } from './format.js'
 
 // ─── Menú principal ──────────────────────────────────────────────────────
 
 export function buildMainMenu(): InlineKeyboard {
   return new InlineKeyboard()
-    .text('💸 Pagar facturas', 'm:pay')
     .text('➕ Registrar', 'm:add')
-    .row()
     .text('🏢 Cambiar empresa', 'm:co')
-    .text('📄 PDF pendientes', 'm:pdf')
 }
 
 export const MAIN_MENU_TEXT =
   '🏠 Menú — elige una opción:\n\n' +
-  '• 💸 Pagar facturas pendientes\n' +
-  '• ➕ Registrar gasto, factura o pago\n' +
-  '• 🏢 Cambiar de empresa\n' +
-  '• 📄 PDF de pagos pendientes'
+  '• ➕ Registrar gasto o factura\n' +
+  '• 🏢 Cambiar de empresa'
 
 export function backToMenuKeyboard(extra?: InlineKeyboard): InlineKeyboard {
   const kb = extra ?? new InlineKeyboard()
@@ -116,10 +110,4 @@ export function buildDatePicker(stateId: string, year?: number, month?: number):
 export function clampLabel(s: string, max = 28): string {
   const clean = s.replace(/\s+/g, ' ').trim()
   return clean.length <= max ? clean : `${clean.slice(0, max - 1)}…`
-}
-
-/** "Proveedor — $monto" para botones de factura. */
-export function invoiceButtonLabel(supplierName: string | null, amount: number): string {
-  const name = clampLabel(supplierName || 'Sin proveedor', 20)
-  return `${name} — ${formatCop(amount)}`
 }

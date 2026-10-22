@@ -14,7 +14,7 @@ import { db } from '../firestore.js'
 
 const STATE_TTL_MS = 60 * 60 * 1000 // 1h
 
-export type CallbackStateKind = 'payFlow' | 'quickEntry'
+export type CallbackStateKind = 'quickEntry'
 
 export interface CallbackState<P = unknown> {
   stateId: string

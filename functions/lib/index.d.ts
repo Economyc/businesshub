@@ -28,7 +28,7 @@ export { analyzeInvoiceDocument } from './analyze-invoice-document.js';
 export { analyzePayrollDocument } from './analyze-payroll-document.js';
 export { reconcileBankStatement } from './bank-reconcile.js';
 export { telegramBot, telegramLinkStart } from './telegram/index.js';
-export { notifyPendingPayments } from './notify-pending-payments.js';
+export { notifyDailyProvisions } from './notify-daily-provisions.js';
 export { seedGlobalMembersOnCompanyCreate } from './seed-global-members.js';
 export { attendanceKioskLink, attendanceKioskInfo, attendancePunch, attendanceFlipPunch } from './attendance/index.js';
 //# sourceMappingURL=index.d.ts.map

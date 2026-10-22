@@ -3,7 +3,7 @@
 // copiando socios y montos del último mes con ROIs registrados. El ROI se
 // trata como responsabilidad de la operación: se genera como gasto pendiente
 // para que sí o sí entre al flujo de pagos (aparece en /facturacion/roi de
-// Ecore y en el PDF diario de pagos pendientes).
+// Ecore).
 //
 // Comportamiento emergente intencional: borrar el pendiente de un socio un
 // mes lo saca de la copia del mes siguiente; editar un monto propaga el nuevo

@@ -24,7 +24,7 @@ export interface PendingMutation {
   telegramFileName: string | null
   status: PendingStatus
   telegramMessageId?: number
-  // 'ui' = la mutación nació de un botón (pay-flow/quick-entry) sin tool-call en
+  // 'ui' = la mutación nació de un botón sin tool-call en
   // el historial; al confirmar se ejecuta sin pasar por el LLM (ver bot.ts). El
   // default 'llm' preserva el flujo del agente (inyecta tool-result + cierre).
   origin?: 'llm' | 'ui'

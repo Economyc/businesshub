@@ -23,10 +23,43 @@ function normalizeFuzzy(s) {
         .replace(/\s+/g, ' ')
         .trim();
 }
+/** Distancia de Levenshtein (edición) entre dos strings cortos. */
+function levenshtein(a, b) {
+    const m = a.length;
+    const n = b.length;
+    if (m === 0)
+        return n;
+    if (n === 0)
+        return m;
+    let prev = Array.from({ length: n + 1 }, (_, j) => j);
+    let cur = new Array(n + 1);
+    for (let i = 1; i <= m; i++) {
+        cur[0] = i;
+        for (let j = 1; j <= n; j++) {
+            const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+            cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost);
+        }
+        ;
+        [prev, cur] = [cur, prev];
+    }
+    return prev[n];
+}
+/** ¿Dos tokens son "casi" el mismo? (idéntico o ≤20% de ediciones). Captura
+ * variantes de OCR/tipeo como "carner" ≈ "carnes". */
+function tokenClose(t, set) {
+    for (const u of set) {
+        if (t === u)
+            return true;
+        const maxLen = Math.max(t.length, u.length);
+        if (maxLen >= 4 && 1 - levenshtein(t, u) / maxLen >= 0.8)
+            return true;
+    }
+    return false;
+}
 /**
  * Puntaje de similitud entre el proveedor extraído del documento y un
- * proveedor registrado. Misma lógica/umbral que la web (analyze-invoice-document.ts):
- * exact=1.0, inclusión=0.85, tokens compartidos (>2 chars) / max. Rango [0,1].
+ * proveedor registrado. exact=1.0, inclusión=0.85; si no, fracción de tokens
+ * (>2 chars) que tienen un casi-gemelo en el otro (tolera OCR/tipeo). Rango [0,1].
  */
 export function similarSupplier(extractedName, supplierName) {
     const a = normalizeFuzzy(extractedName);
@@ -43,7 +76,7 @@ export function similarSupplier(extractedName, supplierName) {
         return 0;
     let shared = 0;
     for (const t of ta)
-        if (tb.has(t))
+        if (tokenClose(t, tb))
             shared++;
     return shared / Math.max(ta.size, tb.size);
 }

@@ -1224,6 +1224,7 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
             qr: number;
             datafono: number;
             rappiVentas: number;
+            didiVentas: number;
             efectivo: number;
             ventaTotal: number;
             propinas: number;
@@ -1236,6 +1237,7 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
             qr: number;
             datafono: number;
             rappiVentas: number;
+            didiVentas: number;
             efectivo: number;
             ventaTotal: number;
             propinas: number;
@@ -1259,6 +1261,7 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
                 qr: number;
                 datafono: number;
                 rappiVentas: number;
+                didiVentas: number;
                 efectivo: number;
                 ventaTotal: number;
                 propinas: number;
@@ -1271,6 +1274,7 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
                 qr: number;
                 datafono: number;
                 rappiVentas: number;
+                didiVentas: number;
                 efectivo: number;
                 ventaTotal: number;
                 propinas: number;
@@ -1301,6 +1305,7 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
             qr: number;
             datafono: number;
             rappiVentas: number;
+            didiVentas: number;
             efectivo: number;
             ventaTotal: number;
             propinas: number;
@@ -1328,6 +1333,7 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
                 qr: number;
                 datafono: number;
                 rappiVentas: number;
+                didiVentas: number;
                 efectivo: number;
                 ventaTotal: number;
                 propinas: number;
@@ -1444,6 +1450,7 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
         qr: import("zod").ZodNumber;
         datafono: import("zod").ZodNumber;
         rappiVentas: import("zod").ZodNumber;
+        didiVentas: import("zod").ZodOptional<import("zod").ZodNumber>;
         efectivo: import("zod").ZodNumber;
         propinas: import("zod").ZodNumber;
         gastos: import("zod").ZodNumber;
@@ -1462,6 +1469,7 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
         cajaMenor: number;
         entregaEfectivo: number;
         responsable: string;
+        didiVentas?: number | undefined;
     }, {
         date: string;
         propinas: number;
@@ -1474,6 +1482,7 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
         cajaMenor: number;
         entregaEfectivo: number;
         responsable: string;
+        didiVentas?: number | undefined;
     }>, unknown> & {
         execute: undefined;
     };
@@ -2807,6 +2816,8 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
             documentKind: {} | null;
             docNumber: {} | null;
             payeeName: string | null;
+            withholdingAmount: number;
+            payableAmount: number;
             id: unknown;
             concept: unknown;
             category: unknown;
@@ -2836,6 +2847,8 @@ export declare function createAgentTools(companyId: string, threadId?: string): 
                 documentKind: {} | null;
                 docNumber: {} | null;
                 payeeName: string | null;
+                withholdingAmount: number;
+                payableAmount: number;
                 id: unknown;
                 concept: unknown;
                 category: unknown;
