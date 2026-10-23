@@ -25,9 +25,10 @@ fi
 # La API de Coolify no es accesible desde fuera: hzcol.economyc.cc esta detras de
 # Cloudflare Access y responde 302 al login. Por eso se llama a localhost:8000
 # desde dentro del server, via SSH.
+# $2 = metodo HTTP (default GET). Desde 2026-10-23 /deploy exige POST.
 coolify() {
   ssh -i "$SSH_KEY" -o ConnectTimeout=20 "$SERVER" \
-    "curl -s -H 'Authorization: Bearer $TOKEN' '$1'"
+    "curl -s -X ${2:-GET} -H 'Authorization: Bearer $TOKEN' '$1'"
 }
 
 # Fase 1: Git
@@ -46,7 +47,7 @@ fi
 
 # Fase 2: disparar rebuild (no hay auto-deploy por webhook)
 echo "Disparando build en Coolify..."
-RESP=$(coolify "http://localhost:8000/api/v1/deploy?uuid=$APP_UUID&force=false")
+RESP=$(coolify "http://localhost:8000/api/v1/deploy?uuid=$APP_UUID&force=false" POST)
 DEPLOY_UUID=$(echo "$RESP" | grep -o '"deployment_uuid":"[^"]*"' | cut -d'"' -f4)
 
 if [ -z "$DEPLOY_UUID" ]; then
