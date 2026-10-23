@@ -496,10 +496,11 @@ export function ClosingList({ accumulatedOwnerOnly = false }: { accumulatedOwner
 
   return (
     <PageTransition>
-      <PageHeader title="Cierres de Caja">
-        {/* accumulatedOwnerOnly marca App2, que es la única con /tutoriales. */}
-        <ClosingHelp showDidi={hasDidi} tutorialsHref={accumulatedOwnerOnly ? '/tutoriales/cierres' : undefined} />
-      </PageHeader>
+      <PageHeader
+        title="Cierres de Caja"
+        // accumulatedOwnerOnly marca App2, que es la única con /tutoriales.
+        titleAddon={<ClosingHelp showDidi={hasDidi} tutorialsHref={accumulatedOwnerOnly ? '/tutoriales/cierres' : undefined} />}
+      />
 
       {/* Tabs */}
       <UnderlineButtonTabs

@@ -6,10 +6,12 @@ interface PageHeaderProps {
   title: string
   subtitle?: ReactNode
   backTo?: string
+  /** Va pegado al título (ej. botón de ayuda del módulo). */
+  titleAddon?: ReactNode
   children?: ReactNode
 }
 
-export function PageHeader({ title, subtitle, backTo, children }: PageHeaderProps) {
+export function PageHeader({ title, subtitle, backTo, titleAddon, children }: PageHeaderProps) {
   const navigate = useNavigate()
   return (
     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
@@ -24,7 +26,10 @@ export function PageHeader({ title, subtitle, backTo, children }: PageHeaderProp
           </button>
         )}
         <div className="min-w-0">
-          <h1 className="text-heading font-semibold text-dark-graphite truncate">{title}</h1>
+          <div className="flex items-center gap-1 min-w-0">
+            <h1 className="text-heading font-semibold text-dark-graphite truncate">{title}</h1>
+            {titleAddon && <div className="shrink-0">{titleAddon}</div>}
+          </div>
           {subtitle && <div className="mt-1">{subtitle}</div>}
         </div>
       </div>
